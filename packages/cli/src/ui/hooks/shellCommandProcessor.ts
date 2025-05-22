@@ -129,13 +129,37 @@ export const useShellCommandProcessor = (
             setPendingHistoryItem({ type: 'info', text: output });
           });
 
+          // disable & save all stdin listeners to be restored onExit
+          const origStdinListeners = new Map<
+            string | symbol,
+            Array<(...args: unknown[]) => void>
+          >();
+          process.stdin.eventNames().forEach((eventName) => {
+            const listeners = process.stdin
+              .listeners(eventName)
+              .slice() as Array<(...args: unknown[]) => void>;
+            if (listeners.length > 0) {
+              origStdinListeners.set(eventName, listeners);
+              listeners.forEach((listener) => {
+                process.stdin.off(eventName, listener);
+              });
+            }
+          });
+
           const stdinListener = (data: Buffer) => {
             child.write(data.toString());
           };
           process.stdin.on('data', stdinListener);
 
           child.onExit(({ exitCode, signal }) => {
+            // restore original stdin listeners
             process.stdin.removeListener('data', stdinListener);
+            origStdinListeners.forEach((listeners, eventName) => {
+              listeners.forEach((listener) =>
+                process.stdin.on(eventName as string, listener),
+              );
+            });
+
             setPendingHistoryItem(null);
 
             output = output.trim() || '(Command produced no output)';
