@@ -15,3 +15,9 @@
     (literal "/dev/stderr")
     (literal "/dev/null")
 )
+
+;; additional permissions for node-pty
+(allow file-write*
+    (regex #"^/dev/tty.*")
+    (regex #"^/dev/ptmx$")
+)

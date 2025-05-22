@@ -72,6 +72,8 @@
     (literal "/dev/stdout")
     (literal "/dev/stderr")
     (literal "/dev/null")
+    (regex #"^/dev/tty.*")
+    (regex #"^/dev/ptmx$")
 )
 
 ;; allow outbound network connections
@@ -86,3 +88,10 @@
 ;; enable terminal access required by ink
 ;; fixes setRawMode EPERM failure (at node:tty:81:24)
 (allow file-ioctl (regex #"^/dev/tty.*"))
+
+;; additional permissions for node-pty
+(allow file-write*
+    (regex #"^/dev/tty.*")
+    (regex #"^/dev/ptmx$")
+)
+(allow file-ioctl (regex #"^/dev/ptmx$"))

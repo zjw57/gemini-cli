@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { spawn } from 'child_process';
 import type { HistoryItemWithoutId } from '../types.js';
 import type { exec as ExecType } from 'child_process';
 import { useCallback } from 'react';
@@ -15,6 +14,7 @@ import crypto from 'crypto';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
+import pty from 'node-pty';
 
 /**
  * Hook to process shell commands (e.g., !ls, $pwd).
@@ -115,35 +115,32 @@ export const useShellCommandProcessor = (
             },
           );
         } else {
-          const child = spawn('bash', ['-c', commandToExecute], {
+          const child = pty.spawn('bash', ['-c', commandToExecute], {
+            name: 'xterm-color',
+            cols: process.stdout.columns,
+            rows: Math.min(20, process.stdout.rows),
             cwd: targetDir,
-            stdio: ['ignore', 'pipe', 'pipe'],
+            env: process.env,
           });
 
           let output = '';
-          const handleOutput = (data: string) => {
+          child.onData((data: string) => {
             output += data;
-            setPendingHistoryItem({
-              type: 'info',
-              text: output,
-            });
-          };
-          child.stdout.on('data', handleOutput);
-          child.stderr.on('data', handleOutput);
-
-          let error: Error | null = null;
-          child.on('error', (err: Error) => {
-            error = err;
+            setPendingHistoryItem({ type: 'info', text: output });
           });
 
-          child.on('close', (code, signal) => {
+          const stdinListener = (data: Buffer) => {
+            child.write(data.toString());
+          };
+          process.stdin.on('data', stdinListener);
+
+          child.onExit(({ exitCode, signal }) => {
+            process.stdin.removeListener('data', stdinListener);
             setPendingHistoryItem(null);
+
             output = output.trim() || '(Command produced no output)';
-            if (error) {
-              const text = `${error.message.replace(commandToExecute, rawQuery)}\n${output}`;
-              addItemToHistory({ type: 'error', text }, userMessageTimestamp);
-            } else if (code !== 0) {
-              const text = `Command exited with code ${code}\n${output}`;
+            if (exitCode !== 0) {
+              const text = `Command exited with code ${exitCode}\n${output}`;
               addItemToHistory({ type: 'error', text }, userMessageTimestamp);
             } else if (signal) {
               const text = `Command terminated with signal ${signal}\n${output}`;
