@@ -40,6 +40,7 @@ import { useConsolePatcher } from './components/ConsolePatcher.js';
 import { DetailedMessagesDisplay } from './components/DetailedMessagesDisplay.js';
 import { HistoryItemDisplay } from './components/HistoryItemDisplay.js';
 import { ContextSummaryDisplay } from './components/ContextSummaryDisplay.js';
+import { TrackedFilesDisplay } from './components/TrackedFilesDisplay.js';
 import { useHistory } from './hooks/useHistoryManager.js';
 import process from 'node:process';
 import {
@@ -167,6 +168,7 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
   const { handleSlashCommand, slashCommands } = useSlashCommandProcessor(
     config,
     history,
+    config.getFileContextService(),
     addItem,
     clearItems,
     loadHistory,
@@ -517,6 +519,10 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
                       showToolDescriptions={showToolDescriptions}
                     />
                   )}
+                  <TrackedFilesDisplay
+                    fileContextService={config.getFileContextService()}
+                    projectRoot={config.getTargetDir()}
+                  />
                 </Box>
                 <Box>
                   {showAutoAcceptIndicator !== ApprovalMode.DEFAULT &&

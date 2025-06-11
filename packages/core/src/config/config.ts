@@ -24,6 +24,13 @@ import { MemoryTool, setGeminiMdFilename } from '../tools/memoryTool.js';
 import { WebSearchTool } from '../tools/web-search.js';
 import { GeminiClient } from '../core/client.js';
 import { GEMINI_CONFIG_DIR as GEMINI_DIR } from '../tools/memoryTool.js';
+import {
+  FileContextService,
+} from '../services/fileContextService.js';
+import {
+  TrackFileTool,
+  UntrackFileTool,
+} from '../tools/track-file.js';
 import { FileDiscoveryService } from '../services/fileDiscoveryService.js';
 import { GitService } from '../services/gitService.js';
 import { initializeTelemetry } from '../telemetry/index.js';
@@ -115,6 +122,7 @@ export class Config {
   private fileDiscoveryService: FileDiscoveryService | null = null;
   private gitService: GitService | undefined = undefined;
   private readonly checkpoint: boolean;
+  private fileContextService: FileContextService;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -154,6 +162,7 @@ export class Config {
       this.geminiIgnorePatterns = params.geminiIgnorePatterns;
     }
 
+    this.fileContextService = new FileContextService();
     this.toolRegistry = createToolRegistry(this);
     this.geminiClient = new GeminiClient(this);
 
@@ -297,6 +306,10 @@ export class Config {
     return this.checkpoint;
   }
 
+  getFileContextService(): FileContextService {
+    return this.fileContextService;
+  }
+
   async getFileService(): Promise<FileDiscoveryService> {
     if (!this.fileDiscoveryService) {
       this.fileDiscoveryService = new FileDiscoveryService(this.targetDir);
@@ -390,6 +403,12 @@ export function createToolRegistry(config: Config): Promise<ToolRegistry> {
   registerCoreTool(ShellTool, config);
   registerCoreTool(MemoryTool);
   registerCoreTool(WebSearchTool, config);
+
+  // Register context tools unconditionally for now.
+  const fileContextService = config.getFileContextService();
+  registry.registerTool(new TrackFileTool(fileContextService));
+  registry.registerTool(new UntrackFileTool(fileContextService));
+
   return (async () => {
     await registry.discoverTools();
     return registry;

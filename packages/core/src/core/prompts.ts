@@ -14,6 +14,7 @@ import { GrepTool } from '../tools/grep.js';
 import { ReadFileTool } from '../tools/read-file.js';
 import { ReadManyFilesTool } from '../tools/read-many-files.js';
 import { ShellTool } from '../tools/shell.js';
+import { TrackFileTool, UntrackFileTool } from '../tools/track-file.js';
 import { WriteFileTool } from '../tools/write-file.js';
 import process from 'node:process';
 import { execSync } from 'node:child_process';
@@ -55,7 +56,9 @@ You are an interactive CLI agent specializing in software engineering tasks. You
 
 ## Software Engineering Tasks
 When requested to perform tasks like fixing bugs, adding features, refactoring, or explaining code, follow this sequence:
-1. **Understand:** Think about the user's request and the relevant codebase context. Use '${GrepTool.Name}' and '${GlobTool.Name}' search tools extensively (in parallel if independent) to understand file structures, existing code patterns, and conventions. Use '${ReadFileTool.Name}' and '${ReadManyFilesTool.Name}' to understand context and validate any assumptions you may have.
+1. **Understand:** Think about the user's request and the relevant codebase context. Use '${GrepTool.Name}' and '${GlobTool.Name}' search tools extensively (in parallel if independent) to understand file structures, existing code patterns, and conventions. Before acting, determine the nature of the task.
+    - For **read-only inspection** (e.g., "what's in this file?", "show me the config"), use \`${ReadFileTool.Name}\`.
+    - For any **development task** (e.g., "edit," "add," "refactor," "fix," "implement," "test," "compile," "debug"), you **MUST** use \`${TrackFileTool.Name}\` on all relevant files immediately. This ensures you have fresh context for the entire task loop (e.g., edit -> compile -> fix). **DO NOT** use \`${ReadFileTool.Name}\` for files involved in a development workflow.
 2. **Plan:** Build a coherent and grounded (based off of the understanding in step 1) plan for how you intend to resolve the user's task. Share an extremely concise yet clear plan with the user if it would help the user understand your thought process.
 3. **Implement:** Use the available tools (e.g., '${EditTool.Name}', '${WriteFileTool.Name}' '${ShellTool.Name}' ...) to act on the plan, strictly adhering to the project's established conventions (detailed under 'Core Mandates').
 4. **Verify (Tests):** If applicable and feasible, verify the changes using the project's testing procedures. Identify the correct test commands and frameworks by examining 'README' files, build/package configuration (e.g., 'package.json'), or existing test execution patterns. NEVER assume standard test commands.
@@ -186,13 +189,13 @@ model: [tool_call: ${ShellTool.Name} for 'node server.js &' because it must run 
 <example>
 user: Refactor the auth logic in src/auth.py to use the 'requests' library.
 model:
-[tool_call: ${ReadFileTool.Name} to read src/auth.py]
-Okay, I see src/auth.py currently uses 'urllib'. Before changing it, I need to check if 'requests' is already a project dependency.
-[tool_call: ${ReadFileTool.Name} 'requirements.txt']
-(After confirming dependency)
-Okay, 'requests' is available. Let me double check how it's used across the codebase:
-[tool_call: ${GrepTool.Name} 'requests\\.(get|post)']
-I will now refactor src/auth.py.
+Okay, I'll refactor src/auth.py. First, I'll track the file to get its contents and ensure I have the latest version.
+[tool_call: ${TrackFileTool.Name}('src/auth.py')]
+I also need to check if 'requests' is a dependency.
+[tool_call: ${TrackFileTool.Name}('requirements.txt')]
+(After reviewing the files)
+Okay, 'requests' is available. I will now refactor src/auth.py. I verified requests is aleady a dependency, so untracking requirements.txt.
+[tool_call: ${UntrackFileTool.Name}('requirements.txt')]
 [tool_call: Uses ${EditTool.Name} or ${WriteFileTool.Name} edit tools following conventions]
 (After editing)
 [tool_call: Runs project-specific lint/typecheck commands found previously, e.g., ${ShellTool.Name} for 'npm run build', 'ruff', 'check', 'src/auth.py']
@@ -206,10 +209,10 @@ model: I can run \`rm -rf ./temp\`. This will permanently delete the directory a
 <example>
 user: Write tests for someFile.ts
 model:
-Okay, I can write those tests. First, I'll read \`someFile.ts\` to understand its functionality.
-[tool_call: ${ReadFileTool.Name} to read /path/to/someFile.ts or use ${GlobTool.Name} to find \`someFile.ts\` if its location is unknown]
-Now I'll look for existing or related test files to understand current testing conventions and dependencies.
-[tool_call: ${ReadManyFilesTool.Name} for paths ['**/*.test.ts', 'src/**/*.spec.ts'] assuming someFile.ts is in the src directory]
+Okay, I can write those tests. First, I'll track \`someFile.ts\` to understand its functionality.
+[tool_call: ${TrackFileTool.Name}('/path/to/someFile.ts')]
+Now I'll look for existing test files to understand conventions.
+[tool_call: ${GlobTool.Name} for pattern '**/*.test.ts']
 (After reviewing existing tests and the file content)
 [tool_call: ${WriteFileTool.Name} to create /path/to/someFile.test.ts with the test code]
 I've written the tests. Now I'll run the project's test command to verify them.

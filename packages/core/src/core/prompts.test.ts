@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getCoreSystemPrompt } from './prompts.js'; // Adjust import path
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { getCoreSystemPrompt } from './prompts.js';
 import * as process from 'node:process';
+import * as fs from 'node:fs';
+
 
 // Mock tool names if they are dynamically generated or complex
 vi.mock('../tools/ls', () => ({ LSTool: { Name: 'list_directory' } }));
@@ -24,6 +26,8 @@ vi.mock('../tools/write-file', () => ({
   WriteFileTool: { Name: 'write_file' },
 }));
 
+
+
 describe('Core System Prompt (prompts.ts)', () => {
   // Store original env vars that we modify
   let originalSandboxEnv: string | undefined;
@@ -31,6 +35,7 @@ describe('Core System Prompt (prompts.ts)', () => {
   beforeEach(() => {
     // Store original value before each test
     originalSandboxEnv = process.env.SANDBOX;
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -42,7 +47,7 @@ describe('Core System Prompt (prompts.ts)', () => {
     }
   });
 
-  it('should return the base prompt when no userMemory is provided', () => {
+  it('should return the base prompt when no userMemory is provided', async () => {
     delete process.env.SANDBOX; // Ensure default state for snapshot
     const prompt = getCoreSystemPrompt();
     expect(prompt).not.toContain('---\n\n'); // Separator should not be present
@@ -50,7 +55,7 @@ describe('Core System Prompt (prompts.ts)', () => {
     expect(prompt).toMatchSnapshot(); // Use snapshot for base prompt structure
   });
 
-  it('should return the base prompt when userMemory is empty string', () => {
+  it('should return the base prompt when userMemory is empty string', async () => {
     delete process.env.SANDBOX;
     const prompt = getCoreSystemPrompt('');
     expect(prompt).not.toContain('---\n\n');
@@ -58,7 +63,7 @@ describe('Core System Prompt (prompts.ts)', () => {
     expect(prompt).toMatchSnapshot();
   });
 
-  it('should return the base prompt when userMemory is whitespace only', () => {
+  it('should return the base prompt when userMemory is whitespace only', async () => {
     delete process.env.SANDBOX;
     const prompt = getCoreSystemPrompt('   \n  \t ');
     expect(prompt).not.toContain('---\n\n');
@@ -66,7 +71,7 @@ describe('Core System Prompt (prompts.ts)', () => {
     expect(prompt).toMatchSnapshot();
   });
 
-  it('should append userMemory with separator when provided', () => {
+  it('should append userMemory with separator when provided', async () => {
     delete process.env.SANDBOX;
     const memory = 'This is custom user memory.\nBe extra polite.';
     const expectedSuffix = `\n\n---\n\n${memory}`;
@@ -77,7 +82,7 @@ describe('Core System Prompt (prompts.ts)', () => {
     expect(prompt).toMatchSnapshot(); // Snapshot the combined prompt
   });
 
-  it('should include sandbox-specific instructions when SANDBOX env var is set', () => {
+  it('should include sandbox-specific instructions when SANDBOX env var is set', async () => {
     process.env.SANDBOX = 'true'; // Generic sandbox value
     const prompt = getCoreSystemPrompt();
     expect(prompt).toContain('# Sandbox');
@@ -86,7 +91,7 @@ describe('Core System Prompt (prompts.ts)', () => {
     expect(prompt).toMatchSnapshot();
   });
 
-  it('should include seatbelt-specific instructions when SANDBOX env var is "sandbox-exec"', () => {
+  it('should include seatbelt-specific instructions when SANDBOX env var is "sandbox-exec"', async () => {
     process.env.SANDBOX = 'sandbox-exec';
     const prompt = getCoreSystemPrompt();
     expect(prompt).toContain('# MacOS Seatbelt');
@@ -95,7 +100,7 @@ describe('Core System Prompt (prompts.ts)', () => {
     expect(prompt).toMatchSnapshot();
   });
 
-  it('should include non-sandbox instructions when SANDBOX env var is not set', () => {
+  it('should include non-sandbox instructions when SANDBOX env var is not set', async () => {
     delete process.env.SANDBOX; // Ensure it's not set
     const prompt = getCoreSystemPrompt();
     expect(prompt).toContain('# Outside of Sandbox');
@@ -104,3 +109,4 @@ describe('Core System Prompt (prompts.ts)', () => {
     expect(prompt).toMatchSnapshot();
   });
 });
+

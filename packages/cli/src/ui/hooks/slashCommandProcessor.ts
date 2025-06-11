@@ -17,6 +17,7 @@ import {
   MCPServerStatus,
   getMCPDiscoveryState,
   getMCPServerStatus,
+  FileContextService,
 } from '@gemini-cli/core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import {
@@ -59,6 +60,7 @@ export interface SlashCommand {
 export const useSlashCommandProcessor = (
   config: Config | null,
   history: HistoryItem[],
+  fileContextService: FileContextService | null,
   addItem: UseHistoryManagerReturn['addItem'],
   clearItems: UseHistoryManagerReturn['clearItems'],
   loadHistory: UseHistoryManagerReturn['loadHistory'],
@@ -69,8 +71,8 @@ export const useSlashCommandProcessor = (
   openEditorDialog: () => void,
   performMemoryRefresh: () => Promise<void>,
   toggleCorgiMode: () => void,
-  showToolDescriptions: boolean = false,
   setQuittingMessages: (message: HistoryItem[]) => void,
+  showToolDescriptions: boolean = false,
 ) => {
   const session = useSessionStats();
   const gitService = useMemo(() => {
@@ -641,6 +643,84 @@ Add any other context about the problem here.
           }, 100);
         },
       },
+      {
+        name: 'track',
+        description: 'track a file in the context',
+        action: async (_mainCommand, subCommand, _args) => {
+          if (!subCommand) {
+            addMessage({
+              type: MessageType.ERROR,
+              content: 'Usage: /track <file_path>',
+              timestamp: new Date(),
+            });
+            return;
+          }
+          try {
+            const absolutePath = await fileContextService?.add(
+              subCommand
+            );
+            addMessage({
+              type: MessageType.INFO,
+              content: `Now tracking file: ${absolutePath}`,
+              timestamp: new Date(),
+            });
+          } catch (e: any) {
+            addMessage({
+              type: MessageType.ERROR,
+              content: e.message,
+              timestamp: new Date(),
+            });
+          }
+        },
+      },
+      {
+        name: 'untrack',
+        description: 'untrack a file from the context',
+        action: async (_mainCommand, subCommand, _args) => {
+          if (!subCommand) {
+            addMessage({
+              type: MessageType.ERROR,
+              content: 'Usage: /untrack <file_path>',
+              timestamp: new Date(),
+            });
+            return;
+          }
+          const untrackedFile = fileContextService?.remove(subCommand);
+          if (untrackedFile) {
+            addMessage({
+              type: MessageType.INFO,
+              content: `No longer tracking file: ${untrackedFile}`,
+              timestamp: new Date(),
+            });
+          } else {
+            addMessage({
+              type: MessageType.ERROR,
+              content: `File not found in context: ${subCommand}`,
+              timestamp: new Date(),
+            });
+          }
+        },
+      },
+      {
+        name: 'context',
+        description: 'list tracked files',
+        action: () => {
+          const trackedFiles = fileContextService?.getTrackedFiles() || [];
+          if (trackedFiles.length === 0) {
+            addMessage({
+              type: MessageType.INFO,
+              content: 'No files are currently being tracked.',
+              timestamp: new Date(),
+            });
+            return;
+          }
+          addMessage({
+            type: MessageType.INFO,
+            content: `Tracked files:\n\n${trackedFiles.join('\n')}`,
+            timestamp: new Date(),
+          });
+        },
+      },
     ];
 
     if (config?.getCheckpointEnabled()) {
@@ -761,6 +841,7 @@ Add any other context about the problem here.
     addMessage,
     toggleCorgiMode,
     config,
+    fileContextService,
     showToolDescriptions,
     session,
     gitService,

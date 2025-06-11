@@ -15,6 +15,8 @@ import {
   GenerateContentResponse,
 } from '@google/genai';
 import process from 'node:process';
+import fs from 'node:fs';
+import path from 'node:path';
 import { getFolderStructure } from '../utils/getFolderStructure.js';
 import { Turn, ServerGeminiStreamEvent, GeminiEventType } from './turn.js';
 import { Config } from '../config/config.js';
@@ -178,7 +180,7 @@ export class GeminiClient {
           ...this.generateContentConfig,
           tools,
         },
-        history,
+        history
       );
     } catch (error) {
       await reportError(
@@ -194,12 +196,36 @@ export class GeminiClient {
   async *sendMessageStream(
     request: PartListUnion,
     signal: AbortSignal,
-    turns: number = this.MAX_TURNS,
+    turns: number = this.MAX_TURNS
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
     if (!turns) {
       const chat = await this.chat;
       return new Turn(chat);
     }
+
+    const fileContextService = this.config.getFileContextService();
+    const trackedFiles = fileContextService.getTrackedFiles();
+    const fileParts: Part[] = [];
+    if (trackedFiles.length > 0) {
+      const fileContents = await Promise.all(
+        trackedFiles.map(async (filePath) => {
+          try {
+            const content = await fs.promises.readFile(filePath, 'utf-8');
+            const relativePath = path.relative(this.config.getTargetDir(), filePath);
+            return {
+              text: `--- File: ${relativePath} ---\n${content}\n--- End of File: ${relativePath} ---`,
+            };
+          } catch (error) {
+            return {
+              text: `--- ERROR READING FILE: ${filePath} ---`,
+            };
+          }
+        }),
+      );
+      fileParts.push(...(fileContents as Part[]));
+    }
+
+    const requestWithContext = [...fileParts, ...(Array.isArray(request) ? request : [{text: request as string}])];
 
     const compressed = await this.tryCompressChat();
     if (compressed) {
@@ -207,7 +233,7 @@ export class GeminiClient {
     }
     const chat = await this.chat;
     const turn = new Turn(chat);
-    const resultStream = turn.run(request, signal);
+    const resultStream = turn.run(requestWithContext, signal);
     for await (const event of resultStream) {
       yield event;
     }

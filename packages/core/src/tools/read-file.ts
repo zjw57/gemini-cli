@@ -46,7 +46,7 @@ export class ReadFileTool extends BaseTool<ReadFileToolParams, ToolResult> {
     super(
       ReadFileTool.Name,
       'ReadFile',
-      'Reads and returns the content of a specified file from the local filesystem. Handles text, images (PNG, JPG, GIF, WEBP, SVG, BMP), and PDF files. For text files, it can read specific line ranges.',
+      'Reads and returns the content of a specified file from the local filesystem. For interactive, multi-turn conversations where file content might change, the `track_file` tool is often a better choice. WARNING: This tool provides a point-in-time snapshot of the file. For any task that requires modifying a file or maintaining context over multiple turns, use the `track_file` tool instead. Using `read_file` for modifications can lead to stale context and incorrect edits. Handles text, images (PNG, JPG, GIF, WEBP, SVG, BMP), and PDF files. For text files, it can read specific line ranges.',
       {
         properties: {
           path: {

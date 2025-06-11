@@ -17,6 +17,9 @@ import { ContentGenerator } from './contentGenerator.js';
 import { GeminiChat } from './geminiChat.js';
 import { Config } from '../config/config.js';
 import { Turn } from './turn.js';
+import { FileContextService } from '../services/fileContextService.js';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 // --- Mocks ---
 const mockChatCreateFn = vi.fn();
@@ -24,6 +27,7 @@ const mockGenerateContentFn = vi.fn();
 const mockEmbedContentFn = vi.fn();
 const mockTurnRunFn = vi.fn();
 
+vi.mock('node:fs/promises');
 vi.mock('@google/genai');
 vi.mock('./turn', () => {
   // Define a mock class that has the same shape as the real Turn
@@ -57,6 +61,9 @@ vi.mock('../utils/generateContentResponseUtilities', () => ({
 
 describe('Gemini Client (client.ts)', () => {
   let client: GeminiClient;
+  let mockConfig: Config;
+  let fileContextService: FileContextService;
+
   beforeEach(() => {
     vi.resetAllMocks();
 
@@ -93,6 +100,7 @@ describe('Gemini Client (client.ts)', () => {
       getTool: vi.fn().mockReturnValue(null),
     };
     const MockedConfig = vi.mocked(Config, true);
+    fileContextService = new FileContextService();
     MockedConfig.mockImplementation(() => {
       const mock = {
         getContentGeneratorConfig: vi.fn().mockReturnValue({
@@ -109,6 +117,8 @@ describe('Gemini Client (client.ts)', () => {
         getUserMemory: vi.fn().mockReturnValue(''),
         getFullContext: vi.fn().mockReturnValue(false),
         getSessionId: vi.fn().mockReturnValue('test-session-id'),
+        getFileContextService: vi.fn().mockReturnValue(fileContextService),
+        getTargetDir: vi.fn().mockReturnValue('/test/dir'),
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return mock as any;
@@ -117,7 +127,7 @@ describe('Gemini Client (client.ts)', () => {
     // We can instantiate the client here since Config is mocked
     // and the constructor will use the mocked GoogleGenAI
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mockConfig = new Config({} as any);
+    mockConfig = new Config({} as any);
     client = new GeminiClient(mockConfig);
   });
 
@@ -258,6 +268,15 @@ describe('Gemini Client (client.ts)', () => {
   });
 
   describe('sendMessageStream', () => {
+    beforeEach(() => {
+      const mockGenerator: Partial<ContentGenerator> = {
+        countTokens: vi.fn().mockResolvedValue({ totalTokens: 0 }),
+      };
+      client['contentGenerator'] = Promise.resolve(
+        mockGenerator as ContentGenerator,
+      );
+    });
+
     it('should return the turn instance after the stream is complete', async () => {
       // Arrange
       const mockStream = (async function* () {
@@ -270,13 +289,6 @@ describe('Gemini Client (client.ts)', () => {
         getHistory: vi.fn().mockReturnValue([]),
       };
       client['chat'] = Promise.resolve(mockChat as GeminiChat);
-
-      const mockGenerator: Partial<ContentGenerator> = {
-        countTokens: vi.fn().mockResolvedValue({ totalTokens: 0 }),
-      };
-      client['contentGenerator'] = Promise.resolve(
-        mockGenerator as ContentGenerator,
-      );
 
       // Act
       const stream = client.sendMessageStream(
@@ -296,6 +308,40 @@ describe('Gemini Client (client.ts)', () => {
 
       // Assert
       expect(finalResult).toBeInstanceOf(Turn);
+    });
+
+    it('should prepend tracked file content to the request', async () => {
+      const trackedFilePath = '/test/dir/test.txt';
+      const fileContent = 'This is a test file.';
+      const readFileSpy = vi
+        .spyOn(fs, 'readFile')
+        .mockResolvedValue(fileContent);
+      vi.spyOn(fileContextService, 'getTrackedFiles').mockReturnValue([
+        trackedFilePath,
+      ]);
+
+      const mockStream = (async function* () {
+        yield { type: 'content', value: 'response' };
+      })();
+      mockTurnRunFn.mockReturnValue(mockStream);
+
+      const request = [{ text: 'User request' }];
+      const signal = new AbortController().signal;
+
+      const stream = client.sendMessageStream(request, signal);
+      // We need to pull a value from the stream to get the code to run.
+      await stream.next();
+
+      const expectedRelativePath = path.relative('/test/dir', trackedFilePath);
+      const expectedFilePart = {
+        text: `--- File: ${expectedRelativePath} ---\n${fileContent}\n--- End of File: ${expectedRelativePath} ---`,
+      };
+
+      expect(mockTurnRunFn).toHaveBeenCalledWith(
+        [expectedFilePart, ...request],
+        signal,
+      );
+      readFileSpy.mockRestore();
     });
   });
 });
