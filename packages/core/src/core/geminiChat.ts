@@ -17,6 +17,7 @@ import {
 } from '@google/genai';
 import { retryWithBackoff } from '../utils/retry.js';
 import { isFunctionResponse } from '../utils/messageInspectors.js';
+import { sanitizeUserContent } from '../utils/fileContextUtils.js';
 import { ContentGenerator } from './contentGenerator.js';
 import { Config } from '../config/config.js';
 
@@ -355,7 +356,7 @@ export class GeminiChat {
         ...extractCuratedHistory(automaticFunctionCallingHistory!),
       );
     } else {
-      this.history.push(this.getSanitizedUserInput(userInput));
+      this.history.push(sanitizeUserContent(userInput));
     }
 
     // Consolidate adjacent model roles in outputContents
@@ -403,41 +404,6 @@ export class GeminiChat {
       }
       this.history.push(...consolidatedOutputContents);
     }
-  }
-
-  private getSanitizedUserInput(userInput: Content): Content {
-    if (!userInput.parts) {
-      return userInput;
-    }
-    const markerPrefix = 'GEMINI_TRACKED_FILE_V1:';
-    const trackedFilePaths: string[] = [];
-    const sanitizedParts: Part[] = [];
-
-    for (const part of userInput.parts) {
-      if (part.text?.startsWith(markerPrefix)) {
-        try {
-          const data = JSON.parse(part.text.substring(markerPrefix.length));
-          if (data.relativePath) {
-            trackedFilePaths.push(data.relativePath);
-          }
-        } catch (e) {
-          // It's not a valid marker, so keep the part as is.
-          sanitizedParts.push(part);
-        }
-      } else {
-        sanitizedParts.push(part);
-      }
-    }
-
-    if (trackedFilePaths.length > 0) {
-      const fileListText = `The following files were provided as context:\n- ${trackedFilePaths.join('\n- ')}`;
-      sanitizedParts.unshift({ text: fileListText });
-    }
-
-    return {
-      role: userInput.role,
-      parts: sanitizedParts,
-    };
   }
 
   private isTextContent(

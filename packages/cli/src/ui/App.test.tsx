@@ -122,7 +122,19 @@ vi.mock('@gemini-cli/core', async (importOriginal) => {
         getShowMemoryUsage: vi.fn(() => opts.showMemoryUsage ?? false),
         getAccessibility: vi.fn(() => opts.accessibility ?? {}),
         getProjectRoot: vi.fn(() => opts.projectRoot),
-        getGeminiClient: vi.fn(() => ({})),
+        getGeminiClient: vi.fn(() => ({
+          getTokenLimit: vi.fn(() => 8192),
+          getTokenBreakdown: vi.fn().mockResolvedValue({
+            chatTokens: 0,
+            conventionsTokens: 0,
+            systemTokens: 0,
+          }),
+        })),
+        getFileContextService: vi.fn(() => ({
+          on: vi.fn(),
+          off: vi.fn(),
+          getTrackedFilesWithTokenCounts: vi.fn().mockResolvedValue([]),
+        })),
         getCheckpointEnabled: vi.fn(() => opts.checkpoint ?? true),
       };
     });
