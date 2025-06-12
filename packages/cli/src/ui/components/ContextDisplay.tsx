@@ -13,20 +13,29 @@ import path from 'path';
 interface ContextDisplayProps {
   filesWithTokens: Array<{ path: string; tokenCount: number }>;
   projectRoot: string;
+  tokenBreakdown: {
+    chatTokens: number;
+    conventionsTokens: number;
+    systemTokens: number;
+  };
 }
 
 export const ContextDisplay: React.FC<ContextDisplayProps> = ({
   filesWithTokens,
   projectRoot,
+  tokenBreakdown,
 }) => {
-
-  const totalTokens = filesWithTokens
-    .reduce((acc, file) => acc + file.tokenCount, 0)
-    .toLocaleString();
+  const totalTokens = (
+    tokenBreakdown.chatTokens +
+    tokenBreakdown.conventionsTokens +
+    tokenBreakdown.systemTokens +
+    filesWithTokens.reduce((acc, file) => acc + file.tokenCount, 0)
+  ).toLocaleString();
   const totalPercentage = '15%';
-  const systemTokens = '42k';
-  const historyTokens = '45k';
-  const conventionsTokens = '24k';
+  const systemTokens = (tokenBreakdown.systemTokens / 1000).toFixed(1) + 'k';
+  const historyTokens = (tokenBreakdown.chatTokens / 1000).toFixed(1) + 'k';
+  const conventionsTokens =
+    (tokenBreakdown.conventionsTokens / 1000).toFixed(1) + 'k';
   const filesTokens = filesWithTokens
     .reduce((acc, file) => acc + file.tokenCount, 0)
     .toLocaleString();

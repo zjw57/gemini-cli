@@ -567,6 +567,23 @@ export class GeminiClient {
     });
   }
 
+  async getTokenBreakdown() {
+    const [chat, conventions] = await Promise.all([
+      this.getHistory(),
+      this.config.getUserMemory(),
+    ]);
+
+    const chatTokens = await this.countTokens(JSON.stringify(chat));
+    const conventionsTokens = await this.countTokens(conventions);
+    const systemTokens = await this.countTokens(getCoreSystemPrompt());
+
+    return {
+      chatTokens: chatTokens.totalTokens,
+      conventionsTokens: conventionsTokens.totalTokens,
+      systemTokens: systemTokens.totalTokens,
+    };
+  }
+
   private async tryCompressChat(): Promise<boolean> {
     const chat = await this.chat;
     const history = chat.getHistory(true); // Get curated history

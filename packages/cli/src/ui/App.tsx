@@ -91,6 +91,11 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
   const [filesWithTokens, setFilesWithTokens] = useState<
     Array<{ path: string; tokenCount: number }>
   >([]);
+  const [tokenBreakdown, setTokenBreakdown] = useState({
+    chatTokens: 0,
+    conventionsTokens: 0,
+    systemTokens: 0,
+  });
   const [corgiMode, setCorgiMode] = useState(false);
   const [shellModeActive, setShellModeActive] = useState(false);
   const [showErrorDetails, setShowErrorDetails] = useState<boolean>(false);
@@ -118,6 +123,13 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
       fileContextService.off('change', updateFiles);
     };
   }, [config]);
+
+  useEffect(() => {
+    const geminiClient = config.getGeminiClient();
+    if (geminiClient) {
+      geminiClient.getTokenBreakdown().then(setTokenBreakdown);
+    }
+  }, [config, history, filesWithTokens]);
 
   const errorCount = useMemo(
     () => consoleMessages.filter((msg) => msg.type === 'error').length,
@@ -609,6 +621,7 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
           <ContextDisplay
             filesWithTokens={filesWithTokens}
             projectRoot={config.getTargetDir()}
+            tokenBreakdown={tokenBreakdown}
           />
         )}
       </Box>
