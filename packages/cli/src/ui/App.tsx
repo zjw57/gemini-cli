@@ -218,8 +218,8 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
     openEditorDialog,
     performMemoryRefresh,
     toggleCorgiMode,
-    showToolDescriptions,
     setQuittingMessages,
+    showToolDescriptions,
   );
 
   useInput((input: string, key: InkKeyType) => {

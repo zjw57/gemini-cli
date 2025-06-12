@@ -572,14 +572,19 @@ export class GeminiClient {
   }
 
   async getTokenBreakdown() {
-    const [chat, conventions] = await Promise.all([
+    const [history, conventions, toolRegistry] = await Promise.all([
       this.getHistory(),
       this.config.getUserMemory(),
+      this.config.getToolRegistry(),
     ]);
 
-    const chatTokens = await this.countTokens(JSON.stringify(chat));
+    const toolDeclarations = toolRegistry.getFunctionDeclarations();
+
+    const chatTokens = await this.countTokens(JSON.stringify(history));
     const conventionsTokens = await this.countTokens(conventions);
-    const systemTokens = await this.countTokens(getCoreSystemPrompt());
+    const systemTokens = await this.countTokens(
+      getCoreSystemPrompt() + JSON.stringify(toolDeclarations),
+    );
 
     return {
       chatTokens: chatTokens.totalTokens,
