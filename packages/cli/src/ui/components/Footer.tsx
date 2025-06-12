@@ -17,6 +17,8 @@ interface FooterProps {
   showErrorDetails: boolean;
   fileCount: number;
   showContext: boolean;
+  totalTokenCount: number;
+  tokenLimit: number;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -26,9 +28,11 @@ export const Footer: React.FC<FooterProps> = ({
   showErrorDetails,
   fileCount,
   showContext,
+  totalTokenCount,
+  tokenLimit,
 }) => {
-  const tokenCount = fileCount > 0 ? '194k' : '46k';
-  const tokenPercentage = fileCount > 0 ? '20%' : '5%';
+  const tokenPercentage =
+    tokenLimit > 0 ? ((totalTokenCount / tokenLimit) * 100).toFixed(0) : 0;
 
   return (
     <Box marginTop={1} justifyContent="space-between" width="100%">
@@ -42,7 +46,7 @@ export const Footer: React.FC<FooterProps> = ({
       <Box flexGrow={1} justifyContent="center">
         <Text>
           <Text color={Colors.AccentGreen}>
-            {tokenCount} / {tokenPercentage}
+            {(totalTokenCount / 1000).toFixed(1)}k / {tokenPercentage}%
           </Text>
           <Text color={Colors.Gray}> / </Text>
           <Text>

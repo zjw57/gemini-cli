@@ -70,6 +70,15 @@ export class GeminiClient {
     this.chat = this.startChat();
   }
 
+  async countTokens(text: string): Promise<{ totalTokens: number }> {
+    const cg = await this.contentGenerator;
+    const { totalTokens } = await cg.countTokens({
+      model: this.model,
+      contents: [{ role: 'user', parts: [{ text }] }],
+    });
+    return { totalTokens: totalTokens || 0 };
+  }
+
   async addHistory(content: Content) {
     const chat = await this.chat;
     chat.addHistory(content);
@@ -77,6 +86,10 @@ export class GeminiClient {
 
   getChat(): Promise<GeminiChat> {
     return this.chat;
+  }
+
+  getTokenLimit(): number {
+    return tokenLimit(this.model);
   }
 
   async getHistory(): Promise<Content[]> {
@@ -204,14 +217,17 @@ export class GeminiClient {
     }
 
     const fileContextService = this.config.getFileContextService();
-    const trackedFiles = fileContextService.getTrackedFiles();
+    const trackedFiles = await fileContextService.getTrackedFiles();
     const fileParts: Part[] = [];
     if (trackedFiles.length > 0) {
       const fileContents = await Promise.all(
         trackedFiles.map(async (filePath) => {
           try {
             const content = await fs.promises.readFile(filePath, 'utf-8');
-            const relativePath = path.relative(this.config.getTargetDir(), filePath);
+            const relativePath = path.relative(
+              this.config.getTargetDir(),
+              filePath
+            );
             return {
               text: `--- File: ${relativePath} ---\n${content}\n--- End of File: ${relativePath} ---`,
             };
@@ -220,12 +236,15 @@ export class GeminiClient {
               text: `--- ERROR READING FILE: ${filePath} ---`,
             };
           }
-        }),
+        })
       );
       fileParts.push(...(fileContents as Part[]));
     }
 
-    const requestWithContext = [...fileParts, ...(Array.isArray(request) ? request : [{text: request as string}])];
+    const requestWithContext = [
+      ...fileParts,
+      ...(Array.isArray(request) ? request : [{ text: request as string }]),
+    ];
 
     const compressed = await this.tryCompressChat();
     if (compressed) {

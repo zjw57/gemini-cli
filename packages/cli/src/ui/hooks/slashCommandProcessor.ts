@@ -704,8 +704,9 @@ Add any other context about the problem here.
       {
         name: 'context',
         description: 'list tracked files',
-        action: () => {
-          const trackedFiles = fileContextService?.getTrackedFiles() || [];
+        action: async () => {
+          const trackedFiles =
+            (await fileContextService?.getTrackedFiles()) || [];
           if (trackedFiles.length === 0) {
             addMessage({
               type: MessageType.INFO,

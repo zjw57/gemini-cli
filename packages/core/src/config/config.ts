@@ -162,9 +162,11 @@ export class Config {
       this.geminiIgnorePatterns = params.geminiIgnorePatterns;
     }
 
-    this.fileContextService = new FileContextService();
-    this.toolRegistry = createToolRegistry(this);
     this.geminiClient = new GeminiClient(this);
+    this.fileContextService = new FileContextService(
+      this.geminiClient.countTokens.bind(this.geminiClient)
+    );
+    this.toolRegistry = createToolRegistry(this);
 
     if (this.telemetry) {
       initializeTelemetry(this);

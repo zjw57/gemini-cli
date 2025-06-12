@@ -6,51 +6,53 @@
 
 import { FileContextService } from './fileContextService.js';
 import path from 'node:path';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+const mockCountTokens = vi.fn().mockResolvedValue({ totalTokens: 100 });
 
 describe('FileContextService', () => {
-  it('should add and retrieve a file path', () => {
-    const service = new FileContextService();
+  it('should add and retrieve a file path', async () => {
+    const service = new FileContextService(mockCountTokens);
     const filePath = 'test.txt';
-    service.add(filePath);
-    expect(service.getTrackedFiles()).toEqual([path.resolve(filePath)]);
+    await service.add(filePath);
+    expect(await service.getTrackedFiles()).toEqual([path.resolve(filePath)]);
   });
 
-  it('should add and retrieve an absolute file path', () => {
-    const service = new FileContextService();
+  it('should add and retrieve an absolute file path', async () => {
+    const service = new FileContextService(mockCountTokens);
     const filePath = path.resolve('test.txt');
-    service.add(filePath);
-    expect(service.getTrackedFiles()).toEqual([filePath]);
+    await service.add(filePath);
+    expect(await service.getTrackedFiles()).toEqual([filePath]);
   });
 
-  it('should remove a file path', () => {
-    const service = new FileContextService();
+  it('should remove a file path', async () => {
+    const service = new FileContextService(mockCountTokens);
     const filePath = 'test.txt';
-    service.add(filePath);
+    await service.add(filePath);
     service.remove(filePath);
-    expect(service.getTrackedFiles()).toEqual([]);
+    expect(await service.getTrackedFiles()).toEqual([]);
   });
 
-  it('should return true from has() for a tracked file', () => {
-    const service = new FileContextService();
+  it('should return true from has() for a tracked file', async () => {
+    const service = new FileContextService(mockCountTokens);
     const filePath = 'test.txt';
-    service.add(filePath);
+    await service.add(filePath);
     expect(service.has(filePath)).toBe(true);
   });
 
   it('should return false from has() for an untracked file', () => {
-    const service = new FileContextService();
+    const service = new FileContextService(mockCountTokens);
     const filePath = 'test.txt';
     expect(service.has(filePath)).toBe(false);
   });
 
-  it('should handle multiple files', () => {
-    const service = new FileContextService();
+  it('should handle multiple files', async () => {
+    const service = new FileContextService(mockCountTokens);
     const filePaths = ['test1.txt', 'test2.txt'];
     for (const filePath of filePaths) {
-      service.add(filePath);
+      await service.add(filePath);
     }
-    expect(service.getTrackedFiles().sort()).toEqual(
+    expect((await service.getTrackedFiles()).sort()).toEqual(
       filePaths.map((p) => path.resolve(p)).sort()
     );
   });

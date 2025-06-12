@@ -100,7 +100,9 @@ describe('Gemini Client (client.ts)', () => {
       getTool: vi.fn().mockReturnValue(null),
     };
     const MockedConfig = vi.mocked(Config, true);
-    fileContextService = new FileContextService();
+    fileContextService = new FileContextService(
+      vi.fn().mockResolvedValue({ totalTokens: 0 }),
+    );
     MockedConfig.mockImplementation(() => {
       const mock = {
         getContentGeneratorConfig: vi.fn().mockReturnValue({
@@ -316,7 +318,7 @@ describe('Gemini Client (client.ts)', () => {
       const readFileSpy = vi
         .spyOn(fs, 'readFile')
         .mockResolvedValue(fileContent);
-      vi.spyOn(fileContextService, 'getTrackedFiles').mockReturnValue([
+      vi.spyOn(fileContextService, 'getTrackedFiles').mockResolvedValue([
         trackedFilePath,
       ]);
 

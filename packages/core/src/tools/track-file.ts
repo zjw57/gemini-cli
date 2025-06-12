@@ -32,12 +32,20 @@ export class TrackFileTool extends BaseTool<TrackFileParams> {
   }
 
   async execute(params: TrackFileParams): Promise<ToolResult> {
-    this.fileContextService.add(params.path);
-    const result = `Now tracking file: ${params.path}`;
-    return {
-      llmContent: result,
-      returnDisplay: result,
-    };
+    try {
+      await this.fileContextService.add(params.path);
+      const result = `Now tracking file: ${params.path}`;
+      return {
+        llmContent: result,
+        returnDisplay: result,
+      };
+    } catch (e) {
+      const result = (e as Error).message;
+      return {
+        llmContent: result,
+        returnDisplay: result,
+      };
+    }
   }
 }
 
@@ -66,8 +74,13 @@ export class UntrackFileTool extends BaseTool<UntrackFileParams> {
   }
 
   async execute(params: UntrackFileParams): Promise<ToolResult> {
-    this.fileContextService.remove(params.path);
-    const result = `No longer tracking file: ${params.path}`;
+    const untracked = this.fileContextService.remove(params.path);
+    let result: string;
+    if (untracked) {
+      result = `No longer tracking file: ${params.path}`;
+    } else {
+      result = `File not found in tracked files: ${params.path}`;
+    }
     return {
       llmContent: result,
       returnDisplay: result,

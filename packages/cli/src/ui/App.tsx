@@ -39,7 +39,6 @@ import { Tips } from './components/Tips.js';
 import { useConsolePatcher } from './components/ConsolePatcher.js';
 import { DetailedMessagesDisplay } from './components/DetailedMessagesDisplay.js';
 import { HistoryItemDisplay } from './components/HistoryItemDisplay.js';
-import { ContextSummaryDisplay } from './components/ContextSummaryDisplay.js';
 import { ContextDisplay } from './components/ContextDisplay.js';
 import { useHistory } from './hooks/useHistoryManager.js';
 import process from 'node:process';
@@ -89,6 +88,9 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
   const [themeError, setThemeError] = useState<string | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [footerHeight, setFooterHeight] = useState<number>(0);
+  const [filesWithTokens, setFilesWithTokens] = useState<
+    Array<{ path: string; tokenCount: number }>
+  >([]);
   const [corgiMode, setCorgiMode] = useState(false);
   const [shellModeActive, setShellModeActive] = useState(false);
   const [showErrorDetails, setShowErrorDetails] = useState<boolean>(false);
@@ -100,6 +102,22 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
     HistoryItem[] | null
   >(null);
   const ctrlCTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const fileContextService = config.getFileContextService();
+    const updateFiles = () => {
+      fileContextService
+        .getTrackedFilesWithTokenCounts()
+        .then(setFilesWithTokens);
+    };
+
+    fileContextService.on('change', updateFiles);
+    updateFiles();
+
+    return () => {
+      fileContextService.off('change', updateFiles);
+    };
+  }, [config]);
 
   const errorCount = useMemo(
     () => consoleMessages.filter((msg) => msg.type === 'error').length,
@@ -581,11 +599,18 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
             branchName={branchName}
             errorCount={errorCount}
             showErrorDetails={showErrorDetails}
-            fileCount={config.getFileContextService().getTrackedFiles().length}
+            fileCount={filesWithTokens.length}
             showContext={showContext}
+            totalTokenCount={0}
+            tokenLimit={config.getGeminiClient().getTokenLimit()}
           />
         </Box>
-        {showContext && <ContextDisplay />}
+        {showContext && (
+          <ContextDisplay
+            filesWithTokens={filesWithTokens}
+            projectRoot={config.getTargetDir()}
+          />
+        )}
       </Box>
     </StreamingContext.Provider>
   );
