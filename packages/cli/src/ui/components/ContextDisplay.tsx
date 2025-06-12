@@ -36,9 +36,10 @@ export const ContextDisplay: React.FC<ContextDisplayProps> = ({
   const historyTokens = (tokenBreakdown.chatTokens / 1000).toFixed(1) + 'k';
   const conventionsTokens =
     (tokenBreakdown.conventionsTokens / 1000).toFixed(1) + 'k';
-  const filesTokens = filesWithTokens
-    .reduce((acc, file) => acc + file.tokenCount, 0)
-    .toLocaleString();
+  const filesTokens =
+    (
+      filesWithTokens.reduce((acc, file) => acc + file.tokenCount, 0) / 1000
+    ).toFixed(1) + 'k';
   const fileCount = filesWithTokens.length;
 
   const files = filesWithTokens.map((file) => ({
