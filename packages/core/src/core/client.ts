@@ -228,8 +228,12 @@ export class GeminiClient {
               this.config.getTargetDir(),
               filePath
             );
+            const marker = `GEMINI_TRACKED_FILE_V1:${JSON.stringify({
+              absolutePath: filePath,
+              relativePath,
+            })}`;
             return {
-              text: `--- File: ${relativePath} ---\n${content}\n--- End of File: ${relativePath} ---`,
+              text: `${marker}\n${content}`,
             };
           } catch (error) {
             return {

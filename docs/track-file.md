@@ -8,6 +8,8 @@ A simple test for this feature: ask the model to add a pithy remark to this file
 
 > The source of truth is the file on disk, not the scrollback buffer.
 
+> A rolling stone gathers no moss, but a tracked file gathers context.
+
 - **Authors**: User, Gemini
 - **Status**: Draft
 - **Date**: 2025-06-10
