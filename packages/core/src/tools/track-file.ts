@@ -33,11 +33,10 @@ export class TrackFileTool extends BaseTool<TrackFileParams> {
 
   async execute(params: TrackFileParams): Promise<ToolResult> {
     try {
-      await this.fileContextService.add(params.path);
-      const result = `Now tracking file: ${params.path}`;
+      const result = await this.fileContextService.add(params.path);
       return {
-        llmContent: result,
-        returnDisplay: result,
+        llmContent: `Now tracking file: ${result}`,
+        returnDisplay: `Now tracking file: ${result}`,
       };
     } catch (e) {
       const result = (e as Error).message;

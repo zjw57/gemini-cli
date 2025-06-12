@@ -19,7 +19,7 @@ export class FileContextService extends EventEmitter {
     super();
   }
 
-  async add(filePath: string): Promise<void> {
+  async add(filePath: string): Promise<string> {
     const resolvedPath = path.resolve(filePath);
     try {
       await fs.stat(resolvedPath);
@@ -31,6 +31,7 @@ export class FileContextService extends EventEmitter {
     }
     this.trackedFiles.add(resolvedPath);
     this.emit('change');
+    return resolvedPath;
   }
 
   remove(filePath: string): boolean {

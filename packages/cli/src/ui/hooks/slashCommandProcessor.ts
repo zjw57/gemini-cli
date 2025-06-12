@@ -656,9 +656,7 @@ Add any other context about the problem here.
             return;
           }
           try {
-            const absolutePath = await fileContextService?.add(
-              subCommand
-            );
+            const absolutePath = await fileContextService?.add(subCommand);
             addMessage({
               type: MessageType.INFO,
               content: `Now tracking file: ${absolutePath}`,
