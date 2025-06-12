@@ -40,7 +40,7 @@ import { useConsolePatcher } from './components/ConsolePatcher.js';
 import { DetailedMessagesDisplay } from './components/DetailedMessagesDisplay.js';
 import { HistoryItemDisplay } from './components/HistoryItemDisplay.js';
 import { ContextSummaryDisplay } from './components/ContextSummaryDisplay.js';
-import { TrackedFilesDisplay } from './components/TrackedFilesDisplay.js';
+import { ContextDisplay } from './components/ContextDisplay.js';
 import { useHistory } from './hooks/useHistoryManager.js';
 import process from 'node:process';
 import {
@@ -92,6 +92,7 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
   const [corgiMode, setCorgiMode] = useState(false);
   const [shellModeActive, setShellModeActive] = useState(false);
   const [showErrorDetails, setShowErrorDetails] = useState<boolean>(false);
+  const [showContext, setShowContext] = useState<boolean>(false);
   const [showToolDescriptions, setShowToolDescriptions] =
     useState<boolean>(false);
   const [ctrlCPressedOnce, setCtrlCPressedOnce] = useState(false);
@@ -199,6 +200,9 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
         // Pass description flag based on the new value
         handleSlashCommand(newValue ? '/mcp desc' : '/mcp nodesc');
       }
+    } else if (key.ctrl && input === 'f') {
+      setShowContext((prev) => !prev);
+      refreshStatic();
     } else if (key.ctrl && (input === 'c' || input === 'C')) {
       if (ctrlCPressedOnce) {
         if (ctrlCTimerRef.current) {
@@ -504,34 +508,20 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
                   {process.env.GEMINI_SYSTEM_MD && (
                     <Text color={Colors.AccentRed}>|⌐■_■| </Text>
                   )}
-                  {ctrlCPressedOnce ? (
+                  {ctrlCPressedOnce && (
                     <Text color={Colors.AccentYellow}>
                       Press Ctrl+C again to exit.
                     </Text>
-                  ) : (
-                    <ContextSummaryDisplay
-                      geminiMdFileCount={geminiMdFileCount}
-                      contextFileName={
-                        settings.merged.contextFileName ||
-                        getCurrentGeminiMdFilename()
-                      }
-                      mcpServers={config.getMcpServers()}
-                      showToolDescriptions={showToolDescriptions}
-                    />
                   )}
-                  <TrackedFilesDisplay
-                    fileContextService={config.getFileContextService()}
-                    projectRoot={config.getTargetDir()}
-                  />
-                </Box>
-                <Box>
-                  {showAutoAcceptIndicator !== ApprovalMode.DEFAULT &&
-                    !shellModeActive && (
-                      <AutoAcceptIndicator
-                        approvalMode={showAutoAcceptIndicator}
-                      />
-                    )}
-                  {shellModeActive && <ShellModeIndicator />}
+                  <Box>
+                    {showAutoAcceptIndicator !== ApprovalMode.DEFAULT &&
+                      !shellModeActive && (
+                        <AutoAcceptIndicator
+                          approvalMode={showAutoAcceptIndicator}
+                        />
+                      )}
+                    {shellModeActive && <ShellModeIndicator />}
+                  </Box>
                 </Box>
               </Box>
 
@@ -587,19 +577,15 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
             </Box>
           )}
           <Footer
-            model={config.getModel()}
             targetDir={config.getTargetDir()}
-            debugMode={config.getDebugMode()}
             branchName={branchName}
-            debugMessage={debugMessage}
-            corgiMode={corgiMode}
             errorCount={errorCount}
             showErrorDetails={showErrorDetails}
-            showMemoryUsage={
-              config.getDebugMode() || config.getShowMemoryUsage()
-            }
+            fileCount={config.getFileContextService().getTrackedFiles().length}
+            showContext={showContext}
           />
         </Box>
+        {showContext && <ContextDisplay />}
       </Box>
     </StreamingContext.Provider>
   );
