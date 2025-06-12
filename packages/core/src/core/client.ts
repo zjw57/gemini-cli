@@ -571,6 +571,15 @@ export class GeminiClient {
     });
   }
 
+  async countContentTokens(contents: Content[]): Promise<{ totalTokens: number }> {
+    const cg = await this.contentGenerator;
+    const { totalTokens } = await cg.countTokens({
+      model: this.model,
+      contents: contents,
+    });
+    return { totalTokens: totalTokens || 0 };
+  }
+
   async getTokenBreakdown() {
     const [history, conventions, toolRegistry] = await Promise.all([
       this.getHistory(),
@@ -580,7 +589,7 @@ export class GeminiClient {
 
     const toolDeclarations = toolRegistry.getFunctionDeclarations();
 
-    const chatTokens = await this.countTokens(JSON.stringify(history));
+    const chatTokens = await this.countContentTokens(history);
     const conventionsTokens = await this.countTokens(conventions);
     const systemTokens = await this.countTokens(
       getCoreSystemPrompt() + JSON.stringify(toolDeclarations),
