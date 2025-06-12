@@ -54,6 +54,7 @@ import { useLogger } from './hooks/useLogger.js';
 import { StreamingContext } from './contexts/StreamingContext.js';
 import { SessionStatsProvider } from './contexts/SessionContext.js';
 import { useGitBranchName } from './hooks/useGitBranchName.js';
+import { useTokenCounts } from './hooks/useTokenCounts.js';
 
 const CTRL_C_PROMPT_DURATION_MS = 1000;
 
@@ -107,6 +108,13 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
     HistoryItem[] | null
   >(null);
   const ctrlCTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const tokenLimit = config.getGeminiClient().getTokenLimit();
+  const tokenCounts = useTokenCounts(
+    tokenBreakdown,
+    filesWithTokens,
+    tokenLimit,
+  );
 
   useEffect(() => {
     const fileContextService = config.getFileContextService();
@@ -613,8 +621,9 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
             showErrorDetails={showErrorDetails}
             fileCount={filesWithTokens.length}
             showContext={showContext}
-            totalTokenCount={0}
-            tokenLimit={config.getGeminiClient().getTokenLimit()}
+            tokenBreakdown={tokenBreakdown}
+            filesWithTokens={filesWithTokens}
+            tokenLimit={tokenLimit}
           />
         </Box>
         {showContext && (
@@ -622,6 +631,7 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
             filesWithTokens={filesWithTokens}
             projectRoot={config.getTargetDir()}
             tokenBreakdown={tokenBreakdown}
+            tokenLimit={tokenLimit}
           />
         )}
       </Box>

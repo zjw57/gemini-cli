@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
 import { FileContextService } from '@gemini-cli/core';
+import { useTokenCounts } from '../hooks/useTokenCounts.js';
 import path from 'path';
 
 interface ContextDisplayProps {
@@ -18,28 +19,23 @@ interface ContextDisplayProps {
     conventionsTokens: number;
     systemTokens: number;
   };
+  tokenLimit: number;
 }
 
 export const ContextDisplay: React.FC<ContextDisplayProps> = ({
   filesWithTokens,
   projectRoot,
   tokenBreakdown,
+  tokenLimit,
 }) => {
-  const totalTokens = (
-    tokenBreakdown.chatTokens +
-    tokenBreakdown.conventionsTokens +
-    tokenBreakdown.systemTokens +
-    filesWithTokens.reduce((acc, file) => acc + file.tokenCount, 0)
-  ).toLocaleString();
-  const totalPercentage = '15%';
-  const systemTokens = (tokenBreakdown.systemTokens / 1000).toFixed(1) + 'k';
-  const historyTokens = (tokenBreakdown.chatTokens / 1000).toFixed(1) + 'k';
-  const conventionsTokens =
-    (tokenBreakdown.conventionsTokens / 1000).toFixed(1) + 'k';
-  const filesTokens =
-    (
-      filesWithTokens.reduce((acc, file) => acc + file.tokenCount, 0) / 1000
-    ).toFixed(1) + 'k';
+  const {
+    totalTokens,
+    totalPercentage,
+    systemTokens,
+    historyTokens,
+    conventionsTokens,
+    filesTokens,
+  } = useTokenCounts(tokenBreakdown, filesWithTokens, tokenLimit);
   const fileCount = filesWithTokens.length;
 
   const files = filesWithTokens.map((file) => ({

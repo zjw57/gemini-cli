@@ -10,6 +10,8 @@ import { Colors } from '../colors.js';
 import { shortenPath, tildeifyPath } from '@gemini-cli/core';
 import { ConsoleSummaryDisplay } from './ConsoleSummaryDisplay.js';
 
+import { useTokenCounts } from '../hooks/useTokenCounts.js';
+
 interface FooterProps {
   targetDir: string;
   branchName?: string;
@@ -17,7 +19,12 @@ interface FooterProps {
   showErrorDetails: boolean;
   fileCount: number;
   showContext: boolean;
-  totalTokenCount: number;
+  tokenBreakdown: {
+    chatTokens: number;
+    conventionsTokens: number;
+    systemTokens: number;
+  };
+  filesWithTokens: Array<{ path: string; tokenCount: number }>;
   tokenLimit: number;
 }
 
@@ -28,11 +35,15 @@ export const Footer: React.FC<FooterProps> = ({
   showErrorDetails,
   fileCount,
   showContext,
-  totalTokenCount,
+  tokenBreakdown,
+  filesWithTokens,
   tokenLimit,
 }) => {
-  const tokenPercentage =
-    tokenLimit > 0 ? ((totalTokenCount / tokenLimit) * 100).toFixed(0) : 0;
+  const { totalTokens, totalPercentage } = useTokenCounts(
+    tokenBreakdown,
+    filesWithTokens,
+    tokenLimit,
+  );
 
   return (
     <Box marginTop={1} justifyContent="space-between" width="100%">
@@ -46,7 +57,7 @@ export const Footer: React.FC<FooterProps> = ({
       <Box flexGrow={1} justifyContent="center">
         <Text>
           <Text color={Colors.AccentGreen}>
-            {(totalTokenCount / 1000).toFixed(1)}k / {tokenPercentage}%
+            {totalTokens} / {totalPercentage}
           </Text>
           <Text color={Colors.Gray}> / </Text>
           <Text>
