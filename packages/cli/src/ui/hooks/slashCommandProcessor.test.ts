@@ -62,6 +62,7 @@ import {
   getMCPServerStatus,
   MCPDiscoveryState,
   getMCPDiscoveryState,
+  FileContextService,
 } from '@gemini-cli/core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 
@@ -102,9 +103,11 @@ describe('useSlashCommandProcessor', () => {
   let mockSetQuittingMessages: ReturnType<typeof vi.fn>;
   let mockConfig: Config;
   let mockCorgiMode: ReturnType<typeof vi.fn>;
+  let mockFileContextService: FileContextService;
   const mockUseSessionStats = useSessionStats as Mock;
 
   beforeEach(() => {
+    vi.resetAllMocks();
     mockAddItem = vi.fn();
     mockClearItems = vi.fn();
     mockLoadHistory = vi.fn();
@@ -121,6 +124,8 @@ describe('useSlashCommandProcessor', () => {
       getModel: vi.fn(() => 'test-model'),
       getProjectRoot: vi.fn(() => '/test/dir'),
       getCheckpointEnabled: vi.fn(() => true),
+      getToolRegistry: vi.fn(),
+      getMcpServers: vi.fn(),
     } as unknown as Config;
     mockCorgiMode = vi.fn();
     mockUseSessionStats.mockReturnValue({
@@ -137,6 +142,13 @@ describe('useSlashCommandProcessor', () => {
         },
       },
     });
+    mockFileContextService = {
+      add: vi.fn(),
+      remove: vi.fn(),
+      getTrackedFiles: vi.fn(),
+      has: vi.fn(),
+      getContext: vi.fn(),
+    } as unknown as FileContextService;
 
     (open as Mock).mockClear();
     mockProcessExit.mockClear();
@@ -150,6 +162,7 @@ describe('useSlashCommandProcessor', () => {
       useSlashCommandProcessor(
         mockConfig,
         [],
+        mockFileContextService,
         mockAddItem,
         mockClearItems,
         mockLoadHistory,
@@ -160,8 +173,8 @@ describe('useSlashCommandProcessor', () => {
         mockOpenEditorDialog,
         mockPerformMemoryRefresh,
         mockCorgiMode,
-        showToolDescriptions,
         mockSetQuittingMessages,
+        showToolDescriptions,
       ),
     );
     return result.current;
@@ -176,6 +189,7 @@ describe('useSlashCommandProcessor', () => {
         commandResult = await handleSlashCommand(`/memory add ${fact}`);
       });
 
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         1, // User message
         expect.objectContaining({
@@ -210,6 +224,7 @@ describe('useSlashCommandProcessor', () => {
         commandResult = await handleSlashCommand('/memory add ');
       });
 
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2, // After user message
         expect.objectContaining({
@@ -260,6 +275,7 @@ describe('useSlashCommandProcessor', () => {
       await act(async () => {
         commandResult = await handleSlashCommand('/memory foobar');
       });
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -297,10 +313,11 @@ describe('useSlashCommandProcessor', () => {
 
       // Act
       await act(async () => {
-        handleSlashCommand('/stats');
+        await handleSlashCommand('/stats');
       });
 
       // Assert
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2, // Called after the user message
         expect.objectContaining({
@@ -429,7 +446,7 @@ Add any other context about the problem here.
         vi.setSystemTime(mockDate);
 
         await act(async () => {
-          handleSlashCommand(command);
+          await handleSlashCommand(command);
         });
 
         expect(mockAddItem).not.toHaveBeenCalled();
@@ -463,6 +480,7 @@ Add any other context about the problem here.
       await act(async () => {
         commandResult = await handleSlashCommand('/unknowncommand');
       });
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -477,16 +495,14 @@ Add any other context about the problem here.
 
   describe('/tools command', () => {
     it('should show an error if tool registry is not available', async () => {
-      mockConfig = {
-        ...mockConfig,
-        getToolRegistry: vi.fn().mockResolvedValue(undefined),
-      } as unknown as Config;
+      vi.mocked(mockConfig.getToolRegistry).mockResolvedValue(undefined);
       const { handleSlashCommand } = getProcessor();
       let commandResult: SlashCommandActionReturn | boolean = false;
       await act(async () => {
         commandResult = await handleSlashCommand('/tools');
       });
 
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -499,18 +515,16 @@ Add any other context about the problem here.
     });
 
     it('should show an error if getAllTools returns undefined', async () => {
-      mockConfig = {
-        ...mockConfig,
-        getToolRegistry: vi.fn().mockResolvedValue({
-          getAllTools: vi.fn().mockReturnValue(undefined),
-        }),
-      } as unknown as Config;
+      vi.mocked(mockConfig.getToolRegistry).mockResolvedValue({
+        getAllTools: vi.fn().mockReturnValue(undefined),
+      } as any);
       const { handleSlashCommand } = getProcessor();
       let commandResult: SlashCommandActionReturn | boolean = false;
       await act(async () => {
         commandResult = await handleSlashCommand('/tools');
       });
 
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -531,12 +545,9 @@ Add any other context about the problem here.
         { name: 'mcp_tool2', serverName: 'mcp-server1' },
       ];
 
-      mockConfig = {
-        ...mockConfig,
-        getToolRegistry: vi.fn().mockResolvedValue({
-          getAllTools: vi.fn().mockReturnValue(mockTools),
-        }),
-      } as unknown as Config;
+      vi.mocked(mockConfig.getToolRegistry).mockResolvedValue({
+        getAllTools: vi.fn().mockReturnValue(mockTools),
+      } as any);
 
       const { handleSlashCommand } = getProcessor();
       let commandResult: SlashCommandActionReturn | boolean = false;
@@ -545,6 +556,7 @@ Add any other context about the problem here.
       });
 
       // Should only show tool1 and tool2, not the MCP tools
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -563,12 +575,9 @@ Add any other context about the problem here.
         { name: 'mcp_tool2', serverName: 'mcp-server1' },
       ];
 
-      mockConfig = {
-        ...mockConfig,
-        getToolRegistry: vi.fn().mockResolvedValue({
-          getAllTools: vi.fn().mockReturnValue(mockTools),
-        }),
-      } as unknown as Config;
+      vi.mocked(mockConfig.getToolRegistry).mockResolvedValue({
+        getAllTools: vi.fn().mockReturnValue(mockTools),
+      } as any);
 
       const { handleSlashCommand } = getProcessor();
       let commandResult: SlashCommandActionReturn | boolean = false;
@@ -576,6 +585,7 @@ Add any other context about the problem here.
         commandResult = await handleSlashCommand('/tools');
       });
 
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -612,16 +622,14 @@ Add any other context about the problem here.
     });
 
     it('should show an error if tool registry is not available', async () => {
-      mockConfig = {
-        ...mockConfig,
-        getToolRegistry: vi.fn().mockResolvedValue(undefined),
-      } as unknown as Config;
+      vi.mocked(mockConfig.getToolRegistry).mockResolvedValue(undefined);
       const { handleSlashCommand } = getProcessor();
       let commandResult: SlashCommandActionReturn | boolean = false;
       await act(async () => {
         commandResult = await handleSlashCommand('/mcp');
       });
 
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -634,13 +642,10 @@ Add any other context about the problem here.
     });
 
     it('should display a message when no MCP servers are configured', async () => {
-      mockConfig = {
-        ...mockConfig,
-        getToolRegistry: vi.fn().mockResolvedValue({
-          getToolsByServer: vi.fn().mockReturnValue([]),
-        }),
-        getMcpServers: vi.fn().mockReturnValue({}),
-      } as unknown as Config;
+      vi.mocked(mockConfig.getToolRegistry).mockResolvedValue({
+        getToolsByServer: vi.fn().mockReturnValue([]),
+      } as any);
+      vi.mocked(mockConfig.getMcpServers).mockReturnValue({});
 
       const { handleSlashCommand } = getProcessor();
       let commandResult: SlashCommandActionReturn | boolean = false;
@@ -648,6 +653,7 @@ Add any other context about the problem here.
         commandResult = await handleSlashCommand('/mcp');
       });
 
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -696,13 +702,10 @@ Add any other context about the problem here.
         return [];
       });
 
-      mockConfig = {
-        ...mockConfig,
-        getToolRegistry: vi.fn().mockResolvedValue({
-          getToolsByServer: mockGetToolsByServer,
-        }),
-        getMcpServers: vi.fn().mockReturnValue(mockMcpServers),
-      } as unknown as Config;
+      vi.mocked(mockConfig.getToolRegistry).mockResolvedValue({
+        getToolsByServer: mockGetToolsByServer,
+      } as any);
+      vi.mocked(mockConfig.getMcpServers).mockReturnValue(mockMcpServers);
 
       const { handleSlashCommand } = getProcessor();
       let commandResult: SlashCommandActionReturn | boolean = false;
@@ -710,6 +713,7 @@ Add any other context about the problem here.
         commandResult = await handleSlashCommand('/mcp');
       });
 
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -769,13 +773,10 @@ Add any other context about the problem here.
         { name: 'tool2', description: 'This is tool 2 description' },
       ];
 
-      mockConfig = {
-        ...mockConfig,
-        getToolRegistry: vi.fn().mockResolvedValue({
-          getToolsByServer: vi.fn().mockReturnValue(mockServerTools),
-        }),
-        getMcpServers: vi.fn().mockReturnValue(mockMcpServers),
-      } as unknown as Config;
+      vi.mocked(mockConfig.getToolRegistry).mockResolvedValue({
+        getToolsByServer: vi.fn().mockReturnValue(mockServerTools),
+      } as any);
+      vi.mocked(mockConfig.getMcpServers).mockReturnValue(mockMcpServers);
 
       const { handleSlashCommand } = getProcessor(true);
       let commandResult: SlashCommandActionReturn | boolean = false;
@@ -783,6 +784,7 @@ Add any other context about the problem here.
         commandResult = await handleSlashCommand('/mcp');
       });
 
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -843,13 +845,10 @@ Add any other context about the problem here.
         return [];
       });
 
-      mockConfig = {
-        ...mockConfig,
-        getToolRegistry: vi.fn().mockResolvedValue({
-          getToolsByServer: mockGetToolsByServer,
-        }),
-        getMcpServers: vi.fn().mockReturnValue(mockMcpServers),
-      } as unknown as Config;
+      vi.mocked(mockConfig.getToolRegistry).mockResolvedValue({
+        getToolsByServer: mockGetToolsByServer,
+      } as any);
+      vi.mocked(mockConfig.getMcpServers).mockReturnValue(mockMcpServers);
 
       const { handleSlashCommand } = getProcessor();
       let commandResult: SlashCommandActionReturn | boolean = false;
@@ -857,6 +856,7 @@ Add any other context about the problem here.
         commandResult = await handleSlashCommand('/mcp');
       });
 
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -909,13 +909,10 @@ Add any other context about the problem here.
         return [];
       });
 
-      mockConfig = {
-        ...mockConfig,
-        getToolRegistry: vi.fn().mockResolvedValue({
-          getToolsByServer: mockGetToolsByServer,
-        }),
-        getMcpServers: vi.fn().mockReturnValue(mockMcpServers),
-      } as unknown as Config;
+      vi.mocked(mockConfig.getToolRegistry).mockResolvedValue({
+        getToolsByServer: mockGetToolsByServer,
+      } as any);
+      vi.mocked(mockConfig.getMcpServers).mockReturnValue(mockMcpServers);
 
       const { handleSlashCommand } = getProcessor();
       let commandResult: SlashCommandActionReturn | boolean = false;
@@ -923,6 +920,7 @@ Add any other context about the problem here.
         commandResult = await handleSlashCommand('/mcp');
       });
 
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       const message = mockAddItem.mock.calls[1][0].text;
 
       // Check that startup indicator is shown

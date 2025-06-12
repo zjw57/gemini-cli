@@ -7,6 +7,9 @@
 import { FileContextService } from './fileContextService.js';
 import path from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
+import fs from 'node:fs/promises';
+
+vi.mock('node:fs/promises');
 
 const mockCountTokens = vi.fn().mockResolvedValue({ totalTokens: 100 });
 
@@ -14,6 +17,7 @@ describe('FileContextService', () => {
   it('should add and retrieve a file path', async () => {
     const service = new FileContextService(mockCountTokens);
     const filePath = 'test.txt';
+    vi.spyOn(fs, 'access').mockResolvedValue(undefined);
     await service.add(filePath);
     expect(await service.getTrackedFiles()).toEqual([path.resolve(filePath)]);
   });
@@ -21,6 +25,7 @@ describe('FileContextService', () => {
   it('should add and retrieve an absolute file path', async () => {
     const service = new FileContextService(mockCountTokens);
     const filePath = path.resolve('test.txt');
+    vi.spyOn(fs, 'access').mockResolvedValue(undefined);
     await service.add(filePath);
     expect(await service.getTrackedFiles()).toEqual([filePath]);
   });
@@ -28,6 +33,7 @@ describe('FileContextService', () => {
   it('should remove a file path', async () => {
     const service = new FileContextService(mockCountTokens);
     const filePath = 'test.txt';
+    vi.spyOn(fs, 'access').mockResolvedValue(undefined);
     await service.add(filePath);
     service.remove(filePath);
     expect(await service.getTrackedFiles()).toEqual([]);
@@ -36,6 +42,7 @@ describe('FileContextService', () => {
   it('should return true from has() for a tracked file', async () => {
     const service = new FileContextService(mockCountTokens);
     const filePath = 'test.txt';
+    vi.spyOn(fs, 'access').mockResolvedValue(undefined);
     await service.add(filePath);
     expect(service.has(filePath)).toBe(true);
   });
@@ -49,6 +56,7 @@ describe('FileContextService', () => {
   it('should handle multiple files', async () => {
     const service = new FileContextService(mockCountTokens);
     const filePaths = ['test1.txt', 'test2.txt'];
+    vi.spyOn(fs, 'access').mockResolvedValue(undefined);
     for (const filePath of filePaths) {
       await service.add(filePath);
     }
