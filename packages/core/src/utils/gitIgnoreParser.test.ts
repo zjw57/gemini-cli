@@ -68,7 +68,7 @@ node_modules/
         ) {
           return 'temp/\n*.tmp';
         }
-        throw new Error('ENOENT');
+        return '';
       });
 
       parser.loadGitRepoPatterns();

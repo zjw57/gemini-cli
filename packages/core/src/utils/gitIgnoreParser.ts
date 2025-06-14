@@ -30,30 +30,31 @@ export class GitIgnoreParser implements GitIgnoreFilter {
     this.addPatterns(['.git']);
 
     const patternFiles = ['.gitignore', path.join('.git', 'info', 'exclude')];
-    for (const pf of patternFiles) {
-      this.loadPatterns(pf);
-    }
+    this.loadPatterns(patternFiles);
   }
 
-  loadPatterns(patternsFileName: string): void {
-    const patternsFilePath = path.join(this.projectRoot, patternsFileName);
-    let content: string;
-    try {
-      content = fs.readFileSync(patternsFilePath, 'utf-8');
-    } catch (_error) {
-      // ignore file not found
-      return;
+  loadPatterns(patternsFileName: string | string[]): void {
+    const patternFiles = Array.isArray(patternsFileName)
+      ? patternsFileName
+      : [patternsFileName];
+    for (const pf of patternFiles) {
+      const pfp = path.join(this.projectRoot, pf);
+      let content: string;
+      try {
+        content = fs.readFileSync(pfp, 'utf-8');
+      } catch (_error) {
+        // ignore file not found
+        continue;
+      }
+      const patterns = (content ?? '')
+        .split('\n')
+        .map((p) => p.trim())
+        .filter((p) => p !== '' && !p.startsWith('#'));
+      if (patterns.length > 0) {
+        console.log(`Loaded ${patterns.length} patterns from ${pfp}`);
+      }
+      this.addPatterns(patterns);
     }
-    const patterns = (content ?? '')
-      .split('\n')
-      .map((p) => p.trim())
-      .filter((p) => p !== '' && !p.startsWith('#'));
-    if (patterns.length > 0) {
-      console.log(
-        `Loaded ${patterns.length} patterns from ${patternsFilePath}`,
-      );
-    }
-    this.addPatterns(patterns);
   }
 
   private addPatterns(patterns: string[]) {

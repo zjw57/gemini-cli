@@ -17,6 +17,7 @@ import {
   GEMINI_CONFIG_DIR as GEMINI_DIR,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_EMBEDDING_MODEL,
+  GEMINI_IGNORE_FILE_NAME,
   FileDiscoveryService,
   TelemetryTarget,
 } from '@gemini-cli/core';
@@ -178,8 +179,9 @@ export async function loadCliConfig(
   }
 
   const extensionContextFilePaths = extensions.flatMap((e) => e.contextFiles);
-
-  const fileService = new FileDiscoveryService(process.cwd());
+  const ignoreFileName =
+    settings.fileFiltering?.ignoreFileName ?? GEMINI_IGNORE_FILE_NAME;
+  const fileService = new FileDiscoveryService(process.cwd(), ignoreFileName);
   // Call the (now wrapper) loadHierarchicalGeminiMemory which calls the server's version
   const { memoryContent, fileCount } = await loadHierarchicalGeminiMemory(
     process.cwd(),
@@ -234,6 +236,7 @@ export async function loadCliConfig(
     cwd: process.cwd(),
     fileDiscoveryService: fileService,
     bugCommand: settings.bugCommand,
+    ignoreFileName,
   });
 }
 

@@ -7,8 +7,7 @@
 import { GitIgnoreParser, GitIgnoreFilter } from '../utils/gitIgnoreParser.js';
 import { isGitRepository } from '../utils/gitUtils.js';
 import * as path from 'path';
-
-const GEMINI_IGNORE_FILE_NAME = '.geminiignore';
+import { GEMINI_IGNORE_FILE_NAME } from '../config/config.js';
 
 export interface FilterFilesOptions {
   respectGitIgnore?: boolean;
@@ -20,22 +19,24 @@ export class FileDiscoveryService {
   private geminiIgnoreFilter: GitIgnoreFilter | null = null;
   private projectRoot: string;
 
-  constructor(projectRoot: string) {
+  constructor(projectRoot: string, ignoreFileName?: string | string[]) {
     this.projectRoot = path.resolve(projectRoot);
     if (isGitRepository(this.projectRoot)) {
       const parser = new GitIgnoreParser(this.projectRoot);
       try {
         parser.loadGitRepoPatterns();
       } catch (_error) {
-        // ignore file not found
+        console.error(`[ERROR] Failed to load git ignore patterns: ${_error}.`);
       }
       this.gitIgnoreFilter = parser;
     }
     const gParser = new GitIgnoreParser(this.projectRoot);
     try {
-      gParser.loadPatterns(GEMINI_IGNORE_FILE_NAME);
+      gParser.loadPatterns(ignoreFileName ?? GEMINI_IGNORE_FILE_NAME);
     } catch (_error) {
-      // ignore file not found
+      console.error(
+        `[ERROR] Failed to load ignore patterns from ${ignoreFileName}: ${_error}.`,
+      );
     }
     this.geminiIgnoreFilter = gParser;
   }

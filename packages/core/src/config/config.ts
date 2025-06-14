@@ -31,6 +31,8 @@ import {
 } from '../telemetry/index.js';
 import { DEFAULT_GEMINI_EMBEDDING_MODEL } from './models.js';
 
+export const GEMINI_IGNORE_FILE_NAME = ['.geminiignore', '.aiexclude'];
+
 export enum ApprovalMode {
   DEFAULT = 'default',
   AUTO_EDIT = 'autoEdit',
@@ -101,6 +103,7 @@ export interface ConfigParameters {
   cwd: string;
   fileDiscoveryService?: FileDiscoveryService;
   bugCommand?: BugCommandSettings;
+  ignoreFileName?: string | string[];
 }
 
 export class Config {
@@ -133,6 +136,7 @@ export class Config {
   private readonly proxy: string | undefined;
   private readonly cwd: string;
   private readonly bugCommand: BugCommandSettings | undefined;
+  private readonly ignoreFileName: string | string[];
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -169,6 +173,7 @@ export class Config {
     this.cwd = params.cwd ?? process.cwd();
     this.fileDiscoveryService = params.fileDiscoveryService ?? null;
     this.bugCommand = params.bugCommand;
+    this.ignoreFileName = params.ignoreFileName ?? GEMINI_IGNORE_FILE_NAME;
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -327,7 +332,10 @@ export class Config {
 
   getFileService(): FileDiscoveryService {
     if (!this.fileDiscoveryService) {
-      this.fileDiscoveryService = new FileDiscoveryService(this.targetDir);
+      this.fileDiscoveryService = new FileDiscoveryService(
+        this.targetDir,
+        this.ignoreFileName,
+      );
     }
     return this.fileDiscoveryService;
   }
