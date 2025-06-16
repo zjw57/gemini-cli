@@ -62,6 +62,10 @@ Slash commands provide meta-level control over the CLI itself.
 
   - **Description:** Replace the entire chat context with a summary. This saves on tokens used for future tasks while retaining a high level summary of what has happened.
 
+- **`/bug`**
+
+  - **Description:** File an issue about Gemini CLI. By default, the issue is filed within the GitHub repository for Gemini CLI. The string you enter after `/bug` will become the headline for the bug being filed. The default `/bug` behavior can be modified using the `bugCommand` setting in your `.gemini/settings.json` files.
+
 ## At commands (`@`)
 
 At commands are used to include the content of files or directories as part of your prompt to Gemini. These commands include git-aware filtering.
