@@ -340,7 +340,7 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
 
   useEffect(() => {
     const fetchUserMessages = async () => {
-      const pastMessagesRaw = (await logger?.getPreviousUserMessages()) || []; // Newest first
+      const pastMessagesRaw = logger?.getPreviousUserMessages() || []; // Newest first
 
       const currentSessionUserMessages = history
         .filter(
