@@ -8,6 +8,7 @@ import React from 'react';
 import { render } from 'ink';
 import { AppWrapper } from './ui/App.js';
 import { loadCliConfig } from './config/config.js';
+import { resolvePromptFromFile } from './utils/prompt.js';
 import { readStdin } from './utils/readStdin.js';
 import { basename } from 'node:path';
 import { sandbox_command, start_sandbox } from './utils/sandbox.js';
@@ -79,7 +80,7 @@ export async function main() {
     }
   }
 
-  let input = config.getQuestion();
+  let input = resolvePromptFromFile(config.getQuestion() ?? '', workspaceRoot);
   const startupWarnings = await getStartupWarnings();
 
   // Render UI, passing necessary config values. Check that there is no command line question.
