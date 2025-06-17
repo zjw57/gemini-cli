@@ -46,16 +46,15 @@ try {
   sandboxCommand = execSync('node scripts/sandbox_command.js')
     .toString()
     .trim();
-} catch {
-  console.warn(
-    'WARNING: container-based sandboxing is disabled (see README.md#sandboxing)',
-  );
+} catch (e) {
+  console.error('ERROR: failed to determine sandbox container command.');
+  console.error(e);
   process.exit(0);
 }
 
 if (sandboxCommand === 'sandbox-exec') {
   console.warn(
-    'WARNING: container-based sandboxing is disabled (see README.md#sandboxing)',
+    "WARNING: cannot use container-based sandboxing when 'sandbox-exec' (Mac OS seatbelt) is enabled.",
   );
   process.exit(0);
 }
@@ -100,7 +99,7 @@ chmodSync(
   0o755,
 );
 
-const buildStdout = process.env.VERBOSE ? 'inherit' : 'ignore';
+const buildStdout = process.env.VERBOSE ? 'inherit' : 'pipe';
 
 function buildImage(imageName, dockerfile) {
   console.log(`building ${imageName} ... (can be slow first time)`);
@@ -113,12 +112,25 @@ function buildImage(imageName, dockerfile) {
     readFileSync(join(process.cwd(), 'package.json'), 'utf-8'),
   ).version;
 
-  execSync(
-    `${buildCommand} ${
-      process.env.BUILD_SANDBOX_FLAGS || ''
-    } --build-arg CLI_VERSION_ARG=${npmPackageVersion} -f "${dockerfile}" -t "${imageName}" .`,
-    { stdio: buildStdout, shell: '/bin/bash' },
-  );
+  try {
+    execSync(
+      `${buildCommand} ${
+        process.env.BUILD_SANDBOX_FLAGS || ''
+      } --build-arg CLI_VERSION_ARG=${npmPackageVersion} -f "${dockerfile}" -t "${imageName}" .`,
+      { stdio: buildStdout, shell: '/bin/bash' },
+    );
+  } catch (e) {
+    console.error(`\nError building sandbox image "${imageName}".`);
+    if (e.stdout?.length) {
+      console.error('--- STDOUT ---');
+      console.error(e.stdout.toString());
+    }
+    if (e.stderr?.length) {
+      console.error('--- STDERR ---');
+      console.error(e.stderr.toString());
+    }
+    process.exit(1);
+  }
   console.log(`built ${imageName}`);
 }
 
