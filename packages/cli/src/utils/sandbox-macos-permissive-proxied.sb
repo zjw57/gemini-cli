@@ -22,10 +22,12 @@
 (deny network-inbound)
 (allow network-inbound (local ip "localhost:9229"))
 
-;; deny all outbound network traffic EXCEPT through proxy on localhost:8877
+;; deny all outbound network traffic EXCEPT through proxy on localhost:8877 and OTLP collector on localhost:4317
 ;; set `GEMINI_SANDBOX_PROXY_COMMAND=<command>` to run proxy alongside sandbox
 ;; proxy must listen on :::8877 (see scripts/example-proxy.js)
 (deny network-outbound)
 (allow network-outbound (remote tcp "localhost:8877"))
+;; Allow outbound traffic on OTLP collector port
+(allow network-outbound (remote tcp "localhost:4317"))
 
 (allow network-bind (local ip "*:*"))

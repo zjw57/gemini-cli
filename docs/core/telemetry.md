@@ -38,7 +38,7 @@ This entire system is built on the **[OpenTelemetry] (OTEL)** standard, allowing
 
 You can enable telemetry in multiple ways. [Configuration](configuration.md) is primarily managed via the `.gemini/settings.json` file and environment variables, but CLI flags can override these settings for a specific session.
 
-> **A Note on Sandbox Mode:** Telemetry is not compatible with sandbox mode at this time. Turn off sandbox mode before enabling telemetry. Tracked in #894.
+> **A Note on Sandbox Mode:** Telemetry is not compatible with docker/podman sandbox mode at this time - but it works for Seatbelt sandbox mode in MacOS. Tracked in #894.
 
 **Order of Precedence:**
 

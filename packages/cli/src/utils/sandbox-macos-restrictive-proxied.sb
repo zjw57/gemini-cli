@@ -90,3 +90,5 @@
 ;; set `GEMINI_SANDBOX_PROXY_COMMAND=<command>` to run proxy alongside sandbox
 ;; proxy must listen on :::8877 (see scripts/example-proxy.js)
 (allow network-outbound (remote tcp "localhost:8877"))
+;; Allow outbound traffic on OTLP collector port
+(allow network-outbound (remote tcp "localhost:4317"))

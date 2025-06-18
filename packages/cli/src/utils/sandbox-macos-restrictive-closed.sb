@@ -85,3 +85,6 @@
 
 ;; allow inbound network traffic on debugger port
 (allow network-inbound (local ip "localhost:9229"))
+
+;; Allow outbound traffic on OTLP collector port
+(allow network-outbound (remote tcp "localhost:4317"))
