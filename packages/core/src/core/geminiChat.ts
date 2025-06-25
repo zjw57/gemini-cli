@@ -17,7 +17,6 @@ import {
   GenerateContentResponseUsageMetadata,
 } from '@google/genai';
 import { retryWithBackoff } from '../utils/retry.js';
-import { isFunctionResponse } from '../utils/messageInspectors.js';
 import { ContentGenerator, AuthType } from './contentGenerator.js';
 import { Config } from '../config/config.js';
 import {
@@ -64,64 +63,6 @@ function isValidContent(content: Content): boolean {
     }
   }
   return true;
-}
-
-/**
- * Validates the history contains the correct roles.
- *
- * @throws Error if the history does not start with a user turn.
- * @throws Error if the history contains an invalid role.
- */
-function validateHistory(history: Content[]) {
-  // Empty history is valid.
-  if (history.length === 0) {
-    return;
-  }
-  for (const content of history) {
-    if (content.role !== 'user' && content.role !== 'model') {
-      throw new Error(`Role must be user or model, but got ${content.role}.`);
-    }
-  }
-}
-
-/**
- * Extracts the curated (valid) history from a comprehensive history.
- *
- * @remarks
- * The model may sometimes generate invalid or empty contents(e.g., due to safty
- * filters or recitation). Extracting valid turns from the history
- * ensures that subsequent requests could be accpeted by the model.
- */
-function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
-  if (comprehensiveHistory === undefined || comprehensiveHistory.length === 0) {
-    return [];
-  }
-  const curatedHistory: Content[] = [];
-  const length = comprehensiveHistory.length;
-  let i = 0;
-  while (i < length) {
-    if (comprehensiveHistory[i].role === 'user') {
-      curatedHistory.push(comprehensiveHistory[i]);
-      i++;
-    } else {
-      const modelOutput: Content[] = [];
-      let isValid = true;
-      while (i < length && comprehensiveHistory[i].role === 'model') {
-        modelOutput.push(comprehensiveHistory[i]);
-        if (isValid && !isValidContent(comprehensiveHistory[i])) {
-          isValid = false;
-        }
-        i++;
-      }
-      if (isValid) {
-        curatedHistory.push(...modelOutput);
-      } else {
-        // Remove the last user input when model content is invalid.
-        curatedHistory.pop();
-      }
-    }
-  }
-  return curatedHistory;
 }
 
 /**
@@ -422,7 +363,7 @@ export class GeminiChat {
    * Clears the chat history.
    */
   clearHistory(): void {
-    this.history.clearHistory()
+    this.history.clearHistory();
   }
 
   /**
