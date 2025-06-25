@@ -29,6 +29,7 @@ import {
   getStructuredResponse,
   getStructuredResponseFromParts,
 } from '../utils/generateContentResponseUtilities.js';
+import { GeminiChatHistory } from './geminiChatHistory.js';
 import {
   ApiErrorEvent,
   ApiRequestEvent,
@@ -134,15 +135,16 @@ export class GeminiChat {
   // A promise to represent the current state of the message being sent to the
   // model.
   private sendPromise: Promise<void> = Promise.resolve();
+  private readonly history: GeminiChatHistory;
 
   constructor(
     private readonly config: Config,
     private readonly contentGenerator: ContentGenerator,
     private readonly model: string,
     private readonly generationConfig: GenerateContentConfig = {},
-    private history: Content[] = [],
+    private readonly starterHistory: Content[] = [],
   ) {
-    validateHistory(history);
+    this.history = new GeminiChatHistory(starterHistory);
   }
 
   private _getRequestTextFromContents(contents: Content[]): string {
@@ -282,7 +284,7 @@ export class GeminiChat {
             fullAutomaticFunctionCallingHistory.slice(index) ?? [];
         }
         const modelOutput = outputContent ? [outputContent] : [];
-        this.recordHistory(
+        this.addTurnResponse(
           userContent,
           modelOutput,
           automaticFunctionCallingHistory,
@@ -404,19 +406,23 @@ export class GeminiChat {
    *     chat session.
    */
   getHistory(curated: boolean = false): Content[] {
-    const history = curated
-      ? extractCuratedHistory(this.history)
-      : this.history;
-    // Deep copy the history to avoid mutating the history outside of the
-    // chat session.
-    return structuredClone(history);
+    return this.history.getHistory(curated);
+  }
+
+  /**
+   * Adds messages to the pinned messages history.
+   * @param msgs The messages to add.
+   * @returns void
+   */
+  addPinnedMessages(msgs: Content[]) {
+    this.history.addPinnedMessages(msgs);
   }
 
   /**
    * Clears the chat history.
    */
   clearHistory(): void {
-    this.history = [];
+    this.history.clearHistory()
   }
 
   /**
@@ -425,10 +431,10 @@ export class GeminiChat {
    * @param content - The content to add to the history.
    */
   addHistory(content: Content): void {
-    this.history.push(content);
+    this.history.addHistoryDangerous(content);
   }
   setHistory(history: Content[]): void {
-    this.history = history;
+    this.history.setHistoryDangerous(history);
   }
 
   getFinalUsageMetadata(
@@ -488,93 +494,27 @@ export class GeminiChat {
         fullText,
       );
     }
-    this.recordHistory(inputContent, outputContent);
+    this.addTurnResponse(inputContent, outputContent);
   }
 
-  private recordHistory(
+  /**
+   * Given the input to the model, and the output from the model, process the output
+   * and smartly store it into our history to take into account certain conditions
+   * that keep our message history clean.
+   * @param userInput The content of the user's input.
+   * @param modelOutput An array of content from the model's output.
+   * @param automaticFunctionCallingHistory Optional history from automatic function calling.
+   */
+  addTurnResponse(
     userInput: Content,
     modelOutput: Content[],
     automaticFunctionCallingHistory?: Content[],
   ) {
-    const nonThoughtModelOutput = modelOutput.filter(
-      (content) => !this.isThoughtContent(content),
+    this.history.addTurnResponse(
+      userInput,
+      modelOutput,
+      automaticFunctionCallingHistory,
     );
-
-    let outputContents: Content[] = [];
-    if (
-      nonThoughtModelOutput.length > 0 &&
-      nonThoughtModelOutput.every((content) => content.role !== undefined)
-    ) {
-      outputContents = nonThoughtModelOutput;
-    } else if (nonThoughtModelOutput.length === 0 && modelOutput.length > 0) {
-      // This case handles when the model returns only a thought.
-      // We don't want to add an empty model response in this case.
-    } else {
-      // When not a function response appends an empty content when model returns empty response, so that the
-      // history is always alternating between user and model.
-      // Workaround for: https://b.corp.google.com/issues/420354090
-      if (!isFunctionResponse(userInput)) {
-        outputContents.push({
-          role: 'model',
-          parts: [],
-        } as Content);
-      }
-    }
-    if (
-      automaticFunctionCallingHistory &&
-      automaticFunctionCallingHistory.length > 0
-    ) {
-      this.history.push(
-        ...extractCuratedHistory(automaticFunctionCallingHistory!),
-      );
-    } else {
-      this.history.push(userInput);
-    }
-
-    // Consolidate adjacent model roles in outputContents
-    const consolidatedOutputContents: Content[] = [];
-    for (const content of outputContents) {
-      if (this.isThoughtContent(content)) {
-        continue;
-      }
-      const lastContent =
-        consolidatedOutputContents[consolidatedOutputContents.length - 1];
-      if (this.isTextContent(lastContent) && this.isTextContent(content)) {
-        // If both current and last are text, combine their text into the lastContent's first part
-        // and append any other parts from the current content.
-        lastContent.parts[0].text += content.parts[0].text || '';
-        if (content.parts.length > 1) {
-          lastContent.parts.push(...content.parts.slice(1));
-        }
-      } else {
-        consolidatedOutputContents.push(content);
-      }
-    }
-
-    if (consolidatedOutputContents.length > 0) {
-      const lastHistoryEntry = this.history[this.history.length - 1];
-      const canMergeWithLastHistory =
-        !automaticFunctionCallingHistory ||
-        automaticFunctionCallingHistory.length === 0;
-
-      if (
-        canMergeWithLastHistory &&
-        this.isTextContent(lastHistoryEntry) &&
-        this.isTextContent(consolidatedOutputContents[0])
-      ) {
-        // If both current and last are text, combine their text into the lastHistoryEntry's first part
-        // and append any other parts from the current content.
-        lastHistoryEntry.parts[0].text +=
-          consolidatedOutputContents[0].parts[0].text || '';
-        if (consolidatedOutputContents[0].parts.length > 1) {
-          lastHistoryEntry.parts.push(
-            ...consolidatedOutputContents[0].parts.slice(1),
-          );
-        }
-        consolidatedOutputContents.shift(); // Remove the first element as it's merged
-      }
-      this.history.push(...consolidatedOutputContents);
-    }
   }
 
   private isTextContent(
