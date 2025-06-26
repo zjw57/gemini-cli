@@ -6,7 +6,29 @@
 
 import { Content, Part } from '@google/genai';
 import { isFunctionResponse } from '../utils/messageInspectors.js';
+import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
+import { ContentGenerator } from './contentGenerator.js';
 
+async function countSymbols(
+  ctnt: Content[],
+  contentGenerator: ContentGenerator,
+) {
+  const countingModel = DEFAULT_GEMINI_FLASH_MODEL;
+
+  if (ctnt.length === 0) return 0;
+
+  const { totalTokens: originalTokenCount } =
+    await contentGenerator.countTokens({
+      model: countingModel,
+      contents: ctnt,
+    });
+
+  // If token count is undefined, we can't determine token sizes...
+  if (originalTokenCount !== undefined) {
+    return originalTokenCount;
+  }
+  return 0;
+}
 /**
  * Checks if the given content represents a function call.
  * @param content The content to check.
@@ -45,7 +67,7 @@ function isValidContent(content: Content): boolean {
  * @param content The content to check.
  * @returns True if the content is a user message content, false otherwise.
  */
-function isUserMessageContent(
+function _isUserMessageContent(
   content: Content | undefined,
 ): content is Content & { parts: [{ text: string }, ...Part[]] } {
   return !!(
@@ -113,6 +135,13 @@ function isThoughtContent(
   );
 }
 
+/**
+ * Holds the most recent message history in full context w/o editing.
+ * It's been shown that most models tend to have a "cognitive cliff" at about 60k lines,
+ * (regardless of what the upper limit is on context size). So, this class
+ * intentionally limits the "working memory" of the Chat to about 25 total messages
+ * After which, messages will be pruned into the HistoricMessages class
+ */
 export class RecentMessages {
   /**
    * The array of messages currently stored in this history.
@@ -121,12 +150,24 @@ export class RecentMessages {
   /**
    * The maximum number of messages to store in this history.
    */
-  readonly maxSize: number = 25;
+  readonly maxSizeLength: number = 25;
+
+  /**
+   * The maximum number of symbols to store in this history.
+   */
+  readonly maxSizeSymbols: number = 1024 * 200;
+
+  /**
+   * The content generator used for token counting.
+   */
+  private readonly contentGenerator: ContentGenerator;
 
   /**
    * Initializes a new instance of the RecentMessages class.
    */
-  constructor() {}
+  constructor(contentGenerator: ContentGenerator) {
+    this.contentGenerator = contentGenerator;
+  }
 
   /**
    * Returns the number of messages currently stored in the history.
@@ -191,6 +232,26 @@ export class RecentMessages {
         throw new Error(`Role must be user or model, but got ${content.role}.`);
       }
     }
+  }
+
+  /**
+   * A helper function which deteremines if the size of recent memory is larger than its' thresholds
+   * @param triggerViaSymbols
+   * @returns
+   */
+  async doesHistorySizeEclipseThreshold(
+    triggerViaSymbols: boolean,
+  ): Promise<boolean> {
+    if (triggerViaSymbols) {
+      const contents = this.getMessages(false);
+      if (contents.length === 0) return false;
+
+      const tokenCount = await countSymbols(contents, this.contentGenerator);
+      console.log(tokenCount, this.maxSizeSymbols);
+      return tokenCount > this.maxSizeSymbols;
+    }
+    // if the symbol counting fails for any reason, or we're explicitly told to use, then default back to length
+    return this.messages.length >= this.maxSizeLength;
   }
 
   /**
@@ -279,7 +340,6 @@ export class RecentMessages {
     } else {
       // When not a function response appends an empty content when model returns empty response, so that the
       // history is always alternating between user and model.
-      // Workaround for: https://b.corp.google.com/issues/420354090
       if (!isFunctionResponse(userInput)) {
         outputContents.push({
           role: 'model',
@@ -348,6 +408,16 @@ export class RecentMessages {
   }
 }
 
+/**
+ * Holds the historic messages for any long running operations of this chat.
+ * Messages in this generation take on different importance. Things like 'read' operations
+ * have a higher risk of causing memory rot behavior due to newer messages containing up-to-date
+ * information. So, when messages are added to this generation, some filtering occurs
+ * to reduce these types of items.
+ * Over time, messages in this generation become less and less important to the current work being done
+ * and hold more significance for long running jobs over time (but less significance for long chats
+ * with multiple context switches.)
+ */
 export class HistoricMessages {
   /**
    * The array of messages currently stored in this history.
@@ -356,7 +426,7 @@ export class HistoricMessages {
   /**
    * The maximum number of messages to store in this history.
    */
-  readonly maxSize: number = 25;
+  readonly maxSize: number = 50;
 
   /**
    * Initializes a new instance of the HistoricMessages class.
@@ -453,23 +523,26 @@ export class HistoricMessages {
     // let's find any functioncall blocks, and then ensure there's a correct amount of functionresponse blocks trailing it.
     for (let i = 0; i < content.length; i++) {
       const tgtContent = content[i];
-      if (isFunctionCall(tgtContent)) {
+      if (isFunctionCall(tgtContent) && tgtContent.parts) {
+        const numCalls = tgtContent.parts.length;
         const spanResp: Content[] = [];
-        // how many function calls?
-        let numCalls = 0;
-        tgtContent?.parts?.every((_part) => {
-          numCalls++;
-        });
 
-        // scan ahead and make sure there's exactly that number of function responses
-        for (let j = 0; j < numCalls; j++) {
-          const ij = i + 1 + j;
-          spanResp.push(content[ij]);
+        if (i + numCalls < content.length) {
+          let isValidSpan = true;
+          for (let j = 1; j <= numCalls; j++) {
+            const response = content[i + j];
+            if (!response || !isFunctionResponse(response)) {
+              isValidSpan = false;
+              break;
+            }
+            spanResp.push(response);
+          }
+
+          if (isValidSpan) {
+            spans.push({ call: tgtContent, resp: spanResp });
+            i += numCalls; // Move index past this valid span
+          }
         }
-
-        // skip ahead
-        i += numCalls;
-        spans.push({ call: tgtContent, resp: spanResp });
       }
     }
     return spans;
@@ -484,6 +557,10 @@ export class HistoricMessages {
  * which can lead to API errors if not used carefully. Users are responsible for
  * ensuring adherence to GenerateContent API requirements when using these functions.
  *
+ * The reason for generational segmentation is less about ensuring capacity fits within model limits
+ * and more about ensuring that the context available does not cause memory rot - hence why these
+ * limits are significantly lower (e.g. 25 messages or so) than what the model is capable of.
+ *
  * @remarks
  * The session maintains all the turns between user and model.
  */
@@ -495,7 +572,7 @@ export class GeminiChatHistory {
   /**
    * Full context messages, managed by the RecentMessages class.
    */
-  private recentMessages: RecentMessages = new RecentMessages();
+  private recentMessages: RecentMessages;
   /**
    * Pruned and trimmed messages, managed by the HistoricMessages class.
    */
@@ -504,12 +581,18 @@ export class GeminiChatHistory {
    * The maximum number of historic messages to store.
    */
   private readonly numHistoricMessages: number = 25;
+  /**
+   * The content generator used for token counting.
+   */
+  private readonly contentGenerator: ContentGenerator;
 
   /**
    * Initializes a new instance of the GeminiChatHistory class.
    * @param history Optional initial history to set. Defaults to an empty array.
    */
-  constructor(history: Content[] = []) {
+  constructor(contentGenerator: ContentGenerator, history: Content[] = []) {
+    this.contentGenerator = contentGenerator;
+    this.recentMessages = new RecentMessages(this.contentGenerator);
     this.setHistoryDangerous(history);
     this.pinnedMessages = [];
   }
@@ -573,17 +656,20 @@ export class GeminiChatHistory {
    * @param modelOutput An array of content from the model's output.
    * @param automaticFunctionCallingHistory Optional history from automatic function calling.
    */
-  addTurnResponse(
+  async addTurnResponse(
     userInput: Content,
     modelOutput: Content[],
     automaticFunctionCallingHistory?: Content[],
   ) {
+    // add the message to our history
     this.recentMessages.addTurnResponse(
       userInput,
       modelOutput,
       automaticFunctionCallingHistory,
     );
-    this.processMessageGenerations();
+
+    // if we didn't hit any edge cases, let this occur normally
+    await this.processMessageGenerations();
   }
 
   /**
@@ -592,11 +678,10 @@ export class GeminiChatHistory {
    * preamble messages (like initial context or "Get Started!" messages) by temporarily
    * holding them and re-inserting them at the front of the recentMessages after processing.
    */
-  private processMessageGenerations(): void {
-    // only trigger when we're above the maxsize
-    if (this.recentMessages.messages.length < this.recentMessages.maxSize)
-      return;
-
+  private async processMessageGenerations(
+    triggerViaSymbols = true,
+  ): Promise<void> {
+    // helper function
     function testPreambleContent(
       tgtContent: Content | undefined,
       tgtStr: string,
@@ -621,6 +706,14 @@ export class GeminiChatHistory {
       return false;
     }
 
+    // don't trigger unless we're above max size.
+    if (
+      !(await this.recentMessages.doesHistorySizeEclipseThreshold(
+        triggerViaSymbols,
+      ))
+    )
+      return;
+
     // check if the system message is the first message (happens sometimes..)
     let systemHolders: Array<Content | undefined> = [];
 
@@ -631,48 +724,26 @@ export class GeminiChatHistory {
         'Okay, just setting up the context for our chat.',
       )
     ) {
-      systemHolders.push(this.recentMessages.messages.shift()); // here's context
-      systemHolders.push(this.recentMessages.messages.shift()); //Got it. Thanks for the context!
+      systemHolders.push(this.recentMessages.messages.shift()); // "Here's context..""
+      systemHolders.push(this.recentMessages.messages.shift()); // "Got it. Thanks for the context!
     }
     // if it's a subagent, there will be a "get started" message
     if (testPreambleContent(this.recentMessages.messages[0], 'Get Started!')) {
       systemHolders.push(this.recentMessages.messages.shift()); //get started
     }
-
     // Let's eat as many call/response spans as we can, until we're under the limit
     // this might eat into the main buffer a bit.. that's fine.
     const overflow: Content[] = [];
-    while (this.recentMessages.messages.length > this.recentMessages.maxSize) {
-      const tgtContent = this.recentMessages.messages[0];
-      if (isFunctionCall(tgtContent)) {
-        // If it's a function call from the model down to the client
-        overflow.push(this.recentMessages.messages.shift()!);
-
-        const _spanResp: Content[] = [];
-        // how many function calls should we expect from the client in response?
-        let numCalls = 0;
-        tgtContent?.parts?.every((_part) => {
-          numCalls++;
-        });
-
-        // push each of the blocks
-        for (let j = 0; j < numCalls; j++) {
-          overflow.push(this.recentMessages.messages.shift()!);
-        }
-      } else if (isUserMessageContent(tgtContent)) {
-        // if it's a user message from the client, we should then expect a function call response
-        // Always add the user messages
-        overflow.push(this.recentMessages.messages.shift()!);
-      } else if (isTextContent(tgtContent)) {
-        // Sometimes, some top-level messages from the model back to the user get into the stream, that haven't been filtered elsewhere
-        // let's ignore those for now...
-        continue;
-      } else {
-        console.error(
-          'Found diff top level message',
-          JSON.stringify(tgtContent),
-        );
-        break;
+    while (
+      (await this.recentMessages.doesHistorySizeEclipseThreshold(
+        triggerViaSymbols,
+      )) &&
+      this.recentMessages.messages.length > 0
+    ) {
+      console.log('content too large', this.recentMessages.messages.length);
+      const content = this.recentMessages.messages.shift();
+      if (content) {
+        overflow.push(content);
       }
     }
 
@@ -686,9 +757,19 @@ export class GeminiChatHistory {
     }
 
     // if we don't have overflow, continue
-    if (!overflow.length) return;
+    if (!overflow.length) {
+      // put the preambles back on the front.
+      if (systemHolders.length) {
+        while (systemHolders.length) {
+          const c = systemHolders.pop();
+          if (c) this.recentMessages.messages.unshift(c);
+        }
+        systemHolders = [];
+      }
+      return;
+    }
 
-    //console.log(`---->> we have ${overflow.length} overflow messages`)
+    console.log(`---->> we have ${overflow.length} overflow messages`);
 
     this.historicMessages.addMessages(overflow);
   }

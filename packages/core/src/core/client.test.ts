@@ -139,6 +139,12 @@ describe('Gemini Client (client.ts)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mockConfig = new Config({} as any);
     client = new GeminiClient(mockConfig);
+
+    const mockGenerator: Partial<ContentGenerator> = {
+      countTokens: vi.fn().mockResolvedValue({ totalTokens: 1 }),
+      generateContent: mockGenerateContentFn,
+    };
+    client['contentGenerator'] = mockGenerator as ContentGenerator;
     await client.initialize(contentGeneratorConfig);
   });
 

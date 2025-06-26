@@ -5,8 +5,7 @@
  */
 
 // DISCLAIMER: This is a copied version of https://github.com/googleapis/js-genai/blob/main/src/chats.ts with the intention of working around a key bug
-// where function responses are not treated as "valid" responses: https://b.corp.google.com/issues/420354090
-
+// where function responses are not treated as "valid" responses
 import {
   GenerateContentResponse,
   Content,
@@ -85,7 +84,7 @@ export class GeminiChat {
     private readonly generationConfig: GenerateContentConfig = {},
     private readonly starterHistory: Content[] = [],
   ) {
-    this.history = new GeminiChatHistory(starterHistory);
+    this.history = new GeminiChatHistory(contentGenerator, starterHistory);
   }
 
   private _getRequestTextFromContents(contents: Content[]): string {

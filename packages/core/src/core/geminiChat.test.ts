@@ -48,6 +48,16 @@ describe('GeminiChat', () => {
     setSimulate429(false);
     // Reset history for each test by creating a new instance
     chat = new GeminiChat(mockConfig, mockModelsModule, model, config, []);
+    const mockGenerator: Partial<ContentGenerator> = {
+      countTokens: vi.fn().mockResolvedValue({ totalTokens: 0 }),
+      generateContent: vi.fn().mockResolvedValue({
+        usageMetadata: {
+          totalTokens: 1,
+        },
+      }),
+      generateContentStream: vi.fn().mockResolvedValue((async function* () {})()),
+    };
+    chat['contentGenerator'] = mockGenerator as ContentGenerator;
   });
 
   afterEach(() => {
@@ -56,25 +66,11 @@ describe('GeminiChat', () => {
 
   describe('sendMessage', () => {
     it('should call generateContent with the correct parameters', async () => {
-      const response = {
-        candidates: [
-          {
-            content: {
-              parts: [{ text: 'response' }],
-              role: 'model',
-            },
-            finishReason: 'STOP',
-            index: 0,
-            safetyRatings: [],
-          },
-        ],
-        text: () => 'response',
-      } as unknown as GenerateContentResponse;
-      vi.mocked(mockModelsModule.generateContent).mockResolvedValue(response);
-
       await chat.sendMessage({ message: 'hello' });
 
-      expect(mockModelsModule.generateContent).toHaveBeenCalledWith({
+      expect(
+        (chat['contentGenerator'] as ContentGenerator).generateContent,
+      ).toHaveBeenCalledWith({
         model: 'gemini-pro',
         contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
         config: {},
@@ -84,29 +80,11 @@ describe('GeminiChat', () => {
 
   describe('sendMessageStream', () => {
     it('should call generateContentStream with the correct parameters', async () => {
-      const response = (async function* () {
-        yield {
-          candidates: [
-            {
-              content: {
-                parts: [{ text: 'response' }],
-                role: 'model',
-              },
-              finishReason: 'STOP',
-              index: 0,
-              safetyRatings: [],
-            },
-          ],
-          text: () => 'response',
-        } as unknown as GenerateContentResponse;
-      })();
-      vi.mocked(mockModelsModule.generateContentStream).mockResolvedValue(
-        response,
-      );
-
       await chat.sendMessageStream({ message: 'hello' });
 
-      expect(mockModelsModule.generateContentStream).toHaveBeenCalledWith({
+      expect(
+        (chat['contentGenerator'] as ContentGenerator).generateContentStream,
+      ).toHaveBeenCalledWith({
         model: 'gemini-pro',
         contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
         config: {},
@@ -115,18 +93,18 @@ describe('GeminiChat', () => {
   });
 
   describe('addHistory', () => {
-    it('should add a new content item to the history', () => {
+    it('should add a new content item to the history', async () => {
       const newContent: Content = {
         role: 'user',
         parts: [{ text: 'A new message' }],
       };
-      chat.addHistory(newContent);
+      await chat.addHistory(newContent);
       const history = chat.getHistory();
       expect(history.length).toBe(1);
       expect(history[0]).toEqual(newContent);
     });
 
-    it('should add multiple items correctly', () => {
+    it('should add multiple items correctly', async () => {
       const content1: Content = {
         role: 'user',
         parts: [{ text: 'Message 1' }],
@@ -135,8 +113,8 @@ describe('GeminiChat', () => {
         role: 'model',
         parts: [{ text: 'Message 2' }],
       };
-      chat.addHistory(content1);
-      chat.addHistory(content2);
+      await chat.addHistory(content1);
+      await chat.addHistory(content2);
       const history = chat.getHistory();
       expect(history.length).toBe(2);
       expect(history[0]).toEqual(content1);
