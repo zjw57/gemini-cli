@@ -102,6 +102,10 @@ export class GeminiClient {
     await this.chat;
   }
 
+  resetSessionId(): void {
+    this.getContentGenerator().resetSessionId();
+  }
+
   private async getEnvironment(): Promise<Part[]> {
     const cwd = this.config.getWorkingDir();
     const today = new Date().toLocaleDateString(undefined, {

@@ -21,6 +21,8 @@ import { getEffectiveModel } from './modelCheck.js';
  * Interface abstracting the core functionalities for generating content and counting tokens.
  */
 export interface ContentGenerator {
+  resetSessionId(): void;
+
   generateContent(
     request: GenerateContentParameters,
   ): Promise<GenerateContentResponse>;
@@ -135,7 +137,10 @@ export async function createContentGenerator(
       httpOptions,
     });
 
-    return googleGenAI.models;
+    const models = googleGenAI.models;
+    (models as unknown as ContentGenerator).resetSessionId = () => {};
+
+    return models as unknown as ContentGenerator;
   }
 
   throw new Error(
