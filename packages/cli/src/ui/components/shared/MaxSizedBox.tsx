@@ -8,8 +8,9 @@ import React, { Fragment, useEffect, useId } from 'react';
 import { Box, Text } from 'ink';
 import stringWidth from 'string-width';
 import { Colors } from '../../colors.js';
-import { toCodePoints } from '../../utils/textUtils.js';
+import { toCodePoints, cpSlice } from '../../utils/textUtils.js';
 import { useOverflowActions } from '../../contexts/OverflowContext.js';
+
 
 let enableDebugLog = false;
 
