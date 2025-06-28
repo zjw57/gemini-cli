@@ -127,6 +127,7 @@ export interface ConfigParameters {
   bugCommand?: BugCommandSettings;
   model: string;
   extensionContextFilePaths?: string[];
+  projectRoot?: string;
 }
 
 export class Config {
