@@ -23,7 +23,7 @@ const mockModelsInstance = {
   countTokens: vi.fn(),
   embedContent: vi.fn(),
   batchEmbedContents: vi.fn(),
-  resetSession: vi.fn(),
+  resetSessionId: vi.fn(),
 } as unknown as ContentGenerator;
 
 const mockGoogleGenAIInstance = {

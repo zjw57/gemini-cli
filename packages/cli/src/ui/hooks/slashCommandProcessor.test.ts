@@ -364,7 +364,7 @@ describe('useSlashCommandProcessor', () => {
         ...mockConfig,
         getGeminiClient: () => ({
           resetChat: mockResetChat,
-          resetSession: mockResetSession,
+          resetSessionId: mockResetSession,
         }),
       } as unknown as Config;
 
