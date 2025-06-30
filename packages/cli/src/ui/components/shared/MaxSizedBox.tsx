@@ -418,7 +418,6 @@ function layoutInkElementAsStyledText(
   const availableWidth = maxWidth - noWrappingWidth;
 
   if (availableWidth < 1) {
-    // No room to render the wrapping segments. TODO(jacob314): consider an alternative fallback strategy.
     // No room to render the wrapping segments. Truncate the non-wrapping
     // content and append an ellipsis so the line always fits within maxWidth.
     const truncatedLine: StyledText[] = [];
