@@ -544,7 +544,9 @@ describe('EditTool', () => {
         new_string: 'new content',
       };
       const result = await tool.execute(params, new AbortController().signal);
-      expect(result.llmContent).toMatch(/File already exists, cannot create/);
+      expect(result.llmContent).toMatch(
+        /You attempted to create a file at .* but it already exists/,
+      );
       expect(result.returnDisplay).toMatch(
         /Attempted to create a file that already exists/,
       );

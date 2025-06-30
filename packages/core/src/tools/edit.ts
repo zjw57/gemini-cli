@@ -15,6 +15,7 @@ import {
   ToolResult,
   ToolResultDisplay,
 } from './tools.js';
+import { findBestFuzzyMatch, FuzzyMatchResult } from '../utils/fuzzyMatcher.js';
 import { SchemaValidator } from '../utils/schemaValidator.js';
 import { makeRelative, shortenPath } from '../utils/paths.js';
 import { isNodeError } from '../utils/errors.js';
@@ -24,6 +25,8 @@ import { ensureCorrectEdit } from '../utils/editCorrector.js';
 import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
 import { ReadFileTool } from './read-file.js';
 import { ModifiableTool, ModifyContext } from './modifiable-tool.js';
+
+type EditError = { display: string; raw: string };
 
 /**
  * Parameters for the Edit tool
@@ -172,6 +175,76 @@ Expectation for required parameters:
     return null;
   }
 
+  /**
+   * Reads and normalizes the content of a file.
+   * @returns An object with the file content and a flag indicating if it exists.
+   * @throws Any file system error other than 'File Not Found'.
+   */
+  private _readFileContent(filePath: string): {
+    content: string | null;
+    exists: boolean;
+  } {
+    try {
+      const content = fs.readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n');
+      return { content, exists: true };
+    } catch (err: unknown) {
+      if (isNodeError(err) && err.code === 'ENOENT') {
+        return { content: null, exists: false };
+      }
+      // Rethrow unexpected FS errors (permissions, etc.)
+      throw err;
+    }
+  }
+
+  /**
+   * Validates an edit operation against an existing file's content, performs corrections,
+   * and uses fuzzy matching as a fallback.
+   * @returns An `EditError` object if validation fails, otherwise `null`.
+   */
+  private async _validateAndCorrectEdit(
+    params: EditToolParams,
+    currentContent: string,
+    correctedEditResult: {
+      // Pass this in to avoid re-calculating
+      params: { old_string: string; new_string: string };
+      occurrences: number;
+    },
+  ): Promise<EditError | null> {
+    const { occurrences } = correctedEditResult;
+    const expectedReplacements = params.expected_replacements ?? 1;
+
+    if (occurrences === expectedReplacements) {
+      return null; // The edit is valid as is.
+    }
+
+    // --- Handle Failure Cases ---
+
+    if (occurrences === 0) {
+      const fuzzyMatch = findBestFuzzyMatch(
+        currentContent,
+        correctedEditResult.params.old_string,
+      );
+      if (fuzzyMatch) {
+        return this.createInstructiveFailureMessage(
+          fuzzyMatch,
+          correctedEditResult.params.old_string,
+        );
+      }
+      return {
+        display: 'Failed to edit, could not find the string to replace.',
+        raw: `Failed to edit, 0 occurrences found for old_string in ${params.file_path}. No edits made. The exact text in old_string was not found. Please use the ${ReadFileTool.Name} tool to verify file content and your parameters.`,
+      };
+    } else {
+      // occurrences !== expectedReplacements (and not 0)
+      const occurrenceTerm =
+        expectedReplacements === 1 ? 'occurrence' : 'occurrences';
+      return {
+        display: `Failed to edit, expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences}.`,
+        raw: `Failed to edit, Expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences} for old_string in file: ${params.file_path}. No change was made.`,
+      };
+    }
+  }
+
   private _applyReplacement(
     currentContent: string | null,
     oldString: string,
@@ -202,90 +275,147 @@ Expectation for required parameters:
     params: EditToolParams,
     abortSignal: AbortSignal,
   ): Promise<CalculatedEdit> {
-    const expectedReplacements = params.expected_replacements ?? 1;
-    let currentContent: string | null = null;
-    let fileExists = false;
-    let isNewFile = false;
-    let finalNewString = params.new_string;
-    let finalOldString = params.old_string;
-    let occurrences = 0;
-    let error: { display: string; raw: string } | undefined = undefined;
+    const { content: currentContent, exists: fileExists } =
+      this._readFileContent(params.file_path);
 
-    try {
-      currentContent = fs.readFileSync(params.file_path, 'utf8');
-      // Normalize line endings to LF for consistent processing.
-      currentContent = currentContent.replace(/\r\n/g, '\n');
-      fileExists = true;
-    } catch (err: unknown) {
-      if (!isNodeError(err) || err.code !== 'ENOENT') {
-        // Rethrow unexpected FS errors (permissions, etc.)
-        throw err;
-      }
-      fileExists = false;
-    }
-
+    // Attempting to create a new file. This is a valid terminal state.
     if (params.old_string === '' && !fileExists) {
-      // Creating a new file
-      isNewFile = true;
-    } else if (!fileExists) {
-      // Trying to edit a non-existent file (and old_string is not empty)
-      error = {
-        display: `File not found. Cannot apply edit. Use an empty old_string to create a new file.`,
-        raw: `File not found: ${params.file_path}`,
-      };
-    } else if (currentContent !== null) {
-      // Editing an existing file
-      const correctedEdit = await ensureCorrectEdit(
-        currentContent,
-        params,
-        this.client,
-        abortSignal,
-      );
-      finalOldString = correctedEdit.params.old_string;
-      finalNewString = correctedEdit.params.new_string;
-      occurrences = correctedEdit.occurrences;
-
-      if (params.old_string === '') {
-        // Error: Trying to create a file that already exists
-        error = {
-          display: `Failed to edit. Attempted to create a file that already exists.`,
-          raw: `File already exists, cannot create: ${params.file_path}`,
-        };
-      } else if (occurrences === 0) {
-        error = {
-          display: `Failed to edit, could not find the string to replace.`,
-          raw: `Failed to edit, 0 occurrences found for old_string in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
-        };
-      } else if (occurrences !== expectedReplacements) {
-        const occurenceTerm =
-          expectedReplacements === 1 ? 'occurrence' : 'occurrences';
-
-        error = {
-          display: `Failed to edit, expected ${expectedReplacements} ${occurenceTerm} but found ${occurrences}.`,
-          raw: `Failed to edit, Expected ${expectedReplacements} ${occurenceTerm} but found ${occurrences} for old_string in file: ${params.file_path}`,
-        };
-      }
-    } else {
-      // Should not happen if fileExists and no exception was thrown, but defensively:
-      error = {
-        display: `Failed to read content of file.`,
-        raw: `Failed to read content of existing file: ${params.file_path}`,
+      return {
+        currentContent: null,
+        newContent: params.new_string,
+        occurrences: 1,
+        isNewFile: true,
       };
     }
+
+    // File does not exist, but the edit is not a file creation.
+    if (!fileExists) {
+      return {
+        currentContent: null,
+        newContent: '',
+        occurrences: 0,
+        isNewFile: false,
+        error: {
+          display:
+            'File not found. Cannot apply edit. Use an empty old_string to create a new file.',
+          raw: `File not found: ${params.file_path}`,
+        },
+      };
+    }
+
+    // File exists, but `currentContent` is unexpectedly null (unlikely but for defensive coding).
+    if (currentContent === null) {
+      return {
+        currentContent: null,
+        newContent: '',
+        occurrences: 0,
+        isNewFile: false,
+        error: {
+          display: 'Failed to read content of file.',
+          raw: `Unexpected Error: Failed to read content of existing file: ${params.file_path}`,
+        },
+      };
+    }
+
+    if (params.old_string === '') {
+      const isNoOp = params.new_string === '';
+      return {
+        currentContent,
+        newContent: currentContent,
+        occurrences: 0,
+        isNewFile: false,
+        error: isNoOp
+          ? {
+              display:
+                'Agent proposed an empty edit on an existing file. No action was taken.',
+              raw: `Error: The tool was called with both \`old_string\` and \`new_string\` as empty strings on an existing file. This is an invalid no-op.
+
+This error typically indicates one of two common reasoning failures:
+1.  **State Desynchronization:** You may be trying to apply an edit that has *already been completed* in a previous step. Your internal memory of the file is likely stale.
+2.  **Task Completion Hallucination:** You may have concluded no change was needed but incorrectly called the edit tool to signify task completion.
+
+**Action:** Do not attempt this edit again. Instead, use the \`${ReadFileTool.Name}\` tool to get the file's current, up-to-date content. Then, compare the fresh content to your original goal to decide if any *further* action is truly necessary. If no further action is needed, report your findings to the user.`,
+            }
+          : {
+              display:
+                'Failed to edit. Attempted to create a file that already exists.',
+              raw: `Error: You attempted to create a file at ${params.file_path} (by providing an empty \`old_string\`), but it already exists.`,
+            },
+      };
+    }
+
+    // --- Main Edit Logic ---
+
+    // Perform the programmatic correction first.
+    const correctedEdit = await ensureCorrectEdit(
+      currentContent,
+      params,
+      this.client,
+      abortSignal,
+    );
+
+    // Validate the corrected edit, using fuzzy matching as a fallback.
+    const validationError = await this._validateAndCorrectEdit(
+      params,
+      currentContent,
+      correctedEdit,
+    );
+
+    if (validationError) {
+      return {
+        currentContent,
+        newContent: currentContent,
+        occurrences: 0,
+        isNewFile: false,
+        error: validationError,
+      };
+    }
+
+    // --- Happy Path: The edit is valid and can be applied ---
 
     const newContent = this._applyReplacement(
       currentContent,
-      finalOldString,
-      finalNewString,
-      isNewFile,
+      correctedEdit.params.old_string,
+      correctedEdit.params.new_string,
+      false, // isNewFile is false at this point
     );
 
     return {
       currentContent,
       newContent,
-      occurrences,
-      error,
-      isNewFile,
+      occurrences: correctedEdit.occurrences,
+      isNewFile: false,
+    };
+  }
+
+  private createInstructiveFailureMessage(
+    fuzzyMatch: FuzzyMatchResult,
+    problematicOldString: string,
+  ): { display: string; raw: string } {
+    const correctiveDiff = Diff.createPatch(
+      'diff', // Placeholder filename needed for diff utility
+      problematicOldString,
+      fuzzyMatch.bestMatch,
+      'Your `old_string` (not found)',
+      'Closest Match in File (at line ' + (fuzzyMatch.startLine + 1) + ')',
+    );
+
+    const rawErrorMessageForLlm = `Error: The tool failed because the \`old_string\` you provided was not found in the file.
+This often happens due to small differences in whitespace, newlines, or characters. Your previous attempt was automatically corrected, but that also failed.
+
+A fuzzy search has identified a close match. Review the following diff carefully to understand the exact differences.
+
+\`\`\`diff
+${correctiveDiff}
+\`\`\`
+
+Action: In your next tool call, modify the \`old_string\` parameter to be an *exact, character-for-character copy* of the "Closest Match in File" block from the diff above.`;
+
+    const displayMessageForUser = `Failed to apply edit: The exact text to replace was not found. A close match was identified, and the agent has been instructed to correct its request.`;
+
+    return {
+      display: displayMessageForUser,
+      raw: rawErrorMessageForLlm,
     };
   }
 
