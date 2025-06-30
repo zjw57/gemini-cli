@@ -830,7 +830,7 @@ Add any other context about the problem here.
             const compressed = await config!
               .getGeminiClient()!
               .tryCompressChat(true);
-            config?.getGeminiClient()?.resetSessionId();
+            config!.getGeminiClient()!.resetSessionId();
             if (compressed) {
               addMessage({
                 type: MessageType.COMPRESSION,
