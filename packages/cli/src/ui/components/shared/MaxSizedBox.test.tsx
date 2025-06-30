@@ -261,7 +261,58 @@ Line 3`);
 
     expect(lastFrame()).equals('N…');
   });
+  it('truncates long non-wrapping text with ellipsis', () => {
+    const { lastFrame } = render(
+      <OverflowProvider>
+        <MaxSizedBox maxWidth={3} maxHeight={2}>
+          <Box>
+            <Text>ABCDE</Text>
+            <Text wrap="wrap">wrap</Text>
+          </Box>
+        </MaxSizedBox>
+      </OverflowProvider>,
+    );
 
+    expect(lastFrame()).equals('AB…');
+  });
+
+  it('truncates non-wrapping text containing line breaks', () => {
+    const { lastFrame } = render(
+      <OverflowProvider>
+        <MaxSizedBox maxWidth={3} maxHeight={2}>
+          <Box>
+            <Text>{'A\nBCDE'}</Text>
+            <Text wrap="wrap">wrap</Text>
+          </Box>
+        </MaxSizedBox>
+      </OverflowProvider>,
+    );
+
+    expect(lastFrame()).equals(`A\n…`);
+  });
+
+  it('shows ellipsis for multiple rows with long non-wrapping text', () => {
+    const { lastFrame } = render(
+      <OverflowProvider>
+        <MaxSizedBox maxWidth={3} maxHeight={3}>
+          <Box>
+            <Text>AAA</Text>
+            <Text wrap="wrap">first</Text>
+          </Box>
+          <Box>
+            <Text>BBB</Text>
+            <Text wrap="wrap">second</Text>
+          </Box>
+          <Box>
+            <Text>CCC</Text>
+            <Text wrap="wrap">third</Text>
+          </Box>
+        </MaxSizedBox>
+      </OverflowProvider>,
+    );
+
+    expect(lastFrame()).equals(`AA…\nBB…\nCC…`);
+  });
   it('accounts for additionalHiddenLinesCount', () => {
     const { lastFrame } = render(
       <OverflowProvider>
