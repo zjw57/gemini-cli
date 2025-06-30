@@ -46,13 +46,7 @@ export const useAuthCommand = (
           config,
         );
       } catch (e) {
-        const errorMessage =
-          settings.merged.selectedAuthType ===
-          AuthType.LOGIN_WITH_GOOGLE_PERSONAL
-            ? `Failed to login. Ensure the Google account you are using is not a Workspace account and that you are not a licensed Code Assist user (see https://goo.gle/gemini-cli-auth-docs#workspace-gca).
-Message: ${getErrorMessage(e)}`
-            : `Failed to login. Message: ${getErrorMessage(e)}`;
-        setAuthError(errorMessage);
+        setAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
         openAuthDialog();
       } finally {
         setIsAuthenticating(false);

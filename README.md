@@ -34,7 +34,7 @@ With the Gemini CLI you can:
    ```
 
 3. **Pick a color theme**
-4. **Authenticate:** When prompted, sign in with your personal Google account. This will grant you up to 60 model requests per minute and 1,000 model requests per day using Gemini 2.5 Pro.
+4. **Authenticate:** When prompted, sign in with your personal Google account. This will grant you up to 60 model requests per minute and 1,000 model requests per day using Gemini.
 
 You are now ready to use the Gemini CLI!
 
@@ -131,10 +131,10 @@ Use MCP servers to integrate your local system tools with your enterprise collab
 > Organise my PDF invoices by month of expenditure.
 ```
 
-## Gemini APIs
+### Uninstall
 
-This project leverages the Gemini APIs to provide AI capabilities. For details on the terms of service governing the Gemini API, please refer to the terms for the access mechanism you are using:
+Head over to the [Uninstall](docs/Uninstall.md) guide for uninstallation instructions.
 
-- [Gemini API key](https://ai.google.dev/gemini-api/terms)
-- [Gemini Code Assist](https://developers.google.com/gemini-code-assist/resources/privacy-notices)
-- [Vertex AI](https://cloud.google.com/terms/service-terms)
+## Terms of Service and Privacy Notice
+
+For details on the terms of service and privacy notice applicable to your use of Gemini CLI, see the [Terms of Service and Privacy Notice](./docs/tos-privacy.md).

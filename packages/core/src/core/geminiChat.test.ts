@@ -26,34 +26,36 @@ const mockModelsModule = {
   resetSessionId: vi.fn(),
 } as unknown as ContentGenerator;
 
-const mockConfig = {
-  getSessionId: () => 'test-session-id',
-  getTelemetryLogPromptsEnabled: () => true,
-  getUsageStatisticsEnabled: () => true,
-  getDebugMode: () => false,
-  getContentGeneratorConfig: () => ({
-    authType: 'oauth-personal',
-    model: 'test-model',
-  }),
-  setModel: vi.fn(),
-  flashFallbackHandler: undefined,
-} as unknown as Config;
-
 describe('GeminiChat', () => {
   let chat: GeminiChat;
-  const model = 'gemini-pro';
+  let mockConfig: Config;
   const config: GenerateContentConfig = {};
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockConfig = {
+      getSessionId: () => 'test-session-id',
+      getTelemetryLogPromptsEnabled: () => true,
+      getUsageStatisticsEnabled: () => true,
+      getDebugMode: () => false,
+      getContentGeneratorConfig: () => ({
+        authType: 'oauth-personal',
+        model: 'test-model',
+      }),
+      getModel: vi.fn().mockReturnValue('gemini-pro'),
+      setModel: vi.fn(),
+      flashFallbackHandler: undefined,
+    } as unknown as Config;
+
     // Disable 429 simulation for tests
     setSimulate429(false);
     // Reset history for each test by creating a new instance
-    chat = new GeminiChat(mockConfig, mockModelsModule, model, config, []);
+    chat = new GeminiChat(mockConfig, mockModelsModule, config, []);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('sendMessage', () => {
@@ -204,7 +206,7 @@ describe('GeminiChat', () => {
       chat.recordHistory(userInput, newModelOutput); // userInput here is for the *next* turn, but history is already primed
 
       // Reset and set up a more realistic scenario for merging with existing history
-      chat = new GeminiChat(mockConfig, mockModelsModule, model, config, []);
+      chat = new GeminiChat(mockConfig, mockModelsModule, config, []);
       const firstUserInput: Content = {
         role: 'user',
         parts: [{ text: 'First user input' }],
@@ -247,7 +249,7 @@ describe('GeminiChat', () => {
         role: 'model',
         parts: [{ text: 'Initial model answer.' }],
       };
-      chat = new GeminiChat(mockConfig, mockModelsModule, model, config, [
+      chat = new GeminiChat(mockConfig, mockModelsModule, config, [
         initialUser,
         initialModel,
       ]);
