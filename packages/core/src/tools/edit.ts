@@ -227,7 +227,7 @@ Expectation for required parameters:
       if (fuzzyMatch) {
         return this.createInstructiveFailureMessage(
           fuzzyMatch,
-          correctedEditResult.params.old_string,
+          params.old_string,
         );
       }
       return {
