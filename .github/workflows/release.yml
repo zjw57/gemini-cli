@@ -99,11 +99,10 @@ jobs:
           echo "//wombat-dressing-room.appspot.com/:_authToken=${{ secrets.WOMBAT_TOKEN }}" >> .npmrc
 
       - name: Build, Prepare, and Publish
-        run: npm run publish:release
+        run: npm run publish:npm
         env:
           NPM_PUBLISH_TAG: ${{ steps.version.outputs.NPM_TAG }}
           NPM_DRY_RUN: ${{ steps.run_type.outputs.NPM_DRY_RUN }}
-          DOCKER_DRY_RUN: ${{ steps.run_type.outputs.DOCKER_DRY_RUN }}
 
       - name: Create GitHub Release
         if: steps.run_type.outputs.NPM_DRY_RUN == ''
