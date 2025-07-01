@@ -51,7 +51,8 @@
     "publish:release": "npm run prepare:package && npm run build:packages && npm run build:sandbox:fast && npm run publish:sandbox && npm run publish:npm",
     "prepublishOnly": "node scripts/check-versions.js && node scripts/prepublish.js",
     "release:version": "node scripts/version.js",
-    "push-release": "git push && git push --tags"
+    "push-release": "git push && git push --tags",
+    "check:versions": "node scripts/check-versions.js"
   },
   "bin": {
     "gemini": "bundle/gemini.js"
