@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  # Official Release: Triggered when a tag like v1.2.3 is pushed
+  # push:
+  #   tags:
+  #     - 'v[0-9]+.[0-9]+.[0-9]+'
+
+  # Pre-Release: Manual trigger from the GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      pre_release_tag:
+        description: 'NPM pre-release identifier (e.g., "beta", "next").'
+        required: true
+        default: 'next'
+        type: string
+      dry_run:
+        description: 'Whether to run the publish step in dry-run mode.'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Use the current repository name dynamically
+    if: github.repository == 'google-gemini/gemini-cli'
+    permissions:
+      contents: write # Required to create a GitHub release
+      packages: write # Required to publish to GitHub Packages (if you use it)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        # Fetch all history for versioning
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          registry-url: 'https://wombat-dressing-room.appspot.com'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Set Release Version and Tag
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            # For official releases, use the git tag as the version
+            # Example: v1.2.3 -> 1.2.3
+            RELEASE_VERSION="${{ github.ref_name#v }}"
+            NPM_TAG="latest"
+          else
+            # For pre-releases, create a version like 1.2.3-next.1
+            # and set the tag to "next"
+            npm version --no-git-tag-version prerelease --preid=${{ github.event.inputs.pre_release_tag }}
+            RELEASE_VERSION=$(node -p "require('./package.json').version")
+            NPM_TAG="${{ github.event.inputs.pre_release_tag }}"
+          fi
+          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "NPM_TAG=${NPM_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Determine Run Type
+        id: run_type
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" || "${{ inputs.dry_run }}" == "false" ]]; then
+            echo "NPM_DRY_RUN=" >> $GITHUB_OUTPUT
+          else
+            echo "NPM_DRY_RUN=--dry-run" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build, Prepare, and Publish
+        run: npm run publish:release
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.WOMBAT_TOKEN }}
+          NPM_PUBLISH_TAG: ${{ steps.version.outputs.NPM_TAG }}
+          NPM_DRY_RUN: ${{ steps.run_type.outputs.NPM_DRY_RUN }}
+
+      - name: Create GitHub Release
+        if: steps.run_type.outputs.NPM_DRY_RUN == ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v${{ steps.version.outputs.RELEASE_VERSION }} \
+            --title "Release v${{ steps.version.outputs.RELEASE_VERSION }}" \
+            --notes "See the [CHANGELOG.md](CHANGELOG.md) for details."
