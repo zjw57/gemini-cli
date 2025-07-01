@@ -58,9 +58,9 @@ jobs:
           else
             # For pre-releases, create a version like 1.2.3-next.1
             # and set the tag to "next"
-            npm version --no-git-tag-version prerelease --preid=${{ github.event.inputs.pre_release_tag }}
+            npm version --no-git-tag-version prerelease --preid=${{ inputs.pre_release_tag }}
             RELEASE_VERSION=$(node -p "require('./package.json').version")
-            NPM_TAG="${{ github.event.inputs.pre_release_tag }}"
+            NPM_TAG="${{ inputs.pre_release_tag }}"
           fi
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
           echo "NPM_TAG=${NPM_TAG}" >> $GITHUB_OUTPUT
