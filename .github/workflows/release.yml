@@ -61,6 +61,9 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker us-west1-docker.pkg.dev
 
+      - name: Login to Artifact Registry
+        run: docker login -u oauth2accesstoken -p "$(gcloud auth print-access-token)" https://us-west1-docker.pkg.dev
+
       - name: Set Release Version and Tag
         id: version
         run: |
