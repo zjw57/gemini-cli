@@ -100,6 +100,7 @@ jobs:
         env:
           NPM_PUBLISH_TAG: ${{ steps.version.outputs.NPM_TAG }}
           NPM_DRY_RUN: ${{ steps.run_type.outputs.NPM_DRY_RUN }}
+          DOCKER_DRY_RUN: ${{ steps.run_type.outputs.DOCKER_DRY_RUN }}
 
       - name: Create GitHub Release
         if: steps.run_type.outputs.NPM_DRY_RUN == ''
