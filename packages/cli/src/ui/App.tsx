@@ -72,6 +72,7 @@ import ansiEscapes from 'ansi-escapes';
 import { OverflowProvider } from './contexts/OverflowContext.js';
 import { ShowMoreLines } from './components/ShowMoreLines.js';
 import { PrivacyNotice } from './privacy/PrivacyNotice.js';
+import { QuietModeDisplay } from './components/QuietModeDisplay.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 
@@ -540,6 +541,12 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
     }
     return getAllGeminiMdFilenames();
   }, [settings.merged.contextFileName]);
+
+  if (config.getQuiet()) {
+    return (
+      <QuietModeDisplay config={config} />
+    );
+  }
 
   if (quittingMessages) {
     return (

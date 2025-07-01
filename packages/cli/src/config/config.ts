@@ -53,6 +53,7 @@ interface CliArgs {
   telemetryTarget: string | undefined;
   telemetryOtlpEndpoint: string | undefined;
   telemetryLogPrompts: boolean | undefined;
+  quiet: boolean | undefined;
 }
 
 async function parseArguments(): Promise<CliArgs> {
@@ -121,6 +122,11 @@ async function parseArguments(): Promise<CliArgs> {
       type: 'boolean',
       description:
         'Enable or disable logging of user prompts for telemetry. Overrides settings files.',
+    })
+    .option('quiet', {
+      type: 'boolean',
+      description: 'Enable quiet mode (for screen readers).',
+      default: false,
     })
     .option('checkpointing', {
       alias: 'c',
@@ -245,6 +251,7 @@ export async function loadCliConfig(
     bugCommand: settings.bugCommand,
     model: argv.model!,
     extensionContextFilePaths,
+    quiet: argv.quiet,
   });
 }
 
