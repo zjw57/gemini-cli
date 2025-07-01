@@ -41,7 +41,8 @@ const newVersion = readJson(rootPackageJsonPath).version;
 // 4. Update the sandboxImageUri in the root package.json
 const rootPackageJson = readJson(rootPackageJsonPath);
 if (rootPackageJson.config?.sandboxImageUri) {
-  rootPackageJson.config.sandboxImageUri = rootPackageJson.config.sandboxImageUri.replace(/:.*$/, `:${newVersion}`);
+  rootPackageJson.config.sandboxImageUri =
+    rootPackageJson.config.sandboxImageUri.replace(/:.*$/, `:${newVersion}`);
   console.log(`Updated sandboxImageUri in root to use version ${newVersion}`);
   writeJson(rootPackageJsonPath, rootPackageJson);
 }
@@ -50,9 +51,12 @@ if (rootPackageJson.config?.sandboxImageUri) {
 const cliPackageJsonPath = resolve(process.cwd(), 'packages/cli/package.json');
 const cliPackageJson = readJson(cliPackageJsonPath);
 if (cliPackageJson.config?.sandboxImageUri) {
-    cliPackageJson.config.sandboxImageUri = cliPackageJson.config.sandboxImageUri.replace(/:.*$/, `:${newVersion}`);
-    console.log(`Updated sandboxImageUri in cli package to use version ${newVersion}`);
-    writeJson(cliPackageJsonPath, cliPackageJson);
+  cliPackageJson.config.sandboxImageUri =
+    cliPackageJson.config.sandboxImageUri.replace(/:.*$/, `:${newVersion}`);
+  console.log(
+    `Updated sandboxImageUri in cli package to use version ${newVersion}`,
+  );
+  writeJson(cliPackageJsonPath, cliPackageJson);
 }
 
 // 6. Run `npm install` to update package-lock.json.
