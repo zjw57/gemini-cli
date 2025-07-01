@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Whether to run the publish step in dry-run mode.'
+        required: true
+        type: boolean
+        default: true
 
 jobs:
   release:
@@ -74,8 +81,7 @@ jobs:
         run: npm run publish:npm
         env:
           NPM_PUBLISH_TAG: ${{ steps.version.outputs.NPM_TAG }}
-          NPM_DRY_RUN: ${{ steps.run_type.outputs.NPM_DRY_RUN }}
-          NODE_AUTH_TOKEN: ${{ secrets. WOMBAT_TOKEN }}
+          NPM_DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
 
       - name: Create GitHub Release
         if: steps.run_type.outputs.NPM_DRY_RUN == ''
