@@ -51,7 +51,7 @@ jobs:
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
             # For official releases, use the git tag as the version
             # Example: v1.2.3 -> 1.2.3
-            RELEASE_VERSION="${{ github.ref_name#v }}"
+            RELEASE_VERSION="${GITHUB_REF_NAME#v}"
             NPM_TAG="latest"
           else
             # For pre-releases, create a version like 1.2.3-next.1
