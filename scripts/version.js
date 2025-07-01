@@ -63,10 +63,7 @@ if (cliPackageJson.config?.sandboxImageUri) {
 run('npm install');
 
 const commitMessage = `chore(release): v${newVersion}`;
-console.log(
-run(
-  'git add package.json package-lock.json packages/*/package.json',
-);
+run('git add package.json package-lock.json packages/*/package.json');
 // 7. Add all the changed files to the git staging area.
 run(
   'git add package.json package-lock.json packages/cli/package.json packages/core/package.json',
