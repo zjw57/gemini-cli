@@ -32,14 +32,15 @@ if (root.version !== cli.version || root.version !== core.version) {
 // 2. Check that the cli's dependency on core matches the core version.
 const coreDepVersion = cli.dependencies['@google/gemini-cli-core'];
 const expectedCoreVersion = `^${core.version}`;
-if (coreDepVersion !== expectedCoreVersion && coreDepVersion !== 'file:../core') {
+if (
+  coreDepVersion !== expectedCoreVersion &&
+  coreDepVersion !== 'file:../core'
+) {
   errors.push(
     `CLI dependency on core is wrong: expected ${expectedCoreVersion} or "file:../core", got ${coreDepVersion}`,
   );
 } else {
-  console.log(
-    `- CLI dependency on core (${coreDepVersion}) is correct.`,
-  );
+  console.log(`- CLI dependency on core (${coreDepVersion}) is correct.`);
 }
 
 // 3. Check that the sandbox image tag matches the root version.

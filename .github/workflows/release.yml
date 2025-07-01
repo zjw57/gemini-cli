@@ -1,24 +1,9 @@
 name: Release
 
 on:
-  # Official Release: Triggered when a tag like v1.2.3 is pushed
-  # push:
-  #   tags:
-  #     - 'v[0-9]+.[0-9]+.[0-9]+'
-
-  # Pre-Release: Manual trigger from the GitHub Actions UI
-  workflow_dispatch:
-    inputs:
-      pre_release_tag:
-        description: 'NPM pre-release identifier (e.g., "beta", "next").'
-        required: true
-        default: 'next'
-        type: string
-      dry_run:
-        description: 'Whether to run the publish step in dry-run mode.'
-        required: true
-        type: boolean
-        default: true
+  push:
+    tags:
+      - 'v*.*.*'
 
 jobs:
   release:
@@ -67,31 +52,14 @@ jobs:
       - name: Set Release Version and Tag
         id: version
         run: |
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            # For official releases, use the git tag as the version
-            # Example: v1.2.3 -> 1.2.3
-            RELEASE_VERSION="${GITHUB_REF_NAME#v}"
-            NPM_TAG="latest"
+          RELEASE_VERSION="${GITHUB_REF_NAME#v}"
+          if [[ $RELEASE_VERSION == *-* ]]; then
+            NPM_TAG=$(echo $RELEASE_VERSION | cut -d'-' -f2 | cut -d'.' -f1)
           else
-            # For pre-releases, create a version like 1.2.3-next.1
-            # and set the tag to "next"
-            npm version --no-git-tag-version prerelease --preid=${{ inputs.pre_release_tag }}
-            RELEASE_VERSION=$(node -p "require('./package.json').version")
-            NPM_TAG="${{ inputs.pre_release_tag }}"
+            NPM_TAG="latest"
           fi
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
           echo "NPM_TAG=${NPM_TAG}" >> $GITHUB_OUTPUT
-
-      - name: Determine Run Type
-        id: run_type
-        run: |
-          if [[ "${{ github.ref_type }}" == "tag" || "${{ inputs.dry_run }}" == "false" ]]; then
-            echo "NPM_DRY_RUN=" >> $GITHUB_OUTPUT
-            echo "DOCKER_DRY_RUN=" >> $GITHUB_OUTPUT
-          else
-            echo "NPM_DRY_RUN=--dry-run" >> $GITHUB_OUTPUT
-            echo "DOCKER_DRY_RUN=true" >> $GITHUB_OUTPUT
-          fi
 
       - name: Configure npm for publishing
         run: |
@@ -102,7 +70,6 @@ jobs:
         run: npm run publish:npm
         env:
           NPM_PUBLISH_TAG: ${{ steps.version.outputs.NPM_TAG }}
-          NPM_DRY_RUN: ${{ steps.run_type.outputs.NPM_DRY_RUN }}
 
       - name: Create GitHub Release
         if: steps.run_type.outputs.NPM_DRY_RUN == ''

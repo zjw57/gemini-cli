@@ -123,7 +123,8 @@ function buildImage(imageName, dockerfile) {
     readFileSync(join(process.cwd(), 'package.json'), 'utf-8'),
   ).version;
 
-  const imageTag = process.env.GEMINI_SANDBOX_IMAGE_TAG || imageName.split(':')[1];
+  const imageTag =
+    process.env.GEMINI_SANDBOX_IMAGE_TAG || imageName.split(':')[1];
   const finalImageName = `${imageName.split(':')[0]}:${imageTag}`;
 
   execSync(
