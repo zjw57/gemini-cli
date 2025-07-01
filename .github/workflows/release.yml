@@ -49,14 +49,14 @@ jobs:
       - name: Check Version Consistency
         run: npm run check:versions
 
-      - name: Setup Google Cloud SDK
-        uses: 'google-github-actions/setup-gcloud@v2'
+      # - name: Setup Google Cloud SDK
+      #   uses: 'google-github-actions/setup-gcloud@v2'
 
-      - name: Authenticate to Google Cloud
-        uses: 'google-github-actions/auth@v2'
-        with:
-          workload_identity_provider: 'projects/48735766119/locations/global/workloadIdentityPools/github/providers/github-actions-provider'
-          service_account: 'gh-actions-service-account@gemini-code-dev.iam.gserviceaccount.com'
+      # - name: Authenticate to Google Cloud
+      #   uses: 'google-github-actions/auth@v2'
+      #   with:
+      #     workload_identity_provider: 'projects/48735766119/locations/global/workloadIdentityPools/github/providers/github-actions-provider'
+      #     service_account: 'gh-actions-service-account@gemini-code-dev.iam.gserviceaccount.com'
 
       # - name: Configure Docker
       #   run: gcloud auth configure-docker us-west1-docker.pkg.dev
