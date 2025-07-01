@@ -30,10 +30,11 @@ if (root.version !== cli.version || root.version !== core.version) {
 }
 
 // 2. Check that the cli's dependency on core matches the core version.
-const coreDepVersion = cli.dependencies['@google/gemini-core'];
-if (coreDepVersion !== `^${core.version}`) {
+const coreDepVersion = cli.dependencies['@google/gemini-cli-core'];
+const expectedCoreVersion = `^${core.version}`;
+if (coreDepVersion !== expectedCoreVersion && coreDepVersion !== 'file:../core') {
   errors.push(
-    `CLI dependency on core is wrong: expected ^${core.version}, got ${coreDepVersion}`,
+    `CLI dependency on core is wrong: expected ${expectedCoreVersion} or "file:../core", got ${coreDepVersion}`,
   );
 } else {
   console.log(
