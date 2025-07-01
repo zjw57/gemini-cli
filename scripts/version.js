@@ -32,8 +32,10 @@ if (!versionType) {
 }
 
 // 2. Bump the version in the root and all workspace package.json files.
-run(`npm version ${versionType} --no-git-tag-version --allow-same-version`)
-run(`npm version ${versionType} --workspaces --no-git-tag-version --allow-same-version`);
+run(`npm version ${versionType} --no-git-tag-version --allow-same-version`);
+run(
+  `npm version ${versionType} --workspaces --no-git-tag-version --allow-same-version`,
+);
 
 // 3. Get the new version number from the root package.json
 const rootPackageJsonPath = resolve(process.cwd(), 'package.json');
