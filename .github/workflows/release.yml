@@ -28,6 +28,7 @@ jobs:
     permissions:
       contents: write # Required to create a GitHub release
       packages: write # Required to publish to GitHub Packages (if you use it)
+      id-token: write # Required for Workload Identity Federation to Google Cloud
 
     steps:
       - name: Checkout code
@@ -47,6 +48,18 @@ jobs:
 
       - name: Check Version Consistency
         run: npm run check:versions
+
+      - name: Setup Google Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: 'projects/1024890423283/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider'
+          service_account: 'gemini-cli-release@gemini-code-dev.iam.gserviceaccount.com'
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker us-west1-docker.pkg.dev
 
       - name: Set Release Version and Tag
         id: version
@@ -87,7 +100,6 @@ jobs:
         env:
           NPM_PUBLISH_TAG: ${{ steps.version.outputs.NPM_TAG }}
           NPM_DRY_RUN: ${{ steps.run_type.outputs.NPM_DRY_RUN }}
-          DOCKER_DRY_RUN: ${{ steps.run_type.outputs.DOCKER_DRY_RUN }}
 
       - name: Create GitHub Release
         if: steps.run_type.outputs.NPM_DRY_RUN == ''
