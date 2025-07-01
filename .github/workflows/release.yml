@@ -82,6 +82,7 @@ jobs:
         env:
           NPM_PUBLISH_TAG: ${{ steps.version.outputs.NPM_TAG }}
           NPM_DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+          NODE_AUTH_TOKEN: ${{ secrets.WOMBAT_TOKEN }}
 
       - name: Create GitHub Release
         if: steps.run_type.outputs.NPM_DRY_RUN == ''
