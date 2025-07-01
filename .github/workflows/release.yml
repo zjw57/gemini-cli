@@ -77,7 +77,9 @@ jobs:
           fi
 
       - name: Configure npm for publishing
-        run: echo "//wombat-dressing-room.appspot.com/:_authToken=${{ secrets.WOMBAT_TOKEN }}" > .npmrc
+        run: |
+          echo "registry=https://wombat-dressing-room.appspot.com/" > .npmrc
+          echo "//wombat-dressing-room.appspot.com/:_authToken=${{ secrets.WOMBAT_TOKEN }}" >> .npmrc
 
       - name: Build, Prepare, and Publish
         run: npm run publish:release
