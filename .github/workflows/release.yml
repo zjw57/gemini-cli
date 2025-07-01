@@ -67,8 +67,10 @@ jobs:
         run: |
           if [[ "${{ github.ref_type }}" == "tag" || "${{ inputs.dry_run }}" == "false" ]]; then
             echo "NPM_DRY_RUN=" >> $GITHUB_OUTPUT
+            echo "DOCKER_DRY_RUN=" >> $GITHUB_OUTPUT
           else
             echo "NPM_DRY_RUN=--dry-run" >> $GITHUB_OUTPUT
+            echo "DOCKER_DRY_RUN=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Configure npm for publishing
@@ -79,6 +81,7 @@ jobs:
         env:
           NPM_PUBLISH_TAG: ${{ steps.version.outputs.NPM_TAG }}
           NPM_DRY_RUN: ${{ steps.run_type.outputs.NPM_DRY_RUN }}
+          DOCKER_DRY_RUN: ${{ steps.run_type.outputs.DOCKER_DRY_RUN }}
 
       - name: Create GitHub Release
         if: steps.run_type.outputs.NPM_DRY_RUN == ''
