@@ -42,6 +42,8 @@ export * from './tools/tools.js';
 export * from './tools/tool-registry.js';
 
 // Export specific tool logic
+export * from './tools/clean-docstring.js';
+export * from './tools/create-tests.js';
 export * from './tools/read-file.js';
 export * from './tools/ls.js';
 export * from './tools/grep.js';
@@ -55,6 +57,7 @@ export * from './tools/web-search.js';
 export * from './tools/read-many-files.js';
 export * from './tools/mcp-client.js';
 export * from './tools/mcp-tool.js';
+export * from './tools/clean-docstring.js';
 
 // Export telemetry functions
 export * from './telemetry/index.js';
