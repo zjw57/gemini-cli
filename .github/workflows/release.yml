@@ -61,15 +61,21 @@ jobs:
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
           echo "NPM_TAG=${NPM_TAG}" >> $GITHUB_OUTPUT
 
-      - name: Configure npm for publishing
-        run: |
-          echo "registry=https://wombat-dressing-room.appspot.com/" > .npmrc
-          echo "//wombat-dressing-room.appspot.com/:_authToken=${{ secrets.WOMBAT_TOKEN }}" >> .npmrc
+             # Set up Node *again* to update the `.npmrc` config
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+          registry-url: 'https://wombat-dressing-room.appspot.com'
+          scope: '@google'
 
       - name: Build, Prepare, and Publish
         run: npm run publish:npm
         env:
           NPM_PUBLISH_TAG: ${{ steps.version.outputs.NPM_TAG }}
+          NPM_DRY_RUN: ${{ steps.run_type.outputs.NPM_DRY_RUN }}
+          NODE_AUTH_TOKEN: ${{ secrets. WOMBAT_TOKEN }}
 
       - name: Create GitHub Release
         if: steps.run_type.outputs.NPM_DRY_RUN == ''
