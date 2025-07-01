@@ -64,9 +64,9 @@ run('npm install');
 
 const commitMessage = `chore(release): v${newVersion}`;
 console.log(
-  `All files updated. Committing version v${newVersion} with message: "${commitMessage}"...`,
+run(
+  'git add package.json package-lock.json packages/*/package.json',
 );
-
 // 7. Add all the changed files to the git staging area.
 run(
   'git add package.json package-lock.json packages/cli/package.json packages/core/package.json',
