@@ -58,11 +58,11 @@ jobs:
           workload_identity_provider: 'projects/48735766119/locations/global/workloadIdentityPools/github/providers/github-actions-provider'
           service_account: 'gh-actions-service-account@gemini-code-dev.iam.gserviceaccount.com'
 
-      - name: Configure Docker
-        run: gcloud auth configure-docker us-west1-docker.pkg.dev
+      # - name: Configure Docker
+      #   run: gcloud auth configure-docker us-west1-docker.pkg.dev
 
-      - name: Login to Artifact Registry
-        run: docker login -u oauth2accesstoken -p "$(gcloud auth print-access-token)" https://us-west1-docker.pkg.dev
+      # - name: Login to Artifact Registry
+      #   run: docker login -u oauth2accesstoken -p "$(gcloud auth print-access-token)" https://us-west1-docker.pkg.dev
 
       - name: Set Release Version and Tag
         id: version

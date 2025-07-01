@@ -19,7 +19,11 @@
 
 import { execSync } from 'child_process';
 
-const { npm_package_config_sandboxImageUri, DOCKER_DRY_RUN } = process.env;
+const {
+  npm_package_config_sandboxImageUri,
+  DOCKER_DRY_RUN,
+  GEMINI_SANDBOX_IMAGE_TAG,
+} = process.env;
 
 if (!npm_package_config_sandboxImageUri) {
   console.error(
@@ -28,7 +32,12 @@ if (!npm_package_config_sandboxImageUri) {
   process.exit(1);
 }
 
-const imageUri = npm_package_config_sandboxImageUri;
+let imageUri = npm_package_config_sandboxImageUri;
+
+if (GEMINI_SANDBOX_IMAGE_TAG) {
+  const [baseUri] = imageUri.split(':');
+  imageUri = `${baseUri}:${GEMINI_SANDBOX_IMAGE_TAG}`;
+}
 
 if (DOCKER_DRY_RUN) {
   console.log(`DRY RUN: Would execute: docker push "${imageUri}"`);
