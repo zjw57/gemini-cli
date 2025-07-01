@@ -1,9 +1,10 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - mk-packing
+  # Official Release: Triggered when a tag like v1.2.3 is pushed
+  # push:
+  #   tags:
+  #     - 'v[0-9]+.[0-9]+.[0-9]+'
 
   # Pre-Release: Manual trigger from the GitHub Actions UI
   workflow_dispatch:
