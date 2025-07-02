@@ -261,6 +261,7 @@ Line 3`);
 
     expect(lastFrame()).equals('N…');
   });
+
   it('truncates long non-wrapping text with ellipsis', () => {
     const { lastFrame } = render(
       <OverflowProvider>
