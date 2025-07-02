@@ -444,7 +444,20 @@ function layoutInkElementAsStyledText(
         truncatedLine.push(segment);
         remainingWidth -= segmentWidth;
       } else {
-        const slice = cpSlice(segment.text, 0, remainingWidth);
+        // Slice the segment by visual width rather than code points so that
+        // multi-width characters like emoji are handled correctly.
+        const codePoints = toCodePoints(segment.text);
+        let currentWidth = 0;
+        let sliceEndIndex = 0;
+        for (const char of codePoints) {
+          const charWidth = stringWidth(char);
+          if (currentWidth + charWidth > remainingWidth) {
+            break;
+          }
+          currentWidth += charWidth;
+          sliceEndIndex++;
+        }
+        const slice = codePoints.slice(0, sliceEndIndex).join('');
         if (slice) {
           truncatedLine.push({ text: slice, props: segment.props });
         }
