@@ -66,11 +66,8 @@ if (cliPackageJson.config?.sandboxImageUri) {
 run('npm install');
 
 const commitMessage = `chore(release): v${newVersion}`;
-run('git add package.json package-lock.json packages/*/package.json');
 // 7. Add all the changed files to the git staging area.
-run(
-  'git add package.json package-lock.json packages/cli/package.json packages/core/package.json',
-);
+run('git add package.json package-lock.json packages/*/package.json packages/*/package-lock.json');
 
 // 8. Create the atomic commit with all changes.
 run(`git commit --no-edit -m "${commitMessage}"`);
