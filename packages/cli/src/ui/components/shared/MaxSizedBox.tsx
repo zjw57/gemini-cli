@@ -444,8 +444,6 @@ function layoutInkElementAsStyledText(
         truncatedLine.push(segment);
         remainingWidth -= segmentWidth;
       } else {
-        // Slice the segment by visual width rather than code points so that
-        // multi-width characters like emoji are handled correctly.
         const codePoints = toCodePoints(segment.text);
         let currentWidth = 0;
         let sliceEndIndex = 0;
