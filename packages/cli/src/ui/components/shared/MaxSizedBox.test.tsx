@@ -291,6 +291,17 @@ Line 3`);
 
     expect(lastFrame()).equals(`A\n…`);
   });
+  it('truncates emoji characters correctly with ellipsis', () => {
+    const { lastFrame } = render(
+      <OverflowProvider>
+        <MaxSizedBox maxWidth={3} maxHeight={2}>
+          <Box>
+            <Text>🐶🐶🐶</Text>
+            <Text wrap="wrap">wrap</Text>
+          </Box>
+        </MaxSizedBox>
+      </OverflowProvider>,
+    );
 
   it('shows ellipsis for multiple rows with long non-wrapping text', () => {
     const { lastFrame } = render(
