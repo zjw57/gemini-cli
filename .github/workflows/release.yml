@@ -106,6 +106,14 @@ jobs:
           npm pkg set version=${{ steps.version.outputs.RELEASE_VERSION }} --workspace=@google/gemini-cli-core
           npm install
 
+      - name: Set package versions for nightly release
+        if: steps.version.outputs.NPM_TAG == 'nightly'
+        run: |
+          npm pkg set version=${{ steps.version.outputs.RELEASE_VERSION }}
+          npm pkg set version=${{ steps.version.outputs.RELEASE_VERSION }} --workspace=@google/gemini-cli
+          npm pkg set version=${{ steps.version.outputs.RELEASE_VERSION }} --workspace=@google/gemini-cli-core
+          npm install
+
       - name: Commit package versions
         id: commit_step
         run: |
