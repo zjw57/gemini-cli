@@ -98,6 +98,7 @@ jobs:
           npm run release:version ${{ steps.version.outputs.RELEASE_VERSION }}
 
       - name: Commit package versions
+        id: commit_step
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -106,8 +107,10 @@ jobs:
             echo "Changes detected, creating commit."
             git commit -m "chore(release): ${{ steps.version.outputs.RELEASE_TAG }}"
             git push --set-upstream origin ${{ steps.release_branch.outputs.BRANCH_NAME }} --follow-tags
+            echo "committed=true" >> $GITHUB_OUTPUT
           else
             echo "No version changes to commit."
+            echo "committed=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release and Tag
@@ -115,10 +118,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_BRANCH: ${{ steps.release_branch.outputs.BRANCH_NAME }}
+          COMMITTED: ${{ steps.commit_step.outputs.committed }}
         run: |
+          TARGET_COMMITISH="main"
+          if [[ "$COMMITTED" == "true" ]]; then
+            TARGET_COMMITISH="$RELEASE_BRANCH"
+          fi
+          echo "Creating release against target: $TARGET_COMMITISH"
           gh release create ${{ steps.version.outputs.RELEASE_TAG }} \
             bundle/gemini.js \
-            --target "$RELEASE_BRANCH" \
+            --target "$TARGET_COMMITISH" \
             --title "Release ${{ steps.version.outputs.RELEASE_TAG }}" \
             --generate-notes
 
