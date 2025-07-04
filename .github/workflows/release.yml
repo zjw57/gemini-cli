@@ -93,9 +93,18 @@ jobs:
           git switch -c $BRANCH_NAME
           echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_OUTPUT
 
-      - name: Update package versions
+      - name: Update package versions for stable release
+        if: steps.version.outputs.NPM_TAG != 'nightly'
         run: |
           npm run release:version ${{ steps.version.outputs.RELEASE_VERSION }}
+
+      - name: Set package versions for nightly release
+        if: steps.version.outputs.NPM_TAG == 'nightly'
+        run: |
+          npm pkg set version=${{ steps.version.outputs.RELEASE_VERSION }}
+          npm pkg set version=${{ steps.version.outputs.RELEASE_VERSION }} --workspace=@google/gemini-cli
+          npm pkg set version=${{ steps.version.outputs.RELEASE_VERSION }} --workspace=@google/gemini-cli-core
+          npm install
 
       - name: Commit package versions
         id: commit_step
