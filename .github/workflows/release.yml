@@ -149,7 +149,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.WOMBAT_TOKEN_CORE }}
 
       - name: Install latest core package
-        run: npm install @google/gemini-cli-core@${{ steps.version.outputs.RELEASE_VERSION }} --workspace=@google/gemini-cli --save-exact
+        run: npm install @google/gemini-cli-core@${{ steps.version.outputs.NPM_TAG }} --workspace=@google/gemini-cli --save-exact
 
       - name: Publish @google/gemini-cli
         run: npm publish --workspace=@google/gemini-cli --tag=${{ steps.version.outputs.NPM_TAG }} ${{ inputs.dry_run && '--dry-run' || '' }}

@@ -24,11 +24,17 @@ steps:
     args:
       - -c
       - |
-        if [ "$_OFFICIAL_RELEASE" = "true" ]; then
+        export GEMINI_SANDBOX_IMAGE_TAG="$SHORT_SHA" # Default to SHA
+        if [[ "$TAG_NAME" == *"+nightly"* ]]; then
+          echo "Nightly release detected."
+          export GEMINI_SANDBOX_IMAGE_TAG="${TAG_NAME#v}"
+        elif [[ "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "Official release detected."
           export GEMINI_SANDBOX_IMAGE_TAG="${TAG_NAME#v}"
         else
-          export GEMINI_SANDBOX_IMAGE_TAG="$SHORT_SHA"
+          echo "Development/RC release detected. Using commit SHA as tag."
         fi
+        echo "Using Docker image tag: $GEMINI_SANDBOX_IMAGE_TAG"
         npm run build:sandbox:fast
     env:
       - 'GEMINI_SANDBOX=$_CONTAINER_TOOL'
@@ -40,11 +46,17 @@ steps:
     args:
       - -c
       - |
-        if [ "$_OFFICIAL_RELEASE" = "true" ]; then
+        export GEMINI_SANDBOX_IMAGE_TAG="$SHORT_SHA" # Default to SHA
+        if [[ "$TAG_NAME" == *"+nightly"* ]]; then
+          echo "Nightly release detected."
+          export GEMINI_SANDBOX_IMAGE_TAG="${TAG_NAME#v}"
+        elif [[ "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "Official release detected."
           export GEMINI_SANDBOX_IMAGE_TAG="${TAG_NAME#v}"
         else
-          export GEMINI_SANDBOX_IMAGE_TAG="$SHORT_SHA"
+          echo "Development/RC release detected. Using commit SHA as tag."
         fi
+        echo "Using Docker image tag: $GEMINI_SANDBOX_IMAGE_TAG"
         npm run publish:sandbox
     env:
       - 'GEMINI_SANDBOX=$_CONTAINER_TOOL'
@@ -54,5 +66,4 @@ options:
   dynamicSubstitutions: true
 
 substitutions:
-  _OFFICIAL_RELEASE: 'false'
   _CONTAINER_TOOL: 'docker'
