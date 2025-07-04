@@ -55,7 +55,6 @@ jobs:
         if: success()
         run: npm run tag:release:nightly
         env:
-          SIGN_FLAG: ""
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Issue on Failure
