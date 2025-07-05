@@ -1,0 +1,26 @@
+{
+  "name": "@google/gemini-nofrills-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A simple, no-frills CLI for Gemini.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "gemini-nofrills": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "start": "npm run build && node dist/index.js"
+  },
+  "dependencies": {
+    "@google/gemini-cli-core": "0.1.8",
+    "read-package-up": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/mime-types": "^3.0.1",
+    "@types/shell-quote": "^1.7.5",
+    "mime-types": "^3.0.1",
+    "typescript": "^5.8.3"
+  }
+}
