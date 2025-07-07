@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Gemini CLI</title>
+    <link rel="stylesheet" href="styles/global.css">
+    <link rel="stylesheet" href="styles/dashboard.css">
+  </head>
+  <body>
+    <div class="dashboard-wrapper">
+      <div class="dashboard-header">
+        <h1 class="dashboard-title">Dashboard</h1>
+        <button id="new-task" class="new-task-button">New Task</button>
+      </div>
+      <div class="dashboard-content">
+        <div id="running-section" class="task-section">
+          <div class="section-header">
+            <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm-1-12h2v6h-2zm0 8h2v2h-2z"/></svg>
+            <h2 class="section-title">Currently Running</h2>
+          </div>
+          <div class="task-list" id="running-list"></div>
+        </div>
+
+        <div id="favorites-section" class="task-section">
+          <div class="section-header">
+            <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27l-5.18 2.73 1-5.81-4.24-4.13 5.83-.84L12 4l2.6 5.22 5.83.84-4.24 4.13 1 5.81z"/></svg>
+            <h2 class="section-title">Favorites</h2>
+          </div>
+          <div class="task-list" id="favorites-list"></div>
+        </div>
+
+        <div id="history-section" class="task-section">
+          <div class="section-header">
+            <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6a7 7 0 0 1 7-7 7 7 0 0 1 7 7 7 7 0 0 1-7 7v2a9 9 0 0 0 9-9 9 9 0 0 0-9-9zm-1 5v5l4.25 2.52.75-1.23-3.5-2.07V8z"/></svg>
+            <h2 class="section-title">History</h2>
+          </div>
+          <div class="task-list" id="history-list"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      document.getElementById('new-task').addEventListener('click', () => {
+        window.ipcRenderer.send('create-new-task');
+      });
+
+      const runningList = document.getElementById('running-list');
+      const favoritesList = document.getElementById('favorites-list');
+      const historyList = document.getElementById('history-list');
+
+      function createTaskItem(task, type) {
+        const item = document.createElement('div');
+        item.className = 'task-item';
+        item.setAttribute('data-task-id', task.id);
+
+        let actions = '';
+        if (type === 'running') {
+          actions = '<button class="action-button stop-button">Stop</button>';
+        } else if (type === 'favorites') {
+          actions = '<button class="action-button unfavorite-button">Unfavorite</button>';
+        }
+
+        item.innerHTML = `
+          <div class="task-item-header">
+            <div class="task-item-title">${task.title}</div>
+            <div class="task-item-timestamp">${task.timestamp}</div>
+          </div>
+          <div class="task-item-description">${task.description}</div>
+          <div class="task-item-actions">${actions}</div>
+        `;
+        return item;
+      }
+
+      function renderTasks(tasks) {
+        runningList.innerHTML = '';
+        favoritesList.innerHTML = '';
+        historyList.innerHTML = '';
+
+        tasks.running.forEach(task => runningList.appendChild(createTaskItem(task, 'running')));
+        tasks.favorites.forEach(task => favoritesList.appendChild(createTaskItem(task, 'favorites')));
+        tasks.history.forEach(task => historyList.appendChild(createTaskItem(task, 'history')));
+
+        checkEmptySections();
+      }
+      
+      function checkEmptySections() {
+        document.querySelectorAll('.task-section').forEach(section => {
+          const list = section.querySelector('.task-list');
+          if (list.children.length === 0) {
+            section.classList.add('fade-out');
+          } else {
+            section.classList.remove('fade-out');
+          }
+        });
+      }
+
+      window.ipcRenderer.on('update-tasks', renderTasks);
+
+      document.addEventListener('click', (e) => {
+        const taskItem = e.target.closest('.task-item');
+        if (taskItem && !e.target.classList.contains('action-button')) {
+            const taskId = taskItem.getAttribute('data-task-id');
+            window.ipcRenderer.send('navigate-to-chat', taskId);
+        }
+        
+        if (e.target.classList.contains('stop-button')) {
+          e.stopPropagation();
+          const taskId = taskItem.getAttribute('data-task-id');
+          window.ipcRenderer.send('stop-task', taskId);
+        }
+        if (e.target.classList.contains('unfavorite-button')) {
+          e.stopPropagation();
+          const taskId = taskItem.getAttribute('data-task-id');
+          window.ipcRenderer.send('unfavorite-task', taskId);
+        }
+      });
+    </script>
+  </body>
+</html>
