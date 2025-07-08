@@ -13,6 +13,7 @@
   padding-top: 40px;
   -webkit-app-region: drag;
   border-bottom: 1px solid var(--border-color);
+  position: relative;
 }
 
 .back-button {
@@ -70,9 +71,15 @@
   white-space: pre-wrap;
 }
 
+.user-message {
+  border: 1px solid var(--border-color);
+  padding: 16px;
+  border-radius: 12px;
+  background-color: #1c1c1e;
+}
+
 .input-area {
   padding: 16px;
-  border-top: 1px solid var(--border-color);
 }
 
 .input-wrapper {
@@ -118,7 +125,6 @@
   padding: 8px 12px;
   font-size: 12px;
   color: #8e8e93;
-  border-top: 1px solid #333;
 }
 
 .status-bar-left,
@@ -131,4 +137,154 @@
 .status-bar-center {
   flex-grow: 1;
   justify-content: center;
+}
+
+.tool-call-confirmation {
+  background-color: #2c2c2e;
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+.tool-call-info h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.tool-call-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.approve-button,
+.deny-button {
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.approve-button {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.deny-button {
+  background-color: #4a4a4c;
+  color: white;
+}
+
+.modify-button {
+  background-color: #6a4a8c;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tool-call-confirmation {
+  font-size: 13px;
+}
+
+.tool-call-header {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.tool-call-body .tool-description {
+  font-style: italic;
+  margin-bottom: 12px;
+}
+
+.tool-call-body .tool-args h5 {
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+
+.tool-call-body .tool-args pre {
+  background-color: #1c1c1e;
+  padding: 8px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.chat-options-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: absolute;
+  top: 40px;
+  right: 16px;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 20px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 20px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--primary-color);
+}
+
+input:checked + .slider:before {
+  transform: translateX(14px);
+}
+
+.toggle-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #8e8e93;
+}
+
+.accepting-edits-indicator {
+  position: absolute;
+  top: 65%;
+  right: 16px;
+  transform: translateY(-50%);
+  background-color: var(--primary-color);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
 }

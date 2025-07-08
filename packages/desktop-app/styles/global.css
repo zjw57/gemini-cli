@@ -21,3 +21,39 @@ body, html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+.progress-notifier {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #B39DDB;
+  margin-bottom: 10px;
+  padding: 2px 10px 0 10px;
+}
+
+.spinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid #B39DDB;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 10px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.witty-phrase {
+  flex-grow: 1;
+}
+
+.timer {
+  color: #888;
+}

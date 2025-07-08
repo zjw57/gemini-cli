@@ -1,10 +1,18 @@
-const { ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
-window.ipcRenderer = {
-  send: (channel, ...args) => ipcRenderer.send(channel, ...args),
+contextBridge.exposeInMainWorld('electron', {
+  send: (channel, data) => {
+    ipcRenderer.send(channel, data);
+  },
   on: (channel, func) => {
-    // Ensure we don't add duplicate listeners
+    const subscription = (event, ...args) => func(...args);
+    ipcRenderer.on(channel, subscription);
+
+    return () => {
+      ipcRenderer.removeListener(channel, subscription);
+    };
+  },
+  removeAllListeners: (channel) => {
     ipcRenderer.removeAllListeners(channel);
-    ipcRenderer.on(channel, (event, ...args) => func(...args));
   }
-};
+});

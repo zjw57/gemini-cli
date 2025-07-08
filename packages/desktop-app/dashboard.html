@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Gemini Desktop Dashboard</title>
+    <link rel="stylesheet" href="styles/global.css">
+    <link rel="stylesheet" href="styles/dashboard.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div id="logo-container"></div>
+            <button id="new-task-button" class="new-task-button">+ New Task</button>
+        </div>
+
+        <div class="content-area">
+            <div class="task-section">
+                <h2>Running</h2>
+                <div id="running-tasks" class="task-list"></div>
+            </div>
+
+            <div class="task-section">
+                <h2>History</h2>
+                <div id="history-tasks" class="task-list"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const runningTasks = document.getElementById('running-tasks');
+        const historyTasks = document.getElementById('history-tasks');
+        const newTaskButton = document.getElementById('new-task-button');
+
+        function createTaskElement(task) {
+            const element = document.createElement('div');
+            element.className = 'task-card';
+            element.innerHTML = `
+                <div class="task-card-title">${task.title}</div>
+                <div class="task-card-description">${task.description}</div>
+                <div class="task-card-timestamp">${task.timestamp}</div>
+            `;
+            element.addEventListener('click', () => {
+                window.electron.send('navigate-to-chat', task.id);
+            });
+            return element;
+        }
+
+        window.electron.on('update-tasks', (tasks) => {
+            runningTasks.innerHTML = '';
+            historyTasks.innerHTML = '';
+
+            tasks.running.forEach(task => runningTasks.appendChild(createTaskElement(task)));
+            tasks.history.forEach(task => historyTasks.appendChild(createTaskElement(task)));
+        });
+
+        newTaskButton.addEventListener('click', () => {
+            window.electron.send('create-new-task');
+        });
+
+        window.electron.send('get-tasks');
+    </script>
+    <script type="module" src="dist/dashboard.js"></script>
+</body>
+</html>

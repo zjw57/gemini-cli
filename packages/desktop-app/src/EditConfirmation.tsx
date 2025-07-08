@@ -1,0 +1,36 @@
+import React, { useEffect, useRef } from 'react';
+import hljs from 'highlight.js';
+
+const EditConfirmation = ({ confirmationDetails, onConfirm }) => {
+  const { name, args, description } = confirmationDetails;
+  const codeRef = useRef(null);
+
+  useEffect(() => {
+    if (codeRef.current) {
+      hljs.highlightElement(codeRef.current);
+    }
+  }, [args]);
+
+  return (
+    <div className="tool-call-confirmation">
+      <div className="tool-call-header">
+        Tool Call: {name}
+      </div>
+      <div className="tool-call-body">
+        {args && args.description && <p className="tool-description">{args.description}</p>}
+        <div className="tool-args">
+          <h5>File Diff:</h5>
+          <pre><code ref={codeRef} className="diff">{args.fileDiff}</code></pre>
+        </div>
+      </div>
+      <div className="tool-call-actions">
+        <button className="approve-button" onClick={() => onConfirm('proceed_once')}>Yes, allow once</button>
+        <button className="approve-button" onClick={() => onConfirm('proceed_always')}>Yes, allow always</button>
+        <button className="modify-button" onClick={() => onConfirm('modify_with_editor')}>Modify with external editor</button>
+        <button className="deny-button" onClick={() => onConfirm('cancel')}>No</button>
+      </div>
+    </div>
+  );
+};
+
+export default EditConfirmation;
