@@ -636,16 +636,20 @@ export class MCPOAuthProvider {
     serverName: string,
     config: MCPOAuthConfig
   ): Promise<string | null> {
+    console.debug(`Getting valid token for server: ${serverName}`);
     const credentials = await MCPOAuthTokenStorage.getToken(serverName);
     
     if (!credentials) {
+      console.debug(`No credentials found for server: ${serverName}`);
       return null;
     }
     
     const { token } = credentials;
+    console.debug(`Found token for server: ${serverName}, expired: ${MCPOAuthTokenStorage.isTokenExpired(token)}`);
     
     // Check if token is expired
     if (!MCPOAuthTokenStorage.isTokenExpired(token)) {
+      console.debug(`Returning valid token for server: ${serverName}`);
       return token.accessToken;
     }
     
