@@ -425,24 +425,19 @@ async function connectAndDiscover(
       transportOptions,
     );
   } else if (mcpServerConfig.url) {
-    // Handle OAuth authentication for SSE connections
-    let hasOAuthConfig = mcpServerConfig.oauth?.enabled;
+    // For SSE URLs, implement auto transport mode: try HTTP first, then fall back to SSE
+    // This allows proper OAuth discovery via HTTP headers
+    console.log(`SSE URL detected, using auto transport mode (HTTP with SSE fallback)`);
+    
+    // Check if we have stored OAuth tokens for this server
     let accessToken: string | null = null;
+    let hasOAuthConfig = mcpServerConfig.oauth?.enabled;
     
     if (hasOAuthConfig && mcpServerConfig.oauth) {
       accessToken = await MCPOAuthProvider.getValidToken(
         mcpServerName,
         mcpServerConfig.oauth
       );
-      
-      if (!accessToken) {
-        console.error(
-          `MCP server '${mcpServerName}' requires OAuth authentication. ` +
-          `Please authenticate using the /mcp auth command.`
-        );
-        updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
-        return;
-      }
     } else {
       // Check if we have stored OAuth tokens for this server (from previous authentication)
       accessToken = await MCPOAuthProvider.getValidToken(mcpServerName, {
@@ -452,84 +447,58 @@ async function connectAndDiscover(
       
       if (accessToken) {
         hasOAuthConfig = true;
-        console.log(`Found stored OAuth token for SSE server '${mcpServerName}'`);
+        console.log(`Found stored OAuth token for server '${mcpServerName}'`);
       }
     }
     
-    // If we don't have a token yet, check if the SSE endpoint requires authentication
-    if (!hasOAuthConfig && !accessToken) {
-      const wwwAuthenticate = await checkSSEAuthRequirement(mcpServerConfig.url);
-      if (wwwAuthenticate) {
-        console.log(`SSE endpoint requires authentication. WWW-Authenticate: ${wwwAuthenticate}`);
-        
-        // Try automatic OAuth discovery and authentication
-        const oauthSuccess = await handleAutomaticOAuth(mcpServerName, mcpServerConfig, wwwAuthenticate);
-        if (oauthSuccess) {
-          // Get the token that was just obtained
-          accessToken = await MCPOAuthProvider.getValidToken(mcpServerName, {
-            authorizationUrl: '', // Will be discovered automatically
-            tokenUrl: '', // Will be discovered automatically
-          });
-          
-          if (accessToken) {
-            hasOAuthConfig = true;
-            console.log(`OAuth authentication successful, got token for SSE server '${mcpServerName}'`);
-          }
-        } else {
-          console.error(`Failed to handle automatic OAuth for SSE server '${mcpServerName}'`);
-          updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
-          return;
-        }
-      }
-    }
-    
-    // For SSE connections, we need to handle OAuth differently since SSEClientTransport
-    // doesn't support custom headers directly. We'll need to modify the URL or use a different approach.
+    // Create HTTP transport options
+    const transportOptions: StreamableHTTPClientTransportOptions = {};
     if (hasOAuthConfig && accessToken) {
-      // For SSE with OAuth, we'll need to append the token as a query parameter
-      // or use a different approach since SSE doesn't support Authorization headers
-      const sseUrl = new URL(mcpServerConfig.url);
+      transportOptions.requestInit = {
+        headers: {
+          ...mcpServerConfig.headers,
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      };
+    } else if (mcpServerConfig.headers) {
+      transportOptions.requestInit = {
+        headers: mcpServerConfig.headers,
+      };
+    }
+    
+    // Try HTTP transport first
+    const httpTransport = new StreamableHTTPClientTransport(
+      new URL(mcpServerConfig.url),
+      transportOptions,
+    );
+    
+    // Create a temporary client to test HTTP connection
+    const testClient = new Client({
+      name: 'gemini-cli-mcp-client-test',
+      version: '0.0.1',
+    });
+    
+    try {
+      console.log(`Attempting connection with HTTP transport...`);
+      await testClient.connect(httpTransport, {
+        timeout: mcpServerConfig.timeout ?? MCP_DEFAULT_TIMEOUT_MSEC,
+      });
+      // HTTP transport worked, use it
+      transport = httpTransport;
+      console.log(`HTTP transport successful, using HTTP for server '${mcpServerName}'`);
+    } catch (httpError) {
+      console.log(`HTTP transport failed, falling back to SSE transport`);
       
-      // Some SSE servers might expect the token in a specific format or path
-      // Try to append common SSE paths if the URL doesn't already have them
-      const urlPath = sseUrl.pathname;
-      if (urlPath === '/' || urlPath === '') {
-        // Try common SSE endpoint patterns
-        console.log(`SSE URL has root path, checking for common SSE endpoints...`);
-        const sseEndpoints = ['/sse', '/events', '/stream', '/api/sse'];
-        
-        for (const endpoint of sseEndpoints) {
-          try {
-            const testUrl = new URL(sseUrl.toString());
-            testUrl.pathname = endpoint;
-            console.log(`Checking SSE endpoint: ${testUrl.toString()}`);
-            
-            const checkResponse = await fetch(testUrl.toString(), {
-              method: 'HEAD',
-              headers: {
-                'Accept': 'text/event-stream',
-                'Authorization': `Bearer ${accessToken}`,
-              },
-              signal: AbortSignal.timeout(3000),
-            });
-            
-            if (checkResponse.ok || checkResponse.status === 200) {
-              console.log(`Found working SSE endpoint at: ${testUrl.toString()}`);
-              sseUrl.pathname = endpoint;
-              break;
-            }
-          } catch (e) {
-            // Continue trying other endpoints
-          }
-        }
+      // HTTP failed, fall back to SSE
+      if (hasOAuthConfig && accessToken) {
+        // Use configurable token parameter name or default to 'access_token'
+        const tokenParamName = mcpServerConfig.oauth?.tokenParamName || 'access_token';
+        const sseUrl = new URL(mcpServerConfig.url);
+        sseUrl.searchParams.set(tokenParamName, accessToken);
+        transport = new SSEClientTransport(sseUrl);
+      } else {
+        transport = new SSEClientTransport(new URL(mcpServerConfig.url));
       }
-      
-            // Use configurable token parameter name or default to 'access_token'
-      const tokenParamName = mcpServerConfig.oauth?.tokenParamName || 'access_token';
-      sseUrl.searchParams.set(tokenParamName, accessToken);
-      transport = new SSEClientTransport(sseUrl);
-    } else {
-      transport = new SSEClientTransport(new URL(mcpServerConfig.url));
     }
   } else if (mcpServerConfig.command) {
     transport = new StdioClientTransport({
