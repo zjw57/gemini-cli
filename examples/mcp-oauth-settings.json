@@ -1,14 +1,9 @@
 {
   "mcpServers": {
     "secops": {
-      "httpUrl": "https://mcp.raybrian.demo.altostrat.com/mcp",
-      "oauth": {
-        "enabled": true,
-        "authorizationUrl": "https://mcp.raybrian.demo.altostrat.com/authorize",
-        "tokenUrl": "https://mcp.raybrian.demo.altostrat.com/token",
-        "scopes": ["secops:read", "chronicle:read"]
-      },
-      "description": "Google Security Operations MCP server with OAuth authentication"
+      "httpUrl": "https://mcp.raybrian.demo.altostrat.com/mcp/",
+      "timeout": 5000,
+      "description": "Google Security Operations MCP server with automatic OAuth discovery"
     },
     "local-test": {
       "httpUrl": "http://localhost:8080/mcp",

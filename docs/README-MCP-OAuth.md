@@ -14,12 +14,45 @@ Gemini CLI now supports OAuth 2.0 authentication for MCP servers that require it
 
 ## Quick Start
 
-1. **Configure an OAuth-enabled MCP server** in your `settings.json`:
+1. **Configure an MCP server** in your `settings.json`:
 
 ```json
 {
   "mcpServers": {
     "my-secure-server": {
+      "httpUrl": "https://example.com/mcp",
+      "timeout": 5000
+    }
+  }
+}
+```
+
+2. **Start Gemini CLI** - OAuth will be automatically discovered and handled:
+```bash
+gemini
+```
+
+3. **If authentication is required**, the CLI will automatically:
+   - Detect the 401 response with OAuth metadata
+   - Discover OAuth configuration
+   - Register a client dynamically
+   - Open your browser for authentication
+   - Complete the OAuth flow automatically
+
+## Configuration
+
+### Automatic OAuth Discovery
+
+The CLI automatically discovers OAuth configuration when a server returns a 401 response with a `www-authenticate` header containing OAuth metadata. No manual OAuth configuration is required.
+
+### Manual OAuth Configuration (Optional)
+
+If you prefer to configure OAuth manually, you can still use the explicit configuration:
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
       "httpUrl": "https://example.com/mcp",
       "oauth": {
         "enabled": true,
@@ -33,28 +66,12 @@ Gemini CLI now supports OAuth 2.0 authentication for MCP servers that require it
 }
 ```
 
-2. **Start Gemini CLI** and authenticate:
-```bash
-gemini
-
-# In the CLI:
-/mcp auth my-secure-server
-```
-
-3. **Complete the OAuth flow** in your browser and return to the CLI.
-
-## Configuration
-
-### Required OAuth Fields
+### OAuth Configuration Fields
 
 - `enabled`: Set to `true` to enable OAuth for this server
-- `clientId`: Your OAuth client ID
+- `clientId`: OAuth client ID (optional - will use dynamic registration if not provided)
 - `authorizationUrl`: The authorization endpoint URL
 - `tokenUrl`: The token endpoint URL
-
-### Optional OAuth Fields
-
-- `clientSecret`: OAuth client secret (for confidential clients)
 - `scopes`: Array of OAuth scopes to request
 - `redirectUri`: Custom redirect URI (defaults to `http://localhost:7777/oauth/callback`)
 
