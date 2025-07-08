@@ -540,7 +540,33 @@ export class MCPOAuthProvider {
       const serverUrl = `${authUrl.protocol}//${authUrl.host}`;
       
       console.log('No client ID provided, attempting dynamic client registration...');
-      config = await this.discoverAndRegisterClient(serverUrl, config);
+      
+      // Get the authorization server metadata for registration
+      const authServerMetadataUrl = new URL('/.well-known/oauth-authorization-server', serverUrl).toString();
+      
+      const authServerResponse = await fetch(authServerMetadataUrl);
+      if (!authServerResponse.ok) {
+        throw new Error('Failed to fetch authorization server metadata for client registration');
+      }
+      
+      const authServerMetadata = await authServerResponse.json();
+      
+      // Register client if registration endpoint is available
+      if (authServerMetadata.registration_endpoint) {
+        const clientRegistration = await this.registerClient(
+          authServerMetadata.registration_endpoint,
+          config
+        );
+        
+        config.clientId = clientRegistration.client_id;
+        if (clientRegistration.client_secret) {
+          config.clientSecret = clientRegistration.client_secret;
+        }
+        
+        console.log('Dynamic client registration successful');
+      } else {
+        throw new Error('No client ID provided and dynamic registration not supported');
+      }
     }
     
     // Validate configuration
