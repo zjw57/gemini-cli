@@ -253,14 +253,8 @@ export const useSlashCommandProcessor = (
       return;
     }
     
-    if (!server.oauth?.enabled) {
-      addMessage({
-        type: MessageType.INFO,
-        content: `MCP server '${serverName}' does not require OAuth authentication.`,
-        timestamp: new Date(),
-      });
-      return;
-    }
+    // Always attempt OAuth authentication, even if not explicitly configured
+    // The authentication process will discover OAuth requirements automatically
     
     try {
       addMessage({
@@ -272,7 +266,13 @@ export const useSlashCommandProcessor = (
       // Import dynamically to avoid circular dependencies
       const { MCPOAuthProvider } = await import('@google/gemini-cli-core');
       
-      await MCPOAuthProvider.authenticate(serverName, server.oauth);
+      // Create OAuth config for authentication (will be discovered automatically)
+      const oauthConfig = server.oauth || {
+        authorizationUrl: '', // Will be discovered automatically
+        tokenUrl: '', // Will be discovered automatically
+      };
+      
+      await MCPOAuthProvider.authenticate(serverName, oauthConfig);
       
       addMessage({
         type: MessageType.INFO,

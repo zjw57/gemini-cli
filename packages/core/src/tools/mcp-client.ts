@@ -327,6 +327,8 @@ async function connectAndDiscover(
         headers: mcpServerConfig.headers,
       };
     }
+    // Note: If no OAuth is configured, we'll attempt the connection anyway
+    // and handle 401 responses with automatic OAuth discovery
 
     transport = new StreamableHTTPClientTransport(
       new URL(mcpServerConfig.httpUrl),
