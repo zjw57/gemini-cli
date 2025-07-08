@@ -494,9 +494,8 @@ async function run(config: Config): Promise<void> {
   const toolRegistry: ToolRegistry = await config.getToolRegistry();
   
 
-    const systemPromptText = getCoreSystemPrompt();
+  const systemPromptText = getCoreSystemPrompt();
 
-  console.log('system-prompt', systemPromptText);
   const chat = await geminiClient.getChat();
 
   // Add the system prompt as the first message.
