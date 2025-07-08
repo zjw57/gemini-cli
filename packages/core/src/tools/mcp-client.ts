@@ -502,8 +502,53 @@ async function connectAndDiscover(
         }
       }
       
-      sseUrl.searchParams.set('access_token', accessToken);
-      transport = new SSEClientTransport(sseUrl);
+      // Try different token parameter names that SSE servers might expect
+      // Some servers use 'access_token', others use 'token', 'auth', or 'authorization'
+      const tokenParamNames = ['access_token', 'token', 'auth', 'authorization'];
+      let connectedSuccessfully = false;
+      
+      for (const paramName of tokenParamNames) {
+        const testUrl = new URL(sseUrl.toString());
+        testUrl.searchParams.set(paramName, accessToken);
+        
+        console.log(`Trying SSE connection with token parameter: ${paramName}`);
+        const testTransport = new SSEClientTransport(testUrl);
+        
+        try {
+          // Create a test client to check if this token format works
+          const testClient = new Client({
+            name: 'gemini-cli-mcp-client-test',
+            version: '0.0.1',
+          });
+          
+          await testClient.connect(testTransport, {
+            timeout: 5000, // Short timeout for testing
+          });
+          
+          // If we get here, the connection worked
+          console.log(`SSE connection successful with token parameter: ${paramName}`);
+          sseUrl.searchParams.set(paramName, accessToken);
+          transport = new SSEClientTransport(sseUrl);
+          connectedSuccessfully = true;
+          
+          // Close the test connection
+          await testTransport.close();
+          break;
+        } catch (error) {
+          // This token format didn't work, try the next one
+          console.debug(`Token parameter '${paramName}' didn't work: ${getErrorMessage(error)}`);
+          try {
+            await testTransport.close();
+          } catch {}
+        }
+      }
+      
+      if (!connectedSuccessfully) {
+        // Fallback to the most common parameter name
+        console.log(`All token parameter formats failed, using default 'access_token'`);
+        sseUrl.searchParams.set('access_token', accessToken);
+        transport = new SSEClientTransport(sseUrl);
+      }
     } else {
       transport = new SSEClientTransport(new URL(mcpServerConfig.url));
     }
@@ -523,6 +568,12 @@ async function connectAndDiscover(
       `MCP server '${mcpServerName}' has invalid configuration: missing httpUrl (for Streamable HTTP), url (for SSE), and command (for stdio). Skipping.`,
     );
     // Update status to disconnected
+    updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
+    return;
+  }
+
+  if (!transport) {
+    console.error(`No transport created for MCP server '${mcpServerName}'`);
     updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
     return;
   }
