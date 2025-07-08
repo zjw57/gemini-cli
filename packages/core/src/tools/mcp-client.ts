@@ -594,6 +594,17 @@ async function connectAndDiscover(
       // Check if this is a 401 error that might indicate OAuth is required
       const errorString = String(error);
       if (errorString.includes('401') && (mcpServerConfig.httpUrl || mcpServerConfig.url)) {
+        // Only trigger automatic OAuth discovery for HTTP servers or when OAuth is explicitly configured
+        const shouldTriggerOAuth = mcpServerConfig.httpUrl || mcpServerConfig.oauth?.enabled;
+        
+        if (!shouldTriggerOAuth) {
+          // For SSE servers without explicit OAuth config, just fail gracefully
+          console.log(`401 error received for SSE server '${mcpServerName}' without OAuth configuration. ` +
+                     `Please authenticate using: /mcp auth ${mcpServerName}`);
+          updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
+          return;
+        }
+        
         // Try to extract www-authenticate header from the error
         let wwwAuthenticate = extractWWWAuthenticateHeader(errorString);
         
@@ -669,6 +680,16 @@ async function connectAndDiscover(
         }
       } else {
         // No www-authenticate header found, but we got a 401
+        // Only try OAuth discovery for HTTP servers or when OAuth is explicitly configured
+        const shouldTryDiscovery = mcpServerConfig.httpUrl || mcpServerConfig.oauth?.enabled;
+        
+        if (!shouldTryDiscovery) {
+          console.log(`401 error received for SSE server '${mcpServerName}' without OAuth configuration. ` +
+                     `Please authenticate using: /mcp auth ${mcpServerName}`);
+          updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
+          return;
+        }
+        
         // For SSE servers, try to discover OAuth configuration from the base URL
         console.log(`401 error received but no www-authenticate header found, attempting OAuth discovery from base URL...`);
         
