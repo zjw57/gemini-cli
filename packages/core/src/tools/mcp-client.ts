@@ -16,6 +16,7 @@ import { MCPServerConfig } from '../config/config.js';
 import { DiscoveredMCPTool } from './mcp-tool.js';
 import { Type, mcpToTool } from '@google/genai';
 import { sanitizeParameters, ToolRegistry } from './tool-registry.js';
+import { MCPOAuthProvider } from '../mcp/oauth-provider.js';
 
 export const MCP_DEFAULT_TIMEOUT_MSEC = 10 * 60 * 1000; // default to 10 minutes
 
@@ -179,7 +180,30 @@ async function connectAndDiscover(
   if (mcpServerConfig.httpUrl) {
     const transportOptions: StreamableHTTPClientTransportOptions = {};
 
-    if (mcpServerConfig.headers) {
+    // Handle OAuth authentication if configured
+    if (mcpServerConfig.oauth?.enabled) {
+      const accessToken = await MCPOAuthProvider.getValidToken(
+        mcpServerName,
+        mcpServerConfig.oauth
+      );
+      
+      if (!accessToken) {
+        console.error(
+          `MCP server '${mcpServerName}' requires OAuth authentication. ` +
+          `Please authenticate using the /mcp auth command.`
+        );
+        updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
+        return;
+      }
+      
+      // Add Bearer token to headers
+      transportOptions.requestInit = {
+        headers: {
+          ...mcpServerConfig.headers,
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      };
+    } else if (mcpServerConfig.headers) {
       transportOptions.requestInit = {
         headers: mcpServerConfig.headers,
       };
@@ -260,6 +284,16 @@ async function connectAndDiscover(
 
   mcpClient.onerror = (error) => {
     console.error(`MCP ERROR (${mcpServerName}):`, error.toString());
+    
+    // Check if this is an authentication error for OAuth-enabled servers
+    if (mcpServerConfig.oauth?.enabled && 
+        (error.toString().includes('401') || 
+         error.toString().includes('Unauthorized') ||
+         error.toString().includes('authentication'))) {
+      console.error(`Authentication error for MCP server '${mcpServerName}'. ` +
+                   `Please re-authenticate using: /mcp auth ${mcpServerName}`);
+    }
+    
     // Update status to disconnected on error
     updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
   };

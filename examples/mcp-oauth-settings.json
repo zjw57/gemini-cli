@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "secops": {
+      "httpUrl": "https://mcp.raybrian.demo.altostrat.com/mcp",
+      "oauth": {
+        "enabled": true,
+        "clientId": "gemini-cli",
+        "authorizationUrl": "https://mcp.raybrian.demo.altostrat.com/authorize",
+        "tokenUrl": "https://mcp.raybrian.demo.altostrat.com/token",
+        "scopes": ["secops:read", "chronicle:read"]
+      },
+      "description": "Google Security Operations MCP server with OAuth authentication"
+    },
+    "local-test": {
+      "httpUrl": "http://localhost:8080/mcp",
+      "description": "Local MCP server without authentication"
+    }
+  }
+} 
