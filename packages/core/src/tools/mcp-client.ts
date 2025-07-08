@@ -256,11 +256,17 @@ async function createTransportWithOAuth(
         oauthTransportOptions,
       );
     } else if (mcpServerConfig.url) {
-      // Create SSE transport with OAuth token
-      const sseUrl = new URL(mcpServerConfig.url);
-      const tokenParamName = mcpServerConfig.oauth?.tokenParamName || 'access_token';
-      sseUrl.searchParams.set(tokenParamName, accessToken);
-      return new SSEClientTransport(sseUrl);
+      // Create SSE transport with OAuth token in Authorization header
+      return new SSEClientTransport(
+        new URL(mcpServerConfig.url), {
+          requestInit: {
+            headers: {
+              ...mcpServerConfig.headers,
+              'Authorization': `Bearer ${accessToken}`,
+            }
+          }
+        }
+      );
     }
     
     return null;
@@ -482,75 +488,19 @@ async function connectAndDiscover(
         transport = httpTransport;
         console.log(`HTTP transport successful, using HTTP for server '${mcpServerName}'`);
       } catch (httpError) {
-        console.log(`HTTP transport failed, falling back to SSE transport`);
+        console.log(`HTTP transport failed, falling back to SSE transport with Authorization header.`);
         
-        // HTTP failed, fall back to SSE with token as query parameter
-        const tokenParamNames = ['access_token', 'token', 'auth', 'authorization'];
-        let connectedSuccessfully = false;
-        
-        for (const paramName of tokenParamNames) {
-          const sseUrl = new URL(mcpServerConfig.url);
-          sseUrl.searchParams.set(paramName, accessToken);
-          
-          console.log(`Trying SSE connection with token parameter: ${paramName}`);
-          const testTransport = new SSEClientTransport(sseUrl);
-          
-          try {
-            // Create a test client to check if this token format works
-            const testClient = new Client({
-              name: 'gemini-cli-mcp-client-test',
-              version: '0.0.1',
-            });
-            
-            await testClient.connect(testTransport, {
-              timeout: 5000, // Short timeout for testing
-            });
-            
-            // If we get here, the connection worked
-            console.log(`SSE connection successful with token parameter: ${paramName}`);
-            transport = new SSEClientTransport(sseUrl);
-            connectedSuccessfully = true;
-            
-            // Close the test connection
-            await testTransport.close();
-            break;
-          } catch (error) {
-            // This token format didn't work, try the next one
-            console.debug(`Token parameter '${paramName}' didn't work for ${mcpServerName}: ${getErrorMessage(error)}`);
-            try {
-              await testTransport.close();
-            } catch {}
-          }
-        }
-        
-        if (!connectedSuccessfully) {
-          // Before falling back, let's test if the token is valid by making a simple HTTP request
-          console.log(`All token parameter formats failed for ${mcpServerName}. Testing token validity with GET...`);
-          try {
-            const testResponse = await fetch(mcpServerConfig.url, {
-              method: 'GET',
+        // HTTP failed, fall back to SSE, but pass the token in the header.
+        transport = new SSEClientTransport(
+          new URL(mcpServerConfig.url), {
+            requestInit: {
               headers: {
+                ...mcpServerConfig.headers,
                 'Authorization': `Bearer ${accessToken}`,
-                'Accept': 'text/event-stream',
-              },
-              signal: AbortSignal.timeout(5000),
-            });
-            console.log(`Token validation test for ${mcpServerName}: ${testResponse.status} ${testResponse.statusText}`);
-            // We don't need to read the body, just check the status.
-            // Ensure we abort the request to close the connection.
-            if (testResponse.body) {
-              testResponse.body.getReader().cancel();
+              }
             }
-          } catch (validationError) {
-            console.log(`Token validation GET request for ${mcpServerName} failed: ${getErrorMessage(validationError)}`);
           }
-          
-          // Fallback to the most common parameter name
-          console.log(`Using default 'access_token' parameter for ${mcpServerName}`);
-          const sseUrl = new URL(mcpServerConfig.url);
-          sseUrl.searchParams.set('access_token', accessToken);
-          transport = new SSEClientTransport(sseUrl);
-        }
+        );
       }
     } else {
       // No OAuth tokens available, go directly to SSE transport without triggering OAuth discovery
