@@ -462,48 +462,6 @@ export const useSlashCommandProcessor = (
           message += 'Configured MCP servers:\n\n';
 
           for (const [serverName, serverConfig] of Object.entries(mcpServers)) {
-            const serverStatus = getMCPServerStatus(serverName);
-            let statusIcon = '';
-            let statusText = '';
-
-            switch (serverStatus) {
-              case MCPServerStatus.CONNECTED:
-                statusIcon = '\u001b[32m✓\u001b[0m'; // Green checkmark
-                statusText = 'Connected';
-                break;
-              case MCPServerStatus.CONNECTING:
-                statusIcon = '\u001b[33m⏳\u001b[0m'; // Yellow hourglass
-                statusText = 'Connecting...';
-                break;
-              case MCPServerStatus.DISCONNECTED:
-                statusIcon = '\u001b[31m✗\u001b[0m'; // Red X
-                statusText = 'Disconnected';
-                break;
-              default:
-                statusIcon = '\u001b[90m?\u001b[0m'; // Gray question mark
-                statusText = 'Unknown';
-            }
-
-            message += `${statusIcon} ${serverName}: ${statusText}`;
-            
-            // Add OAuth status if applicable
-            if (serverConfig.oauth?.enabled) {
-              const { MCPOAuthTokenStorage } = await import('@google/gemini-cli-core');
-              const hasToken = await MCPOAuthTokenStorage.getToken(serverName);
-              if (hasToken) {
-                const isExpired = MCPOAuthTokenStorage.isTokenExpired(hasToken.token);
-                if (isExpired) {
-                  message += ' \u001b[33m(OAuth token expired)\u001b[0m';
-                } else {
-                  message += ' \u001b[32m(OAuth authenticated)\u001b[0m';
-                }
-              } else {
-                message += ' \u001b[31m(OAuth not authenticated)\u001b[0m';
-              }
-            }
-            
-            message += '\n';
-
             const serverTools = toolRegistry.getToolsByServer(serverName);
             const status = getMCPServerStatus(serverName);
 
@@ -528,6 +486,22 @@ export const useSlashCommandProcessor = (
 
             // Format server header with bold formatting and status
             message += `${statusIndicator} \u001b[1m${serverName}\u001b[0m - ${detailedStatus}`;
+
+            // Add OAuth status if applicable
+            if (serverConfig.oauth?.enabled) {
+              const { MCPOAuthTokenStorage } = await import('@google/gemini-cli-core');
+              const hasToken = await MCPOAuthTokenStorage.getToken(serverName);
+              if (hasToken) {
+                const isExpired = MCPOAuthTokenStorage.isTokenExpired(hasToken.token);
+                if (isExpired) {
+                  message += ' \u001b[33m(OAuth token expired)\u001b[0m';
+                } else {
+                  message += ' \u001b[32m(OAuth authenticated)\u001b[0m';
+                }
+              } else {
+                message += ' \u001b[31m(OAuth not authenticated)\u001b[0m';
+              }
+            }
 
             // Add tool count with conditional messaging
             if (status === MCPServerStatus.CONNECTED) {

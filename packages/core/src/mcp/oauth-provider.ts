@@ -15,12 +15,14 @@ import { getErrorMessage } from '../utils/errors.js';
  * OAuth configuration for an MCP server.
  */
 export interface MCPOAuthConfig {
+  enabled?: boolean; // Whether OAuth is enabled for this server
   clientId?: string;
   clientSecret?: string;
   authorizationUrl?: string;
   tokenUrl?: string;
   scopes?: string[];
   redirectUri?: string;
+  tokenParamName?: string; // For SSE connections, specifies the query parameter name for the token
 }
 
 /**
@@ -129,77 +131,7 @@ export class MCPOAuthProvider {
     return await response.json() as OAuthClientRegistrationResponse;
   }
   
-  /**
-   * Discover OAuth configuration and register client if needed.
-   * 
-   * @param serverUrl The base URL of the MCP server
-   * @param config OAuth configuration
-   * @returns Updated OAuth configuration with client credentials
-   */
-  private static async discoverAndRegisterClient(
-    serverUrl: string,
-    config: MCPOAuthConfig
-  ): Promise<MCPOAuthConfig> {
-    try {
-      // Try to get the protected resource metadata
-      const resourceMetadataUrl = new URL('/.well-known/oauth-protected-resource', serverUrl).toString();
-      
-      const resourceResponse = await fetch(resourceMetadataUrl);
-      if (!resourceResponse.ok) {
-        throw new Error('OAuth protected resource metadata not found');
-      }
-      
-      const resourceMetadata = await resourceResponse.json();
-      
-      if (!resourceMetadata.authorization_servers || resourceMetadata.authorization_servers.length === 0) {
-        throw new Error('No authorization servers specified');
-      }
-      
-      // Use the first authorization server
-      const authServerUrl = resourceMetadata.authorization_servers[0];
-      
-      // Get the authorization server metadata
-      const authServerMetadataUrl = new URL('/.well-known/oauth-authorization-server', authServerUrl).toString();
-      
-      const authServerResponse = await fetch(authServerMetadataUrl);
-      if (!authServerResponse.ok) {
-        throw new Error('Failed to fetch authorization server metadata');
-      }
-      
-      const authServerMetadata = await authServerResponse.json();
-      
-      // Update config with discovered endpoints
-      const updatedConfig: MCPOAuthConfig = {
-        ...config,
-        authorizationUrl: authServerMetadata.authorization_endpoint,
-        tokenUrl: authServerMetadata.token_endpoint,
-        scopes: authServerMetadata.scopes_supported || config.scopes || [],
-      };
-      
-      // If no client ID is provided, try dynamic registration
-      if (!config.clientId && authServerMetadata.registration_endpoint) {
-        console.log('No client ID provided, attempting dynamic client registration...');
-        
-        const clientRegistration = await this.registerClient(
-          authServerMetadata.registration_endpoint,
-          updatedConfig
-        );
-        
-        updatedConfig.clientId = clientRegistration.client_id;
-        if (clientRegistration.client_secret) {
-          updatedConfig.clientSecret = clientRegistration.client_secret;
-        }
-        
-        console.log('Dynamic client registration successful');
-      } else if (!config.clientId) {
-        throw new Error('No client ID provided and dynamic registration not supported');
-      }
-      
-      return updatedConfig;
-    } catch (error) {
-      throw new Error(`Failed to discover OAuth configuration: ${getErrorMessage(error)}`);
-    }
-  }
+
   
   /**
    * Discover OAuth configuration from an MCP server URL.

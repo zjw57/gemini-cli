@@ -97,15 +97,7 @@ export class MCPServerConfig {
     readonly includeTools?: string[],
     readonly excludeTools?: string[],
     // OAuth configuration
-    readonly oauth?: {
-      enabled: boolean;
-      clientId?: string;
-      clientSecret?: string;
-      authorizationUrl?: string;
-      tokenUrl?: string;
-      scopes?: string[];
-      redirectUri?: string;
-    },
+    readonly oauth?: MCPOAuthConfig,
   ) {}
 }
 
