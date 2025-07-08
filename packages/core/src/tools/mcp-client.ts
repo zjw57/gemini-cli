@@ -516,7 +516,7 @@ async function connectAndDiscover(
             break;
           } catch (error) {
             // This token format didn't work, try the next one
-            console.debug(`Token parameter '${paramName}' didn't work: ${getErrorMessage(error)}`);
+            console.debug(`Token parameter '${paramName}' didn't work for ${mcpServerName}: ${getErrorMessage(error)}`);
             try {
               await testTransport.close();
             } catch {}
@@ -524,8 +524,23 @@ async function connectAndDiscover(
         }
         
         if (!connectedSuccessfully) {
+          // Before falling back, let's test if the token is valid by making a simple HTTP request
+          console.log(`All token parameter formats failed for ${mcpServerName}. Testing token validity...`);
+          try {
+            const testResponse = await fetch(mcpServerConfig.url.replace('/sse', '/mcp'), {
+              method: 'HEAD',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+              },
+              signal: AbortSignal.timeout(5000),
+            });
+            console.log(`Token validation test for ${mcpServerName}: ${testResponse.status} ${testResponse.statusText}`);
+          } catch (validationError) {
+            console.log(`Token validation failed for ${mcpServerName}: ${getErrorMessage(validationError)}`);
+          }
+          
           // Fallback to the most common parameter name
-          console.log(`All token parameter formats failed, using default 'access_token'`);
+          console.log(`Using default 'access_token' parameter for ${mcpServerName}`);
           const sseUrl = new URL(mcpServerConfig.url);
           sseUrl.searchParams.set('access_token', accessToken);
           transport = new SSEClientTransport(sseUrl);
@@ -594,17 +609,12 @@ async function connectAndDiscover(
       // Check if this is a 401 error that might indicate OAuth is required
       const errorString = String(error);
       if (errorString.includes('401') && (mcpServerConfig.httpUrl || mcpServerConfig.url)) {
-        // Check if we have stored OAuth tokens for this server
-        const hasStoredTokens = await MCPOAuthProvider.getValidToken(mcpServerName, {
-          authorizationUrl: '', // Will be discovered automatically
-          tokenUrl: '', // Will be discovered automatically
-        });
-        
-        // Only trigger automatic OAuth discovery for HTTP servers, when OAuth is explicitly configured, or when we have stored tokens
-        const shouldTriggerOAuth = mcpServerConfig.httpUrl || mcpServerConfig.oauth?.enabled || hasStoredTokens;
+        // Only trigger automatic OAuth discovery for HTTP servers or when OAuth is explicitly configured
+        // For SSE servers, we should not trigger new OAuth flows automatically
+        const shouldTriggerOAuth = mcpServerConfig.httpUrl || mcpServerConfig.oauth?.enabled;
         
         if (!shouldTriggerOAuth) {
-          // For SSE servers without explicit OAuth config and no stored tokens, just fail gracefully
+          // For SSE servers without explicit OAuth config, just fail gracefully
           console.log(`401 error received for SSE server '${mcpServerName}' without OAuth configuration. ` +
                      `Please authenticate using: /mcp auth ${mcpServerName}`);
           updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
@@ -686,14 +696,9 @@ async function connectAndDiscover(
         }
       } else {
         // No www-authenticate header found, but we got a 401
-        // Check if we have stored OAuth tokens for this server
-        const hasStoredTokens = await MCPOAuthProvider.getValidToken(mcpServerName, {
-          authorizationUrl: '', // Will be discovered automatically
-          tokenUrl: '', // Will be discovered automatically
-        });
-        
-        // Only try OAuth discovery for HTTP servers, when OAuth is explicitly configured, or when we have stored tokens
-        const shouldTryDiscovery = mcpServerConfig.httpUrl || mcpServerConfig.oauth?.enabled || hasStoredTokens;
+        // Only try OAuth discovery for HTTP servers or when OAuth is explicitly configured
+        // For SSE servers, we should not trigger new OAuth flows automatically
+        const shouldTryDiscovery = mcpServerConfig.httpUrl || mcpServerConfig.oauth?.enabled;
         
         if (!shouldTryDiscovery) {
           console.log(`401 error received for SSE server '${mcpServerName}' without OAuth configuration. ` +
