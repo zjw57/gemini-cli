@@ -248,6 +248,50 @@ async function handleAutomaticOAuth(
   }
 }
 
+/**
+ * Check if an SSE endpoint requires OAuth by making a HEAD request.
+ * Returns the www-authenticate header value if authentication is required.
+ */
+async function checkSSEAuthRequirement(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD',
+      headers: {
+        'Accept': 'text/event-stream',
+      },
+    });
+    
+    if (response.status === 401 || response.status === 307) {
+      const wwwAuthenticate = response.headers.get('www-authenticate');
+      if (wwwAuthenticate) {
+        return wwwAuthenticate;
+      }
+    }
+  } catch (error) {
+    // If HEAD fails, try GET
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/event-stream',
+        },
+        signal: AbortSignal.timeout(5000), // 5 second timeout
+      });
+      
+      if (response.status === 401 || response.status === 307) {
+        const wwwAuthenticate = response.headers.get('www-authenticate');
+        if (wwwAuthenticate) {
+          return wwwAuthenticate;
+        }
+      }
+    } catch {
+      // Ignore errors, we'll try to connect anyway
+    }
+  }
+  
+  return null;
+}
+
 export async function discoverMcpTools(
   mcpServers: Record<string, MCPServerConfig>,
   mcpServerCommand: string | undefined,
@@ -387,6 +431,33 @@ async function connectAndDiscover(
       if (accessToken) {
         hasOAuthConfig = true;
         console.log(`Found stored OAuth token for SSE server '${mcpServerName}'`);
+      }
+    }
+    
+    // If we don't have a token yet, check if the SSE endpoint requires authentication
+    if (!hasOAuthConfig && !accessToken) {
+      const wwwAuthenticate = await checkSSEAuthRequirement(mcpServerConfig.url);
+      if (wwwAuthenticate) {
+        console.log(`SSE endpoint requires authentication. WWW-Authenticate: ${wwwAuthenticate}`);
+        
+        // Try automatic OAuth discovery and authentication
+        const oauthSuccess = await handleAutomaticOAuth(mcpServerName, mcpServerConfig, wwwAuthenticate);
+        if (oauthSuccess) {
+          // Get the token that was just obtained
+          accessToken = await MCPOAuthProvider.getValidToken(mcpServerName, {
+            authorizationUrl: '', // Will be discovered automatically
+            tokenUrl: '', // Will be discovered automatically
+          });
+          
+          if (accessToken) {
+            hasOAuthConfig = true;
+            console.log(`OAuth authentication successful, got token for SSE server '${mcpServerName}'`);
+          }
+        } else {
+          console.error(`Failed to handle automatic OAuth for SSE server '${mcpServerName}'`);
+          updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
+          return;
+        }
       }
     }
     

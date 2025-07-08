@@ -520,12 +520,67 @@ export class MCPOAuthProvider {
     // If no authorization URL is provided, try to discover OAuth configuration
     if (!config.authorizationUrl && mcpServerUrl) {
       console.log('No authorization URL provided, attempting OAuth discovery...');
-      const discoveredConfig = await this.discoverOAuthFromMCPServer(mcpServerUrl);
-      if (discoveredConfig) {
-        config = { ...config, ...discoveredConfig };
-        console.log('OAuth configuration discovered successfully');
-      } else {
-        throw new Error('Failed to discover OAuth configuration from MCP server');
+      
+      // For SSE URLs, first check if authentication is required
+      if (mcpServerUrl.includes('/sse') || !mcpServerUrl.includes('/mcp')) {
+        try {
+          const response = await fetch(mcpServerUrl, {
+            method: 'HEAD',
+            headers: {
+              'Accept': 'text/event-stream',
+            },
+          });
+          
+          if (response.status === 401 || response.status === 307) {
+            const wwwAuthenticate = response.headers.get('www-authenticate');
+            if (wwwAuthenticate) {
+              // Parse the resource metadata URI from the header
+              const resourceMetadataMatch = wwwAuthenticate.match(/resource_metadata_uri="([^"]+)"/);
+              if (resourceMetadataMatch) {
+                const resourceMetadataUri = resourceMetadataMatch[1];
+                console.log(`Found resource metadata URI from www-authenticate header: ${resourceMetadataUri}`);
+                
+                // Discover OAuth configuration from the resource metadata URI
+                const resourceResponse = await fetch(resourceMetadataUri);
+                if (resourceResponse.ok) {
+                  const resourceMetadata = await resourceResponse.json();
+                  
+                  if (resourceMetadata.authorization_servers && resourceMetadata.authorization_servers.length > 0) {
+                    const authServerUrl = resourceMetadata.authorization_servers[0];
+                    const authServerMetadataUrl = new URL('/.well-known/oauth-authorization-server', authServerUrl).toString();
+                    
+                    const authServerResponse = await fetch(authServerMetadataUrl);
+                    if (authServerResponse.ok) {
+                      const authServerMetadata = await authServerResponse.json();
+                      
+                      config = {
+                        ...config,
+                        authorizationUrl: authServerMetadata.authorization_endpoint,
+                        tokenUrl: authServerMetadata.token_endpoint,
+                        scopes: authServerMetadata.scopes_supported || config.scopes || [],
+                      };
+                      
+                      console.log('OAuth configuration discovered successfully from www-authenticate header');
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.debug(`Failed to check SSE endpoint for authentication requirements: ${getErrorMessage(error)}`);
+        }
+      }
+      
+      // If we still don't have OAuth config, try the standard discovery
+      if (!config.authorizationUrl) {
+        const discoveredConfig = await this.discoverOAuthFromMCPServer(mcpServerUrl);
+        if (discoveredConfig) {
+          config = { ...config, ...discoveredConfig };
+          console.log('OAuth configuration discovered successfully');
+        } else {
+          throw new Error('Failed to discover OAuth configuration from MCP server');
+        }
       }
     }
     
