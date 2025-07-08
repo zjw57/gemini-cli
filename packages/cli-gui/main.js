@@ -1,13 +1,13 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const { GeminiClient, GeminiChat, createContentGenerator, AuthType, tokenLimit, ToolConfirmationOutcome } = require('../core/dist');
-const { ApprovalMode } = require('../core/dist/src/config/config.js');
-const { retryWithBackoff } = require('../core/dist/src/utils/retry.js');
+const { GeminiClient, GeminiChat, createContentGenerator, AuthType, tokenLimit, ToolConfirmationOutcome } = require('@google/gemini-cli-core');
+const { ApprovalMode } = require('@google/gemini-cli-core/dist/src/config/config.js');
+const { retryWithBackoff } = require('@google/gemini-cli-core/dist/src/utils/retry.js');
 const { loadCliConfig } = require('../cli/dist/src/config/config.js');
 const { loadSettings } = require('../cli/dist/src/config/settings.js');
 const { loadExtensions } = require('../cli/dist/src/config/extension.js');
 const Store = require('electron-store');
-const { shortenPath, tildeifyPath } = require('../core/dist/src/utils/paths.js');
+const { shortenPath, tildeifyPath } = require('@google/gemini-cli-core/dist/src/utils/paths.js');
 const simpleGit = require('simple-git');
 
 const store = new Store();
