@@ -525,18 +525,24 @@ async function connectAndDiscover(
         
         if (!connectedSuccessfully) {
           // Before falling back, let's test if the token is valid by making a simple HTTP request
-          console.log(`All token parameter formats failed for ${mcpServerName}. Testing token validity...`);
+          console.log(`All token parameter formats failed for ${mcpServerName}. Testing token validity with GET...`);
           try {
-            const testResponse = await fetch(mcpServerConfig.url.replace('/sse', '/mcp'), {
-              method: 'HEAD',
+            const testResponse = await fetch(mcpServerConfig.url, {
+              method: 'GET',
               headers: {
                 'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'text/event-stream',
               },
               signal: AbortSignal.timeout(5000),
             });
             console.log(`Token validation test for ${mcpServerName}: ${testResponse.status} ${testResponse.statusText}`);
+            // We don't need to read the body, just check the status.
+            // Ensure we abort the request to close the connection.
+            if (testResponse.body) {
+              testResponse.body.getReader().cancel();
+            }
           } catch (validationError) {
-            console.log(`Token validation failed for ${mcpServerName}: ${getErrorMessage(validationError)}`);
+            console.log(`Token validation GET request for ${mcpServerName} failed: ${getErrorMessage(validationError)}`);
           }
           
           // Fallback to the most common parameter name
@@ -614,9 +620,18 @@ async function connectAndDiscover(
         const shouldTriggerOAuth = mcpServerConfig.httpUrl || mcpServerConfig.oauth?.enabled;
         
         if (!shouldTriggerOAuth) {
-          // For SSE servers without explicit OAuth config, just fail gracefully
-          console.log(`401 error received for SSE server '${mcpServerName}' without OAuth configuration. ` +
-                     `Please authenticate using: /mcp auth ${mcpServerName}`);
+          // For SSE servers without explicit OAuth config, if a token was found but rejected, report it accurately.
+          const hasStoredTokens = await MCPOAuthProvider.getValidToken(mcpServerName, {
+            authorizationUrl: '', // Will be discovered automatically
+            tokenUrl: '', // Will be discovered automatically
+          });
+          if (hasStoredTokens) {
+            console.log(`Stored OAuth token for SSE server '${mcpServerName}' was rejected. ` +
+                       `Please re-authenticate using: /mcp auth ${mcpServerName}`);
+          } else {
+            console.log(`401 error received for SSE server '${mcpServerName}' without OAuth configuration. ` +
+                       `Please authenticate using: /mcp auth ${mcpServerName}`);
+          }
           updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
           return;
         }
@@ -701,8 +716,17 @@ async function connectAndDiscover(
         const shouldTryDiscovery = mcpServerConfig.httpUrl || mcpServerConfig.oauth?.enabled;
         
         if (!shouldTryDiscovery) {
-          console.log(`401 error received for SSE server '${mcpServerName}' without OAuth configuration. ` +
-                     `Please authenticate using: /mcp auth ${mcpServerName}`);
+          const hasStoredTokens = await MCPOAuthProvider.getValidToken(mcpServerName, {
+            authorizationUrl: '', // Will be discovered automatically
+            tokenUrl: '', // Will be discovered automatically
+          });
+          if (hasStoredTokens) {
+            console.log(`Stored OAuth token for SSE server '${mcpServerName}' was rejected. ` +
+                       `Please re-authenticate using: /mcp auth ${mcpServerName}`);
+          } else {
+            console.log(`401 error received for SSE server '${mcpServerName}' without OAuth configuration. ` +
+                       `Please authenticate using: /mcp auth ${mcpServerName}`);
+          }
           updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
           return;
         }
