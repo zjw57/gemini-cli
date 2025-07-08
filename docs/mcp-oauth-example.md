@@ -29,7 +29,7 @@ Add an OAuth-enabled MCP server to your settings.json:
 ## OAuth Configuration Fields
 
 - `enabled`: Set to `true` to enable OAuth authentication
-- `clientId`: OAuth client ID (required)
+- `clientId`: OAuth client ID (optional - will use dynamic registration if not provided)
 - `clientSecret`: OAuth client secret (optional, for confidential clients)
 - `authorizationUrl`: Authorization endpoint URL
 - `tokenUrl`: Token endpoint URL  

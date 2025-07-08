@@ -4,7 +4,6 @@
       "httpUrl": "https://mcp.raybrian.demo.altostrat.com/mcp",
       "oauth": {
         "enabled": true,
-        "clientId": "gemini-cli",
         "authorizationUrl": "https://mcp.raybrian.demo.altostrat.com/authorize",
         "tokenUrl": "https://mcp.raybrian.demo.altostrat.com/token",
         "scopes": ["secops:read", "chronicle:read"]

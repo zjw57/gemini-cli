@@ -164,7 +164,10 @@ If the OAuth server supports dynamic client registration, you can omit the `clie
 }
 ```
 
-The CLI will attempt to register a client automatically.
+The CLI will automatically:
+1. Discover the OAuth server metadata
+2. Register a client dynamically if no client ID is provided
+3. Use the registered client credentials for authentication
 
 ### OAuth Discovery
 
