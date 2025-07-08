@@ -213,27 +213,42 @@ export class MCPOAuthProvider {
       const serverUrl = new URL(mcpServerUrl);
       const baseUrl = `${serverUrl.protocol}//${serverUrl.host}`;
       
-      // Try to get the protected resource metadata
+      // Try to get the protected resource metadata first
       const resourceMetadataUrl = new URL('/.well-known/oauth-protected-resource', baseUrl).toString();
       
       const resourceResponse = await fetch(resourceMetadataUrl);
-      if (!resourceResponse.ok) {
-        console.debug(`No OAuth protected resource metadata found at ${resourceMetadataUrl}`);
-        return null;
+      if (resourceResponse.ok) {
+        // If protected resource metadata exists, use it
+        const resourceMetadata = await resourceResponse.json();
+        
+        if (resourceMetadata.authorization_servers && resourceMetadata.authorization_servers.length > 0) {
+          // Use the first authorization server
+          const authServerUrl = resourceMetadata.authorization_servers[0];
+          
+          // Get the authorization server metadata
+          const authServerMetadataUrl = new URL('/.well-known/oauth-authorization-server', authServerUrl).toString();
+          
+          const authServerResponse = await fetch(authServerMetadataUrl);
+          if (!authServerResponse.ok) {
+            console.error(`Failed to fetch authorization server metadata from ${authServerMetadataUrl}`);
+            return null;
+          }
+          
+          const authServerMetadata = await authServerResponse.json();
+          
+          return {
+            authorizationUrl: authServerMetadata.authorization_endpoint,
+            tokenUrl: authServerMetadata.token_endpoint,
+            scopes: authServerMetadata.scopes_supported || [],
+          };
+        }
       }
       
-      const resourceMetadata = await resourceResponse.json();
+      // If protected resource metadata doesn't exist, try direct authorization server discovery
+      // This is for servers that don't follow the protected resource metadata pattern
+      console.debug(`Protected resource metadata not found, trying direct authorization server discovery`);
       
-      if (!resourceMetadata.authorization_servers || resourceMetadata.authorization_servers.length === 0) {
-        console.debug('No authorization servers specified in resource metadata');
-        return null;
-      }
-      
-      // Use the first authorization server
-      const authServerUrl = resourceMetadata.authorization_servers[0];
-      
-      // Get the authorization server metadata
-      const authServerMetadataUrl = new URL('/.well-known/oauth-authorization-server', authServerUrl).toString();
+      const authServerMetadataUrl = new URL('/.well-known/oauth-authorization-server', baseUrl).toString();
       
       const authServerResponse = await fetch(authServerMetadataUrl);
       if (!authServerResponse.ok) {
