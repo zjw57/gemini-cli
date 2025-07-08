@@ -272,7 +272,9 @@ export const useSlashCommandProcessor = (
         tokenUrl: '', // Will be discovered automatically
       };
       
-      await MCPOAuthProvider.authenticate(serverName, oauthConfig);
+      // Pass the MCP server URL for OAuth discovery
+      const mcpServerUrl = server.httpUrl;
+      await MCPOAuthProvider.authenticate(serverName, oauthConfig, mcpServerUrl);
       
       addMessage({
         type: MessageType.INFO,

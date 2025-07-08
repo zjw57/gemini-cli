@@ -202,6 +202,59 @@ export class MCPOAuthProvider {
   }
   
   /**
+   * Discover OAuth configuration from an MCP server URL.
+   * 
+   * @param mcpServerUrl The MCP server URL
+   * @returns OAuth configuration if discovered, null otherwise
+   */
+  private static async discoverOAuthFromMCPServer(mcpServerUrl: string): Promise<MCPOAuthConfig | null> {
+    try {
+      // Extract the base URL from the MCP server URL
+      const serverUrl = new URL(mcpServerUrl);
+      const baseUrl = `${serverUrl.protocol}//${serverUrl.host}`;
+      
+      // Try to get the protected resource metadata
+      const resourceMetadataUrl = new URL('/.well-known/oauth-protected-resource', baseUrl).toString();
+      
+      const resourceResponse = await fetch(resourceMetadataUrl);
+      if (!resourceResponse.ok) {
+        console.debug(`No OAuth protected resource metadata found at ${resourceMetadataUrl}`);
+        return null;
+      }
+      
+      const resourceMetadata = await resourceResponse.json();
+      
+      if (!resourceMetadata.authorization_servers || resourceMetadata.authorization_servers.length === 0) {
+        console.debug('No authorization servers specified in resource metadata');
+        return null;
+      }
+      
+      // Use the first authorization server
+      const authServerUrl = resourceMetadata.authorization_servers[0];
+      
+      // Get the authorization server metadata
+      const authServerMetadataUrl = new URL('/.well-known/oauth-authorization-server', authServerUrl).toString();
+      
+      const authServerResponse = await fetch(authServerMetadataUrl);
+      if (!authServerResponse.ok) {
+        console.error(`Failed to fetch authorization server metadata from ${authServerMetadataUrl}`);
+        return null;
+      }
+      
+      const authServerMetadata = await authServerResponse.json();
+      
+      return {
+        authorizationUrl: authServerMetadata.authorization_endpoint,
+        tokenUrl: authServerMetadata.token_endpoint,
+        scopes: authServerMetadata.scopes_supported || [],
+      };
+    } catch (error) {
+      console.debug(`Failed to discover OAuth configuration from MCP server: ${getErrorMessage(error)}`);
+      return null;
+    }
+  }
+
+  /**
    * Generate PKCE parameters for OAuth flow.
    * 
    * @returns PKCE parameters including code verifier, challenge, and state
@@ -441,22 +494,35 @@ export class MCPOAuthProvider {
    * 
    * @param serverName The name of the MCP server
    * @param config OAuth configuration
+   * @param mcpServerUrl Optional MCP server URL for OAuth discovery
    * @returns The obtained OAuth token
    */
   static async authenticate(
     serverName: string,
-    config: MCPOAuthConfig
+    config: MCPOAuthConfig,
+    mcpServerUrl?: string
   ): Promise<MCPOAuthToken> {
+    // If no authorization URL is provided, try to discover OAuth configuration
+    if (!config.authorizationUrl && mcpServerUrl) {
+      console.log('No authorization URL provided, attempting OAuth discovery...');
+      const discoveredConfig = await this.discoverOAuthFromMCPServer(mcpServerUrl);
+      if (discoveredConfig) {
+        config = { ...config, ...discoveredConfig };
+        console.log('OAuth configuration discovered successfully');
+      } else {
+        throw new Error('Failed to discover OAuth configuration from MCP server');
+      }
+    }
+    
     // If no client ID is provided, try dynamic client registration
     if (!config.clientId) {
-      // Extract server URL from authorization URL or use a default
-      let serverUrl: string;
-      if (config.authorizationUrl) {
-        const authUrl = new URL(config.authorizationUrl);
-        serverUrl = `${authUrl.protocol}//${authUrl.host}`;
-      } else {
+      // Extract server URL from authorization URL
+      if (!config.authorizationUrl) {
         throw new Error('Cannot perform dynamic registration without authorization URL');
       }
+      
+      const authUrl = new URL(config.authorizationUrl);
+      const serverUrl = `${authUrl.protocol}//${authUrl.host}`;
       
       console.log('No client ID provided, attempting dynamic client registration...');
       config = await this.discoverAndRegisterClient(serverUrl, config);
@@ -464,7 +530,7 @@ export class MCPOAuthProvider {
     
     // Validate configuration
     if (!config.clientId || !config.authorizationUrl || !config.tokenUrl) {
-      throw new Error('Missing required OAuth configuration after dynamic registration');
+      throw new Error('Missing required OAuth configuration after discovery and registration');
     }
     
     // Generate PKCE parameters
