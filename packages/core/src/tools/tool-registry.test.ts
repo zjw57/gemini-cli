@@ -529,4 +529,37 @@ describe('sanitizeParameters', () => {
     const arrayItemsSchema = schema.properties?.['items']?.items as Schema;
     expect(arrayItemsSchema?.properties?.['state']?.enum).toEqual(['-1', '0', '1']);
   });
+
+  it('should convert non-string types to string when enum is present', () => {
+    const schema: Schema = {
+      type: Type.OBJECT,
+      properties: {
+        numericEnum: {
+          type: Type.NUMBER, // Non-string type with enum
+          enum: [1, 2, 3] as any,
+        },
+        integerEnum: {
+          type: Type.INTEGER, // Non-string type with enum
+          enum: [-1, 0, 1] as any,
+        },
+        stringEnum: {
+          type: Type.STRING, // Already string type
+          enum: ['a', 'b', 'c'],
+        },
+      },
+    };
+    
+    sanitizeParameters(schema);
+    
+    // Non-string types should be converted to string
+    expect(schema.properties?.['numericEnum']?.type).toBe(Type.STRING);
+    expect(schema.properties?.['numericEnum']?.enum).toEqual(['1', '2', '3']);
+    
+    expect(schema.properties?.['integerEnum']?.type).toBe(Type.STRING);
+    expect(schema.properties?.['integerEnum']?.enum).toEqual(['-1', '0', '1']);
+    
+    // String type should remain unchanged
+    expect(schema.properties?.['stringEnum']?.type).toBe(Type.STRING);
+    expect(schema.properties?.['stringEnum']?.enum).toEqual(['a', 'b', 'c']);
+  });
 });

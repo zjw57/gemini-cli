@@ -378,6 +378,17 @@ function _sanitizeParameters(schema: Schema | undefined, visited: Set<Schema>) {
       }
     }
   }
+  
+  // Handle enum values - Gemini API only allows enum for STRING type
+  if (schema.enum && Array.isArray(schema.enum)) {
+    if (schema.type !== Type.STRING) {
+      // If enum is present but type is not STRING, convert type to STRING
+      schema.type = Type.STRING;
+    }
+    // Convert all enum values to strings for Gemini API compatibility
+    schema.enum = schema.enum.map((value: any) => String(value));
+  }
+  
   // Vertex AI only supports 'enum' and 'date-time' for STRING format.
   if (schema.type === Type.STRING) {
     if (
@@ -387,10 +398,5 @@ function _sanitizeParameters(schema: Schema | undefined, visited: Set<Schema>) {
     ) {
       schema.format = undefined;
     }
-  }
-  
-  // Convert numeric enum values to strings for Gemini API compatibility
-  if (schema.enum && Array.isArray(schema.enum)) {
-    schema.enum = schema.enum.map((value: any) => String(value));
   }
 }
