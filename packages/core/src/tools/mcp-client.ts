@@ -467,6 +467,41 @@ async function connectAndDiscover(
       // For SSE with OAuth, we'll need to append the token as a query parameter
       // or use a different approach since SSE doesn't support Authorization headers
       const sseUrl = new URL(mcpServerConfig.url);
+      
+      // Some SSE servers might expect the token in a specific format or path
+      // Try to append common SSE paths if the URL doesn't already have them
+      const urlPath = sseUrl.pathname;
+      if (urlPath === '/' || urlPath === '') {
+        // Try common SSE endpoint patterns
+        console.log(`SSE URL has root path, checking for common SSE endpoints...`);
+        const sseEndpoints = ['/sse', '/events', '/stream', '/api/sse'];
+        
+        for (const endpoint of sseEndpoints) {
+          try {
+            const testUrl = new URL(sseUrl.toString());
+            testUrl.pathname = endpoint;
+            console.log(`Checking SSE endpoint: ${testUrl.toString()}`);
+            
+            const checkResponse = await fetch(testUrl.toString(), {
+              method: 'HEAD',
+              headers: {
+                'Accept': 'text/event-stream',
+                'Authorization': `Bearer ${accessToken}`,
+              },
+              signal: AbortSignal.timeout(3000),
+            });
+            
+            if (checkResponse.ok || checkResponse.status === 200) {
+              console.log(`Found working SSE endpoint at: ${testUrl.toString()}`);
+              sseUrl.pathname = endpoint;
+              break;
+            }
+          } catch (e) {
+            // Continue trying other endpoints
+          }
+        }
+      }
+      
       sseUrl.searchParams.set('access_token', accessToken);
       transport = new SSEClientTransport(sseUrl);
     } else {
@@ -515,6 +550,11 @@ async function connectAndDiscover(
     });
     // Connection successful
     updateMCPServerStatus(mcpServerName, MCPServerStatus.CONNECTED);
+    console.log(`Successfully connected to MCP server '${mcpServerName}' using ${
+      transport instanceof SSEClientTransport ? 'SSE' : 
+      transport instanceof StreamableHTTPClientTransport ? 'HTTP' : 
+      'STDIO'
+    } transport`);
   } catch (error) {
     // Check if this is a 401 error that might indicate OAuth is required
     const errorString = String(error);
@@ -660,6 +700,7 @@ async function connectAndDiscover(
       console.error(
         `MCP server '${mcpServerName}' did not return valid tool function declarations. Skipping.`,
       );
+      console.debug(`Tool response:`, tool); // Add debug logging
       if (
         transport instanceof StdioClientTransport ||
         transport instanceof SSEClientTransport ||
@@ -671,6 +712,8 @@ async function connectAndDiscover(
       updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
       return;
     }
+
+    console.log(`Discovered ${tool.functionDeclarations.length} tools from MCP server '${mcpServerName}'`); // Add debug logging
 
     for (const funcDecl of tool.functionDeclarations) {
       if (!funcDecl.name) {
