@@ -425,11 +425,7 @@ async function connectAndDiscover(
       transportOptions,
     );
   } else if (mcpServerConfig.url) {
-    // For SSE URLs, implement auto transport mode: try HTTP first, then fall back to SSE
-    // This allows proper OAuth discovery via HTTP headers
-    console.log(`SSE URL detected, using auto transport mode (HTTP with SSE fallback)`);
-    
-    // Check if we have stored OAuth tokens for this server
+    // For SSE URLs, check if we have OAuth tokens before deciding transport strategy
     let accessToken: string | null = null;
     let hasOAuthConfig = mcpServerConfig.oauth?.enabled;
     
@@ -451,48 +447,44 @@ async function connectAndDiscover(
       }
     }
     
-    // Create HTTP transport options
-    const transportOptions: StreamableHTTPClientTransportOptions = {};
     if (hasOAuthConfig && accessToken) {
-      transportOptions.requestInit = {
-        headers: {
-          ...mcpServerConfig.headers,
-          'Authorization': `Bearer ${accessToken}`,
+      // We have OAuth tokens, use auto transport mode: try HTTP first, then fall back to SSE
+      console.log(`SSE URL detected with OAuth tokens, using auto transport mode (HTTP with SSE fallback)`);
+      
+      // Create HTTP transport options with OAuth token
+      const transportOptions: StreamableHTTPClientTransportOptions = {
+        requestInit: {
+          headers: {
+            ...mcpServerConfig.headers,
+            'Authorization': `Bearer ${accessToken}`,
+          },
         },
       };
-    } else if (mcpServerConfig.headers) {
-      transportOptions.requestInit = {
-        headers: mcpServerConfig.headers,
-      };
-    }
-    
-    // Try HTTP transport first
-    const httpTransport = new StreamableHTTPClientTransport(
-      new URL(mcpServerConfig.url),
-      transportOptions,
-    );
-    
-    // Create a temporary client to test HTTP connection
-    const testClient = new Client({
-      name: 'gemini-cli-mcp-client-test',
-      version: '0.0.1',
-    });
-    
-    try {
-      console.log(`Attempting connection with HTTP transport...`);
-      await testClient.connect(httpTransport, {
-        timeout: mcpServerConfig.timeout ?? MCP_DEFAULT_TIMEOUT_MSEC,
-      });
-      // HTTP transport worked, use it
-      transport = httpTransport;
-      console.log(`HTTP transport successful, using HTTP for server '${mcpServerName}'`);
-    } catch (httpError) {
-      console.log(`HTTP transport failed, falling back to SSE transport`);
       
-      // HTTP failed, fall back to SSE
-      // For SSE, we need to pass the token as a query parameter since SSE doesn't support headers
-      if (hasOAuthConfig && accessToken) {
-        // Try different token parameter names that SSE servers commonly use
+      // Try HTTP transport first
+      const httpTransport = new StreamableHTTPClientTransport(
+        new URL(mcpServerConfig.url),
+        transportOptions,
+      );
+      
+      // Create a temporary client to test HTTP connection
+      const testClient = new Client({
+        name: 'gemini-cli-mcp-client-test',
+        version: '0.0.1',
+      });
+      
+      try {
+        console.log(`Attempting connection with HTTP transport...`);
+        await testClient.connect(httpTransport, {
+          timeout: mcpServerConfig.timeout ?? MCP_DEFAULT_TIMEOUT_MSEC,
+        });
+        // HTTP transport worked, use it
+        transport = httpTransport;
+        console.log(`HTTP transport successful, using HTTP for server '${mcpServerName}'`);
+      } catch (httpError) {
+        console.log(`HTTP transport failed, falling back to SSE transport`);
+        
+        // HTTP failed, fall back to SSE with token as query parameter
         const tokenParamNames = ['access_token', 'token', 'auth', 'authorization'];
         let connectedSuccessfully = false;
         
@@ -538,9 +530,11 @@ async function connectAndDiscover(
           sseUrl.searchParams.set('access_token', accessToken);
           transport = new SSEClientTransport(sseUrl);
         }
-      } else {
-        transport = new SSEClientTransport(new URL(mcpServerConfig.url));
       }
+    } else {
+      // No OAuth tokens available, go directly to SSE transport without triggering OAuth discovery
+      console.log(`SSE URL detected without OAuth tokens, using SSE transport directly`);
+      transport = new SSEClientTransport(new URL(mcpServerConfig.url));
     }
   } else if (mcpServerConfig.command) {
     transport = new StdioClientTransport({
