@@ -26,6 +26,7 @@ import {
   Logger,
   ToolConfirmationOutcome,
   ToolCallResponseInfo,
+  getCoreSystemPrompt,
 } from '@google/gemini-cli-core';
 import {
   Content,
@@ -491,14 +492,9 @@ async function run(config: Config): Promise<void> {
 
   const geminiClient = config.getGeminiClient();
   const toolRegistry: ToolRegistry = await config.getToolRegistry();
-  const toolDefinitions = toolRegistry
-    .getAllTools()
-    .map((tool) => {
-      return ` - ${tool.displayName} (${tool.name}): ${tool.description}`;
-    })
-    .join('\n');
+  
 
-  const systemPromptText = `You are an interactive CLI agent specializing in software engineering tasks. Your primary goal is to help users safely and efficiently, adhering strictly to the following instructions and utilizing your available tools.\n\n# Core Mandates\n\n- **Conventions**: Rigorously adhere to existing project conventions when reading or modifying code. Analyze surrounding code, tests, and configuration first.\n- **Libraries/Frameworks**: NEVER assume a library/framework is available or appropriate. Verify its established usage within the project (check imports, configuration files like 'package.json', 'Cargo.toml', 'requirements.txt', 'build.gradle', etc., or observe neighboring files) before employing it.\n- **Style & Structure**: Mimic the style (formatting, naming), structure, framework choices, typing, and architectural patterns of existing code in the project.\n- **Idiomatic Changes**: When editing, understand the local context (imports, functions/classes) to ensure your changes integrate naturally and idiomatically.\n- **Comments**: Add code comments sparingly. Focus on *why* something is done, especially for complex logic, rather than *what* is done. Only add high-value comments if necessary for clarity or if requested by the user. Do not edit comments that are separate from the code you are changing. *NEVER* talk to the user or describe your changes through comments.\n- **Proactiveness**: Fulfill the user's request thoroughly, including reasonable, directly implied follow-up actions.\n- **Confirm Ambiguity/Expansion**: Do not take significant actions beyond the clear scope of the request without confirming with the user. If asked *how* to do something, explain first, don't just do it.\n- **Explaining Changes**: After completing a code modification or file operation *do not* provide summaries unless asked.\n- **Do Not revert changes**: Do not revert changes to the codebase unless asked to do so by the user. Only revert changes made by you if they have resulted in an error or if the user has explicitly asked you to revert the changes.\n- **Confirm Tool Success**: After a tool is successfully executed, confirm the action and ask the user for the next instruction. Do not assume the next step.\n\nHere is a list of the tools that are available:\n${toolDefinitions}\n\nIf you are asked a question that could be answered by one of the tools, use the tool.\n`;
+    const systemPromptText = getCoreSystemPrompt();
 
   console.log('system-prompt', systemPromptText);
   const chat = await geminiClient.getChat();
@@ -518,7 +514,6 @@ async function run(config: Config): Promise<void> {
     const input = await new Promise<string>((resolve) => {
       rl.question('input: ', resolve);
     });
-    console.log('user-input', input);
 
     const parts = input.trim().split(/\s+/);
     const commandName = parts[0];
@@ -552,7 +547,6 @@ async function run(config: Config): Promise<void> {
         let modelResponseText = '';
 
         for await (const resp of responseStream) {
-          console.log('model-response', JSON.stringify(resp, null, 2));
           if (abortController.signal.aborted) {
             console.error('Operation cancelled.');
             return;
@@ -622,7 +616,6 @@ async function run(config: Config): Promise<void> {
             });
 
             for await (const resp of secondResponseStream) {
-              console.log('model-response-2', JSON.stringify(resp, null, 2));
               const textPart =
                 resp.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
               if (textPart) {
