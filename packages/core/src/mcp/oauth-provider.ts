@@ -606,9 +606,21 @@ export class MCPOAuthProvider {
     }
     
     // Save token
-    await MCPOAuthTokenStorage.saveToken(serverName, token, config.clientId);
-    
-    console.log('Authentication successful! Token saved.');
+    try {
+      await MCPOAuthTokenStorage.saveToken(serverName, token, config.clientId);
+      console.log('Authentication successful! Token saved.');
+      
+      // Verify token was saved
+      const savedToken = await MCPOAuthTokenStorage.getToken(serverName);
+      if (savedToken) {
+        console.log(`Token verification successful: ${savedToken.token.accessToken.substring(0, 20)}...`);
+      } else {
+        console.error('Token verification failed: token not found after save');
+      }
+    } catch (saveError) {
+      console.error(`Failed to save token: ${getErrorMessage(saveError)}`);
+      throw saveError;
+    }
     
     return token;
   }
