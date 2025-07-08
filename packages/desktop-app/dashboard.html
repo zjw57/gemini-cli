@@ -20,7 +20,10 @@
             </div>
 
             <div class="task-section">
-                <h2>History</h2>
+                <div class="task-section-header">
+                    <h2>History</h2>
+                    <button id="clear-history-button" class="clear-history-button">Clear History</button>
+                </div>
                 <div id="history-tasks" class="task-list"></div>
             </div>
         </div>
@@ -29,6 +32,7 @@
         const runningTasks = document.getElementById('running-tasks');
         const historyTasks = document.getElementById('history-tasks');
         const newTaskButton = document.getElementById('new-task-button');
+        const clearHistoryButton = document.getElementById('clear-history-button');
 
         function createTaskElement(task) {
             const element = document.createElement('div');
@@ -54,6 +58,10 @@
 
         newTaskButton.addEventListener('click', () => {
             window.electron.send('create-new-task');
+        });
+
+        clearHistoryButton.addEventListener('click', () => {
+            window.electron.send('clear-history');
         });
 
         window.electron.send('get-tasks');

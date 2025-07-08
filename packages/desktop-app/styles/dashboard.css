@@ -35,7 +35,7 @@
     font-family: var(--mono-font-family);
     font-size: 6px;
     line-height: 0.9;
-    background: -webkit-linear-gradient(45deg, #4285f4, #9b72cb, #d96570, #f2a60c, #4285f4);
+    background: -webkit-linear-gradient(45deg, #217bfe, #ac87eb, #ee4d5d);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -55,6 +55,29 @@
     font-size: 18px;
     margin-top: 0;
     margin-bottom: 10px;
+}
+
+.task-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.task-section-header h2 {
+    margin: 0;
+}
+
+.clear-history-button {
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    -webkit-app-region: no-drag;
 }
 
 .task-section:not(:first-child) h2 {

@@ -346,3 +346,9 @@ ipcMain.on('navigate-to-dashboard', (event) => {
 ipcMain.on('get-tasks', (event) => {
     event.sender.send('update-tasks', tasks);
 });
+
+ipcMain.on('clear-history', () => {
+    tasks.history = [];
+    store.set('tasks', tasks);
+    mainWindow.webContents.send('update-tasks', tasks);
+});
