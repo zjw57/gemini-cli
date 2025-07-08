@@ -299,9 +299,12 @@ async function connectAndDiscover(
   if (mcpServerConfig.httpUrl) {
     const transportOptions: StreamableHTTPClientTransportOptions = {};
 
-    // Handle OAuth authentication if configured
-    if (mcpServerConfig.oauth?.enabled) {
-      const accessToken = await MCPOAuthProvider.getValidToken(
+    // Handle OAuth authentication if configured or if we have stored tokens
+    let hasOAuthConfig = mcpServerConfig.oauth?.enabled;
+    let accessToken: string | null = null;
+    
+    if (hasOAuthConfig && mcpServerConfig.oauth) {
+      accessToken = await MCPOAuthProvider.getValidToken(
         mcpServerName,
         mcpServerConfig.oauth
       );
@@ -314,7 +317,20 @@ async function connectAndDiscover(
         updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
         return;
       }
+    } else {
+      // Check if we have stored OAuth tokens for this server (from previous authentication)
+      accessToken = await MCPOAuthProvider.getValidToken(mcpServerName, {
+        authorizationUrl: '', // Will be discovered automatically
+        tokenUrl: '', // Will be discovered automatically
+      });
       
+      if (accessToken) {
+        hasOAuthConfig = true;
+        console.log(`Found stored OAuth token for server '${mcpServerName}'`);
+      }
+    }
+    
+    if (hasOAuthConfig && accessToken) {
       // Add Bearer token to headers
       transportOptions.requestInit = {
         headers: {
