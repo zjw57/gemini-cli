@@ -201,24 +201,20 @@ async function handleAutomaticOAuth(
   try {
     console.log(`MCP server '${mcpServerName}' requires OAuth authentication. Discovering configuration...`);
     
+    // Always try to parse the resource metadata URI from the www-authenticate header
     let oauthConfig;
-    
-    if (mcpServerConfig.httpUrl) {
-      // For HTTP connections, parse the resource metadata URI from the www-authenticate header
-      const resourceMetadataUri = parseWWWAuthenticate(wwwAuthenticate);
-      if (!resourceMetadataUri) {
-        console.error(`Could not parse resource metadata URI from www-authenticate header: ${wwwAuthenticate}`);
-        return false;
-      }
-      
-      // Discover OAuth configuration
+    const resourceMetadataUri = parseWWWAuthenticate(wwwAuthenticate);
+    if (resourceMetadataUri) {
       oauthConfig = await discoverOAuthConfig(resourceMetadataUri);
     } else if (mcpServerConfig.url) {
-      // For SSE connections, discover OAuth configuration from the SSE URL
+      // Fallback: try to discover OAuth config from the base URL for SSE
       const sseUrl = new URL(mcpServerConfig.url);
       const baseUrl = `${sseUrl.protocol}//${sseUrl.host}`;
-      
-      // Try to discover OAuth configuration from the base URL
+      oauthConfig = await discoverOAuthConfig(baseUrl);
+    } else if (mcpServerConfig.httpUrl) {
+      // Fallback: try to discover OAuth config from the base URL for HTTP
+      const httpUrl = new URL(mcpServerConfig.httpUrl);
+      const baseUrl = `${httpUrl.protocol}//${httpUrl.host}`;
       oauthConfig = await discoverOAuthConfig(baseUrl);
     }
     
