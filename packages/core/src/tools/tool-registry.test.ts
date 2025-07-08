@@ -467,7 +467,7 @@ describe('sanitizeParameters', () => {
       properties: {
         status: {
           type: Type.STRING,
-          enum: [-1, 0, 1], // Numeric enum values
+          enum: [-1, 0, 1] as any, // Numeric enum values
         },
         priority: {
           type: Type.STRING,
@@ -475,7 +475,7 @@ describe('sanitizeParameters', () => {
         },
         mixed: {
           type: Type.STRING,
-          enum: [1, 'active', 0, 'inactive'], // Mixed types
+          enum: [1, 'active', 0, 'inactive'] as any, // Mixed types
         },
       },
     };
@@ -501,7 +501,7 @@ describe('sanitizeParameters', () => {
           properties: {
             level: {
               type: Type.STRING,
-              enum: [0, 1, 2], // Numeric enum in nested object
+              enum: [0, 1, 2] as any, // Numeric enum in nested object
             },
           },
         },
@@ -512,7 +512,7 @@ describe('sanitizeParameters', () => {
             properties: {
               state: {
                 type: Type.STRING,
-                enum: [-1, 0, 1], // Numeric enum in array items
+                enum: [-1, 0, 1] as any, // Numeric enum in array items
               },
             },
           },
