@@ -388,4 +388,9 @@ function _sanitizeParameters(schema: Schema | undefined, visited: Set<Schema>) {
       schema.format = undefined;
     }
   }
+  
+  // Convert numeric enum values to strings for Gemini API compatibility
+  if (schema.enum && Array.isArray(schema.enum)) {
+    schema.enum = schema.enum.map((value: any) => String(value));
+  }
 }
