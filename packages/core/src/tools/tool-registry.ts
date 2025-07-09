@@ -411,7 +411,7 @@ function _sanitizeParameters(schema: Schema | undefined, visited: Set<Schema>) {
       schema.type = Type.STRING;
     }
     // Convert all enum values to strings for Gemini API compatibility
-    schema.enum = schema.enum.map((value: any) => String(value));
+    schema.enum = schema.enum.map((value: unknown) => String(value));
   }
 
   // Vertex AI only supports 'enum' and 'date-time' for STRING format.

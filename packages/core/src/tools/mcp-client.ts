@@ -138,7 +138,7 @@ export function getMCPDiscoveryState(): MCPDiscoveryState {
  * @param wwwAuthenticate The www-authenticate header value
  * @returns The resource metadata URI if found, null otherwise
  */
-function parseWWWAuthenticate(wwwAuthenticate: string): string | null {
+function _parseWWWAuthenticate(wwwAuthenticate: string): string | null {
   // Parse header like: Bearer realm="MCP Server", resource_metadata_uri="https://..."
   const resourceMetadataMatch = wwwAuthenticate.match(
     /resource_metadata_uri="([^"]+)"/,
@@ -301,7 +301,7 @@ async function createTransportWithOAuth(
  * Check if an SSE endpoint requires OAuth by making a HEAD request.
  * Returns the www-authenticate header value if authentication is required.
  */
-async function checkSSEAuthRequirement(url: string): Promise<string | null> {
+async function _checkSSEAuthRequirement(url: string): Promise<string | null> {
   try {
     const response = await fetch(url, {
       method: 'HEAD',
@@ -316,7 +316,7 @@ async function checkSSEAuthRequirement(url: string): Promise<string | null> {
         return wwwAuthenticate;
       }
     }
-  } catch (error) {
+  } catch (_error) {
     // If HEAD fails, try GET
     try {
       const response = await fetch(url, {
@@ -525,7 +525,7 @@ async function connectAndDiscover(
         console.log(
           `HTTP transport successful, using HTTP for server '${mcpServerName}'`,
         );
-      } catch (httpError) {
+      } catch (_httpError) {
         console.log(
           `HTTP transport failed, falling back to SSE transport with Authorization header.`,
         );

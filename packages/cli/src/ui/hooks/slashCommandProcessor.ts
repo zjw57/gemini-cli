@@ -218,98 +218,101 @@ export const useSlashCommandProcessor = (
   }, [config]);
 
   // Handler for MCP authentication
-  const handleMCPAuth = async (serverName?: string) => {
-    const mcpServers = config?.getMcpServers() || {};
+  const handleMCPAuth = useCallback(
+    async (serverName?: string) => {
+      const mcpServers = config?.getMcpServers() || {};
 
-    if (!serverName) {
-      // List servers that support OAuth
-      const oauthServers = Object.entries(mcpServers)
-        .filter(([_, server]) => server.oauth?.enabled)
-        .map(([name, _]) => name);
+      if (!serverName) {
+        // List servers that support OAuth
+        const oauthServers = Object.entries(mcpServers)
+          .filter(([_, server]) => server.oauth?.enabled)
+          .map(([name, _]) => name);
 
-      if (oauthServers.length === 0) {
+        if (oauthServers.length === 0) {
+          addMessage({
+            type: MessageType.INFO,
+            content: 'No MCP servers configured with OAuth authentication.',
+            timestamp: new Date(),
+          });
+          return;
+        }
+
         addMessage({
           type: MessageType.INFO,
-          content: 'No MCP servers configured with OAuth authentication.',
+          content: `MCP servers with OAuth authentication:\n${oauthServers.map((s) => `  - ${s}`).join('\n')}\n\nUse /mcp auth <server-name> to authenticate.`,
           timestamp: new Date(),
         });
         return;
       }
 
-      addMessage({
-        type: MessageType.INFO,
-        content: `MCP servers with OAuth authentication:\n${oauthServers.map((s) => `  - ${s}`).join('\n')}\n\nUse /mcp auth <server-name> to authenticate.`,
-        timestamp: new Date(),
-      });
-      return;
-    }
-
-    const server = mcpServers[serverName];
-    if (!server) {
-      addMessage({
-        type: MessageType.ERROR,
-        content: `MCP server '${serverName}' not found.`,
-        timestamp: new Date(),
-      });
-      return;
-    }
-
-    // Always attempt OAuth authentication, even if not explicitly configured
-    // The authentication process will discover OAuth requirements automatically
-
-    try {
-      addMessage({
-        type: MessageType.INFO,
-        content: `Starting OAuth authentication for MCP server '${serverName}'...`,
-        timestamp: new Date(),
-      });
-
-      // Import dynamically to avoid circular dependencies
-      const { MCPOAuthProvider } = await import('@google/gemini-cli-core');
-
-      // Create OAuth config for authentication (will be discovered automatically)
-      const oauthConfig = server.oauth || {
-        authorizationUrl: '', // Will be discovered automatically
-        tokenUrl: '', // Will be discovered automatically
-      };
-
-      // Pass the MCP server URL for OAuth discovery
-      const mcpServerUrl = server.httpUrl || server.url;
-      await MCPOAuthProvider.authenticate(
-        serverName,
-        oauthConfig,
-        mcpServerUrl,
-      );
-
-      addMessage({
-        type: MessageType.INFO,
-        content: `✅ Successfully authenticated with MCP server '${serverName}'!`,
-        timestamp: new Date(),
-      });
-
-      // Trigger tool re-discovery to pick up authenticated server
-      const toolRegistry = await config?.getToolRegistry();
-      if (toolRegistry) {
+      const server = mcpServers[serverName];
+      if (!server) {
         addMessage({
-          type: MessageType.INFO,
-          content: `Re-discovering tools from '${serverName}'...`,
+          type: MessageType.ERROR,
+          content: `MCP server '${serverName}' not found.`,
           timestamp: new Date(),
         });
-        await toolRegistry.discoverToolsForServer(serverName);
+        return;
       }
-      // Update the client with the new tools
-      const geminiClient = config?.getGeminiClient();
-      if (geminiClient) {
-        await geminiClient.setTools();
+
+      // Always attempt OAuth authentication, even if not explicitly configured
+      // The authentication process will discover OAuth requirements automatically
+
+      try {
+        addMessage({
+          type: MessageType.INFO,
+          content: `Starting OAuth authentication for MCP server '${serverName}'...`,
+          timestamp: new Date(),
+        });
+
+        // Import dynamically to avoid circular dependencies
+        const { MCPOAuthProvider } = await import('@google/gemini-cli-core');
+
+        // Create OAuth config for authentication (will be discovered automatically)
+        const oauthConfig = server.oauth || {
+          authorizationUrl: '', // Will be discovered automatically
+          tokenUrl: '', // Will be discovered automatically
+        };
+
+        // Pass the MCP server URL for OAuth discovery
+        const mcpServerUrl = server.httpUrl || server.url;
+        await MCPOAuthProvider.authenticate(
+          serverName,
+          oauthConfig,
+          mcpServerUrl,
+        );
+
+        addMessage({
+          type: MessageType.INFO,
+          content: `✅ Successfully authenticated with MCP server '${serverName}'!`,
+          timestamp: new Date(),
+        });
+
+        // Trigger tool re-discovery to pick up authenticated server
+        const toolRegistry = await config?.getToolRegistry();
+        if (toolRegistry) {
+          addMessage({
+            type: MessageType.INFO,
+            content: `Re-discovering tools from '${serverName}'...`,
+            timestamp: new Date(),
+          });
+          await toolRegistry.discoverToolsForServer(serverName);
+        }
+        // Update the client with the new tools
+        const geminiClient = config?.getGeminiClient();
+        if (geminiClient) {
+          await geminiClient.setTools();
+        }
+      } catch (error) {
+        addMessage({
+          type: MessageType.ERROR,
+          content: `Failed to authenticate with MCP server '${serverName}': ${getErrorMessage(error)}`,
+          timestamp: new Date(),
+        });
       }
-    } catch (error) {
-      addMessage({
-        type: MessageType.ERROR,
-        content: `Failed to authenticate with MCP server '${serverName}': ${getErrorMessage(error)}`,
-        timestamp: new Date(),
-      });
-    }
-  };
+    },
+    [config, addMessage],
+  );
 
   // Define legacy commands
   // This list contains all commands that have NOT YET been migrated to the
@@ -1183,6 +1186,7 @@ export const useSlashCommandProcessor = (
     setPendingCompressionItem,
     clearItems,
     refreshStatic,
+    handleMCPAuth,
   ]);
 
   const handleSlashCommand = useCallback(

@@ -80,7 +80,7 @@ export class MCPOAuthTokenStorage {
       }
     } catch (error) {
       // File doesn't exist or is invalid, return empty map
-      if ((error as any).code !== 'ENOENT') {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         console.error(
           `Failed to load MCP OAuth tokens: ${getErrorMessage(error)}`,
         );
@@ -201,7 +201,7 @@ export class MCPOAuthTokenStorage {
       const tokenFile = this.getTokenFilePath();
       await fs.unlink(tokenFile);
     } catch (error) {
-      if ((error as any).code !== 'ENOENT') {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         console.error(
           `Failed to clear MCP OAuth tokens: ${getErrorMessage(error)}`,
         );
