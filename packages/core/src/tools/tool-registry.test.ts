@@ -581,4 +581,73 @@ describe('sanitizeParameters', () => {
     expect(schema.properties?.['stringEnum']?.type).toBe(Type.STRING);
     expect(schema.properties?.['stringEnum']?.enum).toEqual(['a', 'b', 'c']);
   });
+
+  it('should handle enum with boolean values', () => {
+    const schema: Schema = {
+      type: Type.OBJECT,
+      properties: {
+        booleanEnum: {
+          type: Type.BOOLEAN,
+          enum: [true, false] as any,
+        },
+      },
+    };
+
+    sanitizeParameters(schema);
+
+    expect(schema.properties?.['booleanEnum']?.type).toBe(Type.STRING);
+    expect(schema.properties?.['booleanEnum']?.enum).toEqual(['true', 'false']);
+  });
+
+  it('should handle enum with null and undefined values', () => {
+    const schema: Schema = {
+      type: Type.OBJECT,
+      properties: {
+        mixedEnum: {
+          type: Type.STRING,
+          enum: [null, undefined, 'valid', 0] as any,
+        },
+      },
+    };
+
+    sanitizeParameters(schema);
+
+    expect(schema.properties?.['mixedEnum']?.enum).toEqual([
+      'null',
+      'undefined',
+      'valid',
+      '0',
+    ]);
+  });
+
+  it('should handle enum in anyOf structures', () => {
+    const schema: Schema = {
+      type: Type.OBJECT,
+      properties: {
+        complexEnum: {
+          anyOf: [
+            {
+              type: Type.INTEGER,
+              enum: [1, 2, 3] as any,
+            },
+            {
+              type: Type.STRING,
+              enum: ['a', 'b'],
+            },
+          ],
+        },
+      },
+    };
+
+    sanitizeParameters(schema);
+
+    const anyOfFirst = schema.properties?.['complexEnum']?.anyOf?.[0] as Schema;
+    const anyOfSecond = schema.properties?.['complexEnum']
+      ?.anyOf?.[1] as Schema;
+
+    expect(anyOfFirst?.type).toBe(Type.STRING);
+    expect(anyOfFirst?.enum).toEqual(['1', '2', '3']);
+    expect(anyOfSecond?.type).toBe(Type.STRING);
+    expect(anyOfSecond?.enum).toEqual(['a', 'b']);
+  });
 });

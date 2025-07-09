@@ -279,8 +279,8 @@ export class MCPOAuthProvider {
               <html>
                 <body>
                   <h1>Authentication Failed</h1>
-                  <p>Error: ${error}</p>
-                  <p>${url.searchParams.get('error_description') || ''}</p>
+                  <p>Error: ${(error as string).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+                  <p>${((url.searchParams.get('error_description') || '') as string).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
                   <p>You can close this window.</p>
                 </body>
               </html>
@@ -325,6 +325,7 @@ export class MCPOAuthProvider {
         },
       );
 
+      server.on('error', reject);
       server.listen(this.REDIRECT_PORT, () => {
         console.log(
           `OAuth callback server listening on port ${this.REDIRECT_PORT}`,

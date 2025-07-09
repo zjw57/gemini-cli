@@ -53,13 +53,7 @@ export class MCPOAuthTokenStorage {
    */
   private static async ensureConfigDir(): Promise<void> {
     const configDir = path.dirname(this.getTokenFilePath());
-    try {
-      await fs.mkdir(configDir, { recursive: true });
-    } catch (error) {
-      console.error(
-        `Failed to create config directory: ${getErrorMessage(error)}`,
-      );
-    }
+    await fs.mkdir(configDir, { recursive: true });
   }
 
   /**
