@@ -297,6 +297,7 @@ describe('ToolRegistry', () => {
         mcpServerConfigVal,
         undefined,
         toolRegistry,
+        true,
       );
     });
 
@@ -318,6 +319,7 @@ describe('ToolRegistry', () => {
         mcpServerConfigVal,
         undefined,
         toolRegistry,
+        true,
       );
     });
   });
