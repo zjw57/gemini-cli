@@ -97,28 +97,6 @@ Each server configuration supports the following properties:
 
 The Gemini CLI supports OAuth 2.0 authentication for remote MCP servers using SSE or HTTP transports. This enables secure access to MCP servers that require authentication.
 
-#### OAuth Configuration
-
-Add an `oauth` object to your server configuration:
-
-```json
-{
-  "mcpServers": {
-    "remoteServer": {
-      "url": "https://api.example.com/sse",
-      "oauth": {
-        "enabled": true,
-        "clientId": "your-client-id",
-        "clientSecret": "your-client-secret",
-        "authorizationUrl": "https://auth.example.com/authorize",
-        "tokenUrl": "https://auth.example.com/token",
-        "scopes": ["read", "write"]
-      }
-    }
-  }
-}
-```
-
 #### Automatic OAuth Discovery
 
 For servers that support OAuth discovery, you can omit the OAuth configuration and let the CLI discover it automatically:
@@ -134,7 +112,6 @@ For servers that support OAuth discovery, you can omit the OAuth configuration a
 ```
 
 The CLI will automatically:
-
 - Detect when a server requires OAuth authentication (401 responses)
 - Discover OAuth endpoints from server metadata
 - Perform dynamic client registration if supported
@@ -154,12 +131,10 @@ When connecting to an OAuth-enabled server:
 #### Browser Redirect Requirements
 
 **Important:** OAuth authentication requires that your local machine can:
-
 - Open a web browser for authentication
 - Receive redirects on `http://localhost:7777/oauth/callback`
 
 This feature will not work in:
-
 - Headless environments without browser access
 - Remote SSH sessions without X11 forwarding
 - Containerized environments without browser support
@@ -193,7 +168,6 @@ Use the `/mcp auth` command to manage OAuth authentication:
 #### Token Management
 
 OAuth tokens are automatically:
-
 - **Stored securely** in `~/.gemini/mcp-oauth-tokens.json`
 - **Refreshed** when expired (if refresh tokens are available)
 - **Validated** before each connection attempt
