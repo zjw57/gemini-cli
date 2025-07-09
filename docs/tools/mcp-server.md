@@ -112,6 +112,7 @@ For servers that support OAuth discovery, you can omit the OAuth configuration a
 ```
 
 The CLI will automatically:
+
 - Detect when a server requires OAuth authentication (401 responses)
 - Discover OAuth endpoints from server metadata
 - Perform dynamic client registration if supported
@@ -131,10 +132,12 @@ When connecting to an OAuth-enabled server:
 #### Browser Redirect Requirements
 
 **Important:** OAuth authentication requires that your local machine can:
+
 - Open a web browser for authentication
 - Receive redirects on `http://localhost:7777/oauth/callback`
 
 This feature will not work in:
+
 - Headless environments without browser access
 - Remote SSH sessions without X11 forwarding
 - Containerized environments without browser support
@@ -168,6 +171,7 @@ Use the `/mcp auth` command to manage OAuth authentication:
 #### Token Management
 
 OAuth tokens are automatically:
+
 - **Stored securely** in `~/.gemini/mcp-oauth-tokens.json`
 - **Refreshed** when expired (if refresh tokens are available)
 - **Validated** before each connection attempt
