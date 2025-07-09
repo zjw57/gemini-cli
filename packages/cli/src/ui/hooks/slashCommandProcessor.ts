@@ -497,6 +497,7 @@ export const useSlashCommandProcessor = (
             // Format server header with bold formatting and status
             message += `${statusIndicator} \u001b[1m${serverName}\u001b[0m - ${detailedStatus}`;
 
+            let needsAuthHint = false;
             // Add OAuth status if applicable
             if (serverConfig.oauth?.enabled) {
               const { MCPOAuthTokenStorage } = await import(
@@ -509,11 +510,13 @@ export const useSlashCommandProcessor = (
                 );
                 if (isExpired) {
                   message += ' \u001b[33m(OAuth token expired)\u001b[0m';
+                  needsAuthHint = true;
                 } else {
                   message += ' \u001b[32m(OAuth authenticated)\u001b[0m';
                 }
               } else {
                 message += ' \u001b[31m(OAuth not authenticated)\u001b[0m';
+                needsAuthHint = true;
               }
             }
 
@@ -600,7 +603,13 @@ export const useSlashCommandProcessor = (
                 }
               });
             } else {
-              message += '  No tools available\n';
+              message += '  No tools available';
+              if (status === MCPServerStatus.DISCONNECTED && needsAuthHint) {
+                const greyColor = '\u001b[90m';
+                const resetColor = '\u001b[0m';
+                message += ` ${greyColor}(type: "/mcp auth ${serverName}" to authenticate this server)${resetColor}`;
+              }
+              message += '\n';
             }
             message += '\n';
           }
