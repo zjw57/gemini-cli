@@ -64,6 +64,7 @@ export interface ToolCallRequestInfo {
   name: string;
   args: Record<string, unknown>;
   isClientInitiated: boolean;
+  confirmationDetails?: ToolCallConfirmationDetails;
 }
 
 export interface ToolCallResponseInfo {

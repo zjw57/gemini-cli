@@ -21,6 +21,7 @@ import { ShellTool } from '../tools/shell.js';
 import { WriteFileTool } from '../tools/write-file.js';
 import { WebFetchTool } from '../tools/web-fetch.js';
 import { ReadManyFilesTool } from '../tools/read-many-files.js';
+import { CleanDocstringTool } from '../tools/clean-docstring.js'
 import {
   MemoryTool,
   setGeminiMdFilename,
@@ -44,6 +45,12 @@ import {
   DEFAULT_GEMINI_FLASH_MODEL,
 } from './models.js';
 import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
+import { ToolCallRequestInfo } from '../core/turn.js';
+import { register } from 'node:module';
+
+export type ToolConfirmationHandler = (
+  toolCall: ToolCallRequestInfo,
+) => Promise<boolean>;
 
 export enum ApprovalMode {
   DEFAULT = 'default',
@@ -182,6 +189,7 @@ export class Config {
   private readonly listExtensions: boolean;
   private readonly _activeExtensions: ActiveExtension[];
   flashFallbackHandler?: FlashFallbackHandler;
+  toolConfirmationHandler?: ToolConfirmationHandler;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -239,7 +247,7 @@ export class Config {
         new StartSessionEvent(this),
       );
     } else {
-      console.log('Data collection is disabled.');
+      // Data collection is disabled.
     }
   }
 
@@ -301,6 +309,14 @@ export class Config {
 
   setFlashFallbackHandler(handler: FlashFallbackHandler): void {
     this.flashFallbackHandler = handler;
+  }
+
+  setToolConfirmationHandler(handler: ToolConfirmationHandler): void {
+    this.toolConfirmationHandler = handler;
+  }
+
+  getToolConfirmationHandler(): ToolConfirmationHandler | undefined {
+    return this.toolConfirmationHandler;
   }
 
   getEmbeddingModel(): string {
@@ -535,6 +551,7 @@ export class Config {
     registerCoreTool(ShellTool, this);
     registerCoreTool(MemoryTool);
     registerCoreTool(WebSearchTool, this);
+    registerCoreTool(CleanDocstringTool, this);
 
     await registry.discoverTools();
     return registry;

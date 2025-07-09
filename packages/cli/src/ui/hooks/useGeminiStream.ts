@@ -24,6 +24,7 @@ import {
   ThoughtSummary,
   UnauthorizedError,
   UserPromptEvent,
+  ToolConfirmationHandler,
 } from '@google/gemini-cli-core';
 import { type Part, type PartListUnion } from '@google/genai';
 import {
@@ -106,29 +107,76 @@ export const useGeminiStream = (
     return new GitService(config.getProjectRoot());
   }, [config]);
 
-  const [toolCalls, scheduleToolCalls, markToolsAsSubmitted] =
-    useReactToolScheduler(
-      async (completedToolCallsFromScheduler) => {
-        // This onComplete is called when ALL scheduled tools for a given batch are done.
-        if (completedToolCallsFromScheduler.length > 0) {
-          // Add the final state of these tools to the history for display.
-          addItem(
-            mapTrackedToolCallsToDisplay(
-              completedToolCallsFromScheduler as TrackedToolCall[],
-            ),
-            Date.now(),
-          );
+  const confirmationPromises = useRef(
+    new Map<
+      string,
+      { resolve: (value: boolean) => void; reject: (reason?: any) => void }
+    >(),
+  ).current;
 
-          // Handle tool response submission immediately when tools complete
-          await handleCompletedTools(
+  const [
+    toolCalls,
+    scheduleToolCalls,
+    markToolsAsSubmitted,
+    setToolConfirmationResult,
+  ] = useReactToolScheduler(
+    async (completedToolCallsFromScheduler) => {
+      // This onComplete is called when ALL scheduled tools for a given batch are done.
+      if (completedToolCallsFromScheduler.length > 0) {
+        // Add the final state of these tools to the history for display.
+        addItem(
+          mapTrackedToolCallsToDisplay(
             completedToolCallsFromScheduler as TrackedToolCall[],
+          ),
+          Date.now(),
+        );
+
+        // Handle tool response submission immediately when tools complete
+        await handleCompletedTools(
+          completedToolCallsFromScheduler as TrackedToolCall[],
+        );
+
+        // Resolve any pending promises for these completed tools.
+        for (const completedCall of completedToolCallsFromScheduler) {
+          const confirmation = confirmationPromises.get(
+            completedCall.request.callId,
           );
+          if (confirmation) {
+            confirmation.resolve(completedCall.status === 'success');
+            confirmationPromises.delete(completedCall.request.callId);
+          }
         }
-      },
-      config,
-      setPendingHistoryItem,
-      getPreferredEditor,
-    );
+      }
+    },
+    config,
+    setPendingHistoryItem,
+    getPreferredEditor,
+  );
+
+  useEffect(() => {
+    const toolConfirmationHandler: ToolConfirmationHandler = (
+      toolCall: ToolCallRequestInfo,
+    ) => {
+      const confirmationId = toolCall.callId;
+      const promise = new Promise<boolean>((resolve, reject) => {
+        confirmationPromises.set(confirmationId, { resolve, reject });
+      });
+
+      // Use a minimal AbortSignal since this is coming from an external source.
+      const abortController = new AbortController();
+      scheduleToolCalls([toolCall], abortController.signal);
+
+      return promise;
+    };
+
+    config.setToolConfirmationHandler(toolConfirmationHandler);
+
+    // This effect should only run once to set up the handler.
+    // Cleanup function to remove the handler if the component unmounts.
+    return () => {
+      config.setToolConfirmationHandler(undefined as any);
+    };
+  }, [config, scheduleToolCalls, confirmationPromises]);
 
   const pendingToolCallGroupDisplay = useMemo(
     () =>

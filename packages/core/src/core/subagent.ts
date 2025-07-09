@@ -106,56 +106,17 @@ export interface RunConfig {
 }
 
 /**
- * Manages the runtime context state for the subagent.
- * This class provides a mechanism to store and retrieve key-value pairs
- * that represent the dynamic state and variables accessible to the subagent
- * during its execution.
- */
-export class ContextState {
-  private state: Record<string, unknown> = {};
-
-  /**
-   * Retrieves a value from the context state.
-   *
-   * @param key - The key of the value to retrieve.
-   * @returns The value associated with the key, or undefined if the key is not found.
-   */
-  get(key: string): unknown {
-    return this.state[key];
-  }
-
-  /**
-   * Sets a value in the context state.
-   *
-   * @param key - The key to set the value under.
-   * @param value - The value to set.
-   */
-  set(key: string, value: unknown): void {
-    this.state[key] = value;
-  }
-
-  /**
-   * Retrieves all keys in the context state.
-   *
-   * @returns An array of all keys in the context state.
-   */
-  get_keys(): string[] {
-    return Object.keys(this.state);
-  }
-}
-
-/**
  * Replaces `${...}` placeholders in a template string with values from a context.
  *
  * This function identifies all placeholders in the format `${key}`, validates that
- * each key exists in the provided `ContextState`, and then performs the substitution.
+ * each key exists in the provided `Record<string, unknown>`, and then performs the substitution.
  *
  * @param template The template string containing placeholders.
- * @param context The `ContextState` object providing placeholder values.
+ * @param context The `Record<string, unknown>` object providing placeholder values.
  * @returns The populated string with all placeholders replaced.
  * @throws {Error} if any placeholder key is not found in the context.
  */
-function templateString(template: string, context: ContextState): string {
+function templateString(template: string, context: Record<string, unknown>): string {
   const placeholderRegex = /\$\{(\w+)\}/g;
 
   // First, find all unique keys required by the template.
@@ -164,7 +125,7 @@ function templateString(template: string, context: ContextState): string {
   );
 
   // Check if all required keys exist in the context.
-  const contextKeys = new Set(context.get_keys());
+  const contextKeys = new Set(Object.keys(context));
   const missingKeys = Array.from(requiredKeys).filter(
     (key) => !contextKeys.has(key),
   );
@@ -179,7 +140,7 @@ function templateString(template: string, context: ContextState): string {
 
   // Perform the replacement using a replacer function.
   return template.replace(placeholderRegex, (_match, key) =>
-    String(context.get(key)),
+    String(context[key]),
   );
 }
 
@@ -213,10 +174,10 @@ export class SubAgentScope {
    * This method orchestrates the subagent's execution loop, including prompt templating,
    * tool execution, and termination conditions. It manages the chat history, handles
    * tool calls, and determines when the subagent's goals are met or if a timeout occurs.
-   * @param {ContextState} context - The current context state containing variables for prompt templating.
+   * @param {Record<string, unknown>} context - The current context state containing variables for prompt templating.
    * @returns {Promise<void>} A promise that resolves when the subagent has completed its execution.
    */
-  async runNonInteractive(context: ContextState): Promise<void> {
+  async run(context: Record<string, unknown>, runNonInteractive: boolean = false): Promise<void> {
     const chat = await this.createChatObject();
 
     if (!chat) {
@@ -227,6 +188,11 @@ export class SubAgentScope {
     const abortController = new AbortController();
     const toolRegistry: ToolRegistry =
       await this.runtimeContext.getToolRegistry();
+    
+    if (!toolRegistry) {
+      this.output.terminate_reason = SubagentTerminateMode.ERROR;
+      return;
+    }
 
     // Prepare the list of tools available to the subagent.
     const toolsToLoad: string[] = [];
@@ -239,9 +205,12 @@ export class SubAgentScope {
       }
     }
 
-    toolsList.push(
-      ...toolRegistry.getFunctionDeclarationsFiltered(toolsToLoad),
-    );
+    const declarations = toolRegistry.getFunctionDeclarationsFiltered(toolsToLoad);
+    if (!declarations) {
+      this.output.terminate_reason = SubagentTerminateMode.ERROR;
+      return;
+    }
+    toolsList.push(...declarations);
     toolsList.push(...this.getScopeLocalFuncDefs());
 
     chat.setSystemInstruction(this.buildChatSystemPrompt(context));
@@ -276,7 +245,6 @@ export class SubAgentScope {
         const functionCalls: FunctionCall[] = [];
         for await (const resp of responseStream) {
           if (abortController.signal.aborted) {
-            console.error('Operation cancelled.');
             return;
           }
 
@@ -292,6 +260,7 @@ export class SubAgentScope {
             toolRegistry,
             abortController,
             currentMessages,
+            runNonInteractive
           );
         } else {
           // The model has stopped calling tools, which signals completion.
@@ -307,13 +276,10 @@ export class SubAgentScope {
 
           // If variables are missing, the loop continues, relying on the
           // system prompt to guide the model to call self.emitvalue.
-          console.debug(
-            'Variables appear to be missing. Relying on model to call EmitValue.',
-          );
         }
       }
     } catch (error) {
-      console.error('Error during subagent execution:', error);
+
       this.output.terminate_reason = SubagentTerminateMode.ERROR;
       throw error;
     }
@@ -336,14 +302,17 @@ export class SubAgentScope {
     toolRegistry: ToolRegistry,
     abortController: AbortController,
     currentMessages: Content[],
+    runNonInteractive: boolean
   ) {
+    
     const toolResponseParts: Part[] = [];
 
     for (const functionCall of functionCalls) {
+      
       const callId = functionCall.id ?? `${functionCall.name}-${Date.now()}`;
       const requestInfo: ToolCallRequestInfo = {
         callId,
-        name: functionCall.name as string,
+        name: functionCall.name || '',
         args: (functionCall.args ?? {}) as Record<string, unknown>,
         isClientInitiated: true,
       };
@@ -352,6 +321,7 @@ export class SubAgentScope {
 
       // Handle scope-local tools first.
       if (functionCall.name === 'self.emitvalue') {
+        
         const valName = String(requestInfo.args['emit_variable_name']);
         const valVal = String(requestInfo.args['emit_variable_value']);
         this.output.emitted_vars[valName] = valVal;
@@ -363,23 +333,65 @@ export class SubAgentScope {
           error: undefined,
         };
       } else {
-        toolResponse = await executeToolCall(
-          this.runtimeContext,
-          requestInfo,
-          toolRegistry,
-          abortController.signal,
-        );
+        const tool = toolRegistry.getTool(functionCall.name || '');
+        if (!tool) {
+          toolResponse = {
+            callId,
+            responseParts: `Error: Tool "${functionCall.name}" not found.`,
+            resultDisplay: `Error: Tool "${functionCall.name}" not found.`,
+            error: new Error(`Tool "${functionCall.name}" not found.`),
+          };
+        } else {
+          
+          let userConfirmed = true; // Default to true if no confirmation is needed.
+          if(!runNonInteractive)
+          {
+            const confirmationDetails = await tool.shouldConfirmExecute(
+              requestInfo.args,
+              abortController.signal,
+            );
+            const confirmationHandler =
+              this.runtimeContext.getToolConfirmationHandler();
+            
+            if (confirmationDetails && confirmationHandler) {
+              
+              userConfirmed = await confirmationHandler({
+                ...requestInfo,
+                // Pass the confirmation details to the UI
+                confirmationDetails,
+              });
+            }
+          }
+          
+
+          if (userConfirmed) {
+            
+            toolResponse = await executeToolCall(
+              this.runtimeContext,
+              requestInfo,
+              toolRegistry,
+              abortController.signal,
+            );
+            
+          } else {
+            toolResponse = {
+              callId,
+              responseParts: 'Tool execution was cancelled by the user.',
+              resultDisplay: 'Tool execution was cancelled by the user.',
+              error: undefined,
+            };
+          }
+        }
       }
 
       if (toolResponse.error) {
-        console.error(
-          `Error executing tool ${functionCall.name}: ${toolResponse.resultDisplay || toolResponse.error.message}`,
-        );
+
         // Continue to the next tool call instead of halting execution.
         continue;
       }
 
       if (toolResponse.responseParts) {
+        
         const parts = Array.isArray(toolResponse.responseParts)
           ? toolResponse.responseParts
           : [toolResponse.responseParts];
@@ -390,10 +402,13 @@ export class SubAgentScope {
             toolResponseParts.push(part);
           }
         }
+        
       }
     }
+    
     // If all tool calls failed, inform the model so it can re-evaluate.
     if (functionCalls.length > 0 && toolResponseParts.length === 0) {
+      
       toolResponseParts.push({
         text: 'All tool calls failed. Please analyze the errors, review the plan, and try an alternative approach.',
       });
@@ -495,10 +510,10 @@ export class SubAgentScope {
   /**
    * Builds the system prompt for the chat, incorporating the subagent's plan, goals, and available tools.
    * This prompt is intentionally different from the main agent's prompt to allow for scoped work with specific tools or personas.
-   * @param {ContextState} context - The current context state containing variables for prompt templating.
+   * @param {Record<string, unknown>} context - The current context state containing variables for prompt templating.
    * @returns {string} The complete system prompt for the chat.
    */
-  private buildChatSystemPrompt(context: ContextState): string {
+  private buildChatSystemPrompt(context: Record<string, unknown>): string {
     const templated_plan = templateString(this.promptConfig.plan, context);
     let templated_goals = templateString(this.promptConfig.goals, context);
 

@@ -565,6 +565,24 @@ export class CoreToolScheduler {
     this.attemptExecutionOfScheduledCalls(signal);
   }
 
+  setToolConfirmationResult(callId: string, result: boolean): void {
+    const toolCall = this.toolCalls.find(
+      (c) => c.request.callId === callId && c.status === 'awaiting_approval',
+    );
+
+    if (toolCall && toolCall.status === 'awaiting_approval') {
+      const outcome = result
+        ? ToolConfirmationOutcome.ProceedOnce
+        : ToolConfirmationOutcome.Cancel;
+      this.handleConfirmationResponse(
+        callId,
+        async () => {},
+        outcome,
+        new AbortController().signal,
+      );
+    }
+  }
+
   /**
    * Applies user-provided content changes to a tool call that is awaiting confirmation.
    * This method updates the tool's arguments and refreshes the confirmation prompt with a new diff

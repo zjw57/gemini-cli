@@ -15,7 +15,6 @@ import { createContentGenerator } from '../core/contentGenerator.js';
 import { GeminiChat } from './geminiChat.js';
 import { Config, ConfigParameters } from '../config/config.js';
 import {
-  ContextState,
   SubAgentScope,
   SubagentTerminateMode,
 } from './subagent.js';
@@ -92,8 +91,8 @@ describe('SubAgentScope', () => {
     };
 
     // Context
-    const context = new ContextState();
-    context.set('user_query', 'Tell me the capital of France.');
+    const context:Record<string, unknown>={};
+    context['user_query'] = 'Tell me the capital of France.';
 
     const orchestrator = new SubAgentScope(
       config,
@@ -102,7 +101,7 @@ describe('SubAgentScope', () => {
       runConfig,
     );
 
-    await orchestrator.runNonInteractive(context);
+    await orchestrator.run(context);
 
     expect(orchestrator.output.terminate_reason).toBe(
       SubagentTerminateMode.GOAL,
