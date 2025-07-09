@@ -410,8 +410,10 @@ function _sanitizeParameters(schema: Schema | undefined, visited: Set<Schema>) {
       // If enum is present but type is not STRING, convert type to STRING
       schema.type = Type.STRING;
     }
-    // Convert all enum values to strings for Gemini API compatibility
-    schema.enum = schema.enum.map((value: unknown) => String(value));
+    // Filter out null and undefined values, then convert remaining values to strings for Gemini API compatibility
+    schema.enum = schema.enum
+      .filter((value: unknown) => value !== null && value !== undefined)
+      .map((value: unknown) => String(value));
   }
 
   // Vertex AI only supports 'enum' and 'date-time' for STRING format.

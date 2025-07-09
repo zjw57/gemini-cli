@@ -612,12 +612,8 @@ describe('sanitizeParameters', () => {
 
     sanitizeParameters(schema);
 
-    expect(schema.properties?.['mixedEnum']?.enum).toEqual([
-      'null',
-      'undefined',
-      'valid',
-      '0',
-    ]);
+    // null and undefined should be filtered out, remaining values converted to strings
+    expect(schema.properties?.['mixedEnum']?.enum).toEqual(['valid', '0']);
   });
 
   it('should handle enum in anyOf structures', () => {
