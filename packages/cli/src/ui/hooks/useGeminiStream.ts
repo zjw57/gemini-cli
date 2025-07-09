@@ -110,7 +110,7 @@ export const useGeminiStream = (
   const confirmationPromises = useRef(
     new Map<
       string,
-      { resolve: (value: boolean) => void; reject: (reason?: any) => void }
+      { resolve: (value: boolean) => void; reject: (reason?: unknown) => void }
     >(),
   ).current;
 
@@ -174,7 +174,7 @@ export const useGeminiStream = (
     // This effect should only run once to set up the handler.
     // Cleanup function to remove the handler if the component unmounts.
     return () => {
-      config.setToolConfirmationHandler(undefined as any);
+      config.toolConfirmationHandler = undefined;
     };
   }, [config, scheduleToolCalls, confirmationPromises]);
 

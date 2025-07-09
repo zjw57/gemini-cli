@@ -300,6 +300,7 @@ describe('useGeminiStream', () => {
       getGeminiClient: mockGetGeminiClient,
       getUsageStatisticsEnabled: () => true,
       getDebugMode: () => false,
+      setToolConfirmationHandler: vi.fn(),
       addHistory: vi.fn(),
     } as unknown as Config;
     mockOnDebugMessage = vi.fn();
