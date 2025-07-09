@@ -400,7 +400,8 @@ export class MCPOAuthProvider {
    */
   static async refreshAccessToken(
     config: MCPOAuthConfig,
-    refreshToken: string
+    refreshToken: string,
+    tokenUrl: string,
   ): Promise<OAuthTokenResponse> {
     const params = new URLSearchParams({
       grant_type: 'refresh_token',
@@ -417,10 +418,10 @@ export class MCPOAuthProvider {
     }
     
     // Add resource parameter for MCP OAuth spec compliance
-    const resourceUrl = new URL(config.tokenUrl!);
+    const resourceUrl = new URL(tokenUrl);
     params.append('resource', `${resourceUrl.protocol}//${resourceUrl.host}`);
     
-    const response = await fetch(config.tokenUrl!, {
+    const response = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -607,7 +608,12 @@ export class MCPOAuthProvider {
     
     // Save token
     try {
-      await MCPOAuthTokenStorage.saveToken(serverName, token, config.clientId);
+      await MCPOAuthTokenStorage.saveToken(
+        serverName,
+        token,
+        config.clientId,
+        config.tokenUrl,
+      );
       console.log('Authentication successful! Token saved.');
       
       // Verify token was saved
@@ -654,15 +660,16 @@ export class MCPOAuthProvider {
     }
     
     // Try to refresh if we have a refresh token
-    if (token.refreshToken && config.clientId && config.tokenUrl) {
+    if (token.refreshToken && config.clientId && credentials.tokenUrl) {
       try {
         console.log(`Refreshing expired token for MCP server: ${serverName}`);
-        
+
         const newTokenResponse = await this.refreshAccessToken(
           config,
-          token.refreshToken
+          token.refreshToken,
+          credentials.tokenUrl,
         );
-        
+
         // Update stored token
         const newToken: MCPOAuthToken = {
           accessToken: newTokenResponse.access_token,
@@ -674,9 +681,14 @@ export class MCPOAuthProvider {
         if (newTokenResponse.expires_in) {
           newToken.expiresAt = Date.now() + (newTokenResponse.expires_in * 1000);
         }
-        
-        await MCPOAuthTokenStorage.saveToken(serverName, newToken, config.clientId);
-        
+
+        await MCPOAuthTokenStorage.saveToken(
+          serverName,
+          newToken,
+          config.clientId,
+          credentials.tokenUrl,
+        );
+
         return newToken.accessToken;
       } catch (error) {
         console.error(`Failed to refresh token: ${getErrorMessage(error)}`);

@@ -19,6 +19,7 @@ import { sanitizeParameters, ToolRegistry } from './tool-registry.js';
 import { MCPOAuthProvider } from '../mcp/oauth-provider.js';
 import { discoverOAuthConfig, parseWWWAuthenticateHeader } from '../mcp/oauth-discovery.js';
 import { getErrorMessage } from '../utils/errors.js';
+import { MCPOAuthTokenStorage } from '../mcp/oauth-token-storage.js';
 
 export const MCP_DEFAULT_TIMEOUT_MSEC = 10 * 60 * 1000; // default to 10 minutes
 
@@ -399,14 +400,20 @@ async function connectAndDiscover(
       }
     } else {
       // Check if we have stored OAuth tokens for this server (from previous authentication)
-      accessToken = await MCPOAuthProvider.getValidToken(mcpServerName, {
-        authorizationUrl: '', // Will be discovered automatically
-        tokenUrl: '', // Will be discovered automatically
-      });
-      
-      if (accessToken) {
-        hasOAuthConfig = true;
-        console.log(`Found stored OAuth token for server '${mcpServerName}'`);
+      const credentials =
+        await MCPOAuthTokenStorage.getToken(mcpServerName);
+      if (credentials) {
+        accessToken = await MCPOAuthProvider.getValidToken(mcpServerName, {
+          // Pass client ID if available
+          clientId: credentials.clientId,
+        });
+
+        if (accessToken) {
+          hasOAuthConfig = true;
+          console.log(
+            `Found stored OAuth token for server '${mcpServerName}'`,
+          );
+        }
       }
     }
     
@@ -442,14 +449,20 @@ async function connectAndDiscover(
       );
     } else {
       // Check if we have stored OAuth tokens for this server (from previous authentication)
-      accessToken = await MCPOAuthProvider.getValidToken(mcpServerName, {
-        authorizationUrl: '', // Will be discovered automatically
-        tokenUrl: '', // Will be discovered automatically
-      });
-      
-      if (accessToken) {
-        hasOAuthConfig = true;
-        console.log(`Found stored OAuth token for server '${mcpServerName}'`);
+      const credentials =
+        await MCPOAuthTokenStorage.getToken(mcpServerName);
+      if (credentials) {
+        accessToken = await MCPOAuthProvider.getValidToken(mcpServerName, {
+          // Pass client ID if available
+          clientId: credentials.clientId,
+        });
+
+        if (accessToken) {
+          hasOAuthConfig = true;
+          console.log(
+            `Found stored OAuth token for server '${mcpServerName}'`,
+          );
+        }
       }
     }
     
@@ -571,16 +584,27 @@ async function connectAndDiscover(
         
         if (!shouldTriggerOAuth) {
           // For SSE servers without explicit OAuth config, if a token was found but rejected, report it accurately.
-          const hasStoredTokens = await MCPOAuthProvider.getValidToken(mcpServerName, {
-            authorizationUrl: '', // Will be discovered automatically
-            tokenUrl: '', // Will be discovered automatically
-          });
-          if (hasStoredTokens) {
-            console.log(`Stored OAuth token for SSE server '${mcpServerName}' was rejected. ` +
-                       `Please re-authenticate using: /mcp auth ${mcpServerName}`);
-          } else {
-            console.log(`401 error received for SSE server '${mcpServerName}' without OAuth configuration. ` +
-                       `Please authenticate using: /mcp auth ${mcpServerName}`);
+          const credentials =
+            await MCPOAuthTokenStorage.getToken(mcpServerName);
+          if (credentials) {
+            const hasStoredTokens = await MCPOAuthProvider.getValidToken(
+              mcpServerName,
+              {
+                // Pass client ID if available
+                clientId: credentials.clientId,
+              },
+            );
+            if (hasStoredTokens) {
+              console.log(
+                `Stored OAuth token for SSE server '${mcpServerName}' was rejected. ` +
+                  `Please re-authenticate using: /mcp auth ${mcpServerName}`,
+              );
+            } else {
+              console.log(
+                `401 error received for SSE server '${mcpServerName}' without OAuth configuration. ` +
+                  `Please authenticate using: /mcp auth ${mcpServerName}`,
+              );
+            }
           }
           updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
           return;
@@ -620,39 +644,71 @@ async function connectAndDiscover(
         if (oauthSuccess) {
           // Retry connection with OAuth token
           console.log(`Retrying connection to '${mcpServerName}' with OAuth token...`);
-          
+
           // Get the valid token - we need to create a proper OAuth config
           // The token should already be available from the authentication process
-          const accessToken = await MCPOAuthProvider.getValidToken(mcpServerName, {
-            authorizationUrl: '', // Will be discovered automatically
-            tokenUrl: '', // Will be discovered automatically
-          });
-          
-          if (accessToken) {
-            // Create transport with OAuth token
-            const oauthTransport = await createTransportWithOAuth(mcpServerName, mcpServerConfig, accessToken);
-            if (oauthTransport) {
-              try {
-                await mcpClient.connect(oauthTransport, {
-                  timeout: mcpServerConfig.timeout ?? MCP_DEFAULT_TIMEOUT_MSEC,
-                });
-                // Connection successful with OAuth
-                updateMCPServerStatus(mcpServerName, MCPServerStatus.CONNECTED);
-                transport = oauthTransport; // Use the OAuth transport for the rest of the function
-              } catch (retryError) {
-                console.error(`Failed to connect with OAuth token: ${getErrorMessage(retryError)}`);
-                updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
+          const credentials =
+            await MCPOAuthTokenStorage.getToken(mcpServerName);
+          if (credentials) {
+            const accessToken = await MCPOAuthProvider.getValidToken(
+              mcpServerName,
+              {
+                // Pass client ID if available
+                clientId: credentials.clientId,
+              },
+            );
+
+            if (accessToken) {
+              // Create transport with OAuth token
+              const oauthTransport = await createTransportWithOAuth(
+                mcpServerName,
+                mcpServerConfig,
+                accessToken,
+              );
+              if (oauthTransport) {
+                try {
+                  await mcpClient.connect(oauthTransport, {
+                    timeout:
+                      mcpServerConfig.timeout ?? MCP_DEFAULT_TIMEOUT_MSEC,
+                  });
+                  // Connection successful with OAuth
+                  updateMCPServerStatus(
+                    mcpServerName,
+                    MCPServerStatus.CONNECTED,
+                  );
+                  transport = oauthTransport; // Use the OAuth transport for the rest of the function
+                } catch (retryError) {
+                  console.error(
+                    `Failed to connect with OAuth token: ${getErrorMessage(
+                      retryError,
+                    )}`,
+                  );
+                  updateMCPServerStatus(
+                    mcpServerName,
+                    MCPServerStatus.DISCONNECTED,
+                  );
+                  return;
+                }
+              } else {
+                console.error(
+                  `Failed to create OAuth transport for server '${mcpServerName}'`,
+                );
+                updateMCPServerStatus(
+                  mcpServerName,
+                  MCPServerStatus.DISCONNECTED,
+                );
                 return;
               }
             } else {
-              console.error(`Failed to create OAuth transport for server '${mcpServerName}'`);
-              updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
+              console.error(
+                `Failed to get OAuth token for server '${mcpServerName}'`,
+              );
+              updateMCPServerStatus(
+                mcpServerName,
+                MCPServerStatus.DISCONNECTED,
+              );
               return;
             }
-          } else {
-            console.error(`Failed to get OAuth token for server '${mcpServerName}'`);
-            updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
-            return;
           }
         } else {
           console.error(`Failed to handle automatic OAuth for server '${mcpServerName}'`);
@@ -664,23 +720,34 @@ async function connectAndDiscover(
         // Only try OAuth discovery for HTTP servers or when OAuth is explicitly configured
         // For SSE servers, we should not trigger new OAuth flows automatically
         const shouldTryDiscovery = mcpServerConfig.httpUrl || mcpServerConfig.oauth?.enabled;
-        
+
         if (!shouldTryDiscovery) {
-          const hasStoredTokens = await MCPOAuthProvider.getValidToken(mcpServerName, {
-            authorizationUrl: '', // Will be discovered automatically
-            tokenUrl: '', // Will be discovered automatically
-          });
-          if (hasStoredTokens) {
-            console.log(`Stored OAuth token for SSE server '${mcpServerName}' was rejected. ` +
-                       `Please re-authenticate using: /mcp auth ${mcpServerName}`);
-          } else {
-            console.log(`401 error received for SSE server '${mcpServerName}' without OAuth configuration. ` +
-                       `Please authenticate using: /mcp auth ${mcpServerName}`);
+          const credentials =
+            await MCPOAuthTokenStorage.getToken(mcpServerName);
+          if (credentials) {
+            const hasStoredTokens = await MCPOAuthProvider.getValidToken(
+              mcpServerName,
+              {
+                // Pass client ID if available
+                clientId: credentials.clientId,
+              },
+            );
+            if (hasStoredTokens) {
+              console.log(
+                `Stored OAuth token for SSE server '${mcpServerName}' was rejected. ` +
+                  `Please re-authenticate using: /mcp auth ${mcpServerName}`,
+              );
+            } else {
+              console.log(
+                `401 error received for SSE server '${mcpServerName}' without OAuth configuration. ` +
+                  `Please authenticate using: /mcp auth ${mcpServerName}`,
+              );
+            }
           }
           updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
           return;
         }
-        
+
         // For SSE servers, try to discover OAuth configuration from the base URL
         console.log(`401 error received but no www-authenticate header found, attempting OAuth discovery from base URL...`);
         
@@ -705,34 +772,69 @@ async function connectAndDiscover(
               // Perform OAuth authentication
               console.log(`Starting OAuth authentication for server '${mcpServerName}'...`);
               await MCPOAuthProvider.authenticate(mcpServerName, oauthAuthConfig);
-              
+
               // Retry connection with OAuth token
-              const accessToken = await MCPOAuthProvider.getValidToken(mcpServerName, oauthAuthConfig);
-              if (accessToken) {
-                // Create transport with OAuth token
-                const oauthTransport = await createTransportWithOAuth(mcpServerName, mcpServerConfig, accessToken);
-                if (oauthTransport) {
-                  try {
-                    await mcpClient.connect(oauthTransport, {
-                      timeout: mcpServerConfig.timeout ?? MCP_DEFAULT_TIMEOUT_MSEC,
-                    });
-                    // Connection successful with OAuth
-                    updateMCPServerStatus(mcpServerName, MCPServerStatus.CONNECTED);
-                    transport = oauthTransport; // Use the OAuth transport for the rest of the function
-                  } catch (retryError) {
-                    console.error(`Failed to connect with OAuth token: ${getErrorMessage(retryError)}`);
-                    updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
+              const credentials =
+                await MCPOAuthTokenStorage.getToken(mcpServerName);
+              if (credentials) {
+                const accessToken = await MCPOAuthProvider.getValidToken(
+                  mcpServerName,
+                  {
+                    // Pass client ID if available
+                    clientId: credentials.clientId,
+                  },
+                );
+                if (accessToken) {
+                  // Create transport with OAuth token
+                  const oauthTransport = await createTransportWithOAuth(
+                    mcpServerName,
+                    mcpServerConfig,
+                    accessToken,
+                  );
+                  if (oauthTransport) {
+                    try {
+                      await mcpClient.connect(oauthTransport, {
+                        timeout:
+                          mcpServerConfig.timeout ?? MCP_DEFAULT_TIMEOUT_MSEC,
+                      });
+                      // Connection successful with OAuth
+                      updateMCPServerStatus(
+                        mcpServerName,
+                        MCPServerStatus.CONNECTED,
+                      );
+                      transport = oauthTransport; // Use the OAuth transport for the rest of the function
+                    } catch (retryError) {
+                      console.error(
+                        `Failed to connect with OAuth token: ${getErrorMessage(
+                          retryError,
+                        )}`,
+                      );
+                      updateMCPServerStatus(
+                        mcpServerName,
+                        MCPServerStatus.DISCONNECTED,
+                      );
+                      return;
+                    }
+                  } else {
+                    console.error(
+                      `Failed to create OAuth transport for server '${mcpServerName}'`,
+                    );
+                    updateMCPServerStatus(
+                      mcpServerName,
+                      MCPServerStatus.DISCONNECTED,
+                    );
                     return;
                   }
                 } else {
-                  console.error(`Failed to create OAuth transport for server '${mcpServerName}'`);
-                  updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
+                  console.error(
+                    `Failed to get OAuth token for server '${mcpServerName}'`,
+                  );
+                  updateMCPServerStatus(
+                    mcpServerName,
+                    MCPServerStatus.DISCONNECTED,
+                  );
                   return;
                 }
-              } else {
-                console.error(`Failed to get OAuth token for server '${mcpServerName}'`);
-                updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
-                return;
               }
             } else {
               console.error(`Failed to discover OAuth configuration from base URL for server '${mcpServerName}'`);
