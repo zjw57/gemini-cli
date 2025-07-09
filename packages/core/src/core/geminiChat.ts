@@ -344,7 +344,18 @@ export class GeminiChat {
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
     await this.sendPromise;
     const userContent = createUserContent(params.message);
+    const scratchpadContent =
+      this.config.scratchpad
+        .searchSnippets(/.*/)
+        .map((snippet) => snippet.content())
+        .join('\n') ?? '';
     const requestContents = this.getHistory(true).concat(userContent);
+    if (scratchpadContent) {
+      requestContents.push({
+        role: 'user',
+        parts: [{ text: scratchpadContent }],
+      });
+    }
     this._logApiRequest(requestContents, this.config.getModel());
 
     const startTime = Date.now();

@@ -303,7 +303,7 @@ export class SubAgentScope {
    * @returns {Promise<Content[]>} A promise that resolves to an array of `Content` parts representing the tool responses,
    *          which are then used to update the chat history.
    */
-  private async processFunctionCalls(
+  async processFunctionCalls(
     functionCalls: FunctionCall[],
     toolRegistry: ToolRegistry,
     abortController: AbortController,

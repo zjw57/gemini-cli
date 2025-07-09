@@ -47,6 +47,8 @@ import {
 } from './models.js';
 import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
 import { ToolCallRequestInfo } from '../core/turn.js';
+import { MemoryScratchPad } from '../core/scratchpad.js';
+import { ScratchpadAgentTool } from '../tools/scratchpad-agent.js';
 
 export type ToolConfirmationHandler = (
   toolCall: ToolCallRequestInfo,
@@ -188,6 +190,7 @@ export class Config {
   private modelSwitchedDuringSession: boolean = false;
   private readonly listExtensions: boolean;
   private readonly _activeExtensions: ActiveExtension[];
+  readonly scratchpad: MemoryScratchPad;
   flashFallbackHandler?: FlashFallbackHandler;
   toolConfirmationHandler?: ToolConfirmationHandler;
 
@@ -233,6 +236,7 @@ export class Config {
     this.extensionContextFilePaths = params.extensionContextFilePaths ?? [];
     this.listExtensions = params.listExtensions ?? false;
     this._activeExtensions = params.activeExtensions ?? [];
+    this.scratchpad = new MemoryScratchPad();
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -553,6 +557,7 @@ export class Config {
     registerCoreTool(WebSearchTool, this);
     registerCoreTool(PushScopeTool, this);
     registerCoreTool(PopScopeTool, this);
+    registerCoreTool(ScratchpadAgentTool, this);
 
     await registry.discoverTools();
     return registry;
