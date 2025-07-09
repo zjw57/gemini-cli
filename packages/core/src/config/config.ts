@@ -21,7 +21,7 @@ import { ShellTool } from '../tools/shell.js';
 import { WriteFileTool } from '../tools/write-file.js';
 import { WebFetchTool } from '../tools/web-fetch.js';
 import { ReadManyFilesTool } from '../tools/read-many-files.js';
-import { CleanDocstringTool } from '../tools/clean-docstring.js'
+import { CleanDocstringTool } from '../tools/clean-docstring.js';
 import {
   MemoryTool,
   setGeminiMdFilename,
@@ -46,7 +46,6 @@ import {
 } from './models.js';
 import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
 import { ToolCallRequestInfo } from '../core/turn.js';
-import { register } from 'node:module';
 
 export type ToolConfirmationHandler = (
   toolCall: ToolCallRequestInfo,

@@ -118,7 +118,7 @@ export const useGeminiStream = (
     toolCalls,
     scheduleToolCalls,
     markToolsAsSubmitted,
-    setToolConfirmationResult,
+    _setToolConfirmationResult,
   ] = useReactToolScheduler(
     async (completedToolCallsFromScheduler) => {
       // This onComplete is called when ALL scheduled tools for a given batch are done.

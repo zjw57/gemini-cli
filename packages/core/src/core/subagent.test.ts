@@ -14,10 +14,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createContentGenerator } from '../core/contentGenerator.js';
 import { GeminiChat } from './geminiChat.js';
 import { Config, ConfigParameters } from '../config/config.js';
-import {
-  SubAgentScope,
-  SubagentTerminateMode,
-} from './subagent.js';
+import { SubAgentScope, SubagentTerminateMode } from './subagent.js';
 
 describe('SubAgentScope', () => {
   let mockSendMessageStream: Mock;
@@ -91,7 +88,7 @@ describe('SubAgentScope', () => {
     };
 
     // Context
-    const context:Record<string, unknown>={};
+    const context: Record<string, unknown> = {};
     context['user_query'] = 'Tell me the capital of France.';
 
     const orchestrator = new SubAgentScope(

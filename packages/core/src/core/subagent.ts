@@ -116,7 +116,10 @@ export interface RunConfig {
  * @returns The populated string with all placeholders replaced.
  * @throws {Error} if any placeholder key is not found in the context.
  */
-function templateString(template: string, context: Record<string, unknown>): string {
+function templateString(
+  template: string,
+  context: Record<string, unknown>,
+): string {
   const placeholderRegex = /\$\{(\w+)\}/g;
 
   // First, find all unique keys required by the template.
@@ -177,7 +180,10 @@ export class SubAgentScope {
    * @param {Record<string, unknown>} context - The current context state containing variables for prompt templating.
    * @returns {Promise<void>} A promise that resolves when the subagent has completed its execution.
    */
-  async run(context: Record<string, unknown>, runNonInteractive: boolean = false): Promise<void> {
+  async run(
+    context: Record<string, unknown>,
+    runNonInteractive: boolean = false,
+  ): Promise<void> {
     const chat = await this.createChatObject();
 
     if (!chat) {
@@ -188,7 +194,7 @@ export class SubAgentScope {
     const abortController = new AbortController();
     const toolRegistry: ToolRegistry =
       await this.runtimeContext.getToolRegistry();
-    
+
     if (!toolRegistry) {
       this.output.terminate_reason = SubagentTerminateMode.ERROR;
       return;
@@ -205,7 +211,8 @@ export class SubAgentScope {
       }
     }
 
-    const declarations = toolRegistry.getFunctionDeclarationsFiltered(toolsToLoad);
+    const declarations =
+      toolRegistry.getFunctionDeclarationsFiltered(toolsToLoad);
     if (!declarations) {
       this.output.terminate_reason = SubagentTerminateMode.ERROR;
       return;
@@ -260,7 +267,7 @@ export class SubAgentScope {
             toolRegistry,
             abortController,
             currentMessages,
-            runNonInteractive
+            runNonInteractive,
           );
         } else {
           // The model has stopped calling tools, which signals completion.
@@ -279,7 +286,6 @@ export class SubAgentScope {
         }
       }
     } catch (error) {
-
       this.output.terminate_reason = SubagentTerminateMode.ERROR;
       throw error;
     }
@@ -302,13 +308,11 @@ export class SubAgentScope {
     toolRegistry: ToolRegistry,
     abortController: AbortController,
     currentMessages: Content[],
-    runNonInteractive: boolean
+    runNonInteractive: boolean,
   ) {
-    
     const toolResponseParts: Part[] = [];
 
     for (const functionCall of functionCalls) {
-      
       const callId = functionCall.id ?? `${functionCall.name}-${Date.now()}`;
       const requestInfo: ToolCallRequestInfo = {
         callId,
@@ -321,7 +325,6 @@ export class SubAgentScope {
 
       // Handle scope-local tools first.
       if (functionCall.name === 'self.emitvalue') {
-        
         const valName = String(requestInfo.args['emit_variable_name']);
         const valVal = String(requestInfo.args['emit_variable_value']);
         this.output.emitted_vars[valName] = valVal;
@@ -342,19 +345,16 @@ export class SubAgentScope {
             error: new Error(`Tool "${functionCall.name}" not found.`),
           };
         } else {
-          
           let userConfirmed = true; // Default to true if no confirmation is needed.
-          if(!runNonInteractive)
-          {
+          if (!runNonInteractive) {
             const confirmationDetails = await tool.shouldConfirmExecute(
               requestInfo.args,
               abortController.signal,
             );
             const confirmationHandler =
               this.runtimeContext.getToolConfirmationHandler();
-            
+
             if (confirmationDetails && confirmationHandler) {
-              
               userConfirmed = await confirmationHandler({
                 ...requestInfo,
                 // Pass the confirmation details to the UI
@@ -362,17 +362,14 @@ export class SubAgentScope {
               });
             }
           }
-          
 
           if (userConfirmed) {
-            
             toolResponse = await executeToolCall(
               this.runtimeContext,
               requestInfo,
               toolRegistry,
               abortController.signal,
             );
-            
           } else {
             toolResponse = {
               callId,
@@ -385,13 +382,11 @@ export class SubAgentScope {
       }
 
       if (toolResponse.error) {
-
         // Continue to the next tool call instead of halting execution.
         continue;
       }
 
       if (toolResponse.responseParts) {
-        
         const parts = Array.isArray(toolResponse.responseParts)
           ? toolResponse.responseParts
           : [toolResponse.responseParts];
@@ -402,13 +397,11 @@ export class SubAgentScope {
             toolResponseParts.push(part);
           }
         }
-        
       }
     }
-    
+
     // If all tool calls failed, inform the model so it can re-evaluate.
     if (functionCalls.length > 0 && toolResponseParts.length === 0) {
-      
       toolResponseParts.push({
         text: 'All tool calls failed. Please analyze the errors, review the plan, and try an alternative approach.',
       });
