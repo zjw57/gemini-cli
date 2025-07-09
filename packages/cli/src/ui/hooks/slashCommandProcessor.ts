@@ -296,6 +296,11 @@ export const useSlashCommandProcessor = (
         });
         await toolRegistry.discoverToolsForServer(serverName);
       }
+      // Update the client with the new tools
+      const geminiClient = config?.getGeminiClient();
+      if (geminiClient) {
+        await geminiClient.setTools();
+      }
     } catch (error) {
       addMessage({
         type: MessageType.ERROR,
