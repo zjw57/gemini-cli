@@ -44,6 +44,7 @@ export const copyToClipboard = async (text: string): Promise<void> => {
           ),
         );
       });
+      child.stdin.on('error', reject);
       child.stdin.write(text);
       child.stdin.end();
     });

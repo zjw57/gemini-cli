@@ -126,7 +126,7 @@ describe('copyCommand', () => {
     expect(mockContext.ui.addItem).toHaveBeenCalledWith(
       {
         type: MessageType.INFO,
-        text: 'Last output copied to clipboard',
+        text: 'Last output copied to the clipboard',
       },
       expect.any(Number),
     );
@@ -136,7 +136,7 @@ describe('copyCommand', () => {
     );
 
     expect(mockContext.ui.setDebugMessage).toHaveBeenCalledWith(
-      'Copied last result to clipboard!',
+      'Copied last result to the clipboard!',
     );
   });
 
@@ -224,14 +224,14 @@ describe('copyCommand', () => {
 
     expect(mockContext.ui.addItem).toHaveBeenCalledWith(
       {
-        type: MessageType.INFO,
-        text: 'Last output copied to clipboard',
+        type: MessageType.ERROR,
+        text: 'Failed to copy to the clipboard.',
       },
       expect.any(Number),
     );
 
     expect(mockContext.ui.setDebugMessage).toHaveBeenCalledWith(
-      'Error: Could not copy to clipboard. Clipboard access denied',
+      'Error: Could not copy to the clipboard. Clipboard access denied',
     );
   });
 
@@ -251,7 +251,7 @@ describe('copyCommand', () => {
     await copyCommand.action(mockContext, '');
 
     expect(mockContext.ui.setDebugMessage).toHaveBeenCalledWith(
-      'Error: Could not copy to clipboard. String error',
+      'Error: Could not copy to the clipboard. String error',
     );
   });
 
@@ -272,7 +272,7 @@ describe('copyCommand', () => {
     expect(mockContext.ui.addItem).toHaveBeenCalledWith(
       {
         type: MessageType.INFO,
-        text: 'Last output copied to clipboard',
+        text: 'Last AI output contains no text to copy.',
       },
       expect.any(Number),
     );
