@@ -65,7 +65,6 @@ import {
   getMCPDiscoveryState,
   getMCPServerStatus,
   GeminiClient,
-  ToolRegistry,
   MCPOAuthToken,
 } from '@google/gemini-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
@@ -428,12 +427,22 @@ describe('useSlashCommandProcessor', () => {
       };
 
       vi.mocked(mockConfig.getMcpServers).mockReturnValue(mockMcpServers);
-      vi.mocked(mockConfig.getToolRegistry).mockResolvedValue({
-        discoverToolsForServer: vi.fn(),
-      } as unknown as ToolRegistry);
-      vi.mocked(mockConfig.getGeminiClient).mockReturnValue({
+      (
+        mockConfig as Config & {
+          getToolRegistry: Mock;
+          getGeminiClient: Mock;
+        }
+      ).getToolRegistry = vi
+        .fn()
+        .mockResolvedValue({ discoverToolsForServer: vi.fn() });
+      (
+        mockConfig as Config & {
+          getToolRegistry: Mock;
+          getGeminiClient: Mock;
+        }
+      ).getGeminiClient = vi.fn().mockReturnValue({
         setTools: vi.fn(),
-      } as unknown as GeminiClient);
+      });
 
       const { MCPOAuthProvider } = await import('@google/gemini-cli-core');
       vi.mocked(MCPOAuthProvider.authenticate).mockResolvedValue({
