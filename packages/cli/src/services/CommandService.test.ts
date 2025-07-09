@@ -11,6 +11,9 @@ import { memoryCommand } from '../ui/commands/memoryCommand.js';
 import { helpCommand } from '../ui/commands/helpCommand.js';
 import { clearCommand } from '../ui/commands/clearCommand.js';
 
+import { popScopeCommand } from '../ui/commands/popScopeCommand.js';
+import { pushScopeCommand } from '../ui/commands/pushScopeCommand.js';
+
 // Mock the command modules to isolate the service from the command implementations.
 vi.mock('../ui/commands/memoryCommand.js', () => ({
   memoryCommand: { name: 'memory', description: 'Mock Memory' },
@@ -20,6 +23,12 @@ vi.mock('../ui/commands/helpCommand.js', () => ({
 }));
 vi.mock('../ui/commands/clearCommand.js', () => ({
   clearCommand: { name: 'clear', description: 'Mock Clear' },
+}));
+vi.mock('../ui/commands/pushScopeCommand.js', () => ({
+  pushScopeCommand: { name: 'pushscope', description: 'Mock PushScope' },
+}));
+vi.mock('../ui/commands/popScopeCommand.js', () => ({
+  popScopeCommand: { name: 'popscope', description: 'Mock PopScope' },
 }));
 
 describe('CommandService', () => {
@@ -46,25 +55,27 @@ describe('CommandService', () => {
         const tree = commandService.getCommands();
 
         // Post-condition assertions
-        expect(tree.length).toBe(3);
+        expect(tree.length).toBe(5);
 
         const commandNames = tree.map((cmd) => cmd.name);
         expect(commandNames).toContain('memory');
         expect(commandNames).toContain('help');
         expect(commandNames).toContain('clear');
+        expect(commandNames).toContain('pushscope');
+        expect(commandNames).toContain('popscope');
       });
 
       it('should overwrite any existing commands when called again', async () => {
         // Load once
         await commandService.loadCommands();
-        expect(commandService.getCommands().length).toBe(3);
+        expect(commandService.getCommands().length).toBe(5);
 
         // Load again
         await commandService.loadCommands();
         const tree = commandService.getCommands();
 
         // Should not append, but overwrite
-        expect(tree.length).toBe(3);
+        expect(tree.length).toBe(5);
       });
     });
 
@@ -76,8 +87,14 @@ describe('CommandService', () => {
         await commandService.loadCommands();
 
         const loadedTree = commandService.getCommands();
-        expect(loadedTree.length).toBe(3);
-        expect(loadedTree).toEqual([clearCommand, helpCommand, memoryCommand]);
+        expect(loadedTree.length).toBe(5);
+        expect(loadedTree).toEqual([
+          clearCommand,
+          helpCommand,
+          memoryCommand,
+          pushScopeCommand,
+          popScopeCommand,
+        ]);
       });
     });
   });

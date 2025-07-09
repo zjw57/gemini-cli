@@ -443,6 +443,22 @@ export class GeminiChat {
   addHistory(content: Content): void {
     this.history.push(content);
   }
+
+  /**
+   * Clones the current GeminiChat instance.
+   *
+   * @returns A new GeminiChat instance with the same configuration and history.
+   */
+  clone(): GeminiChat {
+    const newHistory = this.getHistory();
+    return new GeminiChat(
+      this.config,
+      this.contentGenerator,
+      this.generationConfig,
+      newHistory,
+    );
+  }
+
   setHistory(history: Content[]): void {
     this.history = history;
   }

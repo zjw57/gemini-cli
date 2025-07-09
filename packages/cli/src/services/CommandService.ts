@@ -8,11 +8,15 @@ import { SlashCommand } from '../ui/commands/types.js';
 import { memoryCommand } from '../ui/commands/memoryCommand.js';
 import { helpCommand } from '../ui/commands/helpCommand.js';
 import { clearCommand } from '../ui/commands/clearCommand.js';
+import { pushScopeCommand } from '../ui/commands/pushScopeCommand.js';
+import { popScopeCommand } from '../ui/commands/popScopeCommand.js';
 
 const loadBuiltInCommands = async (): Promise<SlashCommand[]> => [
   clearCommand,
   helpCommand,
   memoryCommand,
+  pushScopeCommand,
+  popScopeCommand,
 ];
 
 export class CommandService {

@@ -371,7 +371,7 @@ describe('Gemini Client (client.ts)', () => {
         addHistory: vi.fn(),
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      client['chat'] = mockChat as any;
+      client['chatStack'] = [mockChat as any];
 
       const newContent = {
         role: 'user',
@@ -380,6 +380,40 @@ describe('Gemini Client (client.ts)', () => {
       await client.addHistory(newContent);
 
       expect(mockChat.addHistory).toHaveBeenCalledWith(newContent);
+    });
+  });
+
+  describe('scopes', () => {
+    it('should push and pop scopes correctly', async () => {
+      const initialChat = client.getChat();
+      await client.addHistory({
+        role: 'user',
+        parts: [{ text: 'message 1' }],
+      });
+      expect(client.getHistory().length).toBe(3);
+
+      client.pushScope();
+      const newChat = client.getChat();
+      expect(newChat).not.toBe(initialChat);
+      expect(client.getHistory().length).toBe(3);
+
+      await client.addHistory({
+        role: 'user',
+        parts: [{ text: 'message 2' }],
+      });
+      expect(client.getHistory().length).toBe(4);
+
+      client.popScope();
+      const poppedChat = client.getChat();
+      expect(poppedChat).toBe(initialChat);
+      expect(client.getHistory().length).toBe(3);
+    });
+
+    it('should not pop the last scope', async () => {
+      const initialChat = client.getChat();
+      client.popScope();
+      const poppedChat = client.getChat();
+      expect(poppedChat).toBe(initialChat);
     });
   });
 
@@ -435,8 +469,9 @@ describe('Gemini Client (client.ts)', () => {
         addHistory: vi.fn(),
         setHistory: vi.fn(),
         sendMessage: mockSendMessage,
+        clone: vi.fn().mockReturnThis(),
       };
-      client['chat'] = mockChat as GeminiChat;
+      client['chatStack'] = [mockChat as GeminiChat];
     });
 
     it('should not trigger summarization if token count is below threshold', async () => {
@@ -532,7 +567,7 @@ describe('Gemini Client (client.ts)', () => {
         addHistory: vi.fn(),
         getHistory: vi.fn().mockReturnValue([]),
       };
-      client['chat'] = mockChat as GeminiChat;
+      client['chatStack'] = [mockChat as GeminiChat];
 
       const mockGenerator: Partial<ContentGenerator> = {
         countTokens: vi.fn().mockResolvedValue({ totalTokens: 0 }),
@@ -580,7 +615,7 @@ describe('Gemini Client (client.ts)', () => {
         addHistory: vi.fn(),
         getHistory: vi.fn().mockReturnValue([]),
       };
-      client['chat'] = mockChat as GeminiChat;
+      client['chatStack'] = [mockChat as GeminiChat];
 
       const mockGenerator: Partial<ContentGenerator> = {
         countTokens: vi.fn().mockResolvedValue({ totalTokens: 0 }),
@@ -679,7 +714,7 @@ describe('Gemini Client (client.ts)', () => {
         addHistory: vi.fn(),
         getHistory: vi.fn().mockReturnValue([]),
       };
-      client['chat'] = mockChat as GeminiChat;
+      client['chatStack'] = [mockChat as GeminiChat];
 
       const mockGenerator: Partial<ContentGenerator> = {
         countTokens: vi.fn().mockResolvedValue({ totalTokens: 0 }),
@@ -787,6 +822,7 @@ describe('Gemini Client (client.ts)', () => {
         getHistory: vi.fn().mockReturnValue(mockChatHistory),
         setHistory: vi.fn(),
         sendMessage: mockSendMessage,
+        clone: vi.fn().mockReturnThis(),
       };
 
       const mockGenerator: Partial<ContentGenerator> = {
@@ -800,7 +836,7 @@ describe('Gemini Client (client.ts)', () => {
         .mockReturnValueOnce(firstCurrentModel)
         .mockReturnValueOnce(secondCurrentModel);
 
-      client['chat'] = mockChat as GeminiChat;
+      client['chatStack'] = [mockChat as GeminiChat];
       client['contentGenerator'] = mockGenerator as ContentGenerator;
       client['startChat'] = vi.fn().mockResolvedValue(mockChat);
 

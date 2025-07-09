@@ -77,7 +77,7 @@ export function findIndexAfterFraction(
 }
 
 export class GeminiClient {
-  private chat?: GeminiChat;
+  private chatStack: GeminiChat[] = [];
   private contentGenerator?: ContentGenerator;
   private embeddingModel: string;
   private generateContentConfig: GenerateContentConfig = {
@@ -109,7 +109,7 @@ export class GeminiClient {
       contentGeneratorConfig,
       this.config.getSessionId(),
     );
-    this.chat = await this.startChat();
+    this.chatStack = [await this.startChat()];
   }
 
   getContentGenerator(): ContentGenerator {
@@ -124,10 +124,10 @@ export class GeminiClient {
   }
 
   getChat(): GeminiChat {
-    if (!this.chat) {
+    if (this.chatStack.length === 0) {
       throw new Error('Chat not initialized');
     }
-    return this.chat;
+    return this.chatStack[this.chatStack.length - 1];
   }
 
   getHistory(): Content[] {
@@ -138,8 +138,19 @@ export class GeminiClient {
     this.getChat().setHistory(history);
   }
 
+  pushScope() {
+    const newScope = this.getChat().clone();
+    this.chatStack.push(newScope);
+  }
+
+  popScope() {
+    if (this.chatStack.length > 1) {
+      this.chatStack.pop();
+    }
+  }
+
   async resetChat(): Promise<void> {
-    this.chat = await this.startChat();
+    this.chatStack = [await this.startChat()];
   }
 
   private async startChat(extraHistory?: Content[]): Promise<GeminiChat> {
@@ -450,9 +461,10 @@ export class GeminiClient {
     const historyToCompress = curatedHistory.slice(0, compressBeforeIndex);
     const historyToKeep = curatedHistory.slice(compressBeforeIndex);
 
-    this.getChat().setHistory(historyToCompress);
+    const compressionChat = this.getChat().clone();
+    compressionChat.setHistory(historyToCompress);
 
-    const { text: summary } = await this.getChat().sendMessage({
+    const { text: summary } = await compressionChat.sendMessage({
       message: {
         text: 'First, reason in your scratchpad. Then, generate the <state_snapshot>.',
       },
@@ -460,7 +472,7 @@ export class GeminiClient {
         systemInstruction: { text: getCompressionPrompt() },
       },
     });
-    this.chat = await this.startChat([
+    this.chatStack[this.chatStack.length - 1] = await this.startChat([
       {
         role: 'user',
         parts: [{ text: summary }],

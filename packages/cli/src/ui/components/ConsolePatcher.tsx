@@ -45,9 +45,9 @@ export const useConsolePatcher = ({
         }
       };
 
-    console.log = patchConsoleMethod('log', originalConsoleLog);
+    //console.log = patchConsoleMethod('log', originalConsoleLog);
     console.warn = patchConsoleMethod('warn', originalConsoleWarn);
-    console.error = patchConsoleMethod('error', originalConsoleError);
+    //console.error = patchConsoleMethod('error', originalConsoleError);
     console.debug = patchConsoleMethod('debug', originalConsoleDebug);
 
     return () => {

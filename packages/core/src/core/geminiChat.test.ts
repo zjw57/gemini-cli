@@ -467,4 +467,48 @@ describe('GeminiChat', () => {
       expect(history[1]).toEqual(content2);
     });
   });
+
+  describe('clone', () => {
+    it('should create a new GeminiChat instance with the same history', () => {
+      const content1: Content = {
+        role: 'user',
+        parts: [{ text: 'Message 1' }],
+      };
+      const content2: Content = {
+        role: 'model',
+        parts: [{ text: 'Message 2' }],
+      };
+      chat.addHistory(content1);
+      chat.addHistory(content2);
+
+      const clonedChat = chat.clone();
+      const clonedHistory = clonedChat.getHistory();
+
+      expect(clonedHistory.length).toBe(2);
+      expect(clonedHistory[0]).toEqual(content1);
+      expect(clonedHistory[1]).toEqual(content2);
+    });
+
+    it('should not share history between the original and cloned instances', () => {
+      const content1: Content = {
+        role: 'user',
+        parts: [{ text: 'Message 1' }],
+      };
+      chat.addHistory(content1);
+
+      const clonedChat = chat.clone();
+      const newContent: Content = {
+        role: 'model',
+        parts: [{ text: 'A new message' }],
+      };
+      clonedChat.addHistory(newContent);
+
+      const originalHistory = chat.getHistory();
+      const clonedHistory = clonedChat.getHistory();
+
+      expect(originalHistory.length).toBe(1);
+      expect(clonedHistory.length).toBe(2);
+      expect(clonedHistory[1]).toEqual(newContent);
+    });
+  });
 });
