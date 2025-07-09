@@ -58,10 +58,20 @@ export * from './tools/mcp-tool.js';
 
 // MCP OAuth
 export { MCPOAuthProvider } from './mcp/oauth-provider.js';
-export { MCPOAuthToken, MCPOAuthCredentials, MCPOAuthTokenStorage } from './mcp/oauth-token-storage.js';
+export {
+  MCPOAuthToken,
+  MCPOAuthCredentials,
+  MCPOAuthTokenStorage,
+} from './mcp/oauth-token-storage.js';
 export type { MCPOAuthConfig } from './mcp/oauth-provider.js';
-export { discoverOAuthConfig, parseWWWAuthenticateHeader } from './mcp/oauth-discovery.js';
-export type { OAuthAuthorizationServerMetadata, OAuthProtectedResourceMetadata } from './mcp/oauth-discovery.js';
+export {
+  discoverOAuthConfig,
+  parseWWWAuthenticateHeader,
+} from './mcp/oauth-discovery.js';
+export type {
+  OAuthAuthorizationServerMetadata,
+  OAuthProtectedResourceMetadata,
+} from './mcp/oauth-discovery.js';
 
 // Export telemetry functions
 export * from './telemetry/index.js';

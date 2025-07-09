@@ -479,17 +479,26 @@ describe('sanitizeParameters', () => {
         },
       },
     };
-    
+
     sanitizeParameters(schema);
-    
+
     // Numeric enums should be converted to strings
     expect(schema.properties?.['status']?.enum).toEqual(['-1', '0', '1']);
-    
+
     // String enums should remain unchanged
-    expect(schema.properties?.['priority']?.enum).toEqual(['high', 'medium', 'low']);
-    
+    expect(schema.properties?.['priority']?.enum).toEqual([
+      'high',
+      'medium',
+      'low',
+    ]);
+
     // Mixed enums should all be converted to strings
-    expect(schema.properties?.['mixed']?.enum).toEqual(['1', 'active', '0', 'inactive']);
+    expect(schema.properties?.['mixed']?.enum).toEqual([
+      '1',
+      'active',
+      '0',
+      'inactive',
+    ]);
   });
 
   it('should handle enum values in nested structures', () => {
@@ -519,15 +528,23 @@ describe('sanitizeParameters', () => {
         },
       },
     };
-    
+
     sanitizeParameters(schema);
-    
+
     // Nested enum should be converted
-    expect(schema.properties?.['config']?.properties?.['level']?.enum).toEqual(['0', '1', '2']);
-    
+    expect(schema.properties?.['config']?.properties?.['level']?.enum).toEqual([
+      '0',
+      '1',
+      '2',
+    ]);
+
     // Array item enum should be converted
     const arrayItemsSchema = schema.properties?.['items']?.items as Schema;
-    expect(arrayItemsSchema?.properties?.['state']?.enum).toEqual(['-1', '0', '1']);
+    expect(arrayItemsSchema?.properties?.['state']?.enum).toEqual([
+      '-1',
+      '0',
+      '1',
+    ]);
   });
 
   it('should convert non-string types to string when enum is present', () => {
@@ -548,16 +565,16 @@ describe('sanitizeParameters', () => {
         },
       },
     };
-    
+
     sanitizeParameters(schema);
-    
+
     // Non-string types should be converted to string
     expect(schema.properties?.['numericEnum']?.type).toBe(Type.STRING);
     expect(schema.properties?.['numericEnum']?.enum).toEqual(['1', '2', '3']);
-    
+
     expect(schema.properties?.['integerEnum']?.type).toBe(Type.STRING);
     expect(schema.properties?.['integerEnum']?.enum).toEqual(['-1', '0', '1']);
-    
+
     // String type should remain unchanged
     expect(schema.properties?.['stringEnum']?.type).toBe(Type.STRING);
     expect(schema.properties?.['stringEnum']?.enum).toEqual(['a', 'b', 'c']);

@@ -164,7 +164,32 @@ export class ToolRegistry {
       this.config.getMcpServers() ?? {},
       this.config.getMcpServerCommand(),
       this,
+      true, // This is a full discovery
     );
+  }
+
+  /**
+   * Discover or re-discover tools for a single MCP server.
+   * @param serverName - The name of the server to discover tools from.
+   */
+  async discoverToolsForServer(serverName: string): Promise<void> {
+    // Remove any previously discovered tools from this server
+    for (const [name, tool] of this.tools.entries()) {
+      if (tool instanceof DiscoveredMCPTool && tool.serverName === serverName) {
+        this.tools.delete(name);
+      }
+    }
+
+    const mcpServers = this.config.getMcpServers() ?? {};
+    const serverConfig = mcpServers[serverName];
+    if (serverConfig) {
+      await discoverMcpTools(
+        { [serverName]: serverConfig },
+        undefined,
+        this,
+        false, // This is not a full discovery
+      );
+    }
   }
 
   private async discoverAndRegisterToolsFromCommand(): Promise<void> {
@@ -378,7 +403,7 @@ function _sanitizeParameters(schema: Schema | undefined, visited: Set<Schema>) {
       }
     }
   }
-  
+
   // Handle enum values - Gemini API only allows enum for STRING type
   if (schema.enum && Array.isArray(schema.enum)) {
     if (schema.type !== Type.STRING) {
@@ -388,7 +413,7 @@ function _sanitizeParameters(schema: Schema | undefined, visited: Set<Schema>) {
     // Convert all enum values to strings for Gemini API compatibility
     schema.enum = schema.enum.map((value: any) => String(value));
   }
-  
+
   // Vertex AI only supports 'enum' and 'date-time' for STRING format.
   if (schema.type === Type.STRING) {
     if (

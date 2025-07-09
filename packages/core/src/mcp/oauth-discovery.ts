@@ -39,82 +39,113 @@ export interface OAuthProtectedResourceMetadata {
 
 /**
  * Discover OAuth configuration from an MCP server.
- * 
+ *
  * @param serverUrl The base URL of the MCP server
  * @returns The discovered OAuth configuration or null if not available
  */
 export async function discoverOAuthConfig(
-  serverUrl: string
+  serverUrl: string,
 ): Promise<MCPOAuthConfig | null> {
   try {
     // First, try to get the protected resource metadata
-    const resourceMetadataUrl = new URL('/.well-known/oauth-protected-resource', serverUrl).toString();
-    
+    const resourceMetadataUrl = new URL(
+      '/.well-known/oauth-protected-resource',
+      serverUrl,
+    ).toString();
+
     const resourceResponse = await fetch(resourceMetadataUrl);
     if (resourceResponse.ok) {
-      const resourceMetadata = await resourceResponse.json() as OAuthProtectedResourceMetadata;
-      if (resourceMetadata.authorization_servers && resourceMetadata.authorization_servers.length > 0) {
+      const resourceMetadata =
+        (await resourceResponse.json()) as OAuthProtectedResourceMetadata;
+      if (
+        resourceMetadata.authorization_servers &&
+        resourceMetadata.authorization_servers.length > 0
+      ) {
         // Use the first authorization server
         const authServerUrl = resourceMetadata.authorization_servers[0];
         // Get the authorization server metadata
-        const authServerMetadataUrl = new URL('/.well-known/oauth-authorization-server', authServerUrl).toString();
+        const authServerMetadataUrl = new URL(
+          '/.well-known/oauth-authorization-server',
+          authServerUrl,
+        ).toString();
         const authServerResponse = await fetch(authServerMetadataUrl);
         if (authServerResponse.ok) {
-          const authServerMetadata = await authServerResponse.json() as OAuthAuthorizationServerMetadata;
+          const authServerMetadata =
+            (await authServerResponse.json()) as OAuthAuthorizationServerMetadata;
           const oauthConfig: MCPOAuthConfig = {
             authorizationUrl: authServerMetadata.authorization_endpoint,
             tokenUrl: authServerMetadata.token_endpoint,
             scopes: authServerMetadata.scopes_supported || [],
           };
           if (authServerMetadata.registration_endpoint) {
-            console.log('Dynamic client registration is supported at:', authServerMetadata.registration_endpoint);
+            console.log(
+              'Dynamic client registration is supported at:',
+              authServerMetadata.registration_endpoint,
+            );
           }
           return oauthConfig;
         } else {
-          console.error(`Failed to fetch authorization server metadata from ${authServerMetadataUrl}`);
+          console.error(
+            `Failed to fetch authorization server metadata from ${authServerMetadataUrl}`,
+          );
           return null;
         }
       } else {
-        console.debug('No authorization servers specified in protected resource metadata');
+        console.debug(
+          'No authorization servers specified in protected resource metadata',
+        );
         // Fallback to next step below
       }
     } else {
-      console.debug(`No OAuth protected resource metadata found at ${resourceMetadataUrl}`);
+      console.debug(
+        `No OAuth protected resource metadata found at ${resourceMetadataUrl}`,
+      );
       // Fallback to next step below
     }
 
     // Fallback: try /.well-known/oauth-authorization-server at the base URL
     const baseUrl = new URL(serverUrl);
     const authzServerUrl = `${baseUrl.protocol}//${baseUrl.host}`;
-    const wellKnownAuthzUrl = new URL('/.well-known/oauth-authorization-server', authzServerUrl).toString();
+    const wellKnownAuthzUrl = new URL(
+      '/.well-known/oauth-authorization-server',
+      authzServerUrl,
+    ).toString();
     console.debug(`Trying OAuth discovery fallback at ${wellKnownAuthzUrl}`);
     const authzResponse = await fetch(wellKnownAuthzUrl);
     if (authzResponse.ok) {
-      const authServerMetadata = await authzResponse.json() as OAuthAuthorizationServerMetadata;
+      const authServerMetadata =
+        (await authzResponse.json()) as OAuthAuthorizationServerMetadata;
       const oauthConfig: MCPOAuthConfig = {
         authorizationUrl: authServerMetadata.authorization_endpoint,
         tokenUrl: authServerMetadata.token_endpoint,
         scopes: authServerMetadata.scopes_supported || [],
       };
       if (authServerMetadata.registration_endpoint) {
-        console.log('Dynamic client registration is supported at:', authServerMetadata.registration_endpoint);
+        console.log(
+          'Dynamic client registration is supported at:',
+          authServerMetadata.registration_endpoint,
+        );
       }
       return oauthConfig;
     } else {
-      console.debug(`No OAuth authorization server metadata found at ${wellKnownAuthzUrl}`);
+      console.debug(
+        `No OAuth authorization server metadata found at ${wellKnownAuthzUrl}`,
+      );
     }
 
     // If all else fails
     return null;
   } catch (error) {
-    console.debug(`Failed to discover OAuth configuration: ${getErrorMessage(error)}`);
+    console.debug(
+      `Failed to discover OAuth configuration: ${getErrorMessage(error)}`,
+    );
     return null;
   }
 }
 
 /**
  * Parse WWW-Authenticate header to extract OAuth information.
- * 
+ *
  * @param header The WWW-Authenticate header value
  * @returns The resource metadata URI if found
  */
@@ -124,6 +155,6 @@ export function parseWWWAuthenticateHeader(header: string): string | null {
   if (match) {
     return match[1];
   }
-  
+
   return null;
-} 
+}

@@ -219,13 +219,13 @@ export const useSlashCommandProcessor = (
   // Handler for MCP authentication
   const handleMCPAuth = async (serverName?: string) => {
     const mcpServers = config?.getMcpServers() || {};
-    
+
     if (!serverName) {
       // List servers that support OAuth
       const oauthServers = Object.entries(mcpServers)
         .filter(([_, server]) => server.oauth?.enabled)
         .map(([name, _]) => name);
-      
+
       if (oauthServers.length === 0) {
         addMessage({
           type: MessageType.INFO,
@@ -234,15 +234,15 @@ export const useSlashCommandProcessor = (
         });
         return;
       }
-      
+
       addMessage({
         type: MessageType.INFO,
-        content: `MCP servers with OAuth authentication:\n${oauthServers.map(s => `  - ${s}`).join('\n')}\n\nUse /mcp auth <server-name> to authenticate.`,
+        content: `MCP servers with OAuth authentication:\n${oauthServers.map((s) => `  - ${s}`).join('\n')}\n\nUse /mcp auth <server-name> to authenticate.`,
         timestamp: new Date(),
       });
       return;
     }
-    
+
     const server = mcpServers[serverName];
     if (!server) {
       addMessage({
@@ -252,36 +252,40 @@ export const useSlashCommandProcessor = (
       });
       return;
     }
-    
+
     // Always attempt OAuth authentication, even if not explicitly configured
     // The authentication process will discover OAuth requirements automatically
-    
+
     try {
       addMessage({
         type: MessageType.INFO,
         content: `Starting OAuth authentication for MCP server '${serverName}'...`,
         timestamp: new Date(),
       });
-      
+
       // Import dynamically to avoid circular dependencies
       const { MCPOAuthProvider } = await import('@google/gemini-cli-core');
-      
+
       // Create OAuth config for authentication (will be discovered automatically)
       const oauthConfig = server.oauth || {
         authorizationUrl: '', // Will be discovered automatically
         tokenUrl: '', // Will be discovered automatically
       };
-      
+
       // Pass the MCP server URL for OAuth discovery
       const mcpServerUrl = server.httpUrl || server.url;
-      await MCPOAuthProvider.authenticate(serverName, oauthConfig, mcpServerUrl);
-      
+      await MCPOAuthProvider.authenticate(
+        serverName,
+        oauthConfig,
+        mcpServerUrl,
+      );
+
       addMessage({
         type: MessageType.INFO,
         content: `✅ Successfully authenticated with MCP server '${serverName}'!`,
         timestamp: new Date(),
       });
-      
+
       // Trigger tool re-discovery to pick up authenticated server
       const toolRegistry = await config?.getToolRegistry();
       if (toolRegistry) {
@@ -290,7 +294,7 @@ export const useSlashCommandProcessor = (
           content: `Re-discovering tools from '${serverName}'...`,
           timestamp: new Date(),
         });
-        await toolRegistry.discoverTools();
+        await toolRegistry.discoverToolsForServer(serverName);
       }
     } catch (error) {
       addMessage({
@@ -382,14 +386,15 @@ export const useSlashCommandProcessor = (
       },
       {
         name: 'mcp',
-        description: 'list configured MCP servers and tools, or authenticate with OAuth-enabled servers (use /mcp auth)',
+        description:
+          'list configured MCP servers and tools, or authenticate with OAuth-enabled servers (use /mcp auth)',
         action: async (_mainCommand, _subCommand, _args) => {
           // Check if this is an auth command
           if (_subCommand === 'auth') {
             await handleMCPAuth(_args);
             return;
           }
-          
+
           // Check if the _subCommand includes a specific flag to control description visibility
           let useShowDescriptions = showToolDescriptions;
           if (_subCommand === 'desc' || _subCommand === 'descriptions') {
@@ -489,10 +494,14 @@ export const useSlashCommandProcessor = (
 
             // Add OAuth status if applicable
             if (serverConfig.oauth?.enabled) {
-              const { MCPOAuthTokenStorage } = await import('@google/gemini-cli-core');
+              const { MCPOAuthTokenStorage } = await import(
+                '@google/gemini-cli-core'
+              );
               const hasToken = await MCPOAuthTokenStorage.getToken(serverName);
               if (hasToken) {
-                const isExpired = MCPOAuthTokenStorage.isTokenExpired(hasToken.token);
+                const isExpired = MCPOAuthTokenStorage.isTokenExpired(
+                  hasToken.token,
+                );
                 if (isExpired) {
                   message += ' \u001b[33m(OAuth token expired)\u001b[0m';
                 } else {
@@ -513,7 +522,10 @@ export const useSlashCommandProcessor = (
             }
 
             // Add server description with proper handling of multi-line descriptions
-            if ((useShowDescriptions || useShowSchema) && serverConfig?.description) {
+            if (
+              (useShowDescriptions || useShowSchema) &&
+              serverConfig?.description
+            ) {
               const greenColor = '\u001b[32m';
               const resetColor = '\u001b[0m';
 
