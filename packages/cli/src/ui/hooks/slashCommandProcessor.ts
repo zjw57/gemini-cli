@@ -16,6 +16,7 @@ import {
   Logger,
   MCPDiscoveryState,
   MCPServerStatus,
+  mcpServerRequiresOAuth,
   getMCPDiscoveryState,
   getMCPServerStatus,
   getErrorMessage,
@@ -497,9 +498,10 @@ export const useSlashCommandProcessor = (
             // Format server header with bold formatting and status
             message += `${statusIndicator} \u001b[1m${serverName}\u001b[0m - ${detailedStatus}`;
 
-            let needsAuthHint = false;
+            let needsAuthHint = mcpServerRequiresOAuth.get(serverName) || false;
             // Add OAuth status if applicable
             if (serverConfig.oauth?.enabled) {
+              needsAuthHint = true;
               const { MCPOAuthTokenStorage } = await import(
                 '@google/gemini-cli-core'
               );
@@ -510,13 +512,12 @@ export const useSlashCommandProcessor = (
                 );
                 if (isExpired) {
                   message += ' \u001b[33m(OAuth token expired)\u001b[0m';
-                  needsAuthHint = true;
                 } else {
                   message += ' \u001b[32m(OAuth authenticated)\u001b[0m';
+                  needsAuthHint = false;
                 }
               } else {
                 message += ' \u001b[31m(OAuth not authenticated)\u001b[0m';
-                needsAuthHint = true;
               }
             }
 

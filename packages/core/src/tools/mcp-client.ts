@@ -61,6 +61,11 @@ const mcpServerStatusesInternal: Map<string, MCPServerStatus> = new Map();
 let mcpDiscoveryState: MCPDiscoveryState = MCPDiscoveryState.NOT_STARTED;
 
 /**
+ * Map to track which MCP servers have been discovered to require OAuth
+ */
+export const mcpServerRequiresOAuth: Map<string, boolean> = new Map();
+
+/**
  * Event listeners for MCP server status changes
  */
 type StatusChangeListener = (
@@ -607,6 +612,7 @@ async function connectAndDiscover(
       errorString.includes('401') &&
       (mcpServerConfig.httpUrl || mcpServerConfig.url)
     ) {
+      mcpServerRequiresOAuth.set(mcpServerName, true);
       // Only trigger automatic OAuth discovery for HTTP servers or when OAuth is explicitly configured
       // For SSE servers, we should not trigger new OAuth flows automatically
       const shouldTriggerOAuth =
