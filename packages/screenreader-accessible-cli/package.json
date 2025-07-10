@@ -1,12 +1,12 @@
 {
-  "name": "@google/gemini-nofrills-cli",
+  "name": "@google/gemini-screenreader-accessible-cli",
   "version": "0.1.0",
   "private": true,
   "description": "A simple, no-frills CLI for Gemini.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "gemini-nofrills": "dist/index.js"
+    "gemini-screenreader-accessible": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
