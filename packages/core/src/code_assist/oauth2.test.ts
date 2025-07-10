@@ -136,7 +136,8 @@ describe('oauth2', () => {
       return mockHttpServer as unknown as http.Server;
     });
 
-    const clientPromise = getOauthClient(AuthType.LOGIN_WITH_GOOGLE);
+    const noBrowser = false;
+    const clientPromise = getOauthClient(AuthType.LOGIN_WITH_GOOGLE, noBrowser);
 
     // wait for server to start listening.
     await serverListeningPromise;
@@ -178,6 +179,7 @@ describe('oauth2', () => {
   describe('in Cloud Shell', () => {
     const mockGetAccessToken = vi.fn();
     let mockComputeClient: Compute;
+    const noBrowser = false;
 
     beforeEach(() => {
       vi.spyOn(os, 'homedir').mockReturnValue('/user/home');
@@ -214,7 +216,7 @@ describe('oauth2', () => {
         () => mockClient as unknown as OAuth2Client,
       );
 
-      await getOauthClient(AuthType.LOGIN_WITH_GOOGLE);
+      await getOauthClient(AuthType.LOGIN_WITH_GOOGLE, noBrowser);
 
       expect(fs.promises.readFile).toHaveBeenCalledWith(
         '/user/home/.gemini/oauth_creds.json',
@@ -227,7 +229,7 @@ describe('oauth2', () => {
     });
 
     it('should use Compute to get a client if no cached credentials exist', async () => {
-      await getOauthClient(AuthType.CLOUD_SHELL);
+      await getOauthClient(AuthType.CLOUD_SHELL, noBrowser);
 
       expect(Compute).toHaveBeenCalledWith({});
       expect(mockGetAccessToken).toHaveBeenCalled();
@@ -238,13 +240,13 @@ describe('oauth2', () => {
       mockComputeClient.credentials = newCredentials;
       mockGetAccessToken.mockResolvedValue({ token: 'new-adc-token' });
 
-      await getOauthClient(AuthType.CLOUD_SHELL);
+      await getOauthClient(AuthType.CLOUD_SHELL, noBrowser);
 
       expect(fs.promises.writeFile).not.toHaveBeenCalled();
     });
 
     it('should return the Compute client on successful ADC authentication', async () => {
-      const client = await getOauthClient(AuthType.CLOUD_SHELL);
+      const client = await getOauthClient(AuthType.CLOUD_SHELL, noBrowser);
       expect(client).toBe(mockComputeClient);
     });
 
@@ -252,7 +254,9 @@ describe('oauth2', () => {
       const testError = new Error('ADC Failed');
       mockGetAccessToken.mockRejectedValue(testError);
 
-      await expect(getOauthClient(AuthType.CLOUD_SHELL)).rejects.toThrow(
+      await expect(
+        getOauthClient(AuthType.CLOUD_SHELL, noBrowser),
+      ).rejects.toThrow(
         'Could not authenticate using Cloud Shell credentials. Please select a different authentication method or ensure you are in a properly configured environment. Error: ADC Failed',
       );
     });

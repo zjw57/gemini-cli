@@ -15,6 +15,7 @@ import { promises as fs, existsSync, readFileSync } from 'node:fs';
 import * as os from 'os';
 import { getErrorMessage } from '../utils/errors.js';
 import { AuthType } from '../core/contentGenerator.js';
+import readline from 'node:readline';
 
 //  OAuth Client ID used to initiate OAuth2Client class.
 const OAUTH_CLIENT_ID =
@@ -57,6 +58,7 @@ export interface OauthWebLogin {
 
 export async function getOauthClient(
   authType: AuthType,
+  noBrowser: boolean,
 ): Promise<OAuth2Client> {
   const client = new OAuth2Client({
     clientId: OAUTH_CLIENT_ID,
@@ -109,25 +111,53 @@ export async function getOauthClient(
     }
   }
 
-  // Otherwise, obtain creds using standard web flow
-  const webLogin = await authWithWeb(client);
+  if (noBrowser) {
+    let success = false;
+    const maxRetries = 2;
+    for (let i = 0; !success && i < maxRetries; i++) {
+      success = await authWithUserCode(client);
+      if (!success) {
+        console.error(
+          '\nFailed to authenticate with user code.',
+          i === maxRetries - 1 ? '' : 'Retrying...\n',
+        );
+      }
+    }
+    if (!success) {
+      process.exit(1);
+    }
+  } else {
+    const webLogin = await authWithWeb(client);
 
-  console.log(
-    `\n\nCode Assist login required.\n` +
-      `Attempting to open authentication page in your browser.\n` +
-      `Otherwise navigate to:\n\n${webLogin.authUrl}\n\n`,
-  );
-  await open(webLogin.authUrl);
-  console.log('Waiting for authentication...');
+    console.log(
+      `\n\nCode Assist login required.\n` +
+        `Attempting to open authentication page in your browser.\n` +
+        `Otherwise navigate to:\n\n${webLogin.authUrl}\n\n`,
+    );
+    await open(webLogin.authUrl);
+    console.log('Waiting for authentication...');
 
-  await webLogin.loginCompletePromise;
+    await webLogin.loginCompletePromise;
+  }
 
   return client;
 }
 
-async function authWithWeb(client: OAuth2Client): Promise<OauthWebLogin> {
-  const port = await getAvailablePort();
-  const redirectUri = `http://localhost:${port}/oauth2callback`;
+function generateAuthUrl(
+  client: OAuth2Client,
+  redirectUri: string,
+  state: string,
+): string {
+  return client.generateAuthUrl({
+    redirect_uri: redirectUri,
+    access_type: 'offline',
+    scope: OAUTH_SCOPE,
+    state,
+  });
+}
+
+async function authWithUserCode(client: OAuth2Client): Promise<boolean> {
+  const redirectUri = 'https://sdk.cloud.google.com/authcode_cloudcode.html';
   const state = crypto.randomBytes(32).toString('hex');
   const authUrl: string = client.generateAuthUrl({
     redirect_uri: redirectUri,
@@ -135,6 +165,47 @@ async function authWithWeb(client: OAuth2Client): Promise<OauthWebLogin> {
     scope: OAUTH_SCOPE,
     state,
   });
+  console.error('Please visit the following URL to authorize the application:');
+  console.error('');
+  console.error(authUrl);
+  console.error('');
+
+  const code = await new Promise<string>((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question('Enter the authorization code: ', (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+
+  if (!code) {
+    console.error('Authorization code is required.');
+    return false;
+  } else {
+    console.error(`Received authorization code: "${code}"`);
+  }
+
+  try {
+    const { tokens } = await client.getToken({
+      code,
+      redirect_uri: redirectUri,
+    });
+    client.setCredentials(tokens);
+  } catch (_error) {
+    // Consider logging the error.
+    return false;
+  }
+  return true;
+}
+
+async function authWithWeb(client: OAuth2Client): Promise<OauthWebLogin> {
+  const port = await getAvailablePort();
+  const redirectUri = `http://localhost:${port}/oauth2callback`;
+  const state = crypto.randomBytes(32).toString('hex');
+  const authUrl = generateAuthUrl(client, redirectUri, state);
 
   const loginCompletePromise = new Promise<void>((resolve, reject) => {
     const server = http.createServer(async (req, res) => {
