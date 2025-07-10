@@ -261,38 +261,24 @@ export class GeminiClient {
   async *sendMessageStream(
     request: PartListUnion,
     signal: AbortSignal,
-    prompt_id: string,
     turns: number = this.MAX_TURNS,
-    originalModel?: string,
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
     // Ensure turns never exceeds MAX_TURNS to prevent infinite loops
     const boundedTurns = Math.min(turns, this.MAX_TURNS);
     if (!boundedTurns) {
-      return new Turn(this.getChat(), prompt_id);
+      return new Turn(this.getChat());
     }
 
-    // Track the original model from the first call to detect model switching
-    const initialModel = originalModel || this.config.getModel();
-
-    const compressed = await this.tryCompressChat(prompt_id);
-
+    const compressed = await this.tryCompressChat();
     if (compressed) {
       yield { type: GeminiEventType.ChatCompressed, value: compressed };
     }
-    const turn = new Turn(this.getChat(), prompt_id);
+    const turn = new Turn(this.getChat());
     const resultStream = turn.run(request, signal);
     for await (const event of resultStream) {
       yield event;
     }
     if (!turn.pendingToolCalls.length && signal && !signal.aborted) {
-      // Check if model was switched during the call (likely due to quota error)
-      const currentModel = this.config.getModel();
-      if (currentModel !== initialModel) {
-        // Model was switched (likely due to quota error fallback)
-        // Don't continue with recursive call to prevent unwanted Flash execution
-        return turn;
-      }
-
       const nextSpeakerCheck = await checkNextSpeaker(
         this.getChat(),
         this,
@@ -302,13 +288,7 @@ export class GeminiClient {
         const nextRequest = [{ text: 'Please continue.' }];
         // This recursive call's events will be yielded out, but the final
         // turn object will be from the top-level call.
-        yield* this.sendMessageStream(
-          nextRequest,
-          signal,
-          prompt_id,
-          boundedTurns - 1,
-          initialModel,
-        );
+        yield* this.sendMessageStream(nextRequest, signal, boundedTurns - 1);
       }
     }
     return turn;
@@ -318,12 +298,9 @@ export class GeminiClient {
     contents: Content[],
     schema: SchemaUnion,
     abortSignal: AbortSignal,
-    model?: string,
+    model: string = DEFAULT_GEMINI_FLASH_MODEL,
     config: GenerateContentConfig = {},
   ): Promise<Record<string, unknown>> {
-    // Use current model from config instead of hardcoded Flash model
-    const modelToUse =
-      model || this.config.getModel() || DEFAULT_GEMINI_FLASH_MODEL;
     try {
       const userMemory = this.config.getUserMemory();
       const systemInstruction = getCoreSystemPrompt(userMemory);
@@ -335,7 +312,7 @@ export class GeminiClient {
 
       const apiCall = () =>
         this.getContentGenerator().generateContent({
-          model: modelToUse,
+          model,
           config: {
             ...requestConfig,
             systemInstruction,
@@ -346,8 +323,8 @@ export class GeminiClient {
         });
 
       const result = await retryWithBackoff(apiCall, {
-        onPersistent429: async (authType?: string, error?: unknown) =>
-          await this.handleFlashFallback(authType, error),
+        onPersistent429: async (authType?: string) =>
+          await this.handleFlashFallback(authType),
         authType: this.config.getContentGeneratorConfig()?.authType,
       });
 
@@ -434,8 +411,8 @@ export class GeminiClient {
         });
 
       const result = await retryWithBackoff(apiCall, {
-        onPersistent429: async (authType?: string, error?: unknown) =>
-          await this.handleFlashFallback(authType, error),
+        onPersistent429: async (authType?: string) =>
+          await this.handleFlashFallback(authType),
         authType: this.config.getContentGeneratorConfig()?.authType,
       });
       return result;
@@ -495,7 +472,6 @@ export class GeminiClient {
   }
 
   async tryCompressChat(
-    prompt_id: string,
     force: boolean = false,
   ): Promise<ChatCompressionInfo | null> {
     const curatedHistory = this.getChat().getHistory(true);
@@ -542,17 +518,14 @@ export class GeminiClient {
 
     this.getChat().setHistory(historyToCompress);
 
-    const { text: summary } = await this.getChat().sendMessage(
-      {
-        message: {
-          text: 'First, reason in your scratchpad. Then, generate the <state_snapshot>.',
-        },
-        config: {
-          systemInstruction: { text: getCompressionPrompt() },
-        },
+    const { text: summary } = await this.getChat().sendMessage({
+      message: {
+        text: 'First, reason in your scratchpad. Then, generate the <state_snapshot>.',
       },
-      prompt_id,
-    );
+      config: {
+        systemInstruction: { text: getCompressionPrompt() },
+      },
+    });
     this.chat = await this.startChat([
       {
         role: 'user',
@@ -586,10 +559,7 @@ export class GeminiClient {
    * Handles fallback to Flash model when persistent 429 errors occur for OAuth users.
    * Uses a fallback handler if provided by the config, otherwise returns null.
    */
-  private async handleFlashFallback(
-    authType?: string,
-    error?: unknown,
-  ): Promise<string | null> {
+  private async handleFlashFallback(authType?: string): Promise<string | null> {
     // Only handle fallback for OAuth users
     if (authType !== AuthType.LOGIN_WITH_GOOGLE) {
       return null;
@@ -607,18 +577,10 @@ export class GeminiClient {
     const fallbackHandler = this.config.flashFallbackHandler;
     if (typeof fallbackHandler === 'function') {
       try {
-        const accepted = await fallbackHandler(
-          currentModel,
-          fallbackModel,
-          error,
-        );
-        if (accepted !== false && accepted !== null) {
+        const accepted = await fallbackHandler(currentModel, fallbackModel);
+        if (accepted) {
           this.config.setModel(fallbackModel);
           return fallbackModel;
-        }
-        // Check if the model was switched manually in the handler
-        if (this.config.getModel() === fallbackModel) {
-          return null; // Model was switched but don't continue with current prompt
         }
       } catch (error) {
         console.warn('Flash fallback handler failed:', error);

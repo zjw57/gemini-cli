@@ -44,6 +44,10 @@ import {
   DEFAULT_GEMINI_FLASH_MODEL,
 } from './models.js';
 import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
+import { MCPOAuthConfig } from '../mcp/oauth-provider.js';
+
+// Re-export OAuth config type
+export type { MCPOAuthConfig };
 
 export enum ApprovalMode {
   DEFAULT = 'default',
@@ -92,6 +96,16 @@ export class MCPServerConfig {
     readonly description?: string,
     readonly includeTools?: string[],
     readonly excludeTools?: string[],
+    // OAuth configuration
+    readonly oauth?: {
+      enabled: boolean;
+      clientId?: string;
+      clientSecret?: string;
+      authorizationUrl?: string;
+      tokenUrl?: string;
+      scopes?: string[];
+      redirectUri?: string;
+    },
   ) {}
 }
 
@@ -103,8 +117,7 @@ export interface SandboxConfig {
 export type FlashFallbackHandler = (
   currentModel: string,
   fallbackModel: string,
-  error?: unknown,
-) => Promise<boolean | string | null>;
+) => Promise<boolean>;
 
 export interface ConfigParameters {
   sessionId: string;
@@ -183,7 +196,6 @@ export class Config {
   private readonly listExtensions: boolean;
   private readonly _activeExtensions: ActiveExtension[];
   flashFallbackHandler?: FlashFallbackHandler;
-  private quotaErrorOccurred: boolean = false;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -303,14 +315,6 @@ export class Config {
 
   setFlashFallbackHandler(handler: FlashFallbackHandler): void {
     this.flashFallbackHandler = handler;
-  }
-
-  setQuotaErrorOccurred(value: boolean): void {
-    this.quotaErrorOccurred = value;
-  }
-
-  getQuotaErrorOccurred(): boolean {
-    return this.quotaErrorOccurred;
   }
 
   getEmbeddingModel(): string {
