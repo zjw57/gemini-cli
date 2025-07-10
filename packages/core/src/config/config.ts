@@ -110,7 +110,7 @@ export type FlashFallbackHandler = (
   currentModel: string,
   fallbackModel: string,
   error?: unknown,
-) => Promise<boolean>;
+) => Promise<boolean | string | null>;
 
 export interface ConfigParameters {
   sessionId: string;
@@ -189,6 +189,7 @@ export class Config {
   private readonly listExtensions: boolean;
   private readonly _activeExtensions: ActiveExtension[];
   flashFallbackHandler?: FlashFallbackHandler;
+  private quotaErrorOccurred: boolean = false;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -308,6 +309,14 @@ export class Config {
 
   setFlashFallbackHandler(handler: FlashFallbackHandler): void {
     this.flashFallbackHandler = handler;
+  }
+
+  setQuotaErrorOccurred(value: boolean): void {
+    this.quotaErrorOccurred = value;
+  }
+
+  getQuotaErrorOccurred(): boolean {
+    return this.quotaErrorOccurred;
   }
 
   getEmbeddingModel(): string {
