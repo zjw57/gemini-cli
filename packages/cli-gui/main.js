@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const { GeminiClient, GeminiChat, createContentGenerator, AuthType, tokenLimit, ToolConfirmationOutcome } = require('@google/gemini-cli-core');
+const { GeminiClient, GeminiChat, createContentGenerator, AuthType, tokenLimit, ToolConfirmationOutcome, ShellTool } = require('@google/gemini-cli-core');
 const { ApprovalMode } = require('@google/gemini-cli-core/dist/src/config/config.js');
 const { retryWithBackoff } = require('@google/gemini-cli-core/dist/src/utils/retry.js');
 const { loadCliConfig } = require('../cli/dist/src/config/config.js');
@@ -82,6 +82,10 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
+  if (tasks.running.length > 0) {
+    tasks.history.unshift(...tasks.running);
+    tasks.running = [];
+  }
   store.set('tasks', tasks);
   if (process.platform !== 'darwin') app.quit();
 });
@@ -351,4 +355,44 @@ ipcMain.on('clear-history', () => {
     tasks.history = [];
     store.set('tasks', tasks);
     mainWindow.webContents.send('update-tasks', tasks);
+});
+
+ipcMain.on('execute-shell-command', async (event, { taskId, command }) => {
+    const allTasks = [...tasks.running, ...tasks.history];
+    const task = allTasks.find(t => t.id === taskId);
+    if (task) {
+        task.log.push({ sender: 'You', content: `$ ${command}` });
+        const shellTool = new ShellTool(config);
+        try {
+            const { returnDisplay } = await shellTool.execute({ command }, new AbortController().signal);
+            if (returnDisplay) {
+                task.log.push({ sender: 'system', content: returnDisplay });
+            } else {
+                task.log.push({ sender: 'system', content: 'ℹ (Command produced no output)' });
+            }
+        } catch (error) {
+            task.log.push({ sender: 'system', content: `Error executing command: ${error.message}` });
+        } finally {
+            mainWindow.webContents.send('load-chat', task);
+            sendStatusUpdate();
+        }
+    }
+});
+
+ipcMain.on('change-directory', async (event, { taskId, directory, command }) => {
+    const allTasks = [...tasks.running, ...tasks.history];
+    const task = allTasks.find(t => t.id === taskId);
+    if (task) {
+        task.log.push({ sender: 'You', content: `$ ${command}` });
+        try {
+            process.chdir(directory);
+            await initializeChat();
+            task.log.push({ sender: 'system', content: `Changed directory to ${directory}` });
+        } catch (error) {
+            task.log.push({ sender: 'system', content: `Error changing directory: ${error.message}` });
+        } finally {
+            mainWindow.webContents.send('load-chat', task);
+            sendStatusUpdate();
+        }
+    }
 });

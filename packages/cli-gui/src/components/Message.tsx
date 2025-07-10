@@ -9,6 +9,15 @@ import { marked } from 'marked';
 import hljs from 'highlight.js';
 
 const Message = ({ entry }) => {
+  if (entry.sender === 'system') {
+    return (
+      <div className="log-entry system-message">
+        <div className="log-label">{entry.sender}</div>
+        <pre className="log-content"><code>{entry.content}</code></pre>
+      </div>
+    );
+  }
+
   const parsedContent = marked(entry.content, {
     highlight: (code, lang) => {
       const language = hljs.getLanguage(lang) ? lang : 'plaintext';

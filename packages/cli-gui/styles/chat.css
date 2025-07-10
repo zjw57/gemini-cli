@@ -78,6 +78,14 @@
   background-color: #1c1c1e;
 }
 
+.system-message .log-content {
+  background-color: #2c2c2e;
+  padding: 16px;
+  border-radius: 12px;
+  font-family: var(--mono-font-family);
+  white-space: pre-wrap;
+}
+
 .input-area {
   padding: 16px;
 }
@@ -88,6 +96,10 @@
   background-color: #1e1e1e;
   border: 1px solid #333;
   border-radius: 12px;
+}
+
+.input-wrapper.terminal-mode {
+  border: 0.5px solid orange;
 }
 
 .input-wrapper textarea {
@@ -282,6 +294,19 @@ input:checked + .slider:before {
   right: 16px;
   transform: translateY(-50%);
   background-color: var(--primary-color);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.shell-mode-indicator {
+  position: absolute;
+  top: 65%;
+  right: 16px;
+  transform: translateY(-50%);
+  background-color: orange;
   color: white;
   padding: 4px 8px;
   border-radius: 4px;

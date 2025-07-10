@@ -19,6 +19,12 @@ const ChatView = ({ task }) => {
   const [showCheckmark, setShowCheckmark] = useState(false);
   const [toolCall, setToolCall] = useState(null);
   const [acceptingEdits, setAcceptingEdits] = useState(false);
+  const [terminalMode, setTerminalMode] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     setLog(task.log);
@@ -81,7 +87,21 @@ const ChatView = ({ task }) => {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.shiftKey && e.key === 'Tab') {
+      if (e.shiftKey && e.key === '!') {
+        e.preventDefault();
+        setTerminalMode(prev => {
+          const newMode = !prev;
+          if (newMode) {
+            setMessage('!');
+          } else {
+            if (message === '!') {
+              setMessage('');
+            }
+          }
+          return newMode;
+        });
+        inputRef.current?.focus();
+      } else if (e.shiftKey && e.key === 'Tab') {
         e.preventDefault();
         setAcceptingEdits(prev => !prev);
       }
@@ -92,15 +112,32 @@ const ChatView = ({ task }) => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [message]);
+
+  const handleMessageChange = (e) => {
+    const text = e.target.value;
+    setMessage(text);
+  };
 
   const handleSendMessage = () => {
     if (message.trim()) {
+      if (terminalMode) {
+        const command = message.trim().substring(1);
+        if (command.startsWith('cd ')) {
+          const directory = command.substring(3);
+          window.electron.send('change-directory', { taskId: task.id, directory, command: `cd ${directory}` });
+        } else {
+          window.electron.send('execute-shell-command', { taskId: task.id, command });
+        }
+        setMessage('!');
+        return;
+      }
+
       const userMessage = { sender: 'You', content: message };
       const geminiPlaceholder = { sender: 'Gemini', content: '' };
       setLog(prevLog => [...prevLog, userMessage, geminiPlaceholder]);
       window.electron.send('send-message', { taskId: task.id, message, acceptingEdits });
-      setMessage('');
+      setMessage(terminalMode ? '!' : '');
       setIsThinking(true);
       setIsAtBottom(true); // When sending a new message, we want to auto-scroll
     }
@@ -129,6 +166,7 @@ const ChatView = ({ task }) => {
         </button>
         <h1 className="chat-header-title">{task.title}</h1>
         {acceptingEdits && <div className="accepting-edits-indicator">Accepting Edits</div>}
+        {terminalMode && <div className="shell-mode-indicator">Shell Mode</div>}
       </div>
       <div className="chat-container" ref={chatContainerRef} onScroll={handleScroll}>
         {log.map((entry, index) => (
@@ -143,10 +181,11 @@ const ChatView = ({ task }) => {
       </div>
       <ProgressNotifier isActive={isThinking} />
       <div className="input-area">
-        <div className="input-wrapper">
+        <div className={`input-wrapper ${terminalMode ? 'terminal-mode' : ''}`}>
           <textarea
+            ref={inputRef}
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleMessageChange}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
