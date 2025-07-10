@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { OAuth2Client, Credentials, Compute } from 'google-auth-library';
+import {
+  OAuth2Client,
+  Credentials,
+  Compute,
+  CodeChallengeMethod,
+} from 'google-auth-library';
 import * as http from 'http';
 import url from 'url';
 import crypto from 'crypto';
@@ -13,6 +18,7 @@ import open from 'open';
 import path from 'node:path';
 import { promises as fs, existsSync, readFileSync } from 'node:fs';
 import * as os from 'os';
+import { Config } from '../config/config.js';
 import { getErrorMessage } from '../utils/errors.js';
 import { AuthType } from '../core/contentGenerator.js';
 import readline from 'node:readline';
@@ -58,7 +64,7 @@ export interface OauthWebLogin {
 
 export async function getOauthClient(
   authType: AuthType,
-  noBrowser: boolean,
+  config: Config,
 ): Promise<OAuth2Client> {
   const client = new OAuth2Client({
     clientId: OAUTH_CLIENT_ID,
@@ -111,7 +117,7 @@ export async function getOauthClient(
     }
   }
 
-  if (noBrowser) {
+  if (config.getNoBrowser()) {
     let success = false;
     const maxRetries = 2;
     for (let i = 0; !success && i < maxRetries; i++) {
@@ -129,6 +135,7 @@ export async function getOauthClient(
   } else {
     const webLogin = await authWithWeb(client);
 
+    // This does basically nothing, as it isn't show to the user.
     console.log(
       `\n\nCode Assist login required.\n` +
         `Attempting to open authentication page in your browser.\n` +
@@ -143,26 +150,16 @@ export async function getOauthClient(
   return client;
 }
 
-function generateAuthUrl(
-  client: OAuth2Client,
-  redirectUri: string,
-  state: string,
-): string {
-  return client.generateAuthUrl({
-    redirect_uri: redirectUri,
-    access_type: 'offline',
-    scope: OAUTH_SCOPE,
-    state,
-  });
-}
-
 async function authWithUserCode(client: OAuth2Client): Promise<boolean> {
   const redirectUri = 'https://sdk.cloud.google.com/authcode_cloudcode.html';
+  const codeVerifier = await client.generateCodeVerifierAsync();
   const state = crypto.randomBytes(32).toString('hex');
   const authUrl: string = client.generateAuthUrl({
     redirect_uri: redirectUri,
     access_type: 'offline',
     scope: OAUTH_SCOPE,
+    code_challenge_method: CodeChallengeMethod.S256,
+    code_challenge: codeVerifier.codeChallenge,
     state,
   });
   console.error('Please visit the following URL to authorize the application:');
@@ -189,11 +186,12 @@ async function authWithUserCode(client: OAuth2Client): Promise<boolean> {
   }
 
   try {
-    const { tokens } = await client.getToken({
+    const response = await client.getToken({
       code,
+      codeVerifier: codeVerifier.codeVerifier,
       redirect_uri: redirectUri,
     });
-    client.setCredentials(tokens);
+    client.setCredentials(response.tokens);
   } catch (_error) {
     // Consider logging the error.
     return false;
@@ -205,7 +203,12 @@ async function authWithWeb(client: OAuth2Client): Promise<OauthWebLogin> {
   const port = await getAvailablePort();
   const redirectUri = `http://localhost:${port}/oauth2callback`;
   const state = crypto.randomBytes(32).toString('hex');
-  const authUrl = generateAuthUrl(client, redirectUri, state);
+  const authUrl = client.generateAuthUrl({
+    redirect_uri: redirectUri,
+    access_type: 'offline',
+    scope: OAUTH_SCOPE,
+    state,
+  });
 
   const loginCompletePromise = new Promise<void>((resolve, reject) => {
     const server = http.createServer(async (req, res) => {
