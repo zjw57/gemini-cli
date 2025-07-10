@@ -1,8 +1,14 @@
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import StatusBar from './StatusBar';
 import Message from './Message';
 import ToolCallConfirmation from './ToolCallConfirmation';
-import ProgressNotifier from './components/ProgressNotifier';
+import ProgressNotifier from './ProgressNotifier';
 
 const ChatView = ({ task }) => {
   const [log, setLog] = useState(task.log);

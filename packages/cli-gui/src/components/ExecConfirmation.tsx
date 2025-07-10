@@ -1,7 +1,13 @@
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useEffect, useRef } from 'react';
 import hljs from 'highlight.js';
 
-const InfoConfirmation = ({ confirmationDetails, onConfirm }) => {
+const ExecConfirmation = ({ confirmationDetails, onConfirm }) => {
   const { name, args, description } = confirmationDetails;
   const codeRef = useRef(null);
 
@@ -19,8 +25,8 @@ const InfoConfirmation = ({ confirmationDetails, onConfirm }) => {
       <div className="tool-call-body">
         {args && args.description && <p className="tool-description">{args.description}</p>}
         <div className="tool-args">
-          <h5>Arguments:</h5>
-          <pre><code ref={codeRef} className="json">{JSON.stringify(args, null, 2)}</code></pre>
+          <h5>Command:</h5>
+          <pre><code ref={codeRef} className="bash">{args.command}</code></pre>
         </div>
       </div>
       <div className="tool-call-actions">
@@ -32,4 +38,4 @@ const InfoConfirmation = ({ confirmationDetails, onConfirm }) => {
   );
 };
 
-export default InfoConfirmation;
+export default ExecConfirmation;

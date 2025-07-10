@@ -4,7 +4,7 @@ const path = require('path');
 esbuild.build({
   entryPoints: [
     path.resolve(__dirname, 'src/index.tsx'),
-    path.resolve(__dirname, 'src/dashboard.tsx'),
+    path.resolve(__dirname, 'src/components/dashboard.tsx'),
   ],
   bundle: true,
   outdir: path.resolve(__dirname, 'dist'),

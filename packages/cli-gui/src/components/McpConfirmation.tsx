@@ -1,7 +1,13 @@
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useEffect, useRef } from 'react';
 import hljs from 'highlight.js';
 
-const EditConfirmation = ({ confirmationDetails, onConfirm }) => {
+const McpConfirmation = ({ confirmationDetails, onConfirm }) => {
   const { name, args, description } = confirmationDetails;
   const codeRef = useRef(null);
 
@@ -19,18 +25,17 @@ const EditConfirmation = ({ confirmationDetails, onConfirm }) => {
       <div className="tool-call-body">
         {args && args.description && <p className="tool-description">{args.description}</p>}
         <div className="tool-args">
-          <h5>File Diff:</h5>
-          <pre><code ref={codeRef} className="diff">{args.fileDiff}</code></pre>
+          <h5>Arguments:</h5>
+          <pre><code ref={codeRef} className="json">{JSON.stringify(args, null, 2)}</code></pre>
         </div>
       </div>
       <div className="tool-call-actions">
         <button className="approve-button" onClick={() => onConfirm('proceed_once')}>Yes, allow once</button>
         <button className="approve-button" onClick={() => onConfirm('proceed_always')}>Yes, allow always</button>
-        <button className="modify-button" onClick={() => onConfirm('modify_with_editor')}>Modify with external editor</button>
         <button className="deny-button" onClick={() => onConfirm('cancel')}>No</button>
       </div>
     </div>
   );
 };
 
-export default EditConfirmation;
+export default McpConfirmation;
