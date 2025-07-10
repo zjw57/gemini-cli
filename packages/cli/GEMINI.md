@@ -1,5 +1,7 @@
 # packages/cli
 
+This file provides an overview of the contents of `packages/cli`.
+
 ## File Tree
 
 ```
@@ -243,6 +245,8 @@ packages/cli/
 ```
 
 ## File Summaries
+
+This section provides a summary of each major file in the `packages/cli` directory.
 
 ### `packages/cli/src/config/auth.ts`
 

@@ -1,8 +1,5 @@
 ## Preface
 
-Import the contents of the `GEMINI-cli.md` file.
-After importing, tell me which files have you read before every task.
-
 ## Building and running
 
 Before submitting any changes, it is crucial to validate them by running the full preflight check. This command will build the repository, run all tests, check for type errors, and lint the code.
