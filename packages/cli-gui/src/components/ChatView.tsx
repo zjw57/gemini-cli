@@ -9,6 +9,7 @@ import StatusBar from './StatusBar';
 import Message from './Message';
 import ToolCallConfirmation from './ToolCallConfirmation';
 import ProgressNotifier from './ProgressNotifier';
+import { ContextSummaryDisplay } from './ContextSummaryDisplay';
 
 const ChatView = ({ task }) => {
   const [log, setLog] = useState(task.log);
@@ -181,6 +182,11 @@ const ChatView = ({ task }) => {
       </div>
       <ProgressNotifier isActive={isThinking} />
       <div className="input-area">
+        <ContextSummaryDisplay
+          geminiMdFileCount={task.config.geminiMdFileCount}
+          contextFileNames={task.config.contextFileNames}
+          mcpServers={task.config.mcpServers}
+        />
         <div className={`input-wrapper ${terminalMode ? 'terminal-mode' : ''}`}>
           <textarea
             ref={inputRef}

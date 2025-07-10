@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const { GeminiClient, GeminiChat, createContentGenerator, AuthType, tokenLimit, ToolConfirmationOutcome, ShellTool } = require('@google/gemini-cli-core');
+const { GeminiClient, GeminiChat, createContentGenerator, AuthType, tokenLimit, ToolConfirmationOutcome, ShellTool, getAllGeminiMdFilenames } = require('@google/gemini-cli-core');
 const { ApprovalMode } = require('@google/gemini-cli-core/dist/src/config/config.js');
 const { retryWithBackoff } = require('@google/gemini-cli-core/dist/src/utils/retry.js');
 const { loadCliConfig } = require('../cli/dist/src/config/config.js');
@@ -173,6 +173,12 @@ ipcMain.on('navigate-to-chat', (event, taskId) => {
     const allTasks = [...tasks.running, ...tasks.favorites, ...tasks.history];
     const task = allTasks.find(t => t.id === taskId);
     if (task) {
+        if (!task.config) {
+            task.config = {};
+        }
+        task.config.geminiMdFileCount = config.getGeminiMdFileCount();
+        task.config.contextFileNames = getAllGeminiMdFilenames();
+        task.config.mcpServers = config.getMcpServers();
         mainWindow.loadFile('chat.html');
         mainWindow.webContents.once('did-finish-load', () => {
             mainWindow.webContents.send('load-chat', task);
@@ -187,7 +193,12 @@ ipcMain.on('create-new-task', () => {
         title: 'New Task',
         description: 'A new task session.',
         timestamp: 'Just now',
-        log: [{ sender: 'Gemini', content: 'Hello! How can I help you today?' }]
+        log: [{ sender: 'Gemini', content: 'Hello! How can I help you today?' }],
+        config: {
+            geminiMdFileCount: config.getGeminiMdFileCount(),
+            contextFileNames: getAllGeminiMdFilenames(),
+            mcpServers: config.getMcpServers(),
+        }
     };
     tasks.running.unshift(newTask);
     mainWindow.loadFile('chat.html');
@@ -246,6 +257,12 @@ ipcMain.on('send-message', async (event, { taskId, message, acceptingEdits }) =>
             console.error(error);
             task.log.pop(); // Remove the empty Gemini message
             task.log.push({ sender: 'Gemini', content: `Error: ${error.message}` });
+            if (!task.config) {
+                task.config = {};
+            }
+            task.config.geminiMdFileCount = config.getGeminiMdFileCount();
+            task.config.contextFileNames = getAllGeminiMdFilenames();
+            task.config.mcpServers = config.getMcpServers();
             mainWindow.webContents.send('load-chat', task);
             mainWindow.webContents.send('response-received');
         } finally {

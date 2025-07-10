@@ -90,6 +90,14 @@
   padding: 16px;
 }
 
+.context-summary-display {
+  text-align: left;
+  font-size: 12px;
+  color: #8e8e93;
+  padding-bottom: 8px;
+  padding-left: 14px
+}
+
 .input-wrapper {
   display: flex;
   align-items: center;
