@@ -58,13 +58,9 @@ This project uses **Vitest** as its primary testing framework. When writing test
 
 
 ### Running Tests
-**Full Suite:** To run the entire test suite, along with building, linting, and type-checking, use the preflight command. This is required before submitting changes.
 
-`npm run preflight`
-
-**Single Test File:** For a faster feedback loop during development (TDD), you can run a single test file directly using `vitest`.
-
-`npx vitest run <path/to/your.test.ts>`
+1. **Full Suite:** To run the entire test suite, along with building, linting, and type-checking, use the preflight command. This is required before submitting changes. Example: `npm run preflight`
+2. **Single Test File:** For a faster feedback loop during development (TDD), you can run a single test file directly using `vitest`. Example: `npx vitest run <path/to/your.test.ts>`
 
 ### Test File Quick Start
 
