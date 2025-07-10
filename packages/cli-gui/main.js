@@ -13,6 +13,7 @@ const simpleGit = require('simple-git');
 const store = new Store();
 const pendingToolCalls = new Map();
 let mainWindow;
+let initialWorkspaceRoot;
 
 // Centralized state with logs for each task
 const tasks = store.get('tasks', {
@@ -33,6 +34,9 @@ let client;
 
 async function initializeChat() {
     const workspaceRoot = path.join(__dirname, '../..'); // project root
+    if (!initialWorkspaceRoot) {
+        initialWorkspaceRoot = workspaceRoot;
+    }
     const settings = loadSettings(workspaceRoot);
     const extensions = loadExtensions(workspaceRoot);
     const sessionId = `desktop-app-${Date.now()}`;
@@ -192,7 +196,7 @@ ipcMain.on('create-new-task', () => {
         id: newTaskId,
         title: 'New Task',
         description: 'A new task session.',
-        timestamp: 'Just now',
+        timestamp: new Date().toISOString(),
         log: [{ sender: 'Gemini', content: 'Hello! How can I help you today?' }],
         config: {
             geminiMdFileCount: config.getGeminiMdFileCount(),
@@ -346,7 +350,7 @@ ipcMain.on('stop-task', (event, taskId) => {
     const taskIndex = tasks.running.findIndex(t => t.id === taskId);
     if (taskIndex > -1) {
         const [task] = tasks.running.splice(taskIndex, 1);
-        task.timestamp = 'Just now';
+        task.timestamp = new Date().toISOString();
         tasks.history.unshift(task);
         chatInstances.delete(taskId);
         mainWindow.webContents.send('update-tasks', tasks);
@@ -402,9 +406,14 @@ ipcMain.on('change-directory', async (event, { taskId, directory, command }) => 
     if (task) {
         task.log.push({ sender: 'You', content: `$ ${command}` });
         try {
-            process.chdir(directory);
-            await initializeChat();
-            task.log.push({ sender: 'system', content: `Changed directory to ${directory}` });
+            const newPath = path.resolve(process.cwd(), directory);
+            if (!newPath.startsWith(initialWorkspaceRoot)) {
+                task.log.push({ sender: 'system', content: `WARNING: Cannot cd outside of project root (${initialWorkspaceRoot})` });
+            } else {
+                process.chdir(newPath);
+                await initializeChat();
+                task.log.push({ sender: 'system', content: `Changed directory to ${newPath}` });
+            }
         } catch (error) {
             task.log.push({ sender: 'system', content: `Error changing directory: ${error.message}` });
         } finally {
