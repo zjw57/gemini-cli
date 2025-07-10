@@ -95,6 +95,7 @@ describe('MyFunction', () => {
    });
 });
 ```
+**IMPORTANT:** Always test from the user's perspective. simulate user actions as closely as possible. For example, instead of programmatically calling props.buffer.setText(), a better test would simulate the actual keypresses for "h", "e", "l", "l", "o", etc. 
 
 ## Git Repo
 
