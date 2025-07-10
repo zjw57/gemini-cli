@@ -5,7 +5,11 @@
  */
 
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import AsciiLogo from './AsciiLogo';
 
-ReactDOM.render(<AsciiLogo />, document.getElementById('logo-container'));
+const container = document.getElementById('logo-container');
+if (container) {
+  const root = createRoot(container);
+  root.render(<AsciiLogo />);
+}
