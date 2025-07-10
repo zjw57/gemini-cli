@@ -56,6 +56,46 @@ This project uses **Vitest** as its primary testing framework. When writing test
 - When adding tests, first examine existing tests to understand and conform to established conventions.
 - Pay close attention to the mocks at the top of existing test files; they reveal critical dependencies and how they are managed in a test environment.
 
+
+### Running Tests
+**Full Suite:** To run the entire test suite, along with building, linting, and type-checking, use the preflight command. This is required before submitting changes.
+
+`npm run preflight`
+
+**Single Test File:** For a faster feedback loop during development (TDD), you can run a single test file directly using `vitest`.
+
+`npx vitest run <path/to/your.test.ts>`
+
+### Test File Quick Start
+
+When creating a new test file, ensure you import the necessary functions from Vitest.
+
+```
+/**
+   * @license
+   * Copyright 2025 Google LLC
+   * SPDX-License-Identifier: Apache-2.0
+*/
+
+
+// Essential imports for a test file
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Other necessary imports for your test...
+import { MyFunction } from './MyFunction.js';
+
+describe('MyFunction', () => {
+   beforeEach(() => {
+   vi.resetAllMocks();
+   });
+
+   it('should do something correctly', () => {
+   // ... test logic
+   expect(MyFunction()).toBe(true);
+   });
+});
+```
+
 ## Git Repo
 
 The main branch for this project is called "main"
