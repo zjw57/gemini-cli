@@ -132,11 +132,10 @@ export class ScratchpadAgentTool extends BaseTool<
         runConfig,
       );
 
-      const originalProcessFunctionCalls = (
-        orchestrator as SubAgentScope
-      ).processFunctionCalls.bind(orchestrator);
+      const originalProcessFunctionCalls =
+        orchestrator.processFunctionCalls.bind(orchestrator);
 
-      (orchestrator as any).processFunctionCalls = async (
+      orchestrator.processFunctionCalls = async (
         functionCalls: FunctionCall[],
         toolRegistry: ToolRegistry,
         abortController: AbortController,

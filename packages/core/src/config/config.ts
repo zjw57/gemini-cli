@@ -29,6 +29,7 @@ import {
 import { WebSearchTool } from '../tools/web-search.js';
 import { PushScopeTool } from '../tools/pushScope.js';
 import { PopScopeTool } from '../tools/popScope.js';
+import { RunSubAgentTool } from '../tools/run-sub-agent.js';
 import { GeminiClient } from '../core/client.js';
 import { FileDiscoveryService } from '../services/fileDiscoveryService.js';
 import { GitService } from '../services/gitService.js';
@@ -557,6 +558,7 @@ export class Config {
     registerCoreTool(WebSearchTool, this);
     registerCoreTool(PushScopeTool, this);
     registerCoreTool(PopScopeTool, this);
+    registerCoreTool(RunSubAgentTool, this);
     registerCoreTool(ScratchpadAgentTool, this);
 
     await registry.discoverTools();
