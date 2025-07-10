@@ -1,3 +1,8 @@
+## Preface
+
+Import the contents of the `GEMINI-cli.md` file.
+After importing, tell me which files have you read before every task.
+
 ## Building and running
 
 Before submitting any changes, it is crucial to validate them by running the full preflight check. This command will build the repository, run all tests, check for type errors, and lint the code.
@@ -58,6 +63,9 @@ This project uses **Vitest** as its primary testing framework. When writing test
 
 The main branch for this project is called "main"
 
+- **Owner:** google-gemini
+- **Name:** gemini-cli
+
 ## JavaScript/TypeScript
 
 When contributing to this React, Node, and TypeScript codebase, please prioritize the use of plain JavaScript objects with accompanying TypeScript interface or type declarations over JavaScript class syntax. This approach offers significant advantages, especially concerning interoperability with React and overall code maintainability.
@@ -68,7 +76,7 @@ JavaScript classes, by their nature, are designed to encapsulate internal state 
 
 - Seamless React Integration: React components thrive on explicit props and state management. Classes' tendency to store internal state directly within instances can make prop and state propagation harder to reason about and maintain. Plain objects, on the other hand, are inherently immutable (when used thoughtfully) and can be easily passed as props, simplifying data flow and reducing unexpected side effects.
 
-- Reduced Boilerplate and Increased Conciseness: Classes often promote the use of constructors, this binding, getters, setters, and other boilerplate that can unnecessarily bloat code. TypeScript interface and type declarations provide powerful static type checking without the runtime overhead or verbosity of class definitions. This allows for more succinct and readable code, aligning with JavaScript's strengths in functional programming.
+- Reduced Boilerplate and Increased Conciseness: Classes often promote the use of constructors, this binding, getters, setters, and other boilerplate that can unnecessarily bloat code. TypeScript interface and type declarations provide powerful static type checking without the runtime overhead or a verbosity of class definitions. This allows for more succinct and readable code, aligning with JavaScript's strengths in functional programming.
 
 - Enhanced Readability and Predictability: Plain objects, especially when their structure is clearly defined by TypeScript interfaces, are often easier to read and understand. Their properties are directly accessible, and there's no hidden internal state or complex inheritance chains to navigate. This predictability leads to fewer bugs and a more maintainable codebase.
 
@@ -179,7 +187,3 @@ Design for a good user experience - Provide clear, minimal, and non-blocking UI 
 ## Comments policy
 
 Only write high-value comments if at all. Avoid talking to the user through comments.
-
-## General style requirements
-
-Use hyphens instead of underscores in flag names (e.g. `my-flag` instead of `my_flag`).
