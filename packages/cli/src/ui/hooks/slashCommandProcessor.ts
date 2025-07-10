@@ -18,6 +18,7 @@ import {
   MCPServerStatus,
   getMCPDiscoveryState,
   getMCPServerStatus,
+  getErrorMessage,
 } from '@google/gemini-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import {
@@ -215,6 +216,91 @@ export const useSlashCommandProcessor = (
     }
   }, [config]);
 
+  // Handler for MCP authentication
+  const handleMCPAuth = async (serverName?: string) => {
+    const mcpServers = config?.getMcpServers() || {};
+    
+    if (!serverName) {
+      // List servers that support OAuth
+      const oauthServers = Object.entries(mcpServers)
+        .filter(([_, server]) => server.oauth?.enabled)
+        .map(([name, _]) => name);
+      
+      if (oauthServers.length === 0) {
+        addMessage({
+          type: MessageType.INFO,
+          content: 'No MCP servers configured with OAuth authentication.',
+          timestamp: new Date(),
+        });
+        return;
+      }
+      
+      addMessage({
+        type: MessageType.INFO,
+        content: `MCP servers with OAuth authentication:\n${oauthServers.map(s => `  - ${s}`).join('\n')}\n\nUse /mcp auth <server-name> to authenticate.`,
+        timestamp: new Date(),
+      });
+      return;
+    }
+    
+    const server = mcpServers[serverName];
+    if (!server) {
+      addMessage({
+        type: MessageType.ERROR,
+        content: `MCP server '${serverName}' not found.`,
+        timestamp: new Date(),
+      });
+      return;
+    }
+    
+    // Always attempt OAuth authentication, even if not explicitly configured
+    // The authentication process will discover OAuth requirements automatically
+    
+    try {
+      addMessage({
+        type: MessageType.INFO,
+        content: `Starting OAuth authentication for MCP server '${serverName}'...`,
+        timestamp: new Date(),
+      });
+      
+      // Import dynamically to avoid circular dependencies
+      const { MCPOAuthProvider } = await import('@google/gemini-cli-core');
+      
+      // Create OAuth config for authentication (will be discovered automatically)
+      const oauthConfig = server.oauth || {
+        authorizationUrl: '', // Will be discovered automatically
+        tokenUrl: '', // Will be discovered automatically
+      };
+      
+      // Pass the MCP server URL for OAuth discovery
+      const mcpServerUrl = server.httpUrl;
+      await MCPOAuthProvider.authenticate(serverName, oauthConfig, mcpServerUrl);
+      
+      addMessage({
+        type: MessageType.INFO,
+        content: `✅ Successfully authenticated with MCP server '${serverName}'!`,
+        timestamp: new Date(),
+      });
+      
+      // Trigger tool re-discovery to pick up authenticated server
+      const toolRegistry = await config?.getToolRegistry();
+      if (toolRegistry) {
+        addMessage({
+          type: MessageType.INFO,
+          content: `Re-discovering tools from '${serverName}'...`,
+          timestamp: new Date(),
+        });
+        await toolRegistry.discoverTools();
+      }
+    } catch (error) {
+      addMessage({
+        type: MessageType.ERROR,
+        content: `Failed to authenticate with MCP server '${serverName}': ${getErrorMessage(error)}`,
+        timestamp: new Date(),
+      });
+    }
+  };
+
   // Define legacy commands
   // This list contains all commands that have NOT YET been migrated to the
   // new system. As commands are migrated, they are removed from this list.
@@ -296,8 +382,14 @@ export const useSlashCommandProcessor = (
       },
       {
         name: 'mcp',
-        description: 'list configured MCP servers and tools',
+        description: 'list configured MCP servers and tools, or authenticate with OAuth-enabled servers (use /mcp auth)',
         action: async (_mainCommand, _subCommand, _args) => {
+          // Check if this is an auth command
+          if (_subCommand === 'auth') {
+            await handleMCPAuth(_args);
+            return;
+          }
+          
           // Check if the _subCommand includes a specific flag to control description visibility
           let useShowDescriptions = showToolDescriptions;
           if (_subCommand === 'desc' || _subCommand === 'descriptions') {
@@ -369,34 +461,73 @@ export const useSlashCommandProcessor = (
 
           message += 'Configured MCP servers:\n\n';
 
-          for (const serverName of serverNames) {
+          for (const [serverName, serverConfig] of Object.entries(mcpServers)) {
+            const serverStatus = getMCPServerStatus(serverName);
+            let statusIcon = '';
+            let statusText = '';
+
+            switch (serverStatus) {
+              case MCPServerStatus.CONNECTED:
+                statusIcon = '\u001b[32m✓\u001b[0m'; // Green checkmark
+                statusText = 'Connected';
+                break;
+              case MCPServerStatus.CONNECTING:
+                statusIcon = '\u001b[33m⏳\u001b[0m'; // Yellow hourglass
+                statusText = 'Connecting...';
+                break;
+              case MCPServerStatus.DISCONNECTED:
+                statusIcon = '\u001b[31m✗\u001b[0m'; // Red X
+                statusText = 'Disconnected';
+                break;
+              default:
+                statusIcon = '\u001b[90m?\u001b[0m'; // Gray question mark
+                statusText = 'Unknown';
+            }
+
+            message += `${statusIcon} ${serverName}: ${statusText}`;
+            
+            // Add OAuth status if applicable
+            if (serverConfig.oauth?.enabled) {
+              const { MCPOAuthTokenStorage } = await import('@google/gemini-cli-core');
+              const hasToken = await MCPOAuthTokenStorage.getToken(serverName);
+              if (hasToken) {
+                const isExpired = MCPOAuthTokenStorage.isTokenExpired(hasToken.token);
+                if (isExpired) {
+                  message += ' \u001b[33m(OAuth token expired)\u001b[0m';
+                } else {
+                  message += ' \u001b[32m(OAuth authenticated)\u001b[0m';
+                }
+              } else {
+                message += ' \u001b[31m(OAuth not authenticated)\u001b[0m';
+              }
+            }
+            
+            message += '\n';
+
             const serverTools = toolRegistry.getToolsByServer(serverName);
             const status = getMCPServerStatus(serverName);
 
             // Add status indicator with descriptive text
             let statusIndicator = '';
-            let statusText = '';
+            let detailedStatus = '';
             switch (status) {
               case MCPServerStatus.CONNECTED:
                 statusIndicator = '🟢';
-                statusText = 'Ready';
+                detailedStatus = 'Ready';
                 break;
               case MCPServerStatus.CONNECTING:
                 statusIndicator = '🔄';
-                statusText = 'Starting... (first startup may take longer)';
+                detailedStatus = 'Starting... (first startup may take longer)';
                 break;
               case MCPServerStatus.DISCONNECTED:
               default:
                 statusIndicator = '🔴';
-                statusText = 'Disconnected';
+                detailedStatus = 'Disconnected';
                 break;
             }
 
-            // Get server description if available
-            const server = mcpServers[serverName];
-
             // Format server header with bold formatting and status
-            message += `${statusIndicator} \u001b[1m${serverName}\u001b[0m - ${statusText}`;
+            message += `${statusIndicator} \u001b[1m${serverName}\u001b[0m - ${detailedStatus}`;
 
             // Add tool count with conditional messaging
             if (status === MCPServerStatus.CONNECTED) {
@@ -408,11 +539,11 @@ export const useSlashCommandProcessor = (
             }
 
             // Add server description with proper handling of multi-line descriptions
-            if ((useShowDescriptions || useShowSchema) && server?.description) {
+            if ((useShowDescriptions || useShowSchema) && serverConfig?.description) {
               const greenColor = '\u001b[32m';
               const resetColor = '\u001b[0m';
 
-              const descLines = server.description.trim().split('\n');
+              const descLines = serverConfig.description.trim().split('\n');
               if (descLines) {
                 message += ':\n';
                 for (const descLine of descLines) {
@@ -880,8 +1011,7 @@ export const useSlashCommandProcessor = (
           try {
             const compressed = await config!
               .getGeminiClient()!
-              // TODO: Set Prompt id for CompressChat from SlashCommandProcessor.
-              .tryCompressChat('Prompt Id not set', true);
+              .tryCompressChat(true);
             if (compressed) {
               addMessage({
                 type: MessageType.COMPRESSION,
