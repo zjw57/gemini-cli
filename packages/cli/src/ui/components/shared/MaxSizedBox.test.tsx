@@ -247,6 +247,7 @@ Line 3`);
 🐶🐶
 🐶`);
   });
+
   it('falls back to an ellipsis when width is extremely small', () => {
     const { lastFrame } = render(
       <OverflowProvider>
@@ -291,6 +292,7 @@ Line 3`);
 
     expect(lastFrame()).equals(`A\n…`);
   });
+
   it('truncates emoji characters correctly with ellipsis', () => {
     const { lastFrame } = render(
       <OverflowProvider>
@@ -302,6 +304,7 @@ Line 3`);
         </MaxSizedBox>
       </OverflowProvider>,
     );
+  });
 
   it('shows ellipsis for multiple rows with long non-wrapping text', () => {
     const { lastFrame } = render(
@@ -325,6 +328,7 @@ Line 3`);
 
     expect(lastFrame()).equals(`AA…\nBB…\nCC…`);
   });
+
   it('accounts for additionalHiddenLinesCount', () => {
     const { lastFrame } = render(
       <OverflowProvider>

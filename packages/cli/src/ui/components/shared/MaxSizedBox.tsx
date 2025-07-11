@@ -11,7 +11,6 @@ import { Colors } from '../../colors.js';
 import { toCodePoints, cpSlice } from '../../utils/textUtils.js';
 import { useOverflowActions } from '../../contexts/OverflowContext.js';
 
-
 let enableDebugLog = false;
 
 /**
