@@ -304,6 +304,8 @@ Line 3`);
         </MaxSizedBox>
       </OverflowProvider>,
     );
+
+    expect(lastFrame()).equals(`🐶…`);
   });
 
   it('shows ellipsis for multiple rows with long non-wrapping text', () => {
