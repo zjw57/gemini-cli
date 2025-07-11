@@ -45,7 +45,7 @@ This will be a major project. I want you to thoroughly analyze the problem,
 understand the existing code and current implementations of keybindings within
 the codebase, and help us decide whether this project is feasible.
 
-In particular, I'd like to know if we can reimplement *all* existing logic
+In particular, I'd like to know if we can reimplement _all_ existing logic
 without making breaking changes. I don't want to get partway down this path
 only to discover during a rewrite that some critical existing piece of
 functionality will no longer work.
@@ -81,7 +81,6 @@ system will consist of:
 ### **2. Plan**
 
 1. **Create the Keybinding Registry:**
-
    - Define a `Keybinding` interface with properties like `name`,
      `description`, `callback`, and `defaultKey`.
    - Implement a `KeybindingRegistry` class with methods to `register` and
@@ -89,7 +88,6 @@ system will consist of:
    - The registry will be a singleton, accessible throughout the application.
 
 1. **Implement the Keybinding Service:**
-
    - Create a `KeybindingService` that reads the keybinding configuration from
      a file.
    - The service will use a single `useInput` hook at the top level of the
@@ -98,7 +96,6 @@ system will consist of:
      in the configuration and execute the callback from the registry.
 
 1. **Refactor Existing Keybindings:**
-
    - Gradually refactor existing `useInput` hooks to use the new keybinding
      system.
    - For each keybinding, register it with the `KeybindingRegistry` and add an
@@ -106,7 +103,6 @@ system will consist of:
    - This can be done component by component to minimize disruption.
 
 1. **Implement Keybinding Discovery:**
-
    - Add a `/help` command or a dedicated help view that displays all
      registered keybindings and their current assignments. This will use the
      information from the `KeybindingRegistry`.
