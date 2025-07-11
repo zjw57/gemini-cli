@@ -321,3 +321,16 @@ input:checked + .slider:before {
   font-size: 12px;
   font-weight: 600;
 }
+
+.yolo-mode-indicator {
+  position: absolute;
+  top: 65%;
+  right: 16px;
+  transform: translateY(-50%);
+  background-color: #ff3b30;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}

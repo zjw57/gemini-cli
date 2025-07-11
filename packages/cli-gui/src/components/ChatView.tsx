@@ -20,6 +20,7 @@ const ChatView = ({ task }) => {
   const [toolCall, setToolCall] = useState(task.pendingToolCall || null);
   const [acceptingEdits, setAcceptingEdits] = useState(false);
   const [terminalMode, setTerminalMode] = useState(false);
+  const [yoloMode, setYoloMode] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -113,6 +114,9 @@ const ChatView = ({ task }) => {
       } else if (e.shiftKey && e.key === 'Tab') {
         e.preventDefault();
         setAcceptingEdits(prev => !prev);
+      } else if (e.shiftKey && e.key === 'Y') {
+        e.preventDefault();
+        setYoloMode(prev => !prev);
       }
     };
 
@@ -166,6 +170,12 @@ const ChatView = ({ task }) => {
     setToolCall(null);
   };
 
+  useEffect(() => {
+    if (yoloMode && toolCall) {
+      handleConfirmToolCall('proceed_once');
+    }
+  }, [yoloMode, toolCall, handleConfirmToolCall]);
+
   return (
     <div className="chat-wrapper">
       <div className="chat-header">
@@ -175,12 +185,13 @@ const ChatView = ({ task }) => {
         <h1 className="chat-header-title">{task.title}</h1>
         {acceptingEdits && <div className="accepting-edits-indicator">Accepting Edits</div>}
         {terminalMode && <div className="shell-mode-indicator">Shell Mode</div>}
+        {yoloMode && <div className="yolo-mode-indicator">YOLO Mode</div>}
       </div>
       <div className="chat-container" ref={chatContainerRef} onScroll={handleScroll}>
         {log.map((entry, index) => (
           <Message key={index} entry={entry} />
         ))}
-        {toolCall && (
+        {toolCall && !yoloMode && (
           <ToolCallConfirmation
             toolCall={toolCall}
             onConfirm={handleConfirmToolCall}
