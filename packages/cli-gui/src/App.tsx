@@ -15,8 +15,18 @@ const App = () => {
       setTask(task);
     });
 
+    window.electron.on('update-task-state', (updatedTask) => {
+      setTask(currentTask => {
+        if (currentTask && currentTask.id === updatedTask.id) {
+          return updatedTask;
+        }
+        return currentTask;
+      });
+    });
+
     return () => {
       window.electron.removeAllListeners('load-chat');
+      window.electron.removeAllListeners('update-task-state');
     };
   }, []);
 

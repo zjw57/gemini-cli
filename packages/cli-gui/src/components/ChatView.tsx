@@ -16,12 +16,34 @@ const ChatView = ({ task }) => {
   const [message, setMessage] = useState('');
   const chatContainerRef = useRef(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
-  const [isThinking, setIsThinking] = useState(false);
   const [showCheckmark, setShowCheckmark] = useState(false);
-  const [toolCall, setToolCall] = useState(null);
+  const [toolCall, setToolCall] = useState(task.pendingToolCall || null);
   const [acceptingEdits, setAcceptingEdits] = useState(false);
   const [terminalMode, setTerminalMode] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    let interval;
+    if (task.isThinking) {
+      const start = new Date(task.startTime);
+      const now = new Date();
+      setElapsedTime(Math.round((now.getTime() - start.getTime()) / 1000));
+      interval = setInterval(() => {
+        const start = new Date(task.startTime);
+        const now = new Date();
+        setElapsedTime(Math.round((now.getTime() - start.getTime()) / 1000));
+      }, 1000);
+    } else {
+      setElapsedTime(0);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [task.isThinking, task.startTime]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -32,27 +54,10 @@ const ChatView = ({ task }) => {
   }, [task.log]);
 
   useEffect(() => {
-    const handleStreamChunk = ({ chunk }) => {
-      setLog(prevLog => {
-        const newLog = [...prevLog];
-        const lastMessage = newLog[newLog.length - 1];
-        if (lastMessage && lastMessage.sender === 'Gemini') {
-          lastMessage.content += chunk;
-        }
-        return newLog;
-      });
-    };
-
-    window.electron.on('stream-chunk', handleStreamChunk);
-
-    return () => {
-      window.electron.removeAllListeners('stream-chunk');
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleStreamEnd = () => {
-      setIsThinking(false);
+    const handleStreamEnd = ({ taskId }) => {
+      if (taskId !== task.id) return;
+      // The isThinking state is now derived from task.isThinking,
+      // so we don't need to set it here.
     };
 
     window.electron.on('response-received', handleStreamEnd);
@@ -60,10 +65,11 @@ const ChatView = ({ task }) => {
     return () => {
       window.electron.removeAllListeners('response-received');
     };
-  }, []);
+  }, [task.id]);
 
   useEffect(() => {
-    const handleToolCall = (toolCall) => {
+    const handleToolCall = ({ taskId, toolCall }) => {
+      if (taskId !== task.id) return;
       setToolCall(toolCall);
     };
 
@@ -72,7 +78,7 @@ const ChatView = ({ task }) => {
     return () => {
       window.electron.removeAllListeners('tool-call');
     };
-  }, []);
+  }, [task.id]);
 
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
@@ -139,7 +145,6 @@ const ChatView = ({ task }) => {
       setLog(prevLog => [...prevLog, userMessage, geminiPlaceholder]);
       window.electron.send('send-message', { taskId: task.id, message, acceptingEdits });
       setMessage(terminalMode ? '!' : '');
-      setIsThinking(true);
       setIsAtBottom(true); // When sending a new message, we want to auto-scroll
     }
   };
@@ -180,7 +185,7 @@ const ChatView = ({ task }) => {
           />
         )}
       </div>
-      <ProgressNotifier isActive={isThinking} />
+      <ProgressNotifier isActive={task.isThinking} elapsedTime={elapsedTime} />
       <div className="input-area">
         <ContextSummaryDisplay
           geminiMdFileCount={task.config.geminiMdFileCount}
@@ -201,7 +206,7 @@ const ChatView = ({ task }) => {
             placeholder="Enter your command..."
             rows="1"
           />
-          <button onClick={handleSendMessage} disabled={isThinking}>Send</button>
+          <button onClick={handleSendMessage} disabled={task.isThinking}>Send</button>
           {showCheckmark && (
             <svg className="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
               <circle className="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>

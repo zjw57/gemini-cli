@@ -12,6 +12,7 @@ const simpleGit = require('simple-git');
 
 const store = new Store();
 const pendingToolCalls = new Map();
+const chatInstances = new Map();
 let mainWindow;
 let initialWorkspaceRoot;
 
@@ -132,7 +133,7 @@ async function sendStatusUpdate() {
     }
 }
 
-async function handleStream(stream, task) {
+async function handleStream(stream, task, taskId) {
     let toolCallOccurred = false;
     // Ensure there's an empty Gemini message to populate
     if (task.log.length === 0 || task.log[task.log.length - 1].sender !== 'Gemini' || task.log[task.log.length - 1].content !== '') {
@@ -144,7 +145,7 @@ async function handleStream(stream, task) {
         for (const part of parts) {
             if (part.text) {
                 task.log[task.log.length - 1].content += part.text;
-                mainWindow.webContents.send('stream-chunk', { chunk: part.text });
+                mainWindow.webContents.send('update-task-state', task);
             }
             if (part.functionCall) {
                 toolCallOccurred = true;
@@ -164,7 +165,8 @@ async function handleStream(stream, task) {
                     description: tool?.description || '',
                     taskId: task.id,
                 };
-                mainWindow.webContents.send('tool-call', confirmationDetails);
+                task.pendingToolCall = confirmationDetails;
+                mainWindow.webContents.send('tool-call', { taskId: task.id, toolCall: confirmationDetails });
             }
         }
     }
@@ -177,6 +179,19 @@ ipcMain.on('navigate-to-chat', (event, taskId) => {
     const allTasks = [...tasks.running, ...tasks.favorites, ...tasks.history];
     const task = allTasks.find(t => t.id === taskId);
     if (task) {
+        if (!chatInstances.has(taskId)) {
+            const newChat = client.getChat();
+            newChat.history = task.log.map(logEntry => {
+                if (logEntry.sender === 'You') {
+                    return { role: 'user', parts: [{ text: logEntry.content }] };
+                } else if (logEntry.sender === 'Gemini' && logEntry.content) {
+                    return { role: 'model', parts: [{ text: logEntry.content }] };
+                }
+                return null;
+            }).filter(Boolean);
+            chatInstances.set(taskId, newChat);
+        }
+
         if (!task.config) {
             task.config = {};
         }
@@ -192,6 +207,9 @@ ipcMain.on('navigate-to-chat', (event, taskId) => {
 
 ipcMain.on('create-new-task', () => {
     const newTaskId = `task-${Date.now()}`;
+    const newChat = client.getChat();
+    chatInstances.set(newTaskId, newChat);
+
     const newTask = {
         id: newTaskId,
         title: 'New Task',
@@ -218,8 +236,9 @@ ipcMain.on('navigate-to-dashboard', (event) => {
 ipcMain.on('send-message', async (event, { taskId, message, acceptingEdits }) => {
     const allTasks = [...tasks.running, ...tasks.favorites, ...tasks.history];
     const task = allTasks.find(t => t.id === taskId);
+    const chat = chatInstances.get(taskId);
 
-    if (task) {
+    if (task && chat) {
         if (task.title === 'New Task') {
             task.title = message.split(' ').slice(0, 5).join(' ');
         }
@@ -235,7 +254,9 @@ ipcMain.on('send-message', async (event, { taskId, message, acceptingEdits }) =>
         }).filter(Boolean);
 
         task.log.push({ sender: 'You', content: message });
-        mainWindow.webContents.send('thinking');
+        task.startTime = new Date().toISOString();
+        task.isThinking = true;
+        mainWindow.webContents.send('update-task-state', task);
 
         try {
             const approvalMode = acceptingEdits ? ApprovalMode.AUTO_EDIT : ApprovalMode.DEFAULT;
@@ -252,13 +273,19 @@ ipcMain.on('send-message', async (event, { taskId, message, acceptingEdits }) =>
                 authType: config.getContentGeneratorConfig()?.authType,
             });
 
-            const toolCallOccurred = await handleStream(stream, task);
+            const toolCallOccurred = await handleStream(stream, task, taskId);
 
             if (!toolCallOccurred) {
-                mainWindow.webContents.send('response-received');
+                task.startTime = null;
+                task.isThinking = false;
+                mainWindow.webContents.send('update-task-state', task);
+                mainWindow.webContents.send('response-received', { taskId });
             }
         } catch (error) {
             console.error(error);
+            task.startTime = null;
+            task.isThinking = false;
+            mainWindow.webContents.send('update-task-state', task);
             task.log.pop(); // Remove the empty Gemini message
             task.log.push({ sender: 'Gemini', content: `Error: ${error.message}` });
             if (!task.config) {
@@ -284,6 +311,14 @@ ipcMain.on('tool-call-response', async (event, { outcome, toolCall }) => {
         return;
     }
     pendingToolCalls.delete(toolCall.callId);
+
+    const allTasks = [...tasks.running, ...tasks.history];
+    const task = allTasks.find(t => t.id === toolCall.taskId);
+    const chat = chatInstances.get(toolCall.taskId);
+
+    if (task) {
+        task.pendingToolCall = null;
+    }
 
     const toolRegistry = await config.getToolRegistry();
     let toolResponseParts = [];
@@ -324,6 +359,18 @@ ipcMain.on('tool-call-response', async (event, { outcome, toolCall }) => {
     }
 
     // Continue the conversation by sending the tool response parts as the new message.
+    if (task && chat) {
+        mainWindow.webContents.send('update-task-state', task);
+        chat.history = task.log.map(logEntry => {
+            if (logEntry.sender === 'You') {
+                return { role: 'user', parts: [{ text: logEntry.content }] };
+            } else if (logEntry.sender === 'Gemini' && logEntry.content) {
+                return { role: 'model', parts: [{ text: logEntry.content }] };
+            }
+            return null;
+        }).filter(Boolean);
+    }
+    
     const stream = await retryWithBackoff(() => chat.sendMessageStream({ message: toolResponseParts }), {
         onPersistent429: async () => {
             const newModel = await client.handleFlashFallback(config.getContentGeneratorConfig()?.authType);
@@ -335,13 +382,25 @@ ipcMain.on('tool-call-response', async (event, { outcome, toolCall }) => {
         authType: config.getContentGeneratorConfig()?.authType,
     });
 
-    const allTasks = [...tasks.running, ...tasks.favorites, ...tasks.history];
-    const task = allTasks.find(t => t.id === toolCall.taskId);
     if (task) {
-        const toolCallOccurred = await handleStream(stream, task);
+        const toolCallOccurred = await handleStream(stream, task, toolCall.taskId);
         if (!toolCallOccurred) {
-            mainWindow.webContents.send('response-received');
+            task.startTime = null;
+            task.isThinking = false;
+            mainWindow.webContents.send('update-task-state', task);
+            mainWindow.webContents.send('response-received', { taskId: toolCall.taskId });
         }
+    } else {
+        // If the task is not found, we should still send a response to the renderer
+        // to prevent the UI from being stuck in a loading state.
+        const allTasks = [...tasks.running, ...tasks.history];
+        const taskToUpdate = allTasks.find(t => t.id === toolCall.taskId);
+        if (taskToUpdate) {
+            taskToUpdate.startTime = null;
+            taskToUpdate.isThinking = false;
+            mainWindow.webContents.send('update-task-state', taskToUpdate);
+        }
+        mainWindow.webContents.send('response-received', { taskId: toolCall.taskId });
     }
     sendStatusUpdate();
 });
@@ -373,6 +432,9 @@ ipcMain.on('get-tasks', (event) => {
 });
 
 ipcMain.on('clear-history', () => {
+    for (const task of tasks.history) {
+        chatInstances.delete(task.id);
+    }
     tasks.history = [];
     store.set('tasks', tasks);
     mainWindow.webContents.send('update-tasks', tasks);

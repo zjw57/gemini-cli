@@ -9,15 +9,14 @@ import { WITTY_LOADING_PHRASES, PHRASE_CHANGE_INTERVAL_MS } from '../../../cli/s
 
 interface ProgressNotifierProps {
     isActive: boolean;
+    elapsedTime: number;
 }
 
-const ProgressNotifier: React.FC<ProgressNotifierProps> = ({ isActive }) => {
+const ProgressNotifier: React.FC<ProgressNotifierProps> = ({ isActive, elapsedTime }) => {
     const [currentPhrase, setCurrentPhrase] = useState('');
-    const [elapsedTime, setElapsedTime] = useState(0);
 
     useEffect(() => {
         let phraseIntervalId: NodeJS.Timeout | undefined;
-        let timerIntervalId: NodeJS.Timeout | undefined;
 
         const getRandomPhrase = () => {
             const randomIndex = Math.floor(Math.random() * WITTY_LOADING_PHRASES.length);
@@ -29,19 +28,11 @@ const ProgressNotifier: React.FC<ProgressNotifierProps> = ({ isActive }) => {
             phraseIntervalId = setInterval(() => {
                 setCurrentPhrase(getRandomPhrase());
             }, PHRASE_CHANGE_INTERVAL_MS);
-
-            setElapsedTime(0);
-            timerIntervalId = setInterval(() => {
-                setElapsedTime(prevTime => prevTime + 1);
-            }, 1000);
         }
 
         return () => {
             if (phraseIntervalId) {
                 clearInterval(phraseIntervalId);
-            }
-            if (timerIntervalId) {
-                clearInterval(timerIntervalId);
             }
         };
     }, [isActive]);
