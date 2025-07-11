@@ -37,9 +37,12 @@ import {
   logUserPrompt,
   AuthType,
   getOauthClient,
+  DEFAULT_GEMINI_MODEL
 } from '@google/gemini-cli-core';
 import { validateAuthMethod } from './config/auth.js';
 import { setMaxSizedBoxDebugging } from './ui/components/shared/MaxSizedBox.js';
+import { createRuntime, IRuntime, IRuntimeConfig } from '@google/gemini-cli-core/runtime';
+import { RuntimeProvider } from './ui/contexts/RuntimeContext.js';
 
 function getNodeMemoryArgs(config: Config): string[] {
   const totalMemoryMB = os.totalmem() / (1024 * 1024);
@@ -85,6 +88,53 @@ async function relaunchWithAdditionalArgs(additionalArgs: string[]) {
   process.exit(0);
 }
 
+/**
+ * Adapter function to translate the CLI's settings and arguments into the
+ * lean configuration object required by the core runtime.
+ * This is a critical bridge between the two packages.
+ */
+function createRuntimeConfigFromSettings(
+  settings: LoadedSettings,
+  argv: CliArgs,
+): IRuntimeConfig {
+  const merged = settings.merged;
+
+  // Logic to determine the approval mode, mirroring what happens in loadCliConfig.
+  let approvalMode: ApprovalMode;
+  if (argv.yolo) {
+    approvalMode = ApprovalMode.YOLO;
+  } else {
+    approvalMode = ApprovalMode.DEFAULT;
+  }
+
+  // This adapter isolates the core runtime from the CLI's specific settings structure.
+  // The runtime only receives what it needs to function headlessly.
+  return {
+    auth: {
+      type: (merged.selectedAuthType as AuthType) || 'none',
+      // In Phase 1, we will populate credentials here from settings.
+      credentials: undefined,
+    },
+    model: {
+      // The model name is derived from argv first, then falls back to a default.
+      // This logic is now correctly placed in the adapter.
+      name: argv.model || DEFAULT_GEMINI_MODEL,
+    },
+    tools: {
+      exclude: merged.excludeTools || [],
+      // The translated approval mode is passed to the core runtime.
+      approvalMode: approvalMode,
+    },
+    system: {
+      // Proxy settings can be added here in a later phase.
+    },
+    debug: {
+      // The debug flag is sourced directly from the parsed arguments.
+      enabled: argv.debug || false,
+    },
+  };
+}
+
 export async function main() {
   const workspaceRoot = process.cwd();
   const settings = loadSettings(workspaceRoot);
@@ -103,6 +153,10 @@ export async function main() {
   }
 
   const argv = await parseArguments();
+
+  const runtimeConfig = createRuntimeConfigFromSettings(settings, argv);
+  const runtime = createRuntime(runtimeConfig);
+
   const extensions = loadExtensions(workspaceRoot);
   const config = await loadCliConfig(
     settings.merged,
@@ -202,16 +256,23 @@ export async function main() {
   if (shouldBeInteractive) {
     const version = await getCliVersion();
     setWindowTitle(basename(workspaceRoot), settings);
+
+    runtime.start().catch((err: unknown) => {
+      console.error("Runtime failed to start:", err)
+    });
+
     render(
       <React.StrictMode>
-        <AppWrapper
-          config={config}
-          settings={settings}
-          startupWarnings={startupWarnings}
-          version={version}
+        <RuntimeProvider runtime={runtime}>
+          <AppWrapper
+            config={config}
+            settings={settings}
+            startupWarnings={startupWarnings}
+            version={version}
         />
+        </RuntimeProvider>
       </React.StrictMode>,
-      { exitOnCtrlC: false },
+      { exitOnCtrlC: false }
     );
     return;
   }

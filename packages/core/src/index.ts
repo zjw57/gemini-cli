@@ -60,3 +60,6 @@ export * from './tools/mcp-tool.js';
 // Export telemetry functions
 export * from './telemetry/index.js';
 export { sessionId } from './utils/session.js';
+
+// Export new runtime
+export * from './runtime/index.js';
