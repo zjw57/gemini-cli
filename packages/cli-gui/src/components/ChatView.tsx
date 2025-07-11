@@ -94,7 +94,9 @@ const ChatView = ({ task }) => {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.shiftKey && e.key === '!') {
+      if (e.key === 'Escape' && task.isThinking) {
+        window.electron.send('cancel-request', task.id);
+      } else if (e.shiftKey && e.key === '!') {
         e.preventDefault();
         setTerminalMode(prev => {
           const newMode = !prev;
@@ -119,7 +121,7 @@ const ChatView = ({ task }) => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [message]);
+  }, [message, task.isThinking, task.id]);
 
   const handleMessageChange = (e) => {
     const text = e.target.value;

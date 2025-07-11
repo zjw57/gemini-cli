@@ -24,6 +24,7 @@ import simpleGit from 'simple-git';
 
 const store = new Store();
 const pendingToolCalls = new Map<string, { name: string; args: any }>();
+const requestControllers = new Map<string, AbortController>();
 const chatInstances = new Map<string, GeminiChat>();
 let mainWindow: BrowserWindow | null;
 let initialWorkspaceRoot: string;
@@ -323,9 +324,12 @@ ipcMain.on(
           : ApprovalMode.DEFAULT;
         config.setApprovalMode(approvalMode);
 
+        const controller = new AbortController();
+        requestControllers.set(taskId, controller);
+
         const stream = client.sendMessageStream(
           [{ text: message }],
-          new AbortController().signal,
+          controller.signal,
         );
 
         const toolCallOccurred = await handleStream(stream, task, taskId);
@@ -337,16 +341,22 @@ ipcMain.on(
           mainWindow!.webContents.send('response-received', { taskId });
         }
       } catch (error) {
-        console.error(error);
+        if ((error as Error).name === 'AbortError') {
+          task.log.push({ sender: 'Gemini', content: 'Request cancelled.' });
+        } else {
+          console.error(error);
+          task.log.push({
+            sender: 'Gemini',
+            content: `Error: ${(error as Error).message}`,
+          });
+        }
         task.startTime = null;
         task.isThinking = false;
         task.thought = null;
         mainWindow!.webContents.send('update-task-state', task);
-        task.log.pop(); // Remove the empty Gemini message
-        task.log.push({
-          sender: 'Gemini',
-          content: `Error: ${(error as Error).message}`,
-        });
+        if (task.log[task.log.length - 2].sender === 'Gemini') {
+          task.log.pop(); // Remove the empty Gemini message
+        }
         if (!task.config) {
           task.config = {};
         }
@@ -356,6 +366,7 @@ ipcMain.on(
         mainWindow!.webContents.send('load-chat', task);
         mainWindow!.webContents.send('response-received');
       } finally {
+        requestControllers.delete(taskId);
         sendStatusUpdate();
       }
     } else {
@@ -442,36 +453,63 @@ ipcMain.on('tool-call-response', async (event, { outcome, toolCall }) => {
       .filter(Boolean) as Part[];
   }
 
-  const stream = client.sendMessageStream(
-    toolResponseParts,
-    new AbortController().signal,
-  );
+  const controller = new AbortController();
+  requestControllers.set(toolCall.taskId, controller);
 
-  if (task) {
-    const toolCallOccurred = await handleStream(stream, task, toolCall.taskId);
-    if (!toolCallOccurred) {
-      task.startTime = null;
-      task.isThinking = false;
-      mainWindow!.webContents.send('update-task-state', task);
+  try {
+    const stream = client.sendMessageStream(
+      toolResponseParts,
+      controller.signal,
+    );
+
+    if (task) {
+      const toolCallOccurred = await handleStream(stream, task, toolCall.taskId);
+      if (!toolCallOccurred) {
+        task.startTime = null;
+        task.isThinking = false;
+        mainWindow!.webContents.send('update-task-state', task);
+        mainWindow!.webContents.send('response-received', {
+          taskId: toolCall.taskId,
+        });
+      }
+    } else {
+      // If the task is not found, we should still send a response to the renderer
+      // to prevent the UI from being stuck in a loading state.
+      const allTasks = [...tasks.running, ...tasks.history];
+      const taskToUpdate = allTasks.find(t => t.id === toolCall.taskId);
+      if (taskToUpdate) {
+        taskToUpdate.startTime = null;
+        taskToUpdate.isThinking = false;
+        mainWindow!.webContents.send('update-task-state', taskToUpdate);
+      }
       mainWindow!.webContents.send('response-received', {
         taskId: toolCall.taskId,
       });
     }
-  } else {
-    // If the task is not found, we should still send a response to the renderer
-    // to prevent the UI from being stuck in a loading state.
-    const allTasks = [...tasks.running, ...tasks.history];
-    const taskToUpdate = allTasks.find(t => t.id === toolCall.taskId);
-    if (taskToUpdate) {
-      taskToUpdate.startTime = null;
-      taskToUpdate.isThinking = false;
-      mainWindow!.webContents.send('update-task-state', taskToUpdate);
+  } catch (error) {
+    if ((error as Error).name === 'AbortError') {
+      if (task) {
+        task.log.push({ sender: 'Gemini', content: 'Request cancelled.' });
+      }
+    } else {
+      console.error(error);
+      if (task) {
+        task.log.push({
+          sender: 'Gemini',
+          content: `Error: ${(error as Error).message}`,
+        });
+      }
     }
-    mainWindow!.webContents.send('response-received', {
-      taskId: toolCall.taskId,
-    });
+    if (task) {
+      task.startTime = null;
+      task.isThinking = false;
+      task.thought = null;
+      mainWindow!.webContents.send('update-task-state', task);
+    }
+  } finally {
+    requestControllers.delete(toolCall.taskId);
+    sendStatusUpdate();
   }
-  sendStatusUpdate();
 });
 
 ipcMain.on('stop-task', (event, taskId) => {
@@ -587,5 +625,13 @@ ipcMain.on('change-directory', async (event, { taskId, directory, command }) => 
       mainWindow!.webContents.send('load-chat', task);
       sendStatusUpdate();
     }
+  }
+});
+
+ipcMain.on('cancel-request', (event, taskId) => {
+  const controller = requestControllers.get(taskId);
+  if (controller) {
+    controller.abort();
+    requestControllers.delete(taskId);
   }
 });
