@@ -136,30 +136,34 @@ async function sendStatusUpdate() {
 async function handleStream(stream, task, taskId) {
     let toolCallOccurred = false;
     // Ensure there's an empty Gemini message to populate
-    if (task.log.length === 0 || task.log[task.log.length - 1].sender !== 'Gemini' || task.log[task.log.length - 1].content !== '') {
+    if (task.log.length === 0 || task.log[task.log.length - 1].sender !== 'Gemini') {
         task.log.push({ sender: 'Gemini', content: '' });
     }
 
-    for await (const chunk of stream) {
-        const parts = chunk.candidates?.[0]?.content?.parts || [];
-        for (const part of parts) {
-            if (part.text) {
-                task.log[task.log.length - 1].content += part.text;
+    for await (const event of stream) {
+        switch (event.type) {
+            case 'content': // GeminiEventType.Content
+                task.log[task.log.length - 1].content += event.value;
                 mainWindow.webContents.send('update-task-state', task);
-            }
-            if (part.functionCall) {
+                break;
+            case 'thought': // GeminiEventType.Thought
+                task.thought = event.value;
+                mainWindow.webContents.send('update-task-state', task);
+                break;
+            case 'tool_call_request': // GeminiEventType.ToolCallRequest
                 toolCallOccurred = true;
                 const toolRegistry = await config.getToolRegistry();
-                const tool = toolRegistry.getTool(part.functionCall.name);
-                const callId = crypto.randomUUID();
-                pendingToolCalls.set(callId, part.functionCall);
+                const tool = toolRegistry.getTool(event.value.name);
+                const callId = event.value.callId;
+                pendingToolCalls.set(callId, {name: event.value.name, args: event.value.args});
 
                 let type = 'info'; // default
-                if (part.functionCall.name.includes('edit')) type = 'edit';
-                if (part.functionCall.name.includes('shell')) type = 'exec';
+                if (event.value.name.includes('edit')) type = 'edit';
+                if (event.value.name.includes('shell')) type = 'exec';
 
                 const confirmationDetails = {
-                    ...part.functionCall,
+                    name: event.value.name,
+                    args: event.value.args,
                     callId,
                     type,
                     description: tool?.description || '',
@@ -167,7 +171,7 @@ async function handleStream(stream, task, taskId) {
                 };
                 task.pendingToolCall = confirmationDetails;
                 mainWindow.webContents.send('tool-call', { taskId: task.id, toolCall: confirmationDetails });
-            }
+                break;
         }
     }
     return toolCallOccurred;
@@ -262,16 +266,7 @@ ipcMain.on('send-message', async (event, { taskId, message, acceptingEdits }) =>
             const approvalMode = acceptingEdits ? ApprovalMode.AUTO_EDIT : ApprovalMode.DEFAULT;
             config.setApprovalMode(approvalMode);
 
-            const stream = await retryWithBackoff(() => chat.sendMessageStream({ message }), {
-                onPersistent429: async () => {
-                    const newModel = await client.handleFlashFallback(config.getContentGeneratorConfig()?.authType);
-                    if (newModel) {
-                        mainWindow.webContents.send('flash-model-fallback', { newModel });
-                    }
-                    return newModel;
-                },
-                authType: config.getContentGeneratorConfig()?.authType,
-            });
+            const stream = client.sendMessageStream([{ text: message }], new AbortController().signal);
 
             const toolCallOccurred = await handleStream(stream, task, taskId);
 
@@ -371,16 +366,7 @@ ipcMain.on('tool-call-response', async (event, { outcome, toolCall }) => {
         }).filter(Boolean);
     }
     
-    const stream = await retryWithBackoff(() => chat.sendMessageStream({ message: toolResponseParts }), {
-        onPersistent429: async () => {
-            const newModel = await client.handleFlashFallback(config.getContentGeneratorConfig()?.authType);
-            if (newModel) {
-                mainWindow.webContents.send('flash-model-fallback', { newModel });
-            }
-            return newModel;
-        },
-        authType: config.getContentGeneratorConfig()?.authType,
-    });
+    const stream = client.sendMessageStream(toolResponseParts, new AbortController().signal);
 
     if (task) {
         const toolCallOccurred = await handleStream(stream, task, toolCall.taskId);

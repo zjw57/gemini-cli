@@ -10,9 +10,10 @@ import { WITTY_LOADING_PHRASES, PHRASE_CHANGE_INTERVAL_MS } from '../../../cli/s
 interface ProgressNotifierProps {
     isActive: boolean;
     elapsedTime: number;
+    thought: { subject: string; description: string } | null;
 }
 
-const ProgressNotifier: React.FC<ProgressNotifierProps> = ({ isActive, elapsedTime }) => {
+const ProgressNotifier: React.FC<ProgressNotifierProps> = ({ isActive, elapsedTime, thought }) => {
     const [currentPhrase, setCurrentPhrase] = useState('');
 
     useEffect(() => {
@@ -23,7 +24,7 @@ const ProgressNotifier: React.FC<ProgressNotifierProps> = ({ isActive, elapsedTi
             return WITTY_LOADING_PHRASES[randomIndex];
         };
 
-        if (isActive) {
+        if (isActive && !thought) {
             setCurrentPhrase(getRandomPhrase());
             phraseIntervalId = setInterval(() => {
                 setCurrentPhrase(getRandomPhrase());
@@ -35,7 +36,7 @@ const ProgressNotifier: React.FC<ProgressNotifierProps> = ({ isActive, elapsedTi
                 clearInterval(phraseIntervalId);
             }
         };
-    }, [isActive]);
+    }, [isActive, thought]);
 
     if (!isActive) {
         return null;
@@ -44,7 +45,11 @@ const ProgressNotifier: React.FC<ProgressNotifierProps> = ({ isActive, elapsedTi
     return (
         <div className="progress-notifier">
             <div className="spinner"></div>
-            <span className="witty-phrase">{currentPhrase}</span>
+            {thought ? (
+                <span className="witty-phrase">{thought.subject}</span>
+            ) : (
+                <span className="witty-phrase">{currentPhrase}</span>
+            )}
             <span className="timer">({elapsedTime}s)</span>
         </div>
     );

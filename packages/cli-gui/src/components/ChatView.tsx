@@ -185,7 +185,7 @@ const ChatView = ({ task }) => {
           />
         )}
       </div>
-      <ProgressNotifier isActive={task.isThinking} elapsedTime={elapsedTime} />
+      <ProgressNotifier isActive={task.isThinking} elapsedTime={elapsedTime} thought={task.thought} />
       <div className="input-area">
         <ContextSummaryDisplay
           geminiMdFileCount={task.config.geminiMdFileCount}
