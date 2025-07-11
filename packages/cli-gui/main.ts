@@ -509,6 +509,24 @@ ipcMain.on('clear-history', () => {
   mainWindow!.webContents.send('update-tasks', tasks);
 });
 
+ipcMain.on('delete-task', (event, taskId) => {
+  let taskIndex = tasks.running.findIndex(t => t.id === taskId);
+  if (taskIndex > -1) {
+    tasks.running.splice(taskIndex, 1);
+  } else {
+    taskIndex = tasks.history.findIndex(t => t.id === taskId);
+    if (taskIndex > -1) {
+      tasks.history.splice(taskIndex, 1);
+    }
+  }
+
+  if (taskIndex > -1) {
+    chatInstances.delete(taskId);
+    store.set('tasks', tasks);
+    mainWindow!.webContents.send('update-tasks', tasks);
+  }
+});
+
 ipcMain.on('execute-shell-command', async (event, { taskId, command }) => {
   const allTasks = [...tasks.running, ...tasks.history];
   const task = allTasks.find(t => t.id === taskId);

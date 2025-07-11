@@ -52,13 +52,40 @@
             const element = document.createElement('div');
             element.className = 'task-card';
             element.innerHTML = `
-                <div class="task-card-title">${task.title}</div>
-                <div class="task-card-description">${task.description}</div>
-                <div class="task-card-timestamp">${formatTimeAgo(task.timestamp)}</div>
+                <div class="task-card-content">
+                    <div class="task-card-title">${task.title}</div>
+                    <div class="task-card-description">${task.description}</div>
+                    <div class="task-card-timestamp">${formatTimeAgo(task.timestamp)}</div>
+                </div>
+                <div class="task-card-actions">
+                    <div class="task-menu">
+                        <button class="task-menu-button">...</button>
+                        <div class="task-menu-content">
+                            <a href="#" class="delete-task">Delete</a>
+                        </div>
+                    </div>
+                </div>
             `;
-            element.addEventListener('click', () => {
+
+            element.querySelector('.task-card-content').addEventListener('click', () => {
                 window.electron.send('navigate-to-chat', task.id);
             });
+
+            const menuButton = element.querySelector('.task-menu-button');
+            const menuContent = element.querySelector('.task-menu-content');
+            const deleteButton = element.querySelector('.delete-task');
+
+            menuButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                menuContent.classList.toggle('show');
+            });
+
+            deleteButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                window.electron.send('delete-task', task.id);
+                menuContent.classList.remove('show');
+            });
+
             return element;
         }
 
