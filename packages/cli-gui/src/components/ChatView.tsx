@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import StatusBar from './StatusBar';
 import Message from './Message';
 import ToolCallConfirmation from './ToolCallConfirmation';

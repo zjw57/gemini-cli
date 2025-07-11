@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import hljs from 'highlight.js';
 
 const McpConfirmation = ({ confirmationDetails, onConfirm }) => {

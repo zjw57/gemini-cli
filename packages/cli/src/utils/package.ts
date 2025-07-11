@@ -17,8 +17,24 @@ export type PackageJson = BasePackageJson & {
   };
 };
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// This is a little tricky.
+//
+// In a normal ESM module, we can use `import.meta.url` to get the
+// location of the current file.
+//
+// However, when this code is bundled by esbuild and run in a CJS
+// context (like in the Electron app), `import.meta.url` is not
+// available, but `__dirname` is.
+//
+// To handle both cases, we'll try to use `__dirname` if it's
+// available, and fall back to the `import.meta.url` method if it's not.
+let aPath: string;
+try {
+  aPath = __dirname;
+} catch (e) {
+  const __filename = fileURLToPath(import.meta.url);
+  aPath = path.dirname(__filename);
+}
 
 let packageJson: PackageJson | undefined;
 
@@ -27,7 +43,7 @@ export async function getPackageJson(): Promise<PackageJson | undefined> {
     return packageJson;
   }
 
-  const result = await readPackageUp({ cwd: __dirname });
+  const result = await readPackageUp({ cwd: aPath });
   if (!result) {
     // TODO: Maybe bubble this up as an error.
     return;

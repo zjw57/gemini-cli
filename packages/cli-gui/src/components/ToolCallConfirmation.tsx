@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
 import EditConfirmation from './EditConfirmation';
 import ExecConfirmation from './ExecConfirmation';
 import InfoConfirmation from './InfoConfirmation';

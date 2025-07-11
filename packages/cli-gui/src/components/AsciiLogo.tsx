@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
 import { longAsciiLogo } from '../../../cli/src/ui/components/AsciiArt';
 
 const AsciiLogo = () => {
