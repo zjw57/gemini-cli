@@ -35,10 +35,10 @@ import {
   WriteFileTool,
   sessionId,
   logUserPrompt,
-  AuthType,
   getOauthClient,
   DEFAULT_GEMINI_MODEL
 } from '@google/gemini-cli-core';
+import { AuthType } from '@google/gemini-cli-core/runtime';
 import { validateAuthMethod } from './config/auth.js';
 import { setMaxSizedBoxDebugging } from './ui/components/shared/MaxSizedBox.js';
 import { createRuntime, IRuntime, IRuntimeConfig } from '@google/gemini-cli-core/runtime';
@@ -111,7 +111,7 @@ function createRuntimeConfigFromSettings(
   // The runtime only receives what it needs to function headlessly.
   return {
     auth: {
-      type: (merged.selectedAuthType as AuthType) || 'none',
+      type: (merged.selectedAuthType as AuthType) || AuthType.NONE,
       // In Phase 1, we will populate credentials here from settings.
       credentials: undefined,
     },

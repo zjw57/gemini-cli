@@ -4,15 +4,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { AuthService, IAuthService, WebLoginRequest } from './services/AuthService.js';
+import { Credentials } from 'google-auth-library';
 import { IRuntime, RuntimeEvents } from './api/runtime.js';
 import { IRuntimeConfig } from './api/runtime-config.js';
 import { TypedEmitter } from 'tiny-typed-emitter';
+import { IPlatform } from './platform/IPlatform.js';
+import { NodePlatform } from './platform/NodePlatform.js';
+
 import { ConfigService, IConfigService } from './services/ConfigService.js';
 
 /** The dependency container for all internal services. */
 interface CoreServices {
+  authService: IAuthService;
   configService: IConfigService;
-  // ... other services will be added here
+  platform: IPlatform;
 }
 
 /**
@@ -31,13 +37,23 @@ class Runtime extends TypedEmitter<RuntimeEvents> implements IRuntime {
    */
   public async start(): Promise<void> {
     await this.services.configService.initialize();
-    // In later phases, this will orchestrate the startup of all other services.
-    // e.g., await this.services.toolService.initialize();
+    await this.services.authService.getGoogleAuthClient();
   }
 
-  // NOTE: Public API methods like getModelName() will be added in later phases
-  // once we begin migrating logic out of the legacy Config object.
-  // For Phase 0, just having start() is sufficient.
+  public getWebLoginRequest(redirectUri: string): Promise<WebLoginRequest> {
+    return this.services.authService.getWebLoginRequest(redirectUri);
+  }
+
+  public async exchangeCodeForToken(code: string, redirectUri: string): Promise<Credentials> {
+    const credentials = await this.services.authService.exchangeCodeForToken(code, redirectUri);
+    this.emit('auth:credentialChange', credentials);
+    return credentials;
+  }
+
+  public async clearCachedCredentials(): Promise<void> {
+    await this.services.authService.clearCachedCredentials();
+    this.emit('auth:credentialChange', null);
+  }
 }
 
 /**
@@ -46,16 +62,16 @@ class Runtime extends TypedEmitter<RuntimeEvents> implements IRuntime {
  * It encapsulates the details of service instantiation and dependency injection.
  */
 export function createRuntime(config: IRuntimeConfig): IRuntime {
-  const configService = new ConfigService(config);
-  // As we add more services, they will be instantiated here.
-  // Example: const toolService = new ToolService(configService);
+  const platform = new NodePlatform();
 
-  // 2. Assemble the dependency container
+  const configService = new ConfigService(config);
+  const authService = new AuthService(configService, platform);
+
   const services: CoreServices = {
+    platform,
+    authService,
     configService,
-    // toolService,
   };
 
-  // 3. Create and return the Runtime instance
   return new Runtime(services);
 }

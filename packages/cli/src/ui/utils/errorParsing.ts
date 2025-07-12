@@ -5,7 +5,6 @@
  */
 
 import {
-  AuthType,
   UserTierId,
   DEFAULT_GEMINI_FLASH_MODEL,
   DEFAULT_GEMINI_MODEL,
@@ -14,6 +13,7 @@ import {
   isApiError,
   isStructuredError,
 } from '@google/gemini-cli-core';
+import { AuthType } from '@google/gemini-cli-core/runtime';
 
 // Free Tier message functions
 const getRateLimitErrorMessageGoogleFree = (

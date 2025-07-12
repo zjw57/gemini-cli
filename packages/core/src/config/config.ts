@@ -7,10 +7,10 @@
 import * as path from 'node:path';
 import process from 'node:process';
 import {
-  AuthType,
   ContentGeneratorConfig,
   createContentGeneratorConfig,
 } from '../core/contentGenerator.js';
+import { AuthType } from '../runtime/api/auth-types.js';
 import { UserTierId } from '../code_assist/types.js';
 import { ToolRegistry } from '../tools/tool-registry.js';
 import { LSTool } from '../tools/ls.js';

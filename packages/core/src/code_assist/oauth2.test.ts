@@ -14,7 +14,7 @@ import http from 'http';
 import open from 'open';
 import crypto from 'crypto';
 import * as os from 'os';
-import { AuthType } from '../core/contentGenerator.js';
+import { AuthType } from '../runtime/api/auth-types.js';
 import { Config } from '../config/config.js';
 import readline from 'node:readline';
 

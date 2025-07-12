@@ -5,11 +5,11 @@
  */
 
 import { ApprovalMode } from '../../config/config.js';
+import { AuthType } from './auth-types.js';
 
 export interface IRuntimeConfig {
   auth: {
-    // We'll flesh this out in Phase 1
-    type: string;
+    type: AuthType;
     credentials?: unknown;
   };
   model: {

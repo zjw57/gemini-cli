@@ -14,7 +14,8 @@ import {
   GoogleGenAI,
 } from '@google/genai';
 import { findIndexAfterFraction, GeminiClient } from './client.js';
-import { AuthType, ContentGenerator } from './contentGenerator.js';
+import { ContentGenerator } from './contentGenerator.js';
+import { AuthType } from '../runtime/api/auth-types.js';
 import { GeminiChat } from './geminiChat.js';
 import { Config } from '../config/config.js';
 import { GeminiEventType, Turn } from './turn.js';

@@ -13,6 +13,7 @@ import {
   EmbedContentParameters,
   GoogleGenAI,
 } from '@google/genai';
+import { AuthType } from '../runtime/api/auth-types.js';
 import { createCodeAssistContentGenerator } from '../code_assist/codeAssist.js';
 import { DEFAULT_GEMINI_MODEL } from '../config/models.js';
 import { Config } from '../config/config.js';
@@ -36,13 +37,6 @@ export interface ContentGenerator {
   embedContent(request: EmbedContentParameters): Promise<EmbedContentResponse>;
 
   getTier?(): Promise<UserTierId | undefined>;
-}
-
-export enum AuthType {
-  LOGIN_WITH_GOOGLE = 'oauth-personal',
-  USE_GEMINI = 'gemini-api-key',
-  USE_VERTEX_AI = 'vertex-ai',
-  CLOUD_SHELL = 'cloud-shell',
 }
 
 export type ContentGeneratorConfig = {

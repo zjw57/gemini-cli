@@ -14,8 +14,8 @@ import {
   getErrorMessage,
   BugCommandSettings,
   TelemetrySettings,
-  AuthType,
 } from '@google/gemini-cli-core';
+import { AuthType } from '@google/gemini-cli-core/runtime';
 import stripJsonComments from 'strip-json-comments';
 import { DefaultLight } from '../ui/themes/default-light.js';
 import { DefaultDark } from '../ui/themes/default.js';

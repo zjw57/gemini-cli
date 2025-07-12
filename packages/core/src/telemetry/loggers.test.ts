@@ -5,7 +5,6 @@
  */
 
 import {
-  AuthType,
   CompletedToolCall,
   ContentGeneratorConfig,
   EditTool,
@@ -14,6 +13,7 @@ import {
   ToolConfirmationOutcome,
   ToolRegistry,
 } from '../index.js';
+import { AuthType } from '../runtime/api/auth-types.js';
 import { logs } from '@opentelemetry/api-logs';
 import { SemanticAttributes } from '@opentelemetry/semantic-conventions';
 import { Config } from '../config/config.js';

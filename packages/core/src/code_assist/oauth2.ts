@@ -25,7 +25,7 @@ import {
   getCachedGoogleAccount,
   clearCachedGoogleAccount,
 } from '../utils/user_account.js';
-import { AuthType } from '../core/contentGenerator.js';
+import { AuthType } from '../runtime/api/auth-types.js';
 import readline from 'node:readline';
 
 //  OAuth Client ID used to initiate OAuth2Client class.

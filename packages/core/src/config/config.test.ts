@@ -13,9 +13,9 @@ import {
   DEFAULT_OTLP_ENDPOINT,
 } from '../telemetry/index.js';
 import {
-  AuthType,
   createContentGeneratorConfig,
 } from '../core/contentGenerator.js';
+import { AuthType } from '../runtime/api/auth-types.js';
 import { GeminiClient } from '../core/client.js';
 import { loadServerHierarchicalMemory } from '../utils/memoryDiscovery.js';
 

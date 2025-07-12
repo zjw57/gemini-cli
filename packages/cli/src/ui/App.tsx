@@ -57,7 +57,8 @@ import {
   FlashFallbackEvent,
   logFlashFallback,
 } from '@google/gemini-cli-core';
-import { validateAuthMethod } from '../config/auth.js';
+import { AuthType, type Credentials } from '@google/gemini-cli-core/runtime'; 
+import { useRuntime } from './contexts/RuntimeContext.js';
 import { useLogger } from './hooks/useLogger.js';
 import { StreamingContext } from './contexts/StreamingContext.js';
 import {
@@ -96,6 +97,7 @@ export const AppWrapper = (props: AppProps) => (
 );
 
 const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
+  const runtime = useRuntime();
   useBracketedPaste();
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const { stdout } = useStdout();
@@ -168,17 +170,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     handleAuthSelect,
     isAuthenticating,
     cancelAuthentication,
-  } = useAuthCommand(settings, setAuthError, config);
-
-  useEffect(() => {
-    if (settings.merged.selectedAuthType) {
-      const error = validateAuthMethod(settings.merged.selectedAuthType);
-      if (error) {
-        setAuthError(error);
-        openAuthDialog();
-      }
-    }
-  }, [settings.merged.selectedAuthType, openAuthDialog, setAuthError]);
+  } = useAuthCommand(settings, setAuthError);
 
   // Sync user tier from config when authentication changes
   useEffect(() => {
@@ -273,6 +265,47 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
 
     return () => clearInterval(interval);
   }, [config, currentModel]);
+
+  // Add this new useEffect to bridge the runtime to the legacy config.
+  useEffect(() => {
+    const handleCredentialChange = async () => {
+      // When the runtime's credentials change, we must tell the legacy
+      // config object to re-initialize its GeminiClient with the new auth state.
+      try {
+        await config.refreshAuth(AuthType.LOGIN_WITH_GOOGLE);
+        addItem(
+          {
+            type: MessageType.INFO,
+            text: 'Authentication successful. Ready to chat!',
+          },
+          Date.now(),
+        );
+      } catch (err) {
+        addItem(
+          {
+            type: MessageType.ERROR,
+            text: `Failed to apply new credentials: ${getErrorMessage(err)}`,
+          },
+          Date.now(),
+        );
+      }
+    };
+
+    // The event handler for when the runtime signals a credential change.
+    const onAuthChange = (creds: Credentials | null) => {
+      if (creds) {
+        handleCredentialChange();
+      }
+    };
+    
+    // Subscribe to the event from the runtime.
+    runtime.on('auth:credentialChange', onAuthChange);
+
+    // Return a cleanup function to unsubscribe when the component unmounts.
+    return () => {
+      runtime.off('auth:credentialChange', onAuthChange);
+    };
+  }, [runtime, config, addItem]); // Correct dependency array.
 
   // Set up Flash fallback handler
   useEffect(() => {

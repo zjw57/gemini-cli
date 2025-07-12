@@ -7,9 +7,9 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import {
   createContentGenerator,
-  AuthType,
   createContentGeneratorConfig,
 } from './contentGenerator.js';
+import { AuthType } from '../runtime/api/auth-types.js';
 import { createCodeAssistContentGenerator } from '../code_assist/codeAssist.js';
 import { GoogleGenAI } from '@google/genai';
 import { Config } from '../config/config.js';

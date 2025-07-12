@@ -6,6 +6,7 @@
 
 import { ApprovalMode } from '../../config/config.js';
 import { IRuntimeConfig } from '../api/runtime-config.js';
+import { AuthType } from '../api/auth-types.js';
 
 const DEFAULT_MODEL_NAME = 'gemini-2.5-pro';
 
@@ -15,7 +16,7 @@ const DEFAULT_MODEL_NAME = 'gemini-2.5-pro';
  */
 interface IResolvedRuntimeConfig {
   auth: {
-    type: string;
+    type: AuthType;
     credentials?: unknown;
   };
   model: {
@@ -54,7 +55,7 @@ export interface IConfigService {
   getApprovalMode(): ApprovalMode;
 
   /** Retrieves the configured authentication type. */
-  getAuthType(): string;
+  getAuthType(): AuthType;
 
   /** Retrieves the configured proxy URL, if any. */
   getProxy(): string | undefined;
@@ -105,7 +106,7 @@ export class ConfigService implements IConfigService {
     return this.resolvedConfig.tools.approvalMode;
   }
 
-  public getAuthType(): string {
+  public getAuthType(): AuthType {
     this.assertInitialized();
     return this.resolvedConfig.auth.type;
   }
@@ -144,7 +145,7 @@ export class ConfigService implements IConfigService {
       },
       auth: {
         // We accept the auth config as-is for now. Phase 1 will add validation.
-        type: config.auth?.type || 'none',
+        type: config.auth?.type || AuthType.NONE,
         credentials: config.auth?.credentials,
       },
       tools: {
