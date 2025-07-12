@@ -81,6 +81,7 @@ system will consist of:
 ### **2. Plan**
 
 1. **Create the Keybinding Registry:**
+
    - Define a `Keybinding` interface with properties like `name`,
      `description`, `callback`, and `defaultKey`.
    - Implement a `KeybindingRegistry` class with methods to `register` and
@@ -88,6 +89,7 @@ system will consist of:
    - The registry will be a singleton, accessible throughout the application.
 
 1. **Implement the Keybinding Service:**
+
    - Create a `KeybindingService` that reads the keybinding configuration from
      a file.
    - The service will use a single `useInput` hook at the top level of the
@@ -96,6 +98,7 @@ system will consist of:
      in the configuration and execute the callback from the registry.
 
 1. **Refactor Existing Keybindings:**
+
    - Gradually refactor existing `useInput` hooks to use the new keybinding
      system.
    - For each keybinding, register it with the `KeybindingRegistry` and add an
@@ -103,6 +106,7 @@ system will consist of:
    - This can be done component by component to minimize disruption.
 
 1. **Implement Keybinding Discovery:**
+
    - Add a `/help` command or a dedicated help view that displays all
      registered keybindings and their current assignments. This will use the
      information from the `KeybindingRegistry`.
@@ -143,8 +147,8 @@ which does not account for scenarios where keybindings should only be active
 within a specific UI context, such as a dialog, a text input field, or other
 specialized components like `InputPrompt` and `TextBuffer`.
 
-- **Challenge:** How does the system determine which keybinding to execute when
-  multiple contexts are active or when a component-specific keybinding
+- **Challenge:** How does the system determine which keybinding to execute
+  when multiple contexts are active or when a component-specific keybinding
   should override a global one?
 - **Suggestion:** The design must incorporate a more sophisticated approach to
   context. This could involve a "lighter weight" solution where callers can
@@ -158,15 +162,15 @@ Reviewers pointed out that the proposed `Keybinding` interface mixed the
 _definition_ of an action (what it does) with its _mapping_ (how it's
 triggered) by including a `defaultKey` property.
 
-- **Challenge:** This approach creates ambiguity. It's unclear how a `defaultKey`
-  would interact with a user's custom mapping in `keybindings.json`. Which
-  one should take precedence in case of a conflict?
-- **Suggestion:** The keybinding registry should only be concerned with being a
-  collection of available **actions** (e.g., name, description, callback). The
-  mapping of keys to these actions should be handled exclusively by a separate
-  configuration layer. The `defaultKey` concept should be removed from the
-  core interface and instead be used to generate a default `keybindings.json`
-  file that users can then customize.
+- **Challenge:** This approach creates ambiguity. It's unclear how a
+  `defaultKey` would interact with a user's custom mapping in
+  `keybindings.json`. Which one should take precedence in case of a conflict?
+- **Suggestion:** The keybinding registry should only be concerned with being
+  a collection of available **actions** (e.g., name, description, callback).
+  The mapping of keys to these actions should be handled exclusively by a
+  separate configuration layer. The `defaultKey` concept should be removed
+  from the core interface and instead be used to generate a default
+  `keybindings.json` file that users can then customize.
 
 #### **3. Lifecycle Management**
 
@@ -175,8 +179,8 @@ own keybindings. The initial design did not specify the lifecycle of these
 registrations.
 
 - **Challenge:** Without a clear lifecycle, the application could suffer from
-  memory leaks (e.g., callbacks referencing unmounted components) or bugs where
-  keybindings for inactive UI elements are still processed.
+  memory leaks (e.g., callbacks referencing unmounted components) or bugs
+  where keybindings for inactive UI elements are still processed.
 - **Suggestion:** The design must explicitly define when keybindings are
   registered and unregistered. This lifecycle should likely be tied to
   component lifecycle hooks (e.g., `useEffect` in React) and integrated with
@@ -184,9 +188,9 @@ registrations.
 
 #### **4. Implementation and Discovery Details**
 
-- **Complex Components:** The solution must be robust enough to handle the most
-  complex existing keybinding implementations, such as those in `InputPrompt`
-  and `TextBuffer`.
+- **Complex Components:** The solution must be robust enough to handle the
+  most complex existing keybinding implementations, such as those in
+  `InputPrompt` and `TextBuffer`.
 - **Discovery Command:** The proposal to use `/help` for keybinding discovery
   was questioned. A more specific or dedicated command might be more
   appropriate.
@@ -195,45 +199,67 @@ registrations.
 
 ### **Summary of Reviewer Recommendations**
 
-1.  **Refine the Core Service:** Move away from a single, monolithic
-    `KeybindingService` that controls all input. Instead, design a more
-    flexible system that allows different parts of the application to resolve
-    keybindings based on the current context.
-2.  **Clarify the `Keybinding` Definition:** Separate the action from the
-    mapping. The registry should store actions, and the configuration file
-    should store mappings.
-3.  **Define Keybinding Lifecycle:** Specify how and when keybindings are
-    registered and unregistered, tying it to the component lifecycle to prevent
-    bugs and memory leaks.
-4.  **Address Complex Cases:** Ensure the design explicitly accounts for the most
-    complex keybinding scenarios in the current codebase.
-5.  **Provide Concrete Examples:** The final design would benefit from code
-    snippets or more concrete examples to illustrate how the proposed system
-    will work in practice.
+1. **Refine the Core Service:** Move away from a single, monolithic
+   `KeybindingService` that controls all input. Instead, design a more
+   flexible system that allows different parts of the application to resolve
+   keybindings based on the current context.
+1. **Clarify the `Keybinding` Definition:** Separate the action from the
+   mapping. The registry should store actions, and the configuration file
+   should store mappings.
+1. **Define Keybinding Lifecycle:** Specify how and when keybindings are
+   registered and unregistered, tying it to the component lifecycle to prevent
+   bugs and memory leaks.
+1. **Address Complex Cases:** Ensure the design explicitly accounts for the
+   most complex keybinding scenarios in the current codebase.
+1. **Provide Concrete Examples:** The final design would benefit from code
+   snippets or more concrete examples to illustrate how the proposed system
+   will work in practice.
 
 ## **Final Design**
 
 ## **Final Design**
 
-This final design incorporates feedback from all reviewers and a detailed analysis of the existing codebase, including the complex input handling in `App.tsx` and `InputPrompt.tsx`. The goal is to create a system that is centralized, configurable, context-aware, and capable of handling all existing functionality without breaking changes.
+This final design incorporates feedback from all reviewers and a detailed
+analysis of the existing codebase, including the complex input handling in
+`App.tsx` and `InputPrompt.tsx`. The goal is to create a system that is
+centralized, configurable, context-aware, and capable of handling all existing
+functionality without breaking changes.
 
 ### **1. Core Concepts**
 
 The new system will be built on three core concepts:
 
-1.  **Keybinding Actions:** An "Action" is a command that can be executed within the application. It is a pure definition of *what* can be done, not *how* it is triggered. Each action has a unique ID, a description for help menus, and a callback function.
+1. **Keybinding Actions:** An "Action" is a command that can be executed
+   within the application. It is a pure definition of *what* can be done, not
+   *how* it is triggered. Each action has a unique ID, a description for help
+   menus, and a callback function.
 
-2.  **Keybinding Contexts:** A "Context" is a named set of active key-to-action mappings. Contexts are the cornerstone of this design, allowing keybindings to behave differently depending on the application's state (e.g., `global`, `dialog`, `prompt`).
+1. **Keybinding Contexts:** A "Context" is a named set of active key-to-action
+   mappings. Contexts are the cornerstone of this design, allowing keybindings
+   to behave differently depending on the application's state (e.g., `global`,
+   `dialog`, `prompt`).
 
-3.  **The Keybinding Manager:** A central singleton service responsible for managing a stack of active contexts, processing raw keyboard input, and dispatching the correct Action based on the current context.
+1. **The Keybinding Manager:** A central singleton service responsible for
+   managing a stack of active contexts, processing raw keyboard input, and
+   dispatching the correct Action based on the current context.
 
 ### **2. The Keybinding Manager and Context Stack**
 
-The `KeybindingManager` will be the single source of truth for input handling. It will contain a stack of active `KeybindingContext` objects.
+The `KeybindingManager` will be the single source of truth for input handling.
+It will contain a stack of active `KeybindingContext` objects.
 
--   **Context Stack:** When a component becomes active (e.g., a dialog opens), it will **push** its context onto the stack. When it becomes inactive, it will **pop** its context. This ensures a clean lifecycle tied to the component's lifecycle (e.g., via a `useEffect` hook).
--   **Input Handling:** The Manager will use a single, top-level `useInput` hook in `App.tsx`. When a key is pressed, the Manager will iterate down the context stack from the top. The first context that has a mapping for the pressed key will handle the event. This creates a natural system of precedence: a "dialog" context's keybindings will override a "global" context's keybindings.
--   **Fallback:** A `global` context will always exist at the bottom of the stack to handle application-wide shortcuts.
+- **Context Stack:** When a component becomes active (e.g., a dialog opens),
+  it will **push** its context onto the stack. When it becomes inactive, it
+  will **pop** its context. This ensures a clean lifecycle tied to the
+  component's lifecycle (e.g., via a `useEffect` hook).
+- **Input Handling:** The Manager will use a single, top-level `useInput` hook
+  in `App.tsx`. When a key is pressed, the Manager will iterate down the
+  context stack from the top. The first context that has a mapping for the
+  pressed key will handle the event. This creates a natural system of
+  precedence: a "dialog" context's keybindings will override a "global"
+  context's keybindings.
+- **Fallback:** A `global` context will always exist at the bottom of the
+  stack to handle application-wide shortcuts.
 
 ### **3. Data Structures and Interfaces**
 
@@ -268,49 +294,80 @@ export interface KeybindingContext {
 
 ### **4. Implementation Plan**
 
-1.  **Create Core Services (`KeybindingManager`):**
-    -   Implement the `KeybindingManager` class. It will manage the context stack, hold a registry of all `KeybindingAction`s, and expose methods like `registerAction(action: KeybindingAction)`, `pushContext(context: KeybindingContext)`, `popContext(contextId: string)`, and `handleKey(key, input)`.
-    -   It will be responsible for reading `keybindings.json` and a default, built-in keymap. User-defined keymaps will override the defaults.
+1. **Create Core Services (`KeybindingManager`):**
 
-2.  **Create a React Hook (`useKeybindingContext`):**
-    -   Develop a `useKeybindingContext(context: KeybindingContext)` hook.
-    -   This hook will automatically call `pushContext` on component mount and `popContext` on unmount, simplifying lifecycle management for developers.
-    -   **Example Usage:**
-        ```tsx
-        const MyDialog = () => {
-          const myDialogContext = {
-            id: 'my-dialog',
-            keymap: { 'escape': 'dialog.close' }
-          };
-          useKeybindingContext(myDialogContext);
+   - Implement the `KeybindingManager` class. It will manage the context
+     stack, hold a registry of all `KeybindingAction`s, and expose methods
+     like `registerAction(action: KeybindingAction)`,
+     `pushContext(context: KeybindingContext)`,
+     `popContext(contextId: string)`, and `handleKey(key, input)`.
+   - It will be responsible for reading `keybindings.json` and a default,
+     built-in keymap. User-defined keymaps will override the defaults.
 
-          return <Text>This is a dialog.</Text>;
-        };
-        ```
+1. **Create a React Hook (`useKeybindingContext`):**
 
-3.  **Refactor `App.tsx` (Global Context):**
-    -   First, refactor the global keybindings in `App.tsx`.
-    -   Define actions like `application.quit` (`Ctrl+C`), `application.toggleErrorDetails` (`Ctrl+O`), etc.
-    -   Register these actions with the `KeybindingManager`.
-    -   Create a `global` context with the default mappings for these actions.
-    -   Replace the existing `useInput` hook in `App.tsx` with a single call to `keybindingManager.handleKey`.
+   - Develop a `useKeybindingContext(context: KeybindingContext)` hook.
+   - This hook will automatically call `pushContext` on component mount and
+     `popContext` on unmount, simplifying lifecycle management for developers.
+   - **Example Usage:**
+     ```tsx
+     const MyDialog = () => {
+       const myDialogContext = {
+         id: 'my-dialog',
+         keymap: { 'escape': 'dialog.close' }
+       };
+       useKeybindingContext(myDialogContext);
 
-4.  **Refactor `InputPrompt.tsx` (Prompt Context):**
-    -   This is the most critical step. We will define a `prompt` context.
-    -   Define a comprehensive set of actions for all text-editing operations currently in `InputPrompt.tsx` and `useTextBuffer`: `prompt.submit`, `prompt.newline`, `prompt.cursor.moveHome`, `prompt.cursor.moveEnd`, `prompt.history.next`, `prompt.killLine.right`, etc.
-    -   The callbacks for these actions will operate directly on the `TextBuffer` instance, which will be passed to them.
-    -   The `InputPrompt` component will use the `useKeybindingContext` hook to push the `prompt` context when it is focused.
-    -   The complex, stateful `handleInput` function in `InputPrompt.tsx` will be completely replaced by this declarative system. The logic will be broken down into smaller, independent `KeybindingAction` callbacks.
+       return <Text>This is a dialog.</Text>;
+     };
+     ```
 
-5.  **Implement Keybinding Discovery:**
-    -   Create a new `/keybindings` slash command.
-    -   This command will access the `KeybindingManager` to get a list of all registered `KeybindingAction`s and their descriptions.
-    -   It will also show the current key mapping for each action by inspecting the loaded contexts, making the system fully discoverable at runtime.
+1. **Refactor `App.tsx` (Global Context):**
+
+   - First, refactor the global keybindings in `App.tsx`.
+   - Define actions like `application.quit` (`Ctrl+C`),
+     `application.toggleErrorDetails` (`Ctrl+O`), etc.
+   - Register these actions with the `KeybindingManager`.
+   - Create a `global` context with the default mappings for these actions.
+   - Replace the existing `useInput` hook in `App.tsx` with a single call to
+     `keybindingManager.handleKey`.
+
+1. **Refactor `InputPrompt.tsx` (Prompt Context):**
+
+   - This is the most critical step. We will define a `prompt` context.
+   - Define a comprehensive set of actions for all text-editing operations
+     currently in `InputPrompt.tsx` and `useTextBuffer`: `prompt.submit`,
+     `prompt.newline`, `prompt.cursor.moveHome`, `prompt.cursor.moveEnd`,
+     `prompt.history.next`, `prompt.killLine.right`, etc.
+   - The callbacks for these actions will operate directly on the `TextBuffer`
+     instance, which will be passed to them.
+   - The `InputPrompt` component will use the `useKeybindingContext` hook to
+     push the `prompt` context when it is focused.
+   - The complex, stateful `handleInput` function in `InputPrompt.tsx` will be
+     completely replaced by this declarative system. The logic will be broken
+     down into smaller, independent `KeybindingAction` callbacks.
+
+1. **Implement Keybinding Discovery:**
+
+   - Create a new `/keybindings` slash command.
+   - This command will access the `KeybindingManager` to get a list of all
+     registered `KeybindingAction`s and their descriptions.
+   - It will also show the current key mapping for each action by inspecting
+     the loaded contexts, making the system fully discoverable at runtime.
 
 ### **5. How This Design Addresses Reviewer Feedback**
 
--   **Context and Scope:** The Context Stack is a direct and robust solution for managing scope and precedence, fully addressing the need to handle dialogs, `InputPrompt`, and other UI states correctly.
--   **Separation of Concerns:** The design strictly separates `Actions` (what) from `KeybindingMap` (how), as recommended. The registry only knows about actions; the manager maps keys to them based on the active context.
--   **Lifecycle Management:** The `useKeybindingContext` hook ties the registration and unregistration of contexts directly to the component lifecycle, preventing memory leaks and bugs.
--   **Complex Components:** The design for the `prompt` context shows a clear path to refactoring the complex logic of `InputPrompt` into smaller, manageable, and declarative actions without losing any functionality.
--   **Concrete Examples:** The plan includes examples of the data structures and the `useKeybindingContext` hook to make the proposal more concrete.
+- **Context and Scope:** The Context Stack is a direct and robust solution for
+  managing scope and precedence, fully addressing the need to handle dialogs,
+  `InputPrompt`, and other UI states correctly.
+- **Separation of Concerns:** The design strictly separates `Actions` (what)
+  from `KeybindingMap` (how), as recommended. The registry only knows about
+  actions; the manager maps keys to them based on the active context.
+- **Lifecycle Management:** The `useKeybindingContext` hook ties the
+  registration and unregistration of contexts directly to the component
+  lifecycle, preventing memory leaks and bugs.
+- **Complex Components:** The design for the `prompt` context shows a clear
+  path to refactoring the complex logic of `InputPrompt` into smaller,
+  manageable, and declarative actions without losing any functionality.
+- **Concrete Examples:** The plan includes examples of the data structures and
+  the `useKeybindingContext` hook to make the proposal more concrete.
