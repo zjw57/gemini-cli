@@ -213,6 +213,104 @@ registrations.
 
 ## **Final Design**
 
-{{This section will be updated by Gemini with a final implementation plan
-based on human feedback, a thorough understanding of the project goals and
-requirements, and a complete read of the existing codebase.}}
+## **Final Design**
+
+This final design incorporates feedback from all reviewers and a detailed analysis of the existing codebase, including the complex input handling in `App.tsx` and `InputPrompt.tsx`. The goal is to create a system that is centralized, configurable, context-aware, and capable of handling all existing functionality without breaking changes.
+
+### **1. Core Concepts**
+
+The new system will be built on three core concepts:
+
+1.  **Keybinding Actions:** An "Action" is a command that can be executed within the application. It is a pure definition of *what* can be done, not *how* it is triggered. Each action has a unique ID, a description for help menus, and a callback function.
+
+2.  **Keybinding Contexts:** A "Context" is a named set of active key-to-action mappings. Contexts are the cornerstone of this design, allowing keybindings to behave differently depending on the application's state (e.g., `global`, `dialog`, `prompt`).
+
+3.  **The Keybinding Manager:** A central singleton service responsible for managing a stack of active contexts, processing raw keyboard input, and dispatching the correct Action based on the current context.
+
+### **2. The Keybinding Manager and Context Stack**
+
+The `KeybindingManager` will be the single source of truth for input handling. It will contain a stack of active `KeybindingContext` objects.
+
+-   **Context Stack:** When a component becomes active (e.g., a dialog opens), it will **push** its context onto the stack. When it becomes inactive, it will **pop** its context. This ensures a clean lifecycle tied to the component's lifecycle (e.g., via a `useEffect` hook).
+-   **Input Handling:** The Manager will use a single, top-level `useInput` hook in `App.tsx`. When a key is pressed, the Manager will iterate down the context stack from the top. The first context that has a mapping for the pressed key will handle the event. This creates a natural system of precedence: a "dialog" context's keybindings will override a "global" context's keybindings.
+-   **Fallback:** A `global` context will always exist at the bottom of the stack to handle application-wide shortcuts.
+
+### **3. Data Structures and Interfaces**
+
+```typescript
+// In a new file, e.g., packages/core/src/keybindings/types.ts
+
+/**
+ * Defines a command that can be executed.
+ * It does NOT include a key mapping.
+ */
+export interface KeybindingAction {
+  id: string; // e.g., 'application.quit', 'prompt.submit', 'prompt.cursor.moveHome'
+  description: string;
+  callback: (context?: any) => void; // Contextual data can be passed to the callback
+}
+
+/**
+ * Defines a mapping from a key sequence to an Action ID.
+ * This is the structure of our keybindings.json file.
+ * Example: { "ctrl+c": "application.quit", "enter": "prompt.submit" }
+ */
+export type KeybindingMap = Record<string, string>;
+
+/**
+ * Represents a named context with its own set of key mappings.
+ */
+export interface KeybindingContext {
+  id: string; // e.g., 'global', 'dialog', 'prompt'
+  keymap: KeybindingMap;
+}
+```
+
+### **4. Implementation Plan**
+
+1.  **Create Core Services (`KeybindingManager`):**
+    -   Implement the `KeybindingManager` class. It will manage the context stack, hold a registry of all `KeybindingAction`s, and expose methods like `registerAction(action: KeybindingAction)`, `pushContext(context: KeybindingContext)`, `popContext(contextId: string)`, and `handleKey(key, input)`.
+    -   It will be responsible for reading `keybindings.json` and a default, built-in keymap. User-defined keymaps will override the defaults.
+
+2.  **Create a React Hook (`useKeybindingContext`):**
+    -   Develop a `useKeybindingContext(context: KeybindingContext)` hook.
+    -   This hook will automatically call `pushContext` on component mount and `popContext` on unmount, simplifying lifecycle management for developers.
+    -   **Example Usage:**
+        ```tsx
+        const MyDialog = () => {
+          const myDialogContext = {
+            id: 'my-dialog',
+            keymap: { 'escape': 'dialog.close' }
+          };
+          useKeybindingContext(myDialogContext);
+
+          return <Text>This is a dialog.</Text>;
+        };
+        ```
+
+3.  **Refactor `App.tsx` (Global Context):**
+    -   First, refactor the global keybindings in `App.tsx`.
+    -   Define actions like `application.quit` (`Ctrl+C`), `application.toggleErrorDetails` (`Ctrl+O`), etc.
+    -   Register these actions with the `KeybindingManager`.
+    -   Create a `global` context with the default mappings for these actions.
+    -   Replace the existing `useInput` hook in `App.tsx` with a single call to `keybindingManager.handleKey`.
+
+4.  **Refactor `InputPrompt.tsx` (Prompt Context):**
+    -   This is the most critical step. We will define a `prompt` context.
+    -   Define a comprehensive set of actions for all text-editing operations currently in `InputPrompt.tsx` and `useTextBuffer`: `prompt.submit`, `prompt.newline`, `prompt.cursor.moveHome`, `prompt.cursor.moveEnd`, `prompt.history.next`, `prompt.killLine.right`, etc.
+    -   The callbacks for these actions will operate directly on the `TextBuffer` instance, which will be passed to them.
+    -   The `InputPrompt` component will use the `useKeybindingContext` hook to push the `prompt` context when it is focused.
+    -   The complex, stateful `handleInput` function in `InputPrompt.tsx` will be completely replaced by this declarative system. The logic will be broken down into smaller, independent `KeybindingAction` callbacks.
+
+5.  **Implement Keybinding Discovery:**
+    -   Create a new `/keybindings` slash command.
+    -   This command will access the `KeybindingManager` to get a list of all registered `KeybindingAction`s and their descriptions.
+    -   It will also show the current key mapping for each action by inspecting the loaded contexts, making the system fully discoverable at runtime.
+
+### **5. How This Design Addresses Reviewer Feedback**
+
+-   **Context and Scope:** The Context Stack is a direct and robust solution for managing scope and precedence, fully addressing the need to handle dialogs, `InputPrompt`, and other UI states correctly.
+-   **Separation of Concerns:** The design strictly separates `Actions` (what) from `KeybindingMap` (how), as recommended. The registry only knows about actions; the manager maps keys to them based on the active context.
+-   **Lifecycle Management:** The `useKeybindingContext` hook ties the registration and unregistration of contexts directly to the component lifecycle, preventing memory leaks and bugs.
+-   **Complex Components:** The design for the `prompt` context shows a clear path to refactoring the complex logic of `InputPrompt` into smaller, manageable, and declarative actions without losing any functionality.
+-   **Concrete Examples:** The plan includes examples of the data structures and the `useKeybindingContext` hook to make the proposal more concrete.
