@@ -127,8 +127,89 @@ complexity and ensure a smooth transition.
 
 ## **Feedback from Human Reviewers**
 
-{{This section will be added after our area experts have had an opportunity to
-review Gemini's design and plan.}}
+## **Feedback from Human Reviewers**
+
+Our human and AI reviewers provided detailed feedback on the initial design.
+This section summarizes their key points, which will be used to shape the
+final implementation plan.
+
+### **Key Themes from Feedback**
+
+#### **1. Context and Scope Management**
+
+A primary concern raised by reviewers was the management of context-sensitive
+keybindings. The initial design proposed a single, global `useInput` hook,
+which does not account for scenarios where keybindings should only be active
+within a specific UI context, such as a dialog, a text input field, or other
+specialized components like `InputPrompt` and `TextBuffer`.
+
+- **Challenge:** How does the system determine which keybinding to execute when
+  multiple contexts are active or when a component-specific keybinding
+  should override a global one?
+- **Suggestion:** The design must incorporate a more sophisticated approach to
+  context. This could involve a "lighter weight" solution where callers can
+  resolve whether a specific input matches a keybinding, rather than a single
+  service that takes full control of all keyboard input. This aligns better
+  with the existing codebase, where `useInput` is used in multiple components.
+
+#### **2. Separation of Concerns: Actions vs. Mappings**
+
+Reviewers pointed out that the proposed `Keybinding` interface mixed the
+_definition_ of an action (what it does) with its _mapping_ (how it's
+triggered) by including a `defaultKey` property.
+
+- **Challenge:** This approach creates ambiguity. It's unclear how a `defaultKey`
+  would interact with a user's custom mapping in `keybindings.json`. Which
+  one should take precedence in case of a conflict?
+- **Suggestion:** The keybinding registry should only be concerned with being a
+  collection of available **actions** (e.g., name, description, callback). The
+  mapping of keys to these actions should be handled exclusively by a separate
+  configuration layer. The `defaultKey` concept should be removed from the
+  core interface and instead be used to generate a default `keybindings.json`
+  file that users can then customize.
+
+#### **3. Lifecycle Management**
+
+The plan for gradual refactoring implies that components will register their
+own keybindings. The initial design did not specify the lifecycle of these
+registrations.
+
+- **Challenge:** Without a clear lifecycle, the application could suffer from
+  memory leaks (e.g., callbacks referencing unmounted components) or bugs where
+  keybindings for inactive UI elements are still processed.
+- **Suggestion:** The design must explicitly define when keybindings are
+  registered and unregistered. This lifecycle should likely be tied to
+  component lifecycle hooks (e.g., `useEffect` in React) and integrated with
+  the context management system.
+
+#### **4. Implementation and Discovery Details**
+
+- **Complex Components:** The solution must be robust enough to handle the most
+  complex existing keybinding implementations, such as those in `InputPrompt`
+  and `TextBuffer`.
+- **Discovery Command:** The proposal to use `/help` for keybinding discovery
+  was questioned. A more specific or dedicated command might be more
+  appropriate.
+- **Feature Flag:** The suggestion to put the new system behind a feature flag
+  was deemed unnecessary.
+
+### **Summary of Reviewer Recommendations**
+
+1.  **Refine the Core Service:** Move away from a single, monolithic
+    `KeybindingService` that controls all input. Instead, design a more
+    flexible system that allows different parts of the application to resolve
+    keybindings based on the current context.
+2.  **Clarify the `Keybinding` Definition:** Separate the action from the
+    mapping. The registry should store actions, and the configuration file
+    should store mappings.
+3.  **Define Keybinding Lifecycle:** Specify how and when keybindings are
+    registered and unregistered, tying it to the component lifecycle to prevent
+    bugs and memory leaks.
+4.  **Address Complex Cases:** Ensure the design explicitly accounts for the most
+    complex keybinding scenarios in the current codebase.
+5.  **Provide Concrete Examples:** The final design would benefit from code
+    snippets or more concrete examples to illustrate how the proposed system
+    will work in practice.
 
 ## **Final Design**
 
