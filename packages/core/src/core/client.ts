@@ -20,6 +20,7 @@ import {
   ServerGeminiStreamEvent,
   GeminiEventType,
   ChatCompressionInfo,
+  GeminiEventType,
 } from './turn.js';
 import { Config } from '../config/config.js';
 import { getCoreSystemPrompt, getCompressionPrompt } from './prompts.js';
@@ -243,6 +244,10 @@ export class GeminiClient {
             },
           }
         : this.generateContentConfig;
+
+      console.log('systemInstruction', systemInstruction);
+      console.log('generateContentConfigWithThinking', generateContentConfigWithThinking);
+      console.log('tools', tools);
       return new GeminiChat(
         this.config,
         this.getContentGenerator(),
@@ -264,6 +269,12 @@ export class GeminiClient {
     }
   }
 
+private checkIfLoopExists(currentStream: string | undefined, newStream: string): boolean {
+  if (!currentStream) {
+    return false;
+  }
+  return currentStream.includes(newStream);
+}
   async *sendMessageStream(
     request: PartListUnion,
     signal: AbortSignal,
@@ -294,8 +305,22 @@ export class GeminiClient {
       yield { type: GeminiEventType.ChatCompressed, value: compressed };
     }
     const turn = new Turn(this.getChat(), prompt_id);
+    let currentStream: string | undefined;
     const resultStream = turn.run(request, signal);
     for await (const event of resultStream) {
+      if (event.type === GeminiEventType.Content) {
+        if (this.checkIfLoopExists(currentStream, event.value)) {
+          yield* this.sendMessageStream(
+            [{ text: 'You have started to chant and loop responding with the same message. Look at the history and the original message to understand what should do to complete the given task.' }],
+            signal,
+            prompt_id,
+            boundedTurns - 1,
+            initialModel,
+          );
+        } else {
+          currentStream = currentStream + event.value;
+        }
+      }
       yield event;
     }
     if (!turn.pendingToolCalls.length && signal && !signal.aborted) {
