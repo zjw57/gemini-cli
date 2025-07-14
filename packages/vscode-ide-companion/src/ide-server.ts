@@ -8,21 +8,50 @@ import * as vscode from 'vscode';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express, { Request, Response } from 'express';
+import { randomUUID } from 'node:crypto';
+import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 
-export async function startIDEServer(_context: vscode.ExtensionContext) {
+export async function startIDEServer(context: vscode.ExtensionContext) {
   const app = express();
   app.use(express.json());
 
-  const mcpServer = createMcpServer();
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined,
-    enableJsonResponse: true,
-  });
-
-  mcpServer.connect(transport);
+  const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 
   app.post('/mcp', async (req: Request, res: Response) => {
-    console.log('Received MCP request:', req.body);
+    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+    let transport: StreamableHTTPServerTransport;
+
+    if (sessionId && transports[sessionId]) {
+      transport = transports[sessionId];
+    } else if (!sessionId && isInitializeRequest(req.body)) {
+      transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        onsessioninitialized: (newSessionId) => {
+          transports[newSessionId] = transport;
+        },
+      });
+
+      transport.onclose = () => {
+        if (transport.sessionId) {
+          delete transports[transport.sessionId];
+        }
+      };
+
+      const server = createMcpServer(context);
+      server.connect(transport);
+    } else {
+      res.status(400).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32000,
+          message:
+            'Bad Request: No valid session ID provided for non-initialize request.',
+        },
+        id: null,
+      });
+      return;
+    }
+
     try {
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
@@ -40,15 +69,28 @@ export async function startIDEServer(_context: vscode.ExtensionContext) {
     }
   });
 
-  // Handle GET requests for SSE streams
-  app.get('/mcp', async (req: Request, res: Response) => {
-    res.status(405).set('Allow', 'POST').send('Method Not Allowed');
-  });
+  const handleSessionRequest = async (req: Request, res: Response) => {
+    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+    if (!sessionId || !transports[sessionId]) {
+      res.status(400).send('Invalid or missing session ID');
+      return;
+    }
 
-  // Start the server
-  // TODO(#3918): Generate dynamically and write to env variable
+    const transport = transports[sessionId];
+    try {
+      await transport.handleRequest(req, res);
+    } catch (error) {
+      console.error('Error handling MCP GET request:', error);
+      if (!res.headersSent) {
+        res.status(400).send('Bad Request');
+      }
+    }
+  };
+
+  app.get('/mcp', handleSessionRequest);
+
   const PORT = 3000;
-  app.listen(PORT, (error) => {
+  app.listen(PORT, (error?: Error) => {
     if (error) {
       console.error('Failed to start server:', error);
       vscode.window.showErrorMessage(
@@ -59,11 +101,14 @@ export async function startIDEServer(_context: vscode.ExtensionContext) {
   });
 }
 
-const createMcpServer = () => {
-  const server = new McpServer({
-    name: 'vscode-ide-server',
-    version: '1.0.0',
-  });
+const createMcpServer = (context: vscode.ExtensionContext) => {
+  const server = new McpServer(
+    {
+      name: 'vscode-ide-server',
+      version: '1.0.0',
+    },
+    { capabilities: { logging: {} } },
+  );
   server.registerTool(
     'getActiveFile',
     {
@@ -103,6 +148,52 @@ const createMcpServer = () => {
           ],
         };
       }
+    },
+  );
+  server.registerTool(
+    'streamIDEState',
+    {
+      description:
+        '(IDE Tool) Open file diff in VS Code. Sends a notification once the file diff is accepted.',
+      inputSchema: {},
+    },
+    ({}, { sendNotification }) => {
+      return new Promise((_, reject) => {
+        const sendActiveFile = async (
+          editor: vscode.TextEditor | undefined,
+        ) => {
+          if (!editor || !editor.document.uri.fsPath) {
+            await sendNotification({
+              method: 'notifications/message',
+              params: { level: 'info', data: `No active file` },
+            }).catch((e) => {
+              console.error('Failed to send notification', e);
+              reject(e);
+            });
+          } else {
+            const { document } = editor;
+            await sendNotification({
+              method: 'notifications/message',
+              params: {
+                level: 'info',
+                data: {
+                  filePath: document.uri.fsPath,
+                },
+              },
+            }).catch((e) => {
+              console.error('Failed to send notification', e);
+              reject(e);
+            });
+          }
+        };
+
+        sendActiveFile(vscode.window.activeTextEditor);
+
+        const disposable =
+          vscode.window.onDidChangeActiveTextEditor(sendActiveFile);
+
+        context.subscriptions.push(disposable);
+      });
     },
   );
   return server;
