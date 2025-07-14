@@ -23,7 +23,7 @@ const homeDirectoryCheck: WarningCheck = {
       ]);
 
       if (workspaceRealPath === homeRealPath) {
-return `${process.env.NO_COLOR ? 'Warning' : '\x1b[1mWarning\x1b[0m'}: You are running Gemini CLI in your home directory. To prevent accidental file changes and ensure more accurate results, /quit and run the CLI in a project directory.`;
+        return `${process.env.NO_COLOR ? 'Warning' : '\x1b[1mWarning\x1b[0m'}: You are running Gemini CLI in your home directory. To prevent accidental file changes and ensure more accurate results, /quit and run the CLI in a project directory.`;
       }
       return null;
     } catch (_err: unknown) {
