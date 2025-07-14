@@ -56,6 +56,7 @@ export interface CliArgs {
   extensions: string[] | undefined;
   listExtensions: boolean | undefined;
   ideMode: boolean | undefined;
+  screenReaderCompatible: boolean | undefined;
 }
 
 export async function parseArguments(): Promise<CliArgs> {
@@ -180,6 +181,10 @@ export async function parseArguments(): Promise<CliArgs> {
     .option('ide-mode', {
       type: 'boolean',
       description: 'Run in IDE mode?',
+    })
+    .option('screen-reader-compatible', {
+      type: 'boolean',
+      description: 'Run in screen-reader-compatible mode?',
     })
 
     .version(await getCliVersion()) // This will enable the --version flag based on package.json
@@ -363,6 +368,7 @@ export async function loadCliConfig(
     })),
     noBrowser: !!process.env.NO_BROWSER,
     ideMode,
+    screenReaderCompatible: argv.screenReaderCompatible,
   });
 }
 

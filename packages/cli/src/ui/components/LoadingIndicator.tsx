@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ThoughtSummary } from '@google/gemini-cli-core';
+import { Config, ThoughtSummary } from '@google/gemini-cli-core';
 import React from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
@@ -14,6 +14,7 @@ import { GeminiRespondingSpinner } from './GeminiRespondingSpinner.js';
 import { formatDuration } from '../utils/formatters.js';
 
 interface LoadingIndicatorProps {
+  config: Config;
   currentLoadingPhrase?: string;
   elapsedTime: number;
   rightContent?: React.ReactNode;
@@ -21,6 +22,7 @@ interface LoadingIndicatorProps {
 }
 
 export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
+  config,
   currentLoadingPhrase,
   elapsedTime,
   rightContent,
@@ -33,6 +35,16 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   }
 
   const primaryText = thought?.subject || currentLoadingPhrase;
+
+  if (config.getScreenReaderCompatible()) {
+    return (
+      <Box marginTop={1} paddingLeft={0} flexDirection="column">
+        <Box>
+          <Text>Loading</Text>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box marginTop={1} paddingLeft={0} flexDirection="column">

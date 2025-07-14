@@ -695,6 +695,230 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   // Arbitrary threshold to ensure that items in the static area are large
   // enough but not too large to make the terminal hard to use.
   const staticAreaMaxItemHeight = Math.max(terminalHeight * 4, 100);
+  if (config.getScreenReaderCompatible()) {
+    return (
+          <StreamingContext.Provider value={streamingState}>
+      <Box flexDirection="column" marginBottom={1} width="90%">
+        {/* Move UpdateNotification outside Static so it can re-render when updateMessage changes */}
+        {updateMessage && <UpdateNotification message={updateMessage} />}
+
+        <Static
+          key={staticKey}
+          items={[
+            ...history.map((h) => (
+              <HistoryItemDisplay
+                terminalWidth={mainAreaWidth}
+                availableTerminalHeight={staticAreaMaxItemHeight}
+                key={h.id}
+                item={h}
+                isPending={false}
+                config={config}
+              />
+            )),
+          ]}
+        >
+          {(item) => item}
+        </Static>
+        <OverflowProvider>
+          <Box ref={pendingHistoryItemRef} flexDirection="column">
+            {pendingHistoryItems.map((item, i) => (
+              <HistoryItemDisplay
+                key={i}
+                availableTerminalHeight={
+                  constrainHeight ? availableTerminalHeight : undefined
+                }
+                terminalWidth={mainAreaWidth}
+                item={{ ...item, id: 0 }}
+                isPending={true}
+                config={config}
+                isFocused={!isEditorDialogOpen}
+              />
+            ))}
+            <ShowMoreLines constrainHeight={constrainHeight} />
+          </Box>
+        </OverflowProvider>
+
+        {showHelp && <Help commands={slashCommands} />}
+
+        <Box flexDirection="column" ref={mainControlsRef}>
+          
+        {startupWarnings.map((warning, index) => (
+          <Text key={index} color={Colors.AccentYellow}>
+            {warning}
+          </Text>
+        ))}
+
+          {isAuthenticating ? (
+            <>
+              <AuthInProgress
+                onTimeout={() => {
+                  setAuthError('Authentication timed out. Please try again.');
+                  cancelAuthentication();
+                  openAuthDialog();
+                }}
+              />
+              {showErrorDetails && (
+                <OverflowProvider>
+                  <Box flexDirection="column">
+                    <DetailedMessagesDisplay
+                      messages={filteredConsoleMessages}
+                      maxHeight={
+                        constrainHeight ? debugConsoleMaxHeight : undefined
+                      }
+                      width={inputWidth}
+                    />
+                    <ShowMoreLines constrainHeight={constrainHeight} />
+                  </Box>
+                </OverflowProvider>
+              )}
+            </>
+          ) : isAuthDialogOpen ? (
+            <Box flexDirection="column">
+              <AuthDialog
+                onSelect={handleAuthSelect}
+                settings={settings}
+                initialErrorMessage={authError}
+              />
+            </Box>
+          ) : isEditorDialogOpen ? (
+            <Box flexDirection="column">
+              {editorError && (
+                <Box marginBottom={1}>
+                  <Text color={Colors.AccentRed}>{editorError}</Text>
+                </Box>
+              )}
+              <EditorSettingsDialog
+                onSelect={handleEditorSelect}
+                settings={settings}
+                onExit={exitEditorDialog}
+              />
+            </Box>
+          ) : showPrivacyNotice ? (
+            <PrivacyNotice
+              onExit={() => setShowPrivacyNotice(false)}
+              config={config}
+            />
+          ) : (
+            <>
+              <LoadingIndicator
+                config={config}
+                thought={
+                  streamingState === StreamingState.WaitingForConfirmation ||
+                  config.getAccessibility()?.disableLoadingPhrases
+                    ? undefined
+                    : thought
+                }
+                currentLoadingPhrase={
+                  config.getAccessibility()?.disableLoadingPhrases
+                    ? undefined
+                    : currentLoadingPhrase
+                }
+                elapsedTime={elapsedTime}
+              />
+              <Box
+                marginTop={1}
+                display="flex"
+                justifyContent="space-between"
+                width="100%"
+              >
+                <Box>
+                  {process.env.GEMINI_SYSTEM_MD && (
+                    <Text color={Colors.AccentRed}>|⌐■_■| </Text>
+                  )}
+                  {ctrlCPressedOnce ? (
+                    <Text color={Colors.AccentYellow}>
+                      Press Ctrl+C again to exit.
+                    </Text>
+                  ) : ctrlDPressedOnce ? (
+                    <Text color={Colors.AccentYellow}>
+                      Press Ctrl+D again to exit.
+                    </Text>
+                  ) : (
+                    <ContextSummaryDisplay
+                      geminiMdFileCount={geminiMdFileCount}
+                      contextFileNames={contextFileNames}
+                      mcpServers={config.getMcpServers()}
+                      showToolDescriptions={showToolDescriptions}
+                    />
+                  )}
+                </Box>
+                <Box>
+                  {showAutoAcceptIndicator !== ApprovalMode.DEFAULT &&
+                    !shellModeActive && (
+                      <AutoAcceptIndicator
+                        approvalMode={showAutoAcceptIndicator}
+                      />
+                    )}
+                  {shellModeActive && <ShellModeIndicator />}
+                </Box>
+              </Box>
+
+              {showErrorDetails && (
+                <OverflowProvider>
+                  <Box flexDirection="column">
+                    <DetailedMessagesDisplay
+                      messages={filteredConsoleMessages}
+                      maxHeight={
+                        constrainHeight ? debugConsoleMaxHeight : undefined
+                      }
+                      width={inputWidth}
+                    />
+                    <ShowMoreLines constrainHeight={constrainHeight} />
+                  </Box>
+                </OverflowProvider>
+              )}
+
+              {isInputActive && (
+                <InputPrompt
+                  buffer={buffer}
+                  inputWidth={inputWidth}
+                  suggestionsWidth={suggestionsWidth}
+                  onSubmit={handleFinalSubmit}
+                  userMessages={userMessages}
+                  onClearScreen={handleClearScreen}
+                  config={config}
+                  slashCommands={slashCommands}
+                  commandContext={commandContext}
+                  shellModeActive={shellModeActive}
+                  setShellModeActive={setShellModeActive}
+                />
+              )}
+            </>
+          )}
+
+          {initError && streamingState !== StreamingState.Responding && (
+            <Box
+              marginBottom={1}
+            >
+              {history.find(
+                (item) =>
+                  item.type === 'error' && item.text?.includes(initError),
+              )?.text ? (
+                <Text color={Colors.AccentRed}>
+                  {
+                    history.find(
+                      (item) =>
+                        item.type === 'error' && item.text?.includes(initError),
+                    )?.text
+                  }
+                </Text>
+              ) : (
+                <>
+                  <Text color={Colors.AccentRed}>
+                    Initialization Error: {initError}
+                  </Text>
+                  <Text color={Colors.AccentRed}>
+                    {' '}
+                    Please check API key and configuration.
+                  </Text>
+                </>
+              )}
+            </Box>
+          )}
+        </Box>
+      </Box>
+    </StreamingContext.Provider>);
+  }
   return (
     <StreamingContext.Provider value={streamingState}>
       <Box flexDirection="column" marginBottom={1} width="90%">
@@ -716,7 +940,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
           key={staticKey}
           items={[
             <Box flexDirection="column" key="header">
-              {!settings.merged.hideBanner && (
+              {!settings.merged.hideBanner && !config.getScreenReaderCompatible() && (
                 <Header
                   terminalWidth={terminalWidth}
                   version={version}
@@ -851,6 +1075,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
           ) : (
             <>
               <LoadingIndicator
+                config={config}
                 thought={
                   streamingState === StreamingState.WaitingForConfirmation ||
                   config.getAccessibility()?.disableLoadingPhrases

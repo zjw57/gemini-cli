@@ -407,13 +407,17 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
     buffer.visualCursor;
   const scrollVisualRow = buffer.visualScrollRow;
 
+  const boxProps = config.getScreenReaderCompatible()
+    ? { paddingX: 1 }
+    : {
+        borderStyle: 'round' as const,
+        borderColor: shellModeActive ? Colors.AccentYellow : Colors.AccentBlue,
+        paddingX: 1,
+      };
+
   return (
     <>
-      <Box
-        borderStyle="round"
-        borderColor={shellModeActive ? Colors.AccentYellow : Colors.AccentBlue}
-        paddingX={1}
-      >
+      <Box {...boxProps}>
         <Text
           color={shellModeActive ? Colors.AccentYellow : Colors.AccentPurple}
         >

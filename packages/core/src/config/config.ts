@@ -145,6 +145,7 @@ export interface ConfigParameters {
   activeExtensions?: ActiveExtension[];
   noBrowser?: boolean;
   ideMode?: boolean;
+  screenReaderCompatible?: boolean;
 }
 
 export class Config {
@@ -185,6 +186,7 @@ export class Config {
   private readonly extensionContextFilePaths: string[];
   private readonly noBrowser: boolean;
   private readonly ideMode: boolean;
+  private readonly screenReaderCompatible: boolean;
   private modelSwitchedDuringSession: boolean = false;
   private readonly maxSessionTurns: number;
   private readonly listExtensions: boolean;
@@ -237,6 +239,7 @@ export class Config {
     this._activeExtensions = params.activeExtensions ?? [];
     this.noBrowser = params.noBrowser ?? false;
     this.ideMode = params.ideMode ?? false;
+    this.screenReaderCompatible = params.screenReaderCompatible ?? false;
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -503,6 +506,10 @@ export class Config {
 
   getIdeMode(): boolean {
     return this.ideMode;
+  }
+
+  getScreenReaderCompatible(): boolean {
+    return this.screenReaderCompatible;
   }
 
   async getGitService(): Promise<GitService> {
