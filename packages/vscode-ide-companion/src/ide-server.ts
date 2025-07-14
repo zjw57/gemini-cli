@@ -14,7 +14,7 @@ import {
   type JSONRPCNotification,
 } from '@modelcontextprotocol/sdk/types.js';
 
-export async function startIDEServer(context: vscode.ExtensionContext) {
+export async function startIDEServer(_context: vscode.ExtensionContext) {
   const app = express();
   app.use(express.json());
 
