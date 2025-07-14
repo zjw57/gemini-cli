@@ -89,6 +89,7 @@ export async function startIDEServer(context: vscode.ExtensionContext) {
 
   app.get('/mcp', handleSessionRequest);
 
+    // TODO(#3918): Generate dynamically and write to env variable
   const PORT = 3000;
   app.listen(PORT, (error?: Error) => {
     if (error) {
