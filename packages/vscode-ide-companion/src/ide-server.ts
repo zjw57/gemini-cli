@@ -165,8 +165,8 @@ const createMcpServer = (
         '(IDE Tool) Streams notifications when the active file in the editor changes. A notification is sent immediately with the current active file, and then on every subsequent change.',
       inputSchema: {},
     },
-    ({}, { sendNotification }) => {
-      return new Promise((_, reject) => {
+    (_, { sendNotification }) =>
+      new Promise((_, reject) => {
         const sendActiveFile = async (
           editor: vscode.TextEditor | undefined,
         ) => {
@@ -201,8 +201,7 @@ const createMcpServer = (
           vscode.window.onDidChangeActiveTextEditor(sendActiveFile);
 
         sessionDisposables.push(disposable);
-      });
-    },
+      }),
   );
   return server;
 };
