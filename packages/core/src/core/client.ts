@@ -269,12 +269,13 @@ export class GeminiClient {
     }
   }
 
-private checkIfLoopExists(currentStream: string | undefined, newStream: string): boolean {
-  if (!currentStream) {
-    return false;
+  private checkIfLoopExists(currentStream: string | undefined, newStream: string): boolean {
+    if (!currentStream) {
+      return false;
+    }
+    return currentStream.includes(newStream);
   }
-  return currentStream.includes(newStream);
-}
+
   async *sendMessageStream(
     request: PartListUnion,
     signal: AbortSignal,
@@ -310,6 +311,7 @@ private checkIfLoopExists(currentStream: string | undefined, newStream: string):
     for await (const event of resultStream) {
       if (event.type === GeminiEventType.Content) {
         if (this.checkIfLoopExists(currentStream, event.value)) {
+          console.log('loop detected with chanting');
           yield* this.sendMessageStream(
             [{ text: 'You have started to chant and loop responding with the same message. Look at the history and the original message to understand what should do to complete the given task.' }],
             signal,
