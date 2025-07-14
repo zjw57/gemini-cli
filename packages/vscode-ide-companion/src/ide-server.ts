@@ -89,7 +89,7 @@ export async function startIDEServer(context: vscode.ExtensionContext) {
 
   app.get('/mcp', handleSessionRequest);
 
-    // TODO(#3918): Generate dynamically and write to env variable
+  // TODO(#3918): Generate dynamically and write to env variable
   const PORT = 3000;
   app.listen(PORT, (error?: Error) => {
     if (error) {
@@ -155,7 +155,7 @@ const createMcpServer = (context: vscode.ExtensionContext) => {
     'streamIDEState',
     {
       description:
-        '(IDE Tool) Open file diff in VS Code. Sends a notification once the file diff is accepted.',
+        '(IDE Tool) Streams notifications when the active file in the editor changes. A notification is sent immediately with the current active file, and then on every subsequent change.',
       inputSchema: {},
     },
     ({}, { sendNotification }) => {
