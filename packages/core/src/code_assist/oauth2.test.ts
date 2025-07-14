@@ -4,20 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
-import { getOauthClient } from './oauth2.js';
-import { UserAccountManager } from '../utils/userAccountManager.js';
-import { OAuth2Client, Compute } from 'google-auth-library';
-import * as fs from 'fs';
-import * as path from 'path';
-import http from 'http';
-import open from 'open';
-import crypto from 'crypto';
 import * as os from 'os';
-import { AuthType } from '../core/contentGenerator.js';
-import { Config } from '../config/config.js';
-import readline from 'node:readline';
-
 vi.mock('os', async (importOriginal) => {
   const os = await importOriginal<typeof import('os')>();
   return {
@@ -25,6 +12,20 @@ vi.mock('os', async (importOriginal) => {
     homedir: vi.fn(),
   };
 });
+
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { getOauthClient } from './oauth2.js';
+import { UserAccountManager } from '../utils/userAccountManager.js';
+import { Storage } from '../config/storage.js';
+import { OAuth2Client, Compute } from 'google-auth-library';
+import * as fs from 'fs';
+import * as path from 'path';
+import http from 'http';
+import open from 'open';
+import crypto from 'crypto';
+import { AuthType } from '../core/contentGenerator.js';
+import { Config } from '../config/config.js';
+import readline from 'node:readline';
 
 vi.mock('google-auth-library');
 vi.mock('http');
@@ -170,7 +171,10 @@ describe('oauth2', () => {
     });
 
     // Verify the getCachedGoogleAccount function works
-    expect(getCachedGoogleAccount()).toBe('test-google-account@gmail.com');
+    const userAccountManager = new UserAccountManager(new Storage(tempHomeDir));
+    expect(userAccountManager.getCachedGoogleAccount()).toBe(
+      'test-google-account@gmail.com',
+    );
   });
 
   it('should perform login with user code', async () => {

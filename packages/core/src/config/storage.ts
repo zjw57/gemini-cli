@@ -28,7 +28,12 @@ export class Storage {
   }
 
   getGlobalGeminiDir(): string {
-    const geminiDir = path.join(os.homedir(), GEMINI_DIR);
+    const homeDir = os.homedir();
+    if (!homeDir) {
+      // This is a fallback for testing environments where homedir is not defined.
+      return path.join(os.tmpdir(), '.gemini');
+    }
+    const geminiDir = path.join(homeDir, GEMINI_DIR);
     return geminiDir;
   }
 
