@@ -7,13 +7,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { isNodeError, getProjectTempDir } from '@google/gemini-cli-core';
+import { isNodeError, Storage } from '@google/gemini-cli-core';
 
 const HISTORY_FILE = 'shell_history';
 const MAX_HISTORY_LENGTH = 100;
 
 async function getHistoryFilePath(projectRoot: string): Promise<string> {
-  const historyDir = getProjectTempDir(projectRoot);
+  const storage = new Storage(projectRoot);
+  const historyDir = storage.getProjectTempDir();
   return path.join(historyDir, HISTORY_FILE);
 }
 

@@ -16,6 +16,7 @@ import {
   Logger,
   MCPDiscoveryState,
   MCPServerStatus,
+  Storage,
   getMCPDiscoveryState,
   getMCPServerStatus,
 } from '@google/gemini-cli-core';
@@ -85,6 +86,13 @@ export const useSlashCommandProcessor = (
       return;
     }
     return new GitService(config.getProjectRoot());
+  }, [config]);
+
+  const storage = useMemo(() => {
+    if (!config?.getProjectRoot()) {
+      return;
+    }
+    return new Storage(config.getProjectRoot());
   }, [config]);
 
   const logger = useMemo(() => {
@@ -199,7 +207,7 @@ export const useSlashCommandProcessor = (
   }, [commandService]);
 
   const savedChatTags = useCallback(async () => {
-    const geminiDir = config?.getProjectTempDir();
+    const geminiDir = storage?.getProjectTempDir();
     if (!geminiDir) {
       return [];
     }
@@ -910,8 +918,8 @@ export const useSlashCommandProcessor = (
         description:
           'restore a tool call. This will reset the conversation and file history to the state it was in when the tool call was suggested',
         completion: async () => {
-          const checkpointDir = config?.getProjectTempDir()
-            ? path.join(config.getProjectTempDir(), 'checkpoints')
+          const checkpointDir = storage?.getProjectTempDir()
+            ? path.join(storage.getProjectTempDir(), 'checkpoints')
             : undefined;
           if (!checkpointDir) {
             return [];

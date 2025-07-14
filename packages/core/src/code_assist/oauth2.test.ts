@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { getOauthClient } from './oauth2.js';
-import { getCachedGoogleAccount } from '../utils/user_account.js';
+import { UserAccountManager } from '../utils/userAccountManager.js';
 import { OAuth2Client, Compute } from 'google-auth-library';
 import * as fs from 'fs';
 import * as path from 'path';
