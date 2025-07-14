@@ -9,13 +9,28 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express, { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
-import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import {
+  isInitializeRequest,
+  type JSONRPCNotification,
+} from '@modelcontextprotocol/sdk/types.js';
 
 export async function startIDEServer(context: vscode.ExtensionContext) {
   const app = express();
   app.use(express.json());
 
   const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
+
+  vscode.window.onDidChangeActiveTextEditor((editor) => {
+    const filePath = editor ? editor.document.uri.fsPath : null;
+    const notification: JSONRPCNotification = {
+      jsonrpc: '2.0',
+      method: 'ide/activeFileChanged',
+      params: { filePath },
+    };
+    for (const transport of Object.values(transports)) {
+      transport.send(notification);
+    }
+  });
 
   app.post('/mcp', async (req: Request, res: Response) => {
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
@@ -28,6 +43,14 @@ export async function startIDEServer(context: vscode.ExtensionContext) {
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (newSessionId) => {
           transports[newSessionId] = transport;
+          const editor = vscode.window.activeTextEditor;
+          const filePath = editor ? editor.document.uri.fsPath : null;
+          const notification: JSONRPCNotification = {
+            jsonrpc: '2.0',
+            method: 'ide/activeFileChanged',
+            params: { filePath },
+          };
+          transport.send(notification);
         },
       });
 
@@ -45,7 +68,7 @@ export async function startIDEServer(context: vscode.ExtensionContext) {
       server.connect(transport);
     } else {
       res.status(400).json({
-        jsonrpc: '2.0',
+        jsonrpc: '2.0' as const,
         error: {
           code: -32000,
           message:
@@ -62,7 +85,7 @@ export async function startIDEServer(context: vscode.ExtensionContext) {
       console.error('Error handling MCP request:', error);
       if (!res.headersSent) {
         res.status(500).json({
-          jsonrpc: '2.0',
+          jsonrpc: '2.0' as const,
           error: {
             code: -32603,
             message: 'Internal server error',
@@ -157,51 +180,6 @@ const createMcpServer = (
         };
       }
     },
-  );
-  server.registerTool(
-    'activeFileChanged',
-    {
-      description:
-        '(IDE Tool) Streams notifications when the active file in the editor changes. A notification is sent immediately with the current active file, and then on every subsequent change.',
-      inputSchema: {},
-    },
-    (_, { sendNotification }) =>
-      new Promise((_, reject) => {
-        const sendActiveFile = async (
-          editor: vscode.TextEditor | undefined,
-        ) => {
-          if (!editor || !editor.document.uri.fsPath) {
-            await sendNotification({
-              method: 'notifications/message',
-              params: { level: 'info', data: { filePath: null } },
-            }).catch((e) => {
-              console.error('Failed to send notification', e);
-              reject(e);
-            });
-          } else {
-            const { document } = editor;
-            await sendNotification({
-              method: 'notifications/message',
-              params: {
-                level: 'info',
-                data: {
-                  filePath: document.uri.fsPath,
-                },
-              },
-            }).catch((e) => {
-              console.error('Failed to send notification', e);
-              reject(e);
-            });
-          }
-        };
-
-        sendActiveFile(vscode.window.activeTextEditor);
-
-        const disposable =
-          vscode.window.onDidChangeActiveTextEditor(sendActiveFile);
-
-        sessionDisposables.push(disposable);
-      }),
   );
   return server;
 };
