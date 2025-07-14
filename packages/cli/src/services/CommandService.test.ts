@@ -58,7 +58,7 @@ describe('CommandService', () => {
         const tree = commandService.getCommands();
 
         // Post-condition assertions
-        expect(tree.length).toBe(5);
+        expect(tree.length).toBe(6);
 
         const commandNames = tree.map((cmd) => cmd.name);
         expect(commandNames).toContain('auth');
