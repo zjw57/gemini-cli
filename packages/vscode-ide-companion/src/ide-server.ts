@@ -31,13 +31,17 @@ export async function startIDEServer(context: vscode.ExtensionContext) {
         },
       });
 
+      const sessionDisposables: vscode.Disposable[] = [];
       transport.onclose = () => {
         if (transport.sessionId) {
           delete transports[transport.sessionId];
         }
+        for (const disposable of sessionDisposables) {
+          disposable.dispose();
+        }
       };
 
-      const server = createMcpServer(context);
+      const server = createMcpServer(context, sessionDisposables);
       server.connect(transport);
     } else {
       res.status(400).json({
@@ -102,7 +106,10 @@ export async function startIDEServer(context: vscode.ExtensionContext) {
   });
 }
 
-const createMcpServer = (context: vscode.ExtensionContext) => {
+const createMcpServer = (
+  context: vscode.ExtensionContext,
+  sessionDisposables: vscode.Disposable[],
+) => {
   const server = new McpServer(
     {
       name: 'vscode-ide-server',
@@ -152,7 +159,7 @@ const createMcpServer = (context: vscode.ExtensionContext) => {
     },
   );
   server.registerTool(
-    'streamIDEState',
+    'activeFileChanged',
     {
       description:
         '(IDE Tool) Streams notifications when the active file in the editor changes. A notification is sent immediately with the current active file, and then on every subsequent change.',
@@ -166,7 +173,7 @@ const createMcpServer = (context: vscode.ExtensionContext) => {
           if (!editor || !editor.document.uri.fsPath) {
             await sendNotification({
               method: 'notifications/message',
-              params: { level: 'info', data: `No active file` },
+              params: { level: 'info', data: { filePath: null } },
             }).catch((e) => {
               console.error('Failed to send notification', e);
               reject(e);
@@ -193,7 +200,7 @@ const createMcpServer = (context: vscode.ExtensionContext) => {
         const disposable =
           vscode.window.onDidChangeActiveTextEditor(sendActiveFile);
 
-        context.subscriptions.push(disposable);
+        sessionDisposables.push(disposable);
       });
     },
   );
