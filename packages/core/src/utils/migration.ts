@@ -9,22 +9,22 @@ import * as path from 'path';
 import * as os from 'os';
 import { GEMINI_DIR } from './paths.js';
 
-const INTERNAL_DIR = 'internal';
+const INTERNAL_DIR = 'tmp';
 
 /**
- * Get the path to the internal directory within .gemini
+ * Get the path to the tmp directory within .gemini
  */
 export function getInternalDir(): string {
   return path.join(os.homedir(), GEMINI_DIR, INTERNAL_DIR);
 }
 
 /**
- * Ensures the internal directory exists
+ * Ensures the tmp directory exists
  */
 export function ensureInternalDirExists(): void {
-  const internalDir = getInternalDir();
-  if (!fs.existsSync(internalDir)) {
-    fs.mkdirSync(internalDir, { recursive: true });
+  const tmpDir = getInternalDir();
+  if (!fs.existsSync(tmpDir)) {
+    fs.mkdirSync(tmpDir, { recursive: true });
   }
 }
 
@@ -48,9 +48,7 @@ function migrateFile(oldPath: string, newPath: string): boolean {
       } else {
         // If only old path exists, migrate it
         fs.renameSync(oldPath, newPath);
-        console.debug(
-          `Migrated ${path.basename(oldPath)} to internal directory`,
-        );
+        console.debug(`Migrated ${path.basename(oldPath)} to tmp directory`);
       }
       return true;
     }
@@ -62,22 +60,22 @@ function migrateFile(oldPath: string, newPath: string): boolean {
 }
 
 /**
- * Migrates all files from the data directory to the internal directory
+ * Migrates all files from the data directory to the tmp directory
  * and cleans up the empty data directory afterwards
  */
 function migrateDataDirectory(): void {
   const geminiDir = path.join(os.homedir(), GEMINI_DIR);
   const dataDir = path.join(geminiDir, 'data');
-  const internalDir = getInternalDir();
+  const tmpDir = getInternalDir();
 
   try {
     if (fs.existsSync(dataDir)) {
       const files = fs.readdirSync(dataDir);
 
-      // Migrate any remaining files from data to internal directory
+      // Migrate any remaining files from data to tmp directory
       for (const file of files) {
         const oldPath = path.join(dataDir, file);
-        const newPath = path.join(internalDir, file);
+        const newPath = path.join(tmpDir, file);
         migrateFile(oldPath, newPath);
       }
 
@@ -94,28 +92,28 @@ function migrateDataDirectory(): void {
 }
 
 /**
- * Performs migration of internal files to the internal subdirectory
+ * Performs migration of internal files to the tmp subdirectory
  * This function is idempotent and can be called multiple times safely
  */
 export function migrateInternalFiles(): void {
   const geminiDir = path.join(os.homedir(), GEMINI_DIR);
-  const internalDir = getInternalDir();
+  const tmpDir = getInternalDir();
 
   const filesToMigrate = [
     {
       filename: 'installation_id',
       oldPath: path.join(geminiDir, 'installation_id'),
-      newPath: path.join(internalDir, 'installation_id'),
+      newPath: path.join(tmpDir, 'installation_id'),
     },
     {
       filename: 'google_accounts.json',
       oldPath: path.join(geminiDir, 'google_accounts.json'),
-      newPath: path.join(internalDir, 'google_accounts.json'),
+      newPath: path.join(tmpDir, 'google_accounts.json'),
     },
     {
       filename: 'oauth_creds.json',
       oldPath: path.join(geminiDir, 'oauth_creds.json'),
-      newPath: path.join(internalDir, 'oauth_creds.json'),
+      newPath: path.join(tmpDir, 'oauth_creds.json'),
     },
   ];
 
@@ -127,22 +125,21 @@ export function migrateInternalFiles(): void {
 }
 
 /**
+ * Gets the file path for a given filename in the internal directory, after ensuring migrations
+ * @param filename The name of the file
+ * @returns The path to the file in the internal directory
+ */
+function getInternalFilePath(filename: string): string {
+  migrateInternalFiles();
+  return path.join(getInternalDir(), filename);
+}
+
+/**
  * Gets the installation ID file path, checking both old and new locations
  * @returns The path to the installation_id file
  */
 export function getInstallationIdPath(): string {
-  const internalPath = path.join(getInternalDir(), 'installation_id');
-  const legacyPath = path.join(os.homedir(), GEMINI_DIR, 'installation_id');
-  migrateInternalFiles();
-  if (fs.existsSync(internalPath)) {
-    return internalPath;
-  }
-
-  if (fs.existsSync(legacyPath)) {
-    return internalPath;
-  }
-
-  return internalPath;
+  return getInternalFilePath('installation_id');
 }
 
 /**
@@ -150,23 +147,7 @@ export function getInstallationIdPath(): string {
  * @returns The path to the google_accounts.json file
  */
 export function getGoogleAccountsPath(): string {
-  const internalPath = path.join(getInternalDir(), 'google_accounts.json');
-  const legacyPath = path.join(
-    os.homedir(),
-    GEMINI_DIR,
-    'google_accounts.json',
-  );
-  migrateInternalFiles();
-
-  if (fs.existsSync(internalPath)) {
-    return internalPath;
-  }
-
-  if (fs.existsSync(legacyPath)) {
-    return internalPath;
-  }
-
-  return internalPath;
+  return getInternalFilePath('google_accounts.json');
 }
 
 /**
@@ -174,17 +155,5 @@ export function getGoogleAccountsPath(): string {
  * @returns The path to the oauth_creds.json file
  */
 export function getOAuthCredsPath(): string {
-  const internalPath = path.join(getInternalDir(), 'oauth_creds.json');
-  const legacyPath = path.join(os.homedir(), GEMINI_DIR, 'oauth_creds.json');
-  migrateInternalFiles();
-
-  if (fs.existsSync(internalPath)) {
-    return internalPath;
-  }
-
-  if (fs.existsSync(legacyPath)) {
-    return internalPath;
-  }
-
-  return internalPath;
+  return getInternalFilePath('oauth_creds.json');
 }

@@ -34,7 +34,7 @@ vi.mock('os');
 describe('migration utils', () => {
   const mockHomeDir = '/mock/home';
   const mockGeminiDir = path.join(mockHomeDir, '.gemini');
-  const mockInternalDir = path.join(mockGeminiDir, 'internal');
+  const mockInternalDir = path.join(mockGeminiDir, 'tmp');
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -46,14 +46,14 @@ describe('migration utils', () => {
   });
 
   describe('getInternalDir', () => {
-    it('should return the correct internal directory path', () => {
+    it('should return the correct tmp directory path', () => {
       const result = getInternalDir();
       expect(result).toBe(mockInternalDir);
     });
   });
 
   describe('ensureInternalDirExists', () => {
-    it('should create internal directory if it does not exist', () => {
+    it('should create tmp directory if it does not exist', () => {
       vi.mocked(fs.existsSync).mockReturnValue(false);
       const mkdirSyncMock = vi.mocked(fs.mkdirSync);
 
@@ -75,7 +75,7 @@ describe('migration utils', () => {
   });
 
   describe('migrateInternalFiles', () => {
-    it('should migrate installation_id, google_accounts.json, and oauth_creds.json to internal directory', () => {
+    it('should migrate installation_id, google_accounts.json, and oauth_creds.json to tmp directory', () => {
       const oldInstallationPath = path.join(mockGeminiDir, 'installation_id');
       const newInstallationPath = path.join(mockInternalDir, 'installation_id');
       const oldAccountsPath = path.join(mockGeminiDir, 'google_accounts.json');
@@ -268,7 +268,7 @@ describe('migration utils', () => {
   });
 
   describe('data directory migration', () => {
-    it('should migrate all files from data directory to internal directory and clean up empty data dir', () => {
+    it('should migrate all files from data directory to tmp directory and clean up empty data dir', () => {
       const dataDir = path.join(mockGeminiDir, 'data');
       const dataAccountsPath = path.join(dataDir, 'google_accounts.json');
       const internalAccountsPath = path.join(
