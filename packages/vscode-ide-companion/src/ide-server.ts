@@ -64,7 +64,7 @@ export async function startIDEServer(_context: vscode.ExtensionContext) {
       server.connect(transport);
     } else {
       res.status(400).json({
-        jsonrpc: '2.0' as const,
+        jsonrpc: '2.0',
         error: {
           code: -32000,
           message:
