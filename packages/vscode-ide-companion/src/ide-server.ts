@@ -54,17 +54,13 @@ export async function startIDEServer(context: vscode.ExtensionContext) {
         },
       });
 
-      const sessionDisposables: vscode.Disposable[] = [];
       transport.onclose = () => {
         if (transport.sessionId) {
           delete transports[transport.sessionId];
         }
-        for (const disposable of sessionDisposables) {
-          disposable.dispose();
-        }
       };
 
-      const server = createMcpServer(context, sessionDisposables);
+      const server = createMcpServer();
       server.connect(transport);
     } else {
       res.status(400).json({
@@ -129,10 +125,7 @@ export async function startIDEServer(context: vscode.ExtensionContext) {
   });
 }
 
-const createMcpServer = (
-  context: vscode.ExtensionContext,
-  sessionDisposables: vscode.Disposable[],
-) => {
+const createMcpServer = () => {
   const server = new McpServer(
     {
       name: 'vscode-ide-server',
