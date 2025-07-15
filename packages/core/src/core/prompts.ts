@@ -17,8 +17,12 @@ import { WriteFileTool } from '../tools/write-file.js';
 import process from 'node:process';
 import { isGitRepository } from '../utils/gitUtils.js';
 import { MemoryTool, GEMINI_CONFIG_DIR } from '../tools/memoryTool.js';
+import { IDEContext } from '../ide/types.js';
 
-export function getCoreSystemPrompt(userMemory?: string): string {
+export function getCoreSystemPrompt(
+  userMemory?: string,
+  ideContext?: IDEContext,
+): string {
   // if GEMINI_SYSTEM_MD is set (and not 0|false), override system prompt from file
   // default path is .gemini/system.md but can be modified via custom path in GEMINI_SYSTEM_MD
   let systemMdEnabled = false;
@@ -34,11 +38,24 @@ export function getCoreSystemPrompt(userMemory?: string): string {
       throw new Error(`missing system prompt file '${systemMdPath}'`);
     }
   }
+
+  const activeFileContext = ideContext?.activeFile
+    ? `
+# Active File
+
+The user has the following file open in their IDE. This is the most likely file they are wanting to work on.
+
+```${ideContext.activeFile.path}
+${ideContext.activeFile.content}
+```
+`
+    : '';
+
   const basePrompt = systemMdEnabled
     ? fs.readFileSync(systemMdPath, 'utf8')
     : `
 You are an interactive CLI agent specializing in software engineering tasks. Your primary goal is to help users safely and efficiently, adhering strictly to the following instructions and utilizing your available tools.
-
+${activeFileContext}
 # Core Mandates
 
 - **Conventions:** Rigorously adhere to existing project conventions when reading or modifying code. Analyze surrounding code, tests, and configuration first.

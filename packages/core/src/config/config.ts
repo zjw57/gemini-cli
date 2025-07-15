@@ -45,6 +45,7 @@ import {
   DEFAULT_GEMINI_FLASH_MODEL,
 } from './models.js';
 import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
+import { IDEContext } from '../ide/types.js';
 
 export enum ApprovalMode {
   DEFAULT = 'default',
@@ -150,6 +151,7 @@ export interface ConfigParameters {
   noBrowser?: boolean;
   summarizeToolOutput?: Record<string, SummarizeToolOutputSettings>;
   ideMode?: boolean;
+  ideContext?: IDEContext;
 }
 
 export class Config {
@@ -190,6 +192,7 @@ export class Config {
   private readonly extensionContextFilePaths: string[];
   private readonly noBrowser: boolean;
   private readonly ideMode: boolean;
+  private readonly ideContext: IDEContext | undefined;
   private modelSwitchedDuringSession: boolean = false;
   private readonly maxSessionTurns: number;
   private readonly listExtensions: boolean;
@@ -246,6 +249,7 @@ export class Config {
     this.noBrowser = params.noBrowser ?? false;
     this.summarizeToolOutput = params.summarizeToolOutput;
     this.ideMode = params.ideMode ?? false;
+    this.ideContext = params.ideContext;
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -514,6 +518,10 @@ export class Config {
 
   getIdeMode(): boolean {
     return this.ideMode;
+  }
+
+  getIdeContext(): IDEContext | undefined {
+    return this.ideContext;
   }
 
   async getGitService(): Promise<GitService> {

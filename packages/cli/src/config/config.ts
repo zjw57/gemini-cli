@@ -19,6 +19,7 @@ import {
   TelemetryTarget,
   MCPServerConfig,
   IDE_SERVER_NAME,
+  IDEContext,
 } from '@google/gemini-cli-core';
 import { Settings } from './settings.js';
 
@@ -242,6 +243,15 @@ export async function loadCliConfig(
     process.env.TERM_PROGRAM === 'vscode' &&
     !process.env.SANDBOX;
 
+  const ideContext: IDEContext | undefined = ideMode
+    ? {
+        activeFile: {
+          path: 'foo/bar.txt',
+          content: 'this is a test file',
+        },
+      }
+    : undefined;
+
   const activeExtensions = filterActiveExtensions(
     extensions,
     argv.extensions || [],
@@ -365,6 +375,7 @@ export async function loadCliConfig(
     noBrowser: !!process.env.NO_BROWSER,
     summarizeToolOutput: settings.summarizeToolOutput,
     ideMode,
+    ideContext,
   });
 }
 
