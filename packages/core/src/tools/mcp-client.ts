@@ -616,7 +616,8 @@ export async function connectToMcpServer(
 
           // Get the valid token - we need to create a proper OAuth config
           // The token should already be available from the authentication process
-          const credentials = await MCPOAuthTokenStorage.getToken(mcpServerName);
+          const credentials =
+            await MCPOAuthTokenStorage.getToken(mcpServerName);
           if (credentials) {
             const accessToken = await MCPOAuthProvider.getValidToken(
               mcpServerName,
@@ -636,7 +637,8 @@ export async function connectToMcpServer(
               if (oauthTransport) {
                 try {
                   await mcpClient.connect(oauthTransport, {
-                    timeout: mcpServerConfig.timeout ?? MCP_DEFAULT_TIMEOUT_MSEC,
+                    timeout:
+                      mcpServerConfig.timeout ?? MCP_DEFAULT_TIMEOUT_MSEC,
                   });
                   // Connection successful with OAuth
                   return mcpClient;
@@ -664,6 +666,13 @@ export async function connectToMcpServer(
                 `Failed to get OAuth token for server '${mcpServerName}'`,
               );
             }
+          } else {
+            console.error(
+              `Failed to get credentials for server '${mcpServerName}' after successful OAuth authentication`,
+            );
+            throw new Error(
+              `Failed to get credentials for server '${mcpServerName}' after successful OAuth authentication`,
+            );
           }
         } else {
           console.error(
@@ -681,7 +690,8 @@ export async function connectToMcpServer(
           mcpServerConfig.httpUrl || mcpServerConfig.oauth?.enabled;
 
         if (!shouldTryDiscovery) {
-          const credentials = await MCPOAuthTokenStorage.getToken(mcpServerName);
+          const credentials =
+            await MCPOAuthTokenStorage.getToken(mcpServerName);
           if (credentials) {
             const hasStoredTokens = await MCPOAuthProvider.getValidToken(
               mcpServerName,
@@ -737,12 +747,14 @@ export async function connectToMcpServer(
               console.log(
                 `Starting OAuth authentication for server '${mcpServerName}'...`,
               );
-              await MCPOAuthProvider.authenticate(mcpServerName, oauthAuthConfig);
+              await MCPOAuthProvider.authenticate(
+                mcpServerName,
+                oauthAuthConfig,
+              );
 
               // Retry connection with OAuth token
-              const credentials = await MCPOAuthTokenStorage.getToken(
-                mcpServerName,
-              );
+              const credentials =
+                await MCPOAuthTokenStorage.getToken(mcpServerName);
               if (credentials) {
                 const accessToken = await MCPOAuthProvider.getValidToken(
                   mcpServerName,
@@ -790,6 +802,13 @@ export async function connectToMcpServer(
                     `Failed to get OAuth token for server '${mcpServerName}'`,
                   );
                 }
+              } else {
+                console.error(
+                  `Failed to get stored credentials for server '${mcpServerName}'`,
+                );
+                throw new Error(
+                  `Failed to get stored credentials for server '${mcpServerName}'`,
+                );
               }
             } else {
               console.error(
@@ -881,7 +900,7 @@ export async function createTransport(
 
   if (mcpServerConfig.httpUrl) {
     const transportOptions: StreamableHTTPClientTransportOptions = {};
-    
+
     // Set up headers with OAuth token if available
     if (hasOAuthConfig && accessToken) {
       transportOptions.requestInit = {
@@ -895,7 +914,7 @@ export async function createTransport(
         headers: mcpServerConfig.headers,
       };
     }
-    
+
     return new StreamableHTTPClientTransport(
       new URL(mcpServerConfig.httpUrl),
       transportOptions,
@@ -904,7 +923,7 @@ export async function createTransport(
 
   if (mcpServerConfig.url) {
     const transportOptions: SSEClientTransportOptions = {};
-    
+
     // Set up headers with OAuth token if available
     if (hasOAuthConfig && accessToken) {
       transportOptions.requestInit = {
@@ -918,7 +937,7 @@ export async function createTransport(
         headers: mcpServerConfig.headers,
       };
     }
-    
+
     return new SSEClientTransport(
       new URL(mcpServerConfig.url),
       transportOptions,
