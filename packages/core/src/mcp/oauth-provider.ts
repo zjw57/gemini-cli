@@ -242,13 +242,38 @@ export class MCPOAuthProvider {
    * @returns PKCE parameters including code verifier, challenge, and state
    */
   private static generatePKCEParams(): PKCEParams {
-    // Generate code verifier (43-128 characters) - use 64 bytes for better compatibility
-    const codeVerifier = this.bufferToBase64url(crypto.randomBytes(64));
+    // Generate code verifier (43-128 characters) according to RFC 7636
+    // Using 64 bytes of random data will give us ~86 characters when base64url encoded
+    let codeVerifier = this.bufferToBase64url(crypto.randomBytes(64));
+    
+    // Ensure the verifier is within the valid length range (43-128 characters)
+    if (codeVerifier.length < 43) {
+      // Very unlikely, but pad if necessary
+      codeVerifier = codeVerifier.padEnd(43, 'A');
+    } else if (codeVerifier.length > 128) {
+      // Truncate if too long
+      codeVerifier = codeVerifier.substring(0, 128);
+    }
+    
+    // Validate that the code verifier contains only valid characters (RFC 7636)
+    // Valid characters: [A-Z] / [a-z] / [0-9] / "-" / "." / "_" / "~"
+    const validCodeVerifierRegex = /^[A-Za-z0-9\-._~]+$/;
+    if (!validCodeVerifierRegex.test(codeVerifier)) {
+      throw new Error('Generated code verifier contains invalid characters');
+    }
 
-    // Generate code challenge using SHA256
+    // Generate code challenge using SHA256 - explicitly specify UTF-8 encoding
     const codeChallenge = this.bufferToBase64url(
-      crypto.createHash('sha256').update(codeVerifier).digest()
+      crypto.createHash('sha256').update(codeVerifier, 'utf8').digest()
     );
+    
+    // Verify the challenge can be recreated from the verifier
+    const verificationChallenge = this.bufferToBase64url(
+      crypto.createHash('sha256').update(codeVerifier, 'utf8').digest()
+    );
+    if (codeChallenge !== verificationChallenge) {
+      console.error('PKCE challenge verification failed! Challenge generation is not deterministic.');
+    }
 
     // Generate state for CSRF protection
     const state = this.bufferToBase64url(crypto.randomBytes(32));
@@ -256,7 +281,10 @@ export class MCPOAuthProvider {
     console.log('Generated PKCE params:', {
       codeVerifierLength: codeVerifier.length,
       codeChallengeLength: codeChallenge.length,
-      stateLength: state.length
+      stateLength: state.length,
+      codeVerifierSample: codeVerifier.substring(0, 20) + '...',
+      codeChallengeSample: codeChallenge.substring(0, 20) + '...',
+      stateSample: state.substring(0, 20) + '...'
     });
 
     return { codeVerifier, codeChallenge, state };
@@ -392,6 +420,12 @@ export class MCPOAuthProvider {
     const resourceUrl = new URL(config.authorizationUrl!);
     params.append('resource', `${resourceUrl.protocol}//${resourceUrl.host}`);
 
+    console.log('Authorization URL PKCE params:', {
+      codeChallenge: pkceParams.codeChallenge,
+      codeChallengeMethod: 'S256',
+      state: pkceParams.state.substring(0, 20) + '...'
+    });
+
     return `${config.authorizationUrl}?${params.toString()}`;
   }
 
@@ -428,6 +462,11 @@ export class MCPOAuthProvider {
     const resourceUrl = new URL(config.tokenUrl!);
     params.append('resource', `${resourceUrl.protocol}//${resourceUrl.host}`);
 
+    // For debugging: recreate the challenge from the verifier to verify they match
+    const recreatedChallenge = this.bufferToBase64url(
+      crypto.createHash('sha256').update(codeVerifier, 'utf8').digest()
+    );
+    
     console.log('Token exchange request params:', {
       grant_type: params.get('grant_type'),
       code: params.get('code'),
@@ -435,7 +474,9 @@ export class MCPOAuthProvider {
       client_id: params.get('client_id'),
       resource: params.get('resource'),
       codeVerifierLength: codeVerifier.length,
-      codeVerifier: codeVerifier.substring(0, 10) + '...' // Log first 10 chars for debugging
+      codeVerifier: codeVerifier.substring(0, 10) + '...',
+      codeVerifierSample: codeVerifier.substring(0, 20) + '...',
+      recreatedChallenge: recreatedChallenge.substring(0, 20) + '...'
     });
 
     const response = await fetch(config.tokenUrl!, {
