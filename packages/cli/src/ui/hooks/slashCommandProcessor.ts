@@ -243,49 +243,9 @@ export const useSlashCommandProcessor = (
         },
       },
       {
-        name: 'auth',
-        description: 'change the auth method',
-        action: (_mainCommand, _subCommand, _args) => openAuthDialog(),
-      },
-      {
         name: 'editor',
         description: 'set external editor preference',
         action: (_mainCommand, _subCommand, _args) => openEditorDialog(),
-      },
-      {
-        name: 'privacy',
-        description: 'display the privacy notice',
-        action: (_mainCommand, _subCommand, _args) => openPrivacyNotice(),
-      },
-      {
-        name: 'stats',
-        altName: 'usage',
-        description: 'check session stats. Usage: /stats [model|tools]',
-        action: (_mainCommand, subCommand, _args) => {
-          if (subCommand === 'model') {
-            addMessage({
-              type: MessageType.MODEL_STATS,
-              timestamp: new Date(),
-            });
-            return;
-          } else if (subCommand === 'tools') {
-            addMessage({
-              type: MessageType.TOOL_STATS,
-              timestamp: new Date(),
-            });
-            return;
-          }
-
-          const now = new Date();
-          const { sessionStartTime } = session.stats;
-          const wallDuration = now.getTime() - sessionStartTime.getTime();
-
-          addMessage({
-            type: MessageType.STATS,
-            duration: formatDuration(wallDuration),
-            timestamp: new Date(),
-          });
-        },
       },
       {
         name: 'mcp',
@@ -592,35 +552,6 @@ export const useSlashCommandProcessor = (
         name: 'corgi',
         action: (_mainCommand, _subCommand, _args) => {
           toggleCorgiMode();
-        },
-      },
-      {
-        name: 'about',
-        description: 'show version info',
-        action: async (_mainCommand, _subCommand, _args) => {
-          const osVersion = process.platform;
-          let sandboxEnv = 'no sandbox';
-          if (process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec') {
-            sandboxEnv = process.env.SANDBOX;
-          } else if (process.env.SANDBOX === 'sandbox-exec') {
-            sandboxEnv = `sandbox-exec (${
-              process.env.SEATBELT_PROFILE || 'unknown'
-            })`;
-          }
-          const modelVersion = config?.getModel() || 'Unknown';
-          const cliVersion = await getCliVersion();
-          const selectedAuthType = settings.merged.selectedAuthType || '';
-          const gcpProject = process.env.GOOGLE_CLOUD_PROJECT || '';
-          addMessage({
-            type: MessageType.ABOUT,
-            timestamp: new Date(),
-            cliVersion,
-            osVersion,
-            sandboxEnv,
-            modelVersion,
-            selectedAuthType,
-            gcpProject,
-          });
         },
       },
       {
@@ -1027,13 +958,10 @@ export const useSlashCommandProcessor = (
     return commands;
   }, [
     addMessage,
-    openAuthDialog,
     openEditorDialog,
-    openPrivacyNotice,
     toggleCorgiMode,
     savedChatTags,
     config,
-    settings,
     showToolDescriptions,
     session,
     gitService,
@@ -1125,8 +1053,14 @@ export const useSlashCommandProcessor = (
                   case 'help':
                     setShowHelp(true);
                     return { type: 'handled' };
+                  case 'auth':
+                    openAuthDialog();
+                    return { type: 'handled' };
                   case 'theme':
                     openThemeDialog();
+                    return { type: 'handled' };
+                  case 'privacy':
+                    openPrivacyNotice();
                     return { type: 'handled' };
                   default: {
                     const unhandled: never = result.dialog;
@@ -1205,11 +1139,13 @@ export const useSlashCommandProcessor = (
     [
       addItem,
       setShowHelp,
+      openAuthDialog,
       commands,
       legacyCommands,
       commandContext,
       addMessage,
       openThemeDialog,
+      openPrivacyNotice,
     ],
   );
 
