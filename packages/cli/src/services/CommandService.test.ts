@@ -13,6 +13,7 @@ import { clearCommand } from '../ui/commands/clearCommand.js';
 import { copyCommand } from '../ui/commands/copyCommand.js';
 import { authCommand } from '../ui/commands/authCommand.js';
 import { themeCommand } from '../ui/commands/themeCommand.js';
+import { privacyCommand } from '../ui/commands/privacyCommand.js';
 
 // Mock the command modules to isolate the service from the command implementations.
 vi.mock('../ui/commands/memoryCommand.js', () => ({
@@ -32,6 +33,9 @@ vi.mock('../ui/commands/themeCommand.js', () => ({
 }));
 vi.mock('../ui/commands/copyCommand.js', () => ({
   copyCommand: { name: 'copy', description: 'Mock Copy' },
+}));
+vi.mock('../ui/commands/privacyCommand.js', () => ({
+  privacyCommand: { name: 'privacy', description: 'Mock Privacy' },
 }));
 
 describe('CommandService', () => {
@@ -67,6 +71,7 @@ describe('CommandService', () => {
         expect(commandNames).toContain('clear');
         expect(commandNames).toContain('copy');
         expect(commandNames).toContain('theme');
+        expect(commandNames).toContain('privacy');
       });
 
       it('should overwrite any existing commands when called again', async () => {
@@ -98,6 +103,7 @@ describe('CommandService', () => {
           copyCommand,
           helpCommand,
           memoryCommand,
+          privacyCommand,
           themeCommand,
         ]);
       });
