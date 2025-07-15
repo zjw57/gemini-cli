@@ -458,12 +458,13 @@ export class MCPOAuthProvider {
       config.redirectUri ||
       `http://localhost:${this.REDIRECT_PORT}${this.REDIRECT_PATH}`;
 
+    // Build parameters in the order specified by RFC 6749
     const params = new URLSearchParams();
     params.append('grant_type', 'authorization_code');
     params.append('code', code);
     params.append('redirect_uri', redirectUri);
-    params.append('code_verifier', codeVerifier);
     params.append('client_id', config.clientId!);
+    params.append('code_verifier', codeVerifier);
 
     if (config.clientSecret) {
       params.append('client_secret', config.clientSecret);
@@ -508,13 +509,30 @@ export class MCPOAuthProvider {
     console.log('  Challenge from explicit bytes:', challengeFromBytes);
     console.log('  All challenges match:', challengeFromBytes === recreatedChallenge && challengeFromBytes === (pkceParams?.codeChallenge || 'NOT_AVAILABLE'));
 
+    // Debug: Log the exact request being sent
+    console.log('Token exchange request details:');
+    console.log('  URL:', config.tokenUrl);
+    console.log('  Method: POST');
+    console.log('  Headers:', { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'Gemini-CLI-MCP-Client/1.0', 'Accept': 'application/json' });
+    console.log('  Body length:', params.toString().length);
+    console.log('  Body (first 200 chars):', params.toString().substring(0, 200) + '...');
+    console.log('  Platform:', process.platform);
+    console.log('  Node.js version:', process.version);
+    
     const response = await fetch(config.tokenUrl!, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Gemini-CLI-MCP-Client/1.0',
+        'Accept': 'application/json',
       },
       body: params.toString(),
     });
+
+    console.log('Response received:');
+    console.log('  Status:', response.status);
+    console.log('  Status text:', response.statusText);
+    console.log('  Headers:', response.headers ? Object.fromEntries(response.headers.entries()) : 'NOT_AVAILABLE');
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -775,9 +793,10 @@ export class MCPOAuthProvider {
     // Build authorization URL
     const authUrl = this.buildAuthorizationUrl(config, pkceParams);
 
-    console.log('\nOpening browser for OAuth authentication...');
-    console.log('If the browser does not open, please visit:');
-    console.log(authUrl);
+    // Display OAuth URL in main UI (not debug console)
+    process.stdout.write('\nOpening browser for OAuth authentication...\n');
+    process.stdout.write('If the browser does not open, please visit:\n');
+    process.stdout.write(authUrl + '\n');
 
     // Start callback server
     const callbackPromise = this.startCallbackServer(pkceParams.state);
@@ -804,13 +823,13 @@ export class MCPOAuthProvider {
         'Failed to open browser automatically:',
         getErrorMessage(error),
       );
-      console.warn('Please manually open the URL shown above in your browser.');
+      process.stdout.write('Please manually open the URL shown above in your browser.\n');
     }
 
     // Wait for callback
     const { code } = await callbackPromise;
 
-    console.log('\nAuthorization code received, exchanging for tokens...');
+    process.stdout.write('\nAuthorization code received, exchanging for tokens...\n');
 
     // Exchange code for tokens
     let tokenResponse: OAuthTokenResponse;
@@ -847,7 +866,7 @@ export class MCPOAuthProvider {
         config.clientId,
         config.tokenUrl,
       );
-      console.log('Authentication successful! Token saved.');
+      process.stdout.write('Authentication successful! Token saved.\n');
 
       // Verify token was saved
       const savedToken = await MCPOAuthTokenStorage.getToken(serverName);

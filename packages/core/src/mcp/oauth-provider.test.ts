@@ -222,7 +222,11 @@ describe('MCPOAuthProvider', () => {
         'https://discovered.auth.com/token',
         expect.objectContaining({
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: { 
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'Gemini-CLI-MCP-Client/1.0',
+            'Accept': 'application/json'
+          },
         }),
       );
     });
