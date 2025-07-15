@@ -225,22 +225,33 @@ export class MCPOAuthProvider {
   }
 
   /**
+   * Convert a Buffer to base64url format (RFC 4648 Section 5)
+   * This implementation is more reliable across platforms than Node.js built-in
+   */
+  private static bufferToBase64url(buffer: Buffer): string {
+    return buffer
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+  }
+
+  /**
    * Generate PKCE parameters for OAuth flow.
    *
    * @returns PKCE parameters including code verifier, challenge, and state
    */
   private static generatePKCEParams(): PKCEParams {
     // Generate code verifier (43-128 characters) - use 64 bytes for better compatibility
-    const codeVerifier = crypto.randomBytes(64).toString('base64url');
+    const codeVerifier = this.bufferToBase64url(crypto.randomBytes(64));
 
     // Generate code challenge using SHA256
-    const codeChallenge = crypto
-      .createHash('sha256')
-      .update(codeVerifier)
-      .digest('base64url');
+    const codeChallenge = this.bufferToBase64url(
+      crypto.createHash('sha256').update(codeVerifier).digest()
+    );
 
     // Generate state for CSRF protection
-    const state = crypto.randomBytes(32).toString('base64url');
+    const state = this.bufferToBase64url(crypto.randomBytes(32));
 
     console.log('Generated PKCE params:', {
       codeVerifierLength: codeVerifier.length,

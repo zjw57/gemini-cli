@@ -82,7 +82,7 @@ describe('MCPOAuthProvider', () => {
 
     vi.mocked(crypto.createHash).mockReturnValue({
       update: vi.fn().mockReturnThis(),
-      digest: vi.fn().mockReturnValue('code_challenge_mock'),
+      digest: vi.fn().mockReturnValue(Buffer.from('code_challenge_mock')),
     } as unknown as crypto.Hash);
 
     // Mock token storage
@@ -706,7 +706,7 @@ describe('MCPOAuthProvider', () => {
 
       expect(capturedUrl!).toContain('response_type=code');
       expect(capturedUrl!).toContain('client_id=test-client-id');
-      expect(capturedUrl!).toContain('code_challenge=code_challenge_mock');
+      expect(capturedUrl!).toContain('code_challenge=Y29kZV9jaGFsbGVuZ2VfbW9jaw');
       expect(capturedUrl!).toContain('code_challenge_method=S256');
       expect(capturedUrl!).toContain('scope=read+write');
       expect(capturedUrl!).toContain('resource=https%3A%2F%2Fauth.example.com');
