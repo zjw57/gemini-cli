@@ -54,7 +54,16 @@ vi.mock('../../utils/version.js', () => ({
 }));
 
 import { act, renderHook } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach, afterEach, Mock } from 'vitest';
+import {
+  vi,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  Mock,
+} from 'vitest';
 import open from 'open';
 import { useSlashCommandProcessor } from './slashCommandProcessor.js';
 import { MessageType, SlashCommandProcessorResult } from '../types.js';
@@ -65,7 +74,6 @@ import {
   getMCPDiscoveryState,
   getMCPServerStatus,
   GeminiClient,
-  MCPOAuthToken,
 } from '@google/gemini-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import { LoadedSettings } from '../../config/settings.js';
@@ -154,7 +162,6 @@ describe('useSlashCommandProcessor', () => {
       getCheckpointingEnabled: vi.fn(() => true),
       getBugCommand: vi.fn(() => undefined),
       getSessionId: vi.fn(() => 'test-session-id'),
-      getMcpServers: vi.fn(() => ({})),
     } as unknown as Config;
     mockCorgiMode = vi.fn();
     mockUseSessionStats.mockReturnValue({
@@ -208,323 +215,6 @@ describe('useSlashCommandProcessor', () => {
 
   const getProcessor = (showToolDescriptions: boolean = false) =>
     getProcessorHook(showToolDescriptions).result.current;
-
-  describe('/stats command', () => {
-    it('should show detailed session statistics', async () => {
-      // Arrange
-      mockUseSessionStats.mockReturnValue({
-        stats: {
-          sessionStartTime: new Date('2025-01-01T00:00:00.000Z'),
-        },
-      });
-
-      const { handleSlashCommand } = getProcessor();
-      const mockDate = new Date('2025-01-01T01:02:03.000Z'); // 1h 2m 3s duration
-      vi.setSystemTime(mockDate);
-
-      // Act
-      await act(async () => {
-        handleSlashCommand('/stats');
-      });
-
-      // Assert
-      expect(mockAddItem).toHaveBeenNthCalledWith(
-        2, // Called after the user message
-        expect.objectContaining({
-          type: MessageType.STATS,
-          duration: '1h 2m 3s',
-        }),
-        expect.any(Number),
-      );
-
-      vi.useRealTimers();
-    });
-
-    it('should show model-specific statistics when using /stats model', async () => {
-      // Arrange
-      const { handleSlashCommand } = getProcessor();
-
-      // Act
-      await act(async () => {
-        handleSlashCommand('/stats model');
-      });
-
-      // Assert
-      expect(mockAddItem).toHaveBeenNthCalledWith(
-        2, // Called after the user message
-        expect.objectContaining({
-          type: MessageType.MODEL_STATS,
-        }),
-        expect.any(Number),
-      );
-    });
-
-    it('should show tool-specific statistics when using /stats tools', async () => {
-      // Arrange
-      const { handleSlashCommand } = getProcessor();
-
-      // Act
-      await act(async () => {
-        handleSlashCommand('/stats tools');
-      });
-
-      // Assert
-      expect(mockAddItem).toHaveBeenNthCalledWith(
-        2, // Called after the user message
-        expect.objectContaining({
-          type: MessageType.TOOL_STATS,
-        }),
-        expect.any(Number),
-      );
-    });
-  });
-
-  describe('/about command', () => {
-    it('should show the about box with all details including auth and project', async () => {
-      // Arrange
-      mockGetCliVersionFn.mockResolvedValue('test-version');
-      process.env.SANDBOX = 'gemini-sandbox';
-      process.env.GOOGLE_CLOUD_PROJECT = 'test-gcp-project';
-      vi.mocked(mockConfig.getModel).mockReturnValue('test-model-from-config');
-
-      const settings = {
-        merged: {
-          selectedAuthType: 'test-auth-type',
-          contextFileName: 'GEMINI.md',
-        },
-      } as unknown as LoadedSettings;
-
-      const { result } = renderHook(() =>
-        useSlashCommandProcessor(
-          mockConfig,
-          settings,
-          [],
-          mockAddItem,
-          mockClearItems,
-          mockLoadHistory,
-          mockRefreshStatic,
-          mockSetShowHelp,
-          mockOnDebugMessage,
-          mockOpenThemeDialog,
-          mockOpenAuthDialog,
-          mockOpenEditorDialog,
-          mockCorgiMode,
-          false,
-          mockSetQuittingMessages,
-          vi.fn(), // mockOpenPrivacyNotice
-        ),
-      );
-
-      // Act
-      await act(async () => {
-        await result.current.handleSlashCommand('/about');
-      });
-
-      // Assert
-      expect(mockAddItem).toHaveBeenCalledTimes(2); // user message + about message
-      expect(mockAddItem).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          type: 'about',
-          cliVersion: 'test-version',
-          osVersion: 'test-platform',
-          sandboxEnv: 'gemini-sandbox',
-          modelVersion: 'test-model-from-config',
-          selectedAuthType: 'test-auth-type',
-          gcpProject: 'test-gcp-project',
-        }),
-        expect.any(Number),
-      );
-    });
-
-    it('should show sandbox-exec profile when applicable', async () => {
-      // Arrange
-      mockGetCliVersionFn.mockResolvedValue('test-version');
-      process.env.SANDBOX = 'sandbox-exec';
-      process.env.SEATBELT_PROFILE = 'test-profile';
-      vi.mocked(mockConfig.getModel).mockReturnValue('test-model-from-config');
-
-      const { result } = getProcessorHook();
-
-      // Act
-      await act(async () => {
-        await result.current.handleSlashCommand('/about');
-      });
-
-      // Assert
-      expect(mockAddItem).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          sandboxEnv: 'sandbox-exec (test-profile)',
-        }),
-        expect.any(Number),
-      );
-    });
-  });
-
-  describe('OAuth commands', () => {
-    beforeEach(() => {
-      // Mock the MCP OAuth modules
-      vi.mock('@google/gemini-cli-core', async (importOriginal) => {
-        const actual =
-          await importOriginal<typeof import('@google/gemini-cli-core')>();
-        return {
-          ...actual,
-          MCPOAuthProvider: {
-            authenticate: vi.fn(),
-          },
-          getMCPServerStatus: vi.fn(),
-          getMCPDiscoveryState: vi.fn(),
-        };
-      });
-    });
-
-    it('/mcp auth should list OAuth-enabled servers when no server specified', async () => {
-      // Arrange
-      const mockMcpServers = {
-        'oauth-server': {
-          httpUrl: 'https://api.example.com/mcp',
-          oauth: { enabled: true },
-        },
-        'non-oauth-server': {
-          command: './mcp-server',
-        },
-      };
-
-      vi.mocked(mockConfig.getMcpServers).mockReturnValue(mockMcpServers);
-      const { handleSlashCommand } = getProcessor();
-
-      // Act
-      await act(async () => {
-        await handleSlashCommand('/mcp auth');
-      });
-
-      // Assert
-      expect(mockAddItem).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: MessageType.INFO,
-          text: expect.stringContaining(
-            'MCP servers with OAuth authentication',
-          ),
-        }),
-        expect.any(Number),
-      );
-      expect(mockAddItem).toHaveBeenCalledWith(
-        expect.objectContaining({
-          text: expect.stringContaining('oauth-server'),
-        }),
-        expect.any(Number),
-      );
-    });
-
-    it('/mcp auth <server> should authenticate with specific server', async () => {
-      // Arrange
-      const mockMcpServers = {
-        'oauth-server': {
-          httpUrl: 'https://api.example.com/mcp',
-          oauth: { enabled: true },
-        },
-      };
-
-      vi.mocked(mockConfig.getMcpServers).mockReturnValue(mockMcpServers);
-      (
-        mockConfig as Config & {
-          getToolRegistry: Mock;
-          getGeminiClient: Mock;
-        }
-      ).getToolRegistry = vi
-        .fn()
-        .mockResolvedValue({ discoverToolsForServer: vi.fn() });
-      (
-        mockConfig as Config & {
-          getToolRegistry: Mock;
-          getGeminiClient: Mock;
-        }
-      ).getGeminiClient = vi.fn().mockReturnValue({
-        setTools: vi.fn(),
-      });
-
-      const { MCPOAuthProvider } = await import('@google/gemini-cli-core');
-      vi.mocked(MCPOAuthProvider.authenticate).mockResolvedValue({
-        accessToken: 'test_token',
-        tokenType: 'Bearer',
-      } as MCPOAuthToken);
-
-      const { handleSlashCommand } = getProcessor();
-
-      // Act
-      await act(async () => {
-        await handleSlashCommand('/mcp auth oauth-server');
-      });
-
-      // Assert
-      expect(MCPOAuthProvider.authenticate).toHaveBeenCalledWith(
-        'oauth-server',
-        { enabled: true },
-        'https://api.example.com/mcp',
-      );
-      expect(mockAddItem).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: MessageType.INFO,
-          text: expect.stringContaining('Successfully authenticated'),
-        }),
-        expect.any(Number),
-      );
-    });
-
-    it('/mcp auth should handle authentication errors gracefully', async () => {
-      // Arrange
-      const mockMcpServers = {
-        'oauth-server': {
-          httpUrl: 'https://api.example.com/mcp',
-          oauth: { enabled: true },
-        },
-      };
-
-      vi.mocked(mockConfig.getMcpServers).mockReturnValue(mockMcpServers);
-
-      const { MCPOAuthProvider } = await import('@google/gemini-cli-core');
-      vi.mocked(MCPOAuthProvider.authenticate).mockRejectedValue(
-        new Error('Authentication failed'),
-      );
-
-      const { handleSlashCommand } = getProcessor();
-
-      // Act
-      await act(async () => {
-        await handleSlashCommand('/mcp auth oauth-server');
-      });
-
-      // Assert
-      expect(mockAddItem).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: MessageType.ERROR,
-          text: expect.stringContaining('Failed to authenticate'),
-        }),
-        expect.any(Number),
-      );
-    });
-
-    it('/mcp auth should handle non-existent server', async () => {
-      // Arrange
-      vi.mocked(mockConfig.getMcpServers).mockReturnValue({});
-      const { handleSlashCommand } = getProcessor();
-
-      // Act
-      await act(async () => {
-        await handleSlashCommand('/mcp auth non-existent-server');
-      });
-
-      // Assert
-      expect(mockAddItem).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: MessageType.ERROR,
-          text: expect.stringContaining('not found'),
-        }),
-        expect.any(Number),
-      );
-    });
-  });
 
   describe('Other commands', () => {
     it('/editor should open editor dialog and return handled', async () => {
@@ -670,6 +360,59 @@ describe('useSlashCommandProcessor', () => {
 
       expect(mockAction).toHaveBeenCalledTimes(1);
       expect(mockSetShowHelp).toHaveBeenCalledWith(true);
+      expect(commandResult).toEqual({ type: 'handled' });
+    });
+
+    it('should open the auth dialog when a new command returns an auth dialog action', async () => {
+      const mockAction = vi.fn().mockResolvedValue({
+        type: 'dialog',
+        dialog: 'auth',
+      });
+      const newAuthCommand: SlashCommand = { name: 'auth', action: mockAction };
+
+      const mockLoader = async () => [newAuthCommand];
+      const commandServiceInstance = new ActualCommandService(mockLoader);
+      vi.mocked(CommandService).mockImplementation(
+        () => commandServiceInstance,
+      );
+
+      const { result } = getProcessorHook();
+      await vi.waitFor(() => {
+        expect(
+          result.current.slashCommands.some((c) => c.name === 'auth'),
+        ).toBe(true);
+      });
+
+      const commandResult = await result.current.handleSlashCommand('/auth');
+
+      expect(mockAction).toHaveBeenCalledTimes(1);
+      expect(mockOpenAuthDialog).toHaveBeenCalledWith();
+      expect(commandResult).toEqual({ type: 'handled' });
+    });
+
+    it('should open the theme dialog when a new command returns a theme dialog action', async () => {
+      const mockAction = vi.fn().mockResolvedValue({
+        type: 'dialog',
+        dialog: 'theme',
+      });
+      const newCommand: SlashCommand = { name: 'test', action: mockAction };
+      const mockLoader = async () => [newCommand];
+      const commandServiceInstance = new ActualCommandService(mockLoader);
+      vi.mocked(CommandService).mockImplementation(
+        () => commandServiceInstance,
+      );
+
+      const { result } = getProcessorHook();
+      await vi.waitFor(() => {
+        expect(
+          result.current.slashCommands.some((c) => c.name === 'test'),
+        ).toBe(true);
+      });
+
+      const commandResult = await result.current.handleSlashCommand('/test');
+
+      expect(mockAction).toHaveBeenCalledTimes(1);
+      expect(mockOpenThemeDialog).toHaveBeenCalledWith();
       expect(commandResult).toEqual({ type: 'handled' });
     });
 

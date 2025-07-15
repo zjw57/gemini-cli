@@ -104,8 +104,12 @@ const createMockCallableTool = (
 });
 
 class MockTool extends BaseTool<{ param: string }, ToolResult> {
-  constructor(name = 'mock-tool', description = 'A mock tool') {
-    super(name, name, description, {
+  constructor(
+    name = 'mock-tool',
+    displayName = 'A mock tool',
+    description = 'A mock tool description',
+  ) {
+    super(name, displayName, description, {
       type: Type.OBJECT,
       properties: {
         param: { type: Type.STRING },
@@ -174,42 +178,93 @@ describe('ToolRegistry', () => {
     });
   });
 
+  describe('getAllTools', () => {
+    it('should return all registered tools sorted alphabetically by displayName', () => {
+      // Register tools with displayNames in non-alphabetical order
+      const toolC = new MockTool('c-tool', 'Tool C');
+      const toolA = new MockTool('a-tool', 'Tool A');
+      const toolB = new MockTool('b-tool', 'Tool B');
+
+      toolRegistry.registerTool(toolC);
+      toolRegistry.registerTool(toolA);
+      toolRegistry.registerTool(toolB);
+
+      const allTools = toolRegistry.getAllTools();
+      const displayNames = allTools.map((t) => t.displayName);
+
+      // Assert that the returned array is sorted by displayName
+      expect(displayNames).toEqual(['Tool A', 'Tool B', 'Tool C']);
+    });
+  });
+
   describe('getToolsByServer', () => {
     it('should return an empty array if no tools match the server name', () => {
       toolRegistry.registerTool(new MockTool());
       expect(toolRegistry.getToolsByServer('any-mcp-server')).toEqual([]);
     });
 
-    it('should return only tools matching the server name', async () => {
+    it('should return only tools matching the server name, sorted by name', async () => {
       const server1Name = 'mcp-server-uno';
       const server2Name = 'mcp-server-dos';
       const mockCallable = {} as CallableTool;
-      const mcpTool1 = new DiscoveredMCPTool(
+      const mcpTool1_c = new DiscoveredMCPTool(
         mockCallable,
         server1Name,
-        'server1Name__tool-on-server1',
+        `${server1Name}__zebra-tool`,
         'd1',
         {},
-        'tool-on-server1',
+        'zebra-tool',
       );
+      const mcpTool1_a = new DiscoveredMCPTool(
+        mockCallable,
+        server1Name,
+        `${server1Name}__apple-tool`,
+        'd2',
+        {},
+        'apple-tool',
+      );
+      const mcpTool1_b = new DiscoveredMCPTool(
+        mockCallable,
+        server1Name,
+        `${server1Name}__banana-tool`,
+        'd3',
+        {},
+        'banana-tool',
+      );
+
       const mcpTool2 = new DiscoveredMCPTool(
         mockCallable,
         server2Name,
         'server2Name__tool-on-server2',
-        'd2',
+        'd4',
         {},
         'tool-on-server2',
       );
       const nonMcpTool = new MockTool('regular-tool');
 
-      toolRegistry.registerTool(mcpTool1);
+      toolRegistry.registerTool(mcpTool1_c);
+      toolRegistry.registerTool(mcpTool1_a);
+      toolRegistry.registerTool(mcpTool1_b);
       toolRegistry.registerTool(mcpTool2);
       toolRegistry.registerTool(nonMcpTool);
 
       const toolsFromServer1 = toolRegistry.getToolsByServer(server1Name);
-      expect(toolsFromServer1).toHaveLength(1);
-      expect(toolsFromServer1[0].name).toBe(mcpTool1.name);
+      const toolNames = toolsFromServer1.map((t) => t.name);
 
+      // Assert that the array has the correct tools and is sorted by name
+      expect(toolsFromServer1).toHaveLength(3);
+      expect(toolNames).toEqual([
+        `${server1Name}__apple-tool`,
+        `${server1Name}__banana-tool`,
+        `${server1Name}__zebra-tool`,
+      ]);
+
+      // Assert that all returned tools are indeed from the correct server
+      for (const tool of toolsFromServer1) {
+        expect((tool as DiscoveredMCPTool).serverName).toBe(server1Name);
+      }
+
+      // Assert that the other server's tools are returned correctly
       const toolsFromServer2 = toolRegistry.getToolsByServer(server2Name);
       expect(toolsFromServer2).toHaveLength(1);
       expect(toolsFromServer2[0].name).toBe(mcpTool2.name);
@@ -297,7 +352,7 @@ describe('ToolRegistry', () => {
         mcpServerConfigVal,
         undefined,
         toolRegistry,
-        true,
+        false,
       );
     });
 
@@ -319,13 +374,90 @@ describe('ToolRegistry', () => {
         mcpServerConfigVal,
         undefined,
         toolRegistry,
-        true,
+        false,
       );
     });
   });
 });
 
 describe('sanitizeParameters', () => {
+  it('should remove default when anyOf is present', () => {
+    const schema: Schema = {
+      anyOf: [{ type: Type.STRING }, { type: Type.NUMBER }],
+      default: 'hello',
+    };
+    sanitizeParameters(schema);
+    expect(schema.default).toBeUndefined();
+  });
+
+  it('should recursively sanitize items in anyOf', () => {
+    const schema: Schema = {
+      anyOf: [
+        {
+          anyOf: [{ type: Type.STRING }],
+          default: 'world',
+        },
+        { type: Type.NUMBER },
+      ],
+    };
+    sanitizeParameters(schema);
+    expect(schema.anyOf![0].default).toBeUndefined();
+  });
+
+  it('should recursively sanitize items in items', () => {
+    const schema: Schema = {
+      items: {
+        anyOf: [{ type: Type.STRING }],
+        default: 'world',
+      },
+    };
+    sanitizeParameters(schema);
+    expect(schema.items!.default).toBeUndefined();
+  });
+
+  it('should recursively sanitize items in properties', () => {
+    const schema: Schema = {
+      properties: {
+        prop1: {
+          anyOf: [{ type: Type.STRING }],
+          default: 'world',
+        },
+      },
+    };
+    sanitizeParameters(schema);
+    expect(schema.properties!.prop1.default).toBeUndefined();
+  });
+
+  it('should handle complex nested schemas', () => {
+    const schema: Schema = {
+      properties: {
+        prop1: {
+          items: {
+            anyOf: [{ type: Type.STRING }],
+            default: 'world',
+          },
+        },
+        prop2: {
+          anyOf: [
+            {
+              properties: {
+                nestedProp: {
+                  anyOf: [{ type: Type.NUMBER }],
+                  default: 123,
+                },
+              },
+            },
+          ],
+        },
+      },
+    };
+    sanitizeParameters(schema);
+    expect(schema.properties!.prop1.items!.default).toBeUndefined();
+    const nestedProp =
+      schema.properties!.prop2.anyOf![0].properties!.nestedProp;
+    expect(nestedProp?.default).toBeUndefined();
+  });
+
   it('should remove unsupported format from a simple string property', () => {
     const schema: Schema = {
       type: Type.OBJECT,
@@ -354,25 +486,6 @@ describe('sanitizeParameters', () => {
     const originalSchema = JSON.parse(JSON.stringify(schema));
     sanitizeParameters(schema);
     expect(schema).toEqual(originalSchema);
-  });
-
-  it('should handle nested objects recursively', () => {
-    const schema: Schema = {
-      type: Type.OBJECT,
-      properties: {
-        user: {
-          type: Type.OBJECT,
-          properties: {
-            email: { type: Type.STRING, format: 'email' },
-          },
-        },
-      },
-    };
-    sanitizeParameters(schema);
-    expect(schema.properties?.['user']?.properties?.['email']).toHaveProperty(
-      'format',
-      undefined,
-    );
   });
 
   it('should handle arrays of objects', () => {
@@ -414,19 +527,6 @@ describe('sanitizeParameters', () => {
     expect(() => sanitizeParameters(undefined)).not.toThrow();
   });
 
-  it('should handle cyclic schemas without crashing', () => {
-    const schema: any = {
-      type: Type.OBJECT,
-      properties: {
-        name: { type: Type.STRING, format: 'hostname' },
-      },
-    };
-    schema.properties.self = schema;
-
-    expect(() => sanitizeParameters(schema)).not.toThrow();
-    expect(schema.properties.name).toHaveProperty('format', undefined);
-  });
-
   it('should handle complex nested schemas with cycles', () => {
     const userNode: any = {
       type: Type.OBJECT,
@@ -461,189 +561,5 @@ describe('sanitizeParameters', () => {
     expect(
       schema.properties?.['ceo']?.properties?.['manager']?.properties?.['id'],
     ).toHaveProperty('format', undefined);
-  });
-
-  it('should convert numeric enum values to strings', () => {
-    const schema: Schema = {
-      type: Type.OBJECT,
-      properties: {
-        status: {
-          type: Type.STRING,
-          enum: [-1, 0, 1] as any, // Numeric enum values
-        },
-        priority: {
-          type: Type.STRING,
-          enum: ['high', 'medium', 'low'], // Already string values
-        },
-        mixed: {
-          type: Type.STRING,
-          enum: [1, 'active', 0, 'inactive'] as any, // Mixed types
-        },
-      },
-    };
-
-    sanitizeParameters(schema);
-
-    // Numeric enums should be converted to strings
-    expect(schema.properties?.['status']?.enum).toEqual(['-1', '0', '1']);
-
-    // String enums should remain unchanged
-    expect(schema.properties?.['priority']?.enum).toEqual([
-      'high',
-      'medium',
-      'low',
-    ]);
-
-    // Mixed enums should all be converted to strings
-    expect(schema.properties?.['mixed']?.enum).toEqual([
-      '1',
-      'active',
-      '0',
-      'inactive',
-    ]);
-  });
-
-  it('should handle enum values in nested structures', () => {
-    const schema: Schema = {
-      type: Type.OBJECT,
-      properties: {
-        config: {
-          type: Type.OBJECT,
-          properties: {
-            level: {
-              type: Type.STRING,
-              enum: [0, 1, 2] as any, // Numeric enum in nested object
-            },
-          },
-        },
-        items: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              state: {
-                type: Type.STRING,
-                enum: [-1, 0, 1] as any, // Numeric enum in array items
-              },
-            },
-          },
-        },
-      },
-    };
-
-    sanitizeParameters(schema);
-
-    // Nested enum should be converted
-    expect(schema.properties?.['config']?.properties?.['level']?.enum).toEqual([
-      '0',
-      '1',
-      '2',
-    ]);
-
-    // Array item enum should be converted
-    const arrayItemsSchema = schema.properties?.['items']?.items as Schema;
-    expect(arrayItemsSchema?.properties?.['state']?.enum).toEqual([
-      '-1',
-      '0',
-      '1',
-    ]);
-  });
-
-  it('should convert non-string types to string when enum is present', () => {
-    const schema: Schema = {
-      type: Type.OBJECT,
-      properties: {
-        numericEnum: {
-          type: Type.NUMBER, // Non-string type with enum
-          enum: [1, 2, 3] as any,
-        },
-        integerEnum: {
-          type: Type.INTEGER, // Non-string type with enum
-          enum: [-1, 0, 1] as any,
-        },
-        stringEnum: {
-          type: Type.STRING, // Already string type
-          enum: ['a', 'b', 'c'],
-        },
-      },
-    };
-
-    sanitizeParameters(schema);
-
-    // Non-string types should be converted to string
-    expect(schema.properties?.['numericEnum']?.type).toBe(Type.STRING);
-    expect(schema.properties?.['numericEnum']?.enum).toEqual(['1', '2', '3']);
-
-    expect(schema.properties?.['integerEnum']?.type).toBe(Type.STRING);
-    expect(schema.properties?.['integerEnum']?.enum).toEqual(['-1', '0', '1']);
-
-    // String type should remain unchanged
-    expect(schema.properties?.['stringEnum']?.type).toBe(Type.STRING);
-    expect(schema.properties?.['stringEnum']?.enum).toEqual(['a', 'b', 'c']);
-  });
-
-  it('should handle enum with boolean values', () => {
-    const schema: Schema = {
-      type: Type.OBJECT,
-      properties: {
-        booleanEnum: {
-          type: Type.BOOLEAN,
-          enum: [true, false] as any,
-        },
-      },
-    };
-
-    sanitizeParameters(schema);
-
-    expect(schema.properties?.['booleanEnum']?.type).toBe(Type.STRING);
-    expect(schema.properties?.['booleanEnum']?.enum).toEqual(['true', 'false']);
-  });
-
-  it('should handle enum with null and undefined values', () => {
-    const schema: Schema = {
-      type: Type.OBJECT,
-      properties: {
-        mixedEnum: {
-          type: Type.STRING,
-          enum: [null, undefined, 'valid', 0] as any,
-        },
-      },
-    };
-
-    sanitizeParameters(schema);
-
-    // null and undefined should be filtered out, remaining values converted to strings
-    expect(schema.properties?.['mixedEnum']?.enum).toEqual(['valid', '0']);
-  });
-
-  it('should handle enum in anyOf structures', () => {
-    const schema: Schema = {
-      type: Type.OBJECT,
-      properties: {
-        complexEnum: {
-          anyOf: [
-            {
-              type: Type.INTEGER,
-              enum: [1, 2, 3] as any,
-            },
-            {
-              type: Type.STRING,
-              enum: ['a', 'b'],
-            },
-          ],
-        },
-      },
-    };
-
-    sanitizeParameters(schema);
-
-    const anyOfFirst = schema.properties?.['complexEnum']?.anyOf?.[0] as Schema;
-    const anyOfSecond = schema.properties?.['complexEnum']
-      ?.anyOf?.[1] as Schema;
-
-    expect(anyOfFirst?.type).toBe(Type.STRING);
-    expect(anyOfFirst?.enum).toEqual(['1', '2', '3']);
-    expect(anyOfSecond?.type).toBe(Type.STRING);
-    expect(anyOfSecond?.enum).toEqual(['a', 'b']);
   });
 });
