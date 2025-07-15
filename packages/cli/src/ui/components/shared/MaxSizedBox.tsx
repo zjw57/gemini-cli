@@ -452,31 +452,43 @@ function layoutInkElementAsStyledText(
         
         if (text) {
           const textWidth = stringWidth(text);
-          const availableWidthForLine = Math.max(0, maxWidth - stringWidth('…'));
           
-          if (currentLineWidth + textWidth <= availableWidthForLine) {
-            // Text fits completely
-            currentLine.push({ text, props: segment.props });
-            currentLineWidth += textWidth;
-          } else {
-            // Text needs truncation
-            const codePoints = toCodePoints(text);
-            let currentWidth = currentLineWidth;
-            let sliceEndIndex = 0;
-            for (const char of codePoints) {
-              const charWidth = stringWidth(char);
-              if (currentWidth + charWidth > availableWidthForLine) {
-                break;
-              }
-              currentWidth += charWidth;
-              sliceEndIndex++;
-            }
-            const slice = codePoints.slice(0, sliceEndIndex).join('');
-            if (slice) {
-              currentLine.push({ text: slice, props: segment.props });
-            }
+          // When there's no room for wrapping content, be very conservative
+          // For lines after the first line break, show only ellipsis if the text would be truncated
+          if (index > 0 && textWidth > 0) {
+            // This is content after a line break - just show ellipsis to indicate truncation
             currentLine.push({ text: '…', props: {} });
-            currentLineWidth = maxWidth; // Line is now full
+            currentLineWidth = stringWidth('…');
+          } else {
+            // This is the first line or a continuation, try to fit what we can
+            const maxContentWidth = Math.max(0, maxWidth - stringWidth('…'));
+            
+            if (textWidth <= maxContentWidth && currentLineWidth === 0) {
+              // Text fits completely on this line
+              currentLine.push({ text, props: segment.props });
+              currentLineWidth += textWidth;
+            } else {
+              // Text needs truncation
+              const codePoints = toCodePoints(text);
+              let truncatedWidth = currentLineWidth;
+              let sliceEndIndex = 0;
+              
+              for (const char of codePoints) {
+                const charWidth = stringWidth(char);
+                if (truncatedWidth + charWidth > maxContentWidth) {
+                  break;
+                }
+                truncatedWidth += charWidth;
+                sliceEndIndex++;
+              }
+              
+              const slice = codePoints.slice(0, sliceEndIndex).join('');
+              if (slice) {
+                currentLine.push({ text: slice, props: segment.props });
+              }
+              currentLine.push({ text: '…', props: {} });
+              currentLineWidth = truncatedWidth + stringWidth('…');
+            }
           }
         }
       });
