@@ -230,8 +230,8 @@ export class MCPOAuthProvider {
    * @returns PKCE parameters including code verifier, challenge, and state
    */
   private static generatePKCEParams(): PKCEParams {
-    // Generate code verifier (43-128 characters)
-    const codeVerifier = crypto.randomBytes(32).toString('base64url');
+    // Generate code verifier (43-128 characters) - use 64 bytes for better compatibility
+    const codeVerifier = crypto.randomBytes(64).toString('base64url');
 
     // Generate code challenge using SHA256
     const codeChallenge = crypto
@@ -240,7 +240,13 @@ export class MCPOAuthProvider {
       .digest('base64url');
 
     // Generate state for CSRF protection
-    const state = crypto.randomBytes(16).toString('base64url');
+    const state = crypto.randomBytes(32).toString('base64url');
+
+    console.log('Generated PKCE params:', {
+      codeVerifierLength: codeVerifier.length,
+      codeChallengeLength: codeChallenge.length,
+      stateLength: state.length
+    });
 
     return { codeVerifier, codeChallenge, state };
   }
@@ -411,6 +417,16 @@ export class MCPOAuthProvider {
     const resourceUrl = new URL(config.tokenUrl!);
     params.append('resource', `${resourceUrl.protocol}//${resourceUrl.host}`);
 
+    console.log('Token exchange request params:', {
+      grant_type: params.get('grant_type'),
+      code: params.get('code'),
+      redirect_uri: params.get('redirect_uri'),
+      client_id: params.get('client_id'),
+      resource: params.get('resource'),
+      codeVerifierLength: codeVerifier.length,
+      codeVerifier: codeVerifier.substring(0, 10) + '...' // Log first 10 chars for debugging
+    });
+
     const response = await fetch(config.tokenUrl!, {
       method: 'POST',
       headers: {
@@ -421,6 +437,8 @@ export class MCPOAuthProvider {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('Token exchange failed with status:', response.status);
+      console.error('Error response:', errorText);
       throw new Error(
         `Token exchange failed: ${response.status} - ${errorText}`,
       );
@@ -459,6 +477,14 @@ export class MCPOAuthProvider {
     const resourceUrl = new URL(tokenUrl);
     params.append('resource', `${resourceUrl.protocol}//${resourceUrl.host}`);
 
+    console.log('Token refresh request params:', {
+      grant_type: params.get('grant_type'),
+      client_id: params.get('client_id'),
+      resource: params.get('resource'),
+      scope: params.get('scope'),
+      tokenUrl
+    });
+
     const response = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
@@ -469,6 +495,8 @@ export class MCPOAuthProvider {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('Token refresh failed with status:', response.status);
+      console.error('Error response:', errorText);
       throw new Error(
         `Token refresh failed: ${response.status} - ${errorText}`,
       );
@@ -657,8 +685,13 @@ export class MCPOAuthProvider {
 
     // Open browser
     try {
-      // Check if we're in a headless environment
-      const isHeadless = !process.env.DISPLAY && !process.env.WSL_DISTRO_NAME && !process.env.DESKTOP_SESSION;
+      // Check if we're in a headless environment more comprehensively
+      const isHeadless = !process.env.DISPLAY && 
+                        !process.env.WSL_DISTRO_NAME && 
+                        !process.env.DESKTOP_SESSION &&
+                        !process.env.XDG_SESSION_TYPE &&
+                        !process.env.WAYLAND_DISPLAY &&
+                        process.platform !== 'darwin'; // macOS usually has GUI available
       
       if (isHeadless) {
         console.warn(

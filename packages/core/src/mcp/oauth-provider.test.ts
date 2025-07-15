@@ -18,8 +18,8 @@ import { MCPOAuthTokenStorage, MCPOAuthToken } from './oauth-token-storage.js';
 
 // Mock dependencies
 vi.mock('open');
-vi.mock('node:crypto');
 vi.mock('./oauth-token-storage.js');
+vi.mock('node:crypto');
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -70,8 +70,13 @@ describe('MCPOAuthProvider', () => {
 
     // Mock crypto functions
     vi.mocked(crypto.randomBytes).mockImplementation((size: number) => {
-      if (size === 32) return Buffer.from('code_verifier_mock_32_bytes_long');
-      if (size === 16) return Buffer.from('state_mock_16_by');
+      if (size === 64) {
+        // For code verifier - needs to be 64 bytes
+        return Buffer.from('mock_code_verifier_64_bytes_long_string_for_better_compatibility');
+      } else if (size === 32) {
+        // For state - now uses 32 bytes
+        return Buffer.from('mock_state_32_bytes_long_string__');
+      }
       return Buffer.alloc(size);
     });
 
@@ -79,16 +84,6 @@ describe('MCPOAuthProvider', () => {
       update: vi.fn().mockReturnThis(),
       digest: vi.fn().mockReturnValue('code_challenge_mock'),
     } as unknown as crypto.Hash);
-
-    // Mock randomBytes to return predictable values for state
-    vi.mocked(crypto.randomBytes).mockImplementation((size) => {
-      if (size === 32) {
-        return Buffer.from('mock_code_verifier_32_bytes_long_string');
-      } else if (size === 16) {
-        return Buffer.from('mock_state_16_bytes');
-      }
-      return Buffer.alloc(size);
-    });
 
     // Mock token storage
     vi.mocked(MCPOAuthTokenStorage.saveToken).mockResolvedValue(undefined);
@@ -113,7 +108,7 @@ describe('MCPOAuthProvider', () => {
         // Simulate OAuth callback
         setTimeout(() => {
           const mockReq = {
-            url: '/oauth/callback?code=auth_code_123&state=bW9ja19zdGF0ZV8xNl9ieXRlcw',
+            url: '/oauth/callback?code=auth_code_123&state=bW9ja19zdGF0ZV8zMl9ieXRlc19sb25nX3N0cmluZ19f',
           };
           const mockRes = {
             writeHead: vi.fn(),
@@ -197,7 +192,7 @@ describe('MCPOAuthProvider', () => {
         callback?.();
         setTimeout(() => {
           const mockReq = {
-            url: '/oauth/callback?code=auth_code_123&state=bW9ja19zdGF0ZV8xNl9ieXRlcw',
+            url: '/oauth/callback?code=auth_code_123&state=bW9ja19zdGF0ZV8zMl9ieXRlc19sb25nX3N0cmluZ19f',
           };
           const mockRes = {
             writeHead: vi.fn(),
@@ -272,7 +267,7 @@ describe('MCPOAuthProvider', () => {
         callback?.();
         setTimeout(() => {
           const mockReq = {
-            url: '/oauth/callback?code=auth_code_123&state=bW9ja19zdGF0ZV8xNl9ieXRlcw',
+            url: '/oauth/callback?code=auth_code_123&state=bW9ja19zdGF0ZV8zMl9ieXRlc19sb25nX3N0cmluZ19f',
           };
           const mockRes = {
             writeHead: vi.fn(),
@@ -375,7 +370,7 @@ describe('MCPOAuthProvider', () => {
         callback?.();
         setTimeout(() => {
           const mockReq = {
-            url: '/oauth/callback?code=auth_code_123&state=bW9ja19zdGF0ZV8xNl9ieXRlcw',
+            url: '/oauth/callback?code=auth_code_123&state=bW9ja19zdGF0ZV8zMl9ieXRlc19sb25nX3N0cmluZ19f',
           };
           const mockRes = {
             writeHead: vi.fn(),
@@ -641,7 +636,7 @@ describe('MCPOAuthProvider', () => {
         callback?.();
         setTimeout(() => {
           const mockReq = {
-            url: '/oauth/callback?code=auth_code_123&state=bW9ja19zdGF0ZV8xNl9ieXRlcw',
+            url: '/oauth/callback?code=auth_code_123&state=bW9ja19zdGF0ZV8zMl9ieXRlc19sb25nX3N0cmluZ19f',
           };
           const mockRes = {
             writeHead: vi.fn(),
@@ -661,8 +656,8 @@ describe('MCPOAuthProvider', () => {
 
       await MCPOAuthProvider.authenticate('test-server', mockConfig);
 
-      expect(crypto.randomBytes).toHaveBeenCalledWith(32); // code verifier
-      expect(crypto.randomBytes).toHaveBeenCalledWith(16); // state
+      expect(crypto.randomBytes).toHaveBeenCalledWith(64); // code verifier
+      expect(crypto.randomBytes).toHaveBeenCalledWith(32); // state
       expect(crypto.createHash).toHaveBeenCalledWith('sha256');
     });
   });
@@ -689,7 +684,7 @@ describe('MCPOAuthProvider', () => {
         callback?.();
         setTimeout(() => {
           const mockReq = {
-            url: '/oauth/callback?code=auth_code_123&state=bW9ja19zdGF0ZV8xNl9ieXRlcw',
+            url: '/oauth/callback?code=auth_code_123&state=bW9ja19zdGF0ZV8zMl9ieXRlc19sb25nX3N0cmluZ19f',
           };
           const mockRes = {
             writeHead: vi.fn(),
