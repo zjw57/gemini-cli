@@ -116,6 +116,8 @@ export class MCPOAuthProvider {
       scope: config.scopes?.join(' ') || '',
     };
 
+    console.log('Client registration request:', JSON.stringify(registrationRequest, null, 2));
+
     const response = await fetch(registrationUrl, {
       method: 'POST',
       headers: {
@@ -131,7 +133,10 @@ export class MCPOAuthProvider {
       );
     }
 
-    return (await response.json()) as OAuthClientRegistrationResponse;
+    const registrationResponse = (await response.json()) as OAuthClientRegistrationResponse;
+    console.log('Client registration response:', JSON.stringify(registrationResponse, null, 2));
+    
+    return registrationResponse;
   }
 
   /**
@@ -742,6 +747,14 @@ export class MCPOAuthProvider {
         console.log('Registered client secret:', config.clientSecret ? 'YES' : 'NO');
         console.log('Registered grant types:', clientRegistration.grant_types);
         console.log('Registered code challenge methods:', clientRegistration.code_challenge_method);
+        
+        // Check if PKCE is properly configured
+        if (!clientRegistration.code_challenge_method || clientRegistration.code_challenge_method.length === 0) {
+          console.warn('WARNING: Client registration did not return code_challenge_method. This may cause PKCE failures.');
+          console.warn('Server capabilities indicate PKCE support, but client registration may not have enabled it.');
+          console.warn('This appears to be a server-side issue with dynamic client registration.');
+          console.warn('The server supports PKCE but may not be properly configuring dynamically registered clients.');
+        }
       } else {
         throw new Error(
           'No client ID provided and dynamic registration not supported',
