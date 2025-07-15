@@ -45,7 +45,7 @@ describe('bugCommand', () => {
     const expectedInfo = `
 * **CLI Version:** 0.1.0
 * **Git Commit:** ${GIT_COMMIT_INFO}
-* **Operating System:** ${process.platform} ${process.version}
+* **Operating System:** test-platform v20.0.0
 * **Sandbox Environment:** test
 * **Model Version:** gemini-pro
 * **Memory Usage:** 100 MB
