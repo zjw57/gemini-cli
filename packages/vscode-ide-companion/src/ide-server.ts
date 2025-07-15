@@ -77,6 +77,48 @@ export async function startIDEServer(context: vscode.ExtensionContext) {
       return;
     }
 
+    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+    let transport: StreamableHTTPServerTransport;
+
+    if (sessionId && transports[sessionId]) {
+      transport = transports[sessionId];
+    } else if (!sessionId && isInitializeRequest(req.body)) {
+      transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        onsessioninitialized: (newSessionId) => {
+          transports[newSessionId] = transport;
+          const editor = vscode.window.activeTextEditor;
+          const filePath = editor ? editor.document.uri.fsPath : null;
+          const notification: JSONRPCNotification = {
+            jsonrpc: '2.0',
+            method: 'ide/activeFileChanged',
+            params: { filePath },
+          };
+          transport.send(notification);
+        },
+      });
+
+      transport.onclose = () => {
+        if (transport.sessionId) {
+          delete transports[transport.sessionId];
+        }
+      };
+
+      const server = createMcpServer();
+      server.connect(transport);
+    } else {
+      res.status(400).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32000,
+          message:
+            'Bad Request: No valid session ID provided for non-initialize request.',
+        },
+        id: null,
+      });
+      return;
+    }
+
     try {
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
