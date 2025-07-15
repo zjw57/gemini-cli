@@ -14,13 +14,13 @@ import {
   type JSONRPCNotification,
 } from '@modelcontextprotocol/sdk/types.js';
 
-export async function startIDEServer(_context: vscode.ExtensionContext) {
+export async function startIDEServer(context: vscode.ExtensionContext) {
   const app = express();
   app.use(express.json());
 
   const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 
-  vscode.window.onDidChangeActiveTextEditor((editor) => {
+  const disposable = vscode.window.onDidChangeActiveTextEditor((editor) => {
     const filePath = editor ? editor.document.uri.fsPath : null;
     const notification: JSONRPCNotification = {
       jsonrpc: '2.0',
@@ -31,6 +31,7 @@ export async function startIDEServer(_context: vscode.ExtensionContext) {
       transport.send(notification);
     }
   });
+  context.subscriptions.push(disposable);
 
   app.post('/mcp', async (req: Request, res: Response) => {
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
@@ -128,7 +129,7 @@ export async function startIDEServer(_context: vscode.ExtensionContext) {
 const createMcpServer = () => {
   const server = new McpServer(
     {
-      name: 'vscode-ide-server',
+      name: 'gemini-cli-companion-mcp-server',
       version: '1.0.0',
     },
     { capabilities: { logging: {} } },
