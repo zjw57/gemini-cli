@@ -164,7 +164,7 @@ export class ToolRegistry {
       this.config.getMcpServers() ?? {},
       this.config.getMcpServerCommand(),
       this,
-      true, // This is a full discovery
+      this.config.getDebugMode(),
     );
   }
 

@@ -657,12 +657,22 @@ export class MCPOAuthProvider {
 
     // Open browser
     try {
-      await open(authUrl);
+      // Check if we're in a headless environment
+      const isHeadless = !process.env.DISPLAY && !process.env.WSL_DISTRO_NAME && !process.env.DESKTOP_SESSION;
+      
+      if (isHeadless) {
+        console.warn(
+          'No display detected. Please manually open the URL shown above in your browser.',
+        );
+      } else {
+        await open(authUrl);
+      }
     } catch (error) {
       console.warn(
         'Failed to open browser automatically:',
         getErrorMessage(error),
       );
+      console.warn('Please manually open the URL shown above in your browser.');
     }
 
     // Wait for callback
@@ -671,11 +681,18 @@ export class MCPOAuthProvider {
     console.log('\nAuthorization code received, exchanging for tokens...');
 
     // Exchange code for tokens
-    const tokenResponse = await this.exchangeCodeForToken(
-      config,
-      code,
-      pkceParams.codeVerifier,
-    );
+    let tokenResponse: OAuthTokenResponse;
+    try {
+      tokenResponse = await this.exchangeCodeForToken(
+        config,
+        code,
+        pkceParams.codeVerifier,
+      );
+      console.log('Token exchange successful, processing response...');
+    } catch (exchangeError) {
+      console.error('Token exchange failed:', getErrorMessage(exchangeError));
+      throw exchangeError;
+    }
 
     // Convert to our token format
     const token: MCPOAuthToken = {

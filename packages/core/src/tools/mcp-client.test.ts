@@ -4,26 +4,26 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  afterEach,
-  Mocked,
-} from 'vitest';
-import { discoverMcpTools } from './mcp-client.js';
-import { sanitizeParameters } from './tool-registry.js';
-import { Schema, Type } from '@google/genai';
-import { Config, MCPServerConfig } from '../config/config.js';
-import { DiscoveredMCPTool } from './mcp-tool.js';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import {
+  populateMcpServerCommand,
+  createTransport,
+  generateValidName,
+  isEnabled,
+  discoverTools,
+  discoverMcpTools,
+} from './mcp-client.js';
+import { sanitizeParameters } from './tool-registry.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import * as SdkClientStdioLib from '@modelcontextprotocol/sdk/client/stdio.js';
+import * as ClientLib from '@modelcontextprotocol/sdk/client/index.js';
+import * as GenAiLib from '@google/genai';
+import { Schema, Type } from '@google/genai';
 import { parse, ParseEntry } from 'shell-quote';
+import { MCPServerConfig, Config } from '../config/config.js';
+import { DiscoveredMCPTool } from './mcp-tool.js';
+import { Mocked } from 'vitest';
 
 // Mock dependencies
 vi.mock('shell-quote');
@@ -65,21 +65,62 @@ vi.mock('@modelcontextprotocol/sdk/client/stdio.js', () => {
 
 vi.mock('@modelcontextprotocol/sdk/client/sse.js', () => {
   const MockedSSETransport = vi.fn().mockImplementation(function (this: any) {
-    this.close = vi.fn().mockResolvedValue(undefined); // Add mock close method
+    this.close = vi.fn().mockResolvedValue(undefined);
     return this;
   });
   return { SSEClientTransport: MockedSSETransport };
 });
 
-vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => {
-  const MockedStreamableHTTPTransport = vi.fn().mockImplementation(function (
-    this: any,
-  ) {
-    this.close = vi.fn().mockResolvedValue(undefined); // Add mock close method
-    return this;
+vi.mock('@google/genai', () => {
+  const mockTool = vi.fn().mockResolvedValue({
+    functionDeclarations: [
+      {
+        name: 'test-tool',
+        description: 'A test tool',
+        parameters: { type: 'object', properties: {} },
+      },
+    ],
   });
-  return { StreamableHTTPClientTransport: MockedStreamableHTTPTransport };
+  const mockMcpToTool = vi.fn().mockReturnValue({ tool: mockTool });
+  return { mcpToTool: mockMcpToTool };
 });
+
+// Mock OAuth modules
+vi.mock('./oauth/oauth-provider.js', () => ({
+  MCPOAuthProvider: {
+    authenticate: vi.fn(),
+    getValidToken: vi.fn(),
+  },
+}));
+
+vi.mock('./oauth/oauth-token-storage.js', () => ({
+  MCPOAuthTokenStorage: {
+    getToken: vi.fn(),
+  },
+}));
+
+vi.mock('./oauth/oauth-discovery.js', () => ({
+  discoverOAuthFromWWWAuthenticate: vi.fn(),
+  discoverOAuthConfig: vi.fn(),
+}));
+
+// Mock StreamableHTTPClientTransport
+vi.mock(
+  '@modelcontextprotocol/sdk/client/streamable-http.js',
+  async (importOriginal) => {
+    const actual = await importOriginal();
+    const StreamableHTTPClientTransport = vi.fn();
+    StreamableHTTPClientTransport.prototype.close = vi
+      .fn()
+      .mockResolvedValue(undefined);
+    // Mock the constructor to return an object with a close method
+    vi.mocked(StreamableHTTPClientTransport).mockImplementation(function (
+      this: any,
+    ) {
+      this.close = vi.fn().mockResolvedValue(undefined);
+      return this;
+    });
+  });
 
 const mockToolRegistryInstance = {
   registerTool: vi.fn(),
@@ -120,28 +161,31 @@ describe('discoverMcpTools', () => {
       getMcpServerCommand: vi.fn().mockReturnValue(undefined),
       // getToolRegistry should now return the same shared mock instance
       getToolRegistry: vi.fn(() => mockToolRegistry),
+      getDebugMode: vi.fn().mockReturnValue(false),
     } as any;
 
     vi.mocked(parse).mockClear();
-    vi.mocked(Client).mockClear();
-    vi.mocked(Client.prototype.connect)
+    vi.mocked(ClientLib.Client).mockClear();
+    vi.mocked(ClientLib.Client.prototype.connect)
       .mockClear()
       .mockResolvedValue(undefined);
-    vi.mocked(Client.prototype.listTools)
+    vi.mocked(ClientLib.Client.prototype.listTools)
       .mockClear()
       .mockResolvedValue({ tools: [] });
 
-    vi.mocked(StdioClientTransport).mockClear();
+    vi.mocked(SdkClientStdioLib.StdioClientTransport).mockClear();
     // Ensure the StdioClientTransport mock constructor returns an object with a close method
-    vi.mocked(StdioClientTransport).mockImplementation(function (
-      this: any,
-      options: any,
-    ) {
-      this.options = options;
-      this.stderr = { on: mockGlobalStdioStderrOn };
-      this.close = vi.fn().mockResolvedValue(undefined);
-      return this;
-    });
+    vi.mocked(SdkClientStdioLib.StdioClientTransport).mockImplementation(
+      function (
+        this: any,
+        options: any,
+      ) {
+        this.options = options;
+        this.stderr = { on: mockGlobalStdioStderrOn };
+        this.close = vi.fn().mockResolvedValue(undefined);
+        return this;
+      },
+    );
     mockGlobalStdioStderrOn.mockClear(); // Clear the global mock in beforeEach
 
     vi.mocked(SSEClientTransport).mockClear();
@@ -161,19 +205,16 @@ describe('discoverMcpTools', () => {
     });
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('should do nothing if no MCP servers or command are configured', async () => {
     await discoverMcpTools(
       mockConfig.getMcpServers() ?? {},
       mockConfig.getMcpServerCommand(),
       mockToolRegistry as any,
+      mockConfig.getDebugMode(),
     );
     expect(mockConfig.getMcpServers).toHaveBeenCalledTimes(1);
     expect(mockConfig.getMcpServerCommand).toHaveBeenCalledTimes(1);
-    expect(Client).not.toHaveBeenCalled();
+    expect(ClientLib.Client).not.toHaveBeenCalled();
     expect(mockToolRegistry.registerTool).not.toHaveBeenCalled();
   });
 
@@ -188,7 +229,7 @@ describe('discoverMcpTools', () => {
       description: 'desc1',
       inputSchema: { type: 'object' as const, properties: {} },
     };
-    vi.mocked(Client.prototype.listTools).mockResolvedValue({
+    vi.mocked(ClientLib.Client.prototype.listTools).mockResolvedValue({
       tools: [mockTool],
     });
 
@@ -200,18 +241,19 @@ describe('discoverMcpTools', () => {
       mockConfig.getMcpServers() ?? {},
       mockConfig.getMcpServerCommand(),
       mockToolRegistry as any,
+      mockConfig.getDebugMode(),
     );
 
     expect(parse).toHaveBeenCalledWith(commandString, process.env);
-    expect(StdioClientTransport).toHaveBeenCalledWith({
+    expect(SdkClientStdioLib.StdioClientTransport).toHaveBeenCalledWith({
       command: parsedCommand[0],
       args: parsedCommand.slice(1),
       env: expect.any(Object),
       cwd: undefined,
       stderr: 'pipe',
     });
-    expect(Client.prototype.connect).toHaveBeenCalledTimes(1);
-    expect(Client.prototype.listTools).toHaveBeenCalledTimes(1);
+    expect(ClientLib.Client.prototype.connect).toHaveBeenCalledTimes(1);
+    expect(ClientLib.Client.prototype.listTools).toHaveBeenCalledTimes(1);
     expect(mockToolRegistry.registerTool).toHaveBeenCalledTimes(1);
     expect(mockToolRegistry.registerTool).toHaveBeenCalledWith(
       expect.any(DiscoveredMCPTool),
@@ -234,7 +276,7 @@ describe('discoverMcpTools', () => {
       description: 'desc-stdio',
       inputSchema: { type: 'object' as const, properties: {} },
     };
-    vi.mocked(Client.prototype.listTools).mockResolvedValue({
+    vi.mocked(ClientLib.Client.prototype.listTools).mockResolvedValue({
       tools: [mockTool],
     });
 
@@ -247,9 +289,10 @@ describe('discoverMcpTools', () => {
       mockConfig.getMcpServers() ?? {},
       mockConfig.getMcpServerCommand(),
       mockToolRegistry as any,
+      mockConfig.getDebugMode(),
     );
 
-    expect(StdioClientTransport).toHaveBeenCalledWith({
+    expect(SdkClientStdioLib.StdioClientTransport).toHaveBeenCalledWith({
       command: serverConfig.command,
       args: serverConfig.args,
       env: expect.any(Object),
@@ -273,7 +316,7 @@ describe('discoverMcpTools', () => {
       description: 'desc-sse',
       inputSchema: { type: 'object' as const, properties: {} },
     };
-    vi.mocked(Client.prototype.listTools).mockResolvedValue({
+    vi.mocked(ClientLib.Client.prototype.listTools).mockResolvedValue({
       tools: [mockTool],
     });
 
@@ -286,6 +329,7 @@ describe('discoverMcpTools', () => {
       mockConfig.getMcpServers() ?? {},
       mockConfig.getMcpServerCommand(),
       mockToolRegistry as any,
+      mockConfig.getDebugMode(),
     );
 
     expect(SSEClientTransport).toHaveBeenCalledWith(new URL(serverConfig.url!));
@@ -308,7 +352,7 @@ describe('discoverMcpTools', () => {
       description: 'desc-http',
       inputSchema: { type: 'object' as const, properties: {} },
     };
-    vi.mocked(Client.prototype.listTools).mockResolvedValue({
+    vi.mocked(ClientLib.Client.prototype.listTools).mockResolvedValue({
       tools: [mockTool],
     });
 
@@ -320,6 +364,7 @@ describe('discoverMcpTools', () => {
       mockConfig.getMcpServers() ?? {},
       mockConfig.getMcpServerCommand(),
       mockToolRegistry as any,
+      mockConfig.getDebugMode(),
     );
 
     expect(StreamableHTTPClientTransport).toHaveBeenCalledWith(
@@ -352,7 +397,7 @@ describe('discoverMcpTools', () => {
         description: `desc-${toolName}`,
         inputSchema: { type: 'object' as const, properties: {} },
       };
-      vi.mocked(Client.prototype.listTools).mockResolvedValue({
+      vi.mocked(ClientLib.Client.prototype.listTools).mockResolvedValue({
         tools: [mockTool],
       });
       mockToolRegistry.getToolsByServer.mockReturnValueOnce([
@@ -363,6 +408,7 @@ describe('discoverMcpTools', () => {
         mockConfig.getMcpServers() ?? {},
         mockConfig.getMcpServerCommand(),
         mockToolRegistry as any,
+        mockConfig.getDebugMode(),
       );
 
       return { serverConfig };
@@ -427,7 +473,7 @@ describe('discoverMcpTools', () => {
       inputSchema: { type: 'object' as const, properties: {} },
     };
 
-    vi.mocked(Client.prototype.listTools)
+    vi.mocked(ClientLib.Client.prototype.listTools)
       .mockResolvedValueOnce({ tools: [mockTool1, mockToolB] }) // Tools for server1
       .mockResolvedValueOnce({ tools: [mockTool2] }); // Tool for server2 (toolA)
 
@@ -474,6 +520,7 @@ describe('discoverMcpTools', () => {
       mockConfig.getMcpServers() ?? {},
       mockConfig.getMcpServerCommand(),
       mockToolRegistry as any,
+      mockConfig.getDebugMode(),
     );
 
     expect(mockToolRegistry.registerTool).toHaveBeenCalledTimes(3);
@@ -530,7 +577,7 @@ describe('discoverMcpTools', () => {
       description: 'd',
       inputSchema: JSON.parse(JSON.stringify(rawSchema)),
     };
-    vi.mocked(Client.prototype.listTools).mockResolvedValue({
+    vi.mocked(ClientLib.Client.prototype.listTools).mockResolvedValue({
       tools: [mockTool],
     });
     // PRE-MOCK getToolsByServer for the expected server name
@@ -542,6 +589,7 @@ describe('discoverMcpTools', () => {
       mockConfig.getMcpServers() ?? {},
       mockConfig.getMcpServerCommand(),
       mockToolRegistry as any,
+      mockConfig.getDebugMode(),
     );
 
     expect(mockToolRegistry.registerTool).toHaveBeenCalledTimes(1);
@@ -576,6 +624,7 @@ describe('discoverMcpTools', () => {
         mockConfig.getMcpServers() ?? {},
         mockConfig.getMcpServerCommand(),
         mockToolRegistry as any,
+        mockConfig.getDebugMode(),
       ),
     ).rejects.toThrow('Parsing failed');
     expect(mockToolRegistry.registerTool).not.toHaveBeenCalled();
@@ -590,6 +639,7 @@ describe('discoverMcpTools', () => {
       mockConfig.getMcpServers() ?? {},
       mockConfig.getMcpServerCommand(),
       mockToolRegistry as any,
+      mockConfig.getDebugMode(),
     );
 
     expect(console.error).toHaveBeenCalledWith(
@@ -598,7 +648,7 @@ describe('discoverMcpTools', () => {
       ),
     );
     // Client constructor should not be called if config is invalid before instantiation
-    expect(Client).not.toHaveBeenCalled();
+    expect(ClientLib.Client).not.toHaveBeenCalled();
   });
 
   it('should log error and skip server if mcpClient.connect fails', async () => {
@@ -606,7 +656,7 @@ describe('discoverMcpTools', () => {
     mockConfig.getMcpServers.mockReturnValue({
       'fail-connect-server': serverConfig,
     });
-    vi.mocked(Client.prototype.connect).mockRejectedValue(
+    vi.mocked(ClientLib.Client.prototype.connect).mockRejectedValue(
       new Error('Connection refused'),
     );
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -615,6 +665,7 @@ describe('discoverMcpTools', () => {
       mockConfig.getMcpServers() ?? {},
       mockConfig.getMcpServerCommand(),
       mockToolRegistry as any,
+      mockConfig.getDebugMode(),
     );
 
     expect(console.error).toHaveBeenCalledWith(
@@ -622,7 +673,7 @@ describe('discoverMcpTools', () => {
         "failed to start or connect to MCP server 'fail-connect-server'",
       ),
     );
-    expect(Client.prototype.listTools).not.toHaveBeenCalled();
+    expect(ClientLib.Client.prototype.listTools).not.toHaveBeenCalled();
     expect(mockToolRegistry.registerTool).not.toHaveBeenCalled();
   });
 
@@ -631,7 +682,7 @@ describe('discoverMcpTools', () => {
     mockConfig.getMcpServers.mockReturnValue({
       'fail-list-server': serverConfig,
     });
-    vi.mocked(Client.prototype.listTools).mockRejectedValue(
+    vi.mocked(ClientLib.Client.prototype.listTools).mockRejectedValue(
       new Error('ListTools error'),
     );
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -640,6 +691,7 @@ describe('discoverMcpTools', () => {
       mockConfig.getMcpServers() ?? {},
       mockConfig.getMcpServerCommand(),
       mockToolRegistry as any,
+      mockConfig.getDebugMode(),
     );
 
     expect(console.error).toHaveBeenCalledWith(
@@ -664,9 +716,10 @@ describe('discoverMcpTools', () => {
       mockConfig.getMcpServers() ?? {},
       mockConfig.getMcpServerCommand(),
       mockToolRegistry as any,
+      mockConfig.getDebugMode(),
     );
 
-    const clientInstances = vi.mocked(Client).mock.results;
+    const clientInstances = vi.mocked(ClientLib.Client).mock.results;
     expect(clientInstances.length).toBeGreaterThan(0);
     const lastClientInstance =
       clientInstances[clientInstances.length - 1]?.value;
@@ -703,7 +756,7 @@ describe('discoverMcpTools', () => {
       authError.message = `401 Unauthorized
 www-authenticate: Bearer realm="MCP Server", resource_metadata_uri="https://auth.example.com/.well-known/oauth-protected-resource"`;
 
-      vi.mocked(Client.prototype.connect).mockRejectedValueOnce(authError);
+      vi.mocked(ClientLib.Client.prototype.connect).mockRejectedValueOnce(authError);
 
       // Mock OAuth discovery
       mockFetch
@@ -731,8 +784,8 @@ www-authenticate: Bearer realm="MCP Server", resource_metadata_uri="https://auth
       } as any);
 
       // Mock successful connection with OAuth token
-      vi.mocked(Client.prototype.connect).mockResolvedValueOnce(undefined);
-      vi.mocked(Client.prototype.listTools).mockResolvedValue({ tools: [] });
+      vi.mocked(ClientLib.Client.prototype.connect).mockResolvedValueOnce(undefined);
+      vi.mocked(ClientLib.Client.prototype.listTools).mockResolvedValue({ tools: [] });
 
       vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -740,6 +793,7 @@ www-authenticate: Bearer realm="MCP Server", resource_metadata_uri="https://auth
         mockConfig.getMcpServers() ?? {},
         undefined,
         mockToolRegistry as any,
+        mockConfig.getDebugMode(),
       );
 
       expect(console.log).toHaveBeenCalledWith(
@@ -777,13 +831,14 @@ www-authenticate: Bearer realm="MCP Server", resource_metadata_uri="https://auth
         'stored_token',
       );
 
-      vi.mocked(Client.prototype.connect).mockResolvedValue(undefined);
-      vi.mocked(Client.prototype.listTools).mockResolvedValue({ tools: [] });
+      vi.mocked(ClientLib.Client.prototype.connect).mockResolvedValue(undefined);
+      vi.mocked(ClientLib.Client.prototype.listTools).mockResolvedValue({ tools: [] });
 
       await discoverMcpTools(
         mockConfig.getMcpServers() ?? {},
         undefined,
         mockToolRegistry as any,
+        mockConfig.getDebugMode(),
       );
 
       expect(MCPOAuthProvider.getValidToken).toHaveBeenCalledWith(
@@ -811,8 +866,8 @@ www-authenticate: Bearer realm="MCP Server", resource_metadata_uri="https://auth
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce('refreshed_token');
 
-      vi.mocked(Client.prototype.connect).mockResolvedValue(undefined);
-      vi.mocked(Client.prototype.listTools).mockResolvedValue({ tools: [] });
+      vi.mocked(ClientLib.Client.prototype.connect).mockResolvedValue(undefined);
+      vi.mocked(ClientLib.Client.prototype.listTools).mockResolvedValue({ tools: [] });
 
       vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -820,6 +875,7 @@ www-authenticate: Bearer realm="MCP Server", resource_metadata_uri="https://auth
         mockConfig.getMcpServers() ?? {},
         undefined,
         mockToolRegistry as any,
+        mockConfig.getDebugMode(),
       );
 
       expect(console.error).toHaveBeenCalledWith(
@@ -855,16 +911,17 @@ www-authenticate: Bearer realm="MCP Server", resource_metadata_uri="https://auth
       vi.mocked(MCPOAuthProvider.getValidToken).mockResolvedValue('sse_token');
 
       // Mock HTTP transport to fail so it falls back to SSE
-      vi.mocked(Client.prototype.connect)
+      vi.mocked(ClientLib.Client.prototype.connect)
         .mockRejectedValueOnce(new Error('HTTP connection failed'))
         .mockResolvedValueOnce(undefined);
 
-      vi.mocked(Client.prototype.listTools).mockResolvedValue({ tools: [] });
+      vi.mocked(ClientLib.Client.prototype.listTools).mockResolvedValue({ tools: [] });
 
       await discoverMcpTools(
         mockConfig.getMcpServers() ?? {},
         undefined,
         mockToolRegistry as any,
+        mockConfig.getDebugMode(),
       );
 
       expect(SSEClientTransport).toHaveBeenCalledWith(
@@ -900,7 +957,7 @@ www-authenticate: Bearer realm="MCP Server", resource_metadata_uri="https://auth
     ];
 
     beforeEach(() => {
-      vi.mocked(Client.prototype.listTools).mockResolvedValue({
+      vi.mocked(ClientLib.Client.prototype.listTools).mockResolvedValue({
         tools: mockTools,
       });
       mockToolRegistry.getToolsByServer.mockReturnValue([
@@ -921,6 +978,7 @@ www-authenticate: Bearer realm="MCP Server", resource_metadata_uri="https://auth
         mockConfig.getMcpServers() ?? {},
         mockConfig.getMcpServerCommand(),
         mockToolRegistry as any,
+        mockConfig.getDebugMode(),
       );
 
       expect(mockToolRegistry.registerTool).toHaveBeenCalledTimes(2);
@@ -948,6 +1006,7 @@ www-authenticate: Bearer realm="MCP Server", resource_metadata_uri="https://auth
         mockConfig.getMcpServers() ?? {},
         mockConfig.getMcpServerCommand(),
         mockToolRegistry as any,
+        mockConfig.getDebugMode(),
       );
 
       expect(mockToolRegistry.registerTool).toHaveBeenCalledTimes(2);
@@ -974,6 +1033,7 @@ www-authenticate: Bearer realm="MCP Server", resource_metadata_uri="https://auth
         mockConfig.getMcpServers() ?? {},
         mockConfig.getMcpServerCommand(),
         mockToolRegistry as any,
+        mockConfig.getDebugMode(),
       );
 
       expect(mockToolRegistry.registerTool).toHaveBeenCalledTimes(1);
@@ -989,7 +1049,6 @@ www-authenticate: Bearer realm="MCP Server", resource_metadata_uri="https://auth
     });
   });
 });
-
 describe('sanitizeParameters', () => {
   it('should do nothing for an undefined schema', () => {
     const schema = undefined;
@@ -1054,22 +1113,295 @@ describe('sanitizeParameters', () => {
         },
         prop2: {
           anyOf: [
-            {
-              properties: {
-                nestedProp: {
-                  anyOf: [{ type: Type.NUMBER }],
-                  default: 123,
-                },
-              },
-            },
+            { type: Type.STRING },
+            { type: Type.NUMBER },
           ],
+          default: 'nested',
         },
       },
     };
     sanitizeParameters(schema);
     expect(schema.properties!.prop1.items!.default).toBeUndefined();
-    const nestedProp =
-      schema.properties!.prop2.anyOf![0].properties!.nestedProp;
-    expect(nestedProp?.default).toBeUndefined();
+    expect(schema.properties!.prop2.default).toBeUndefined();
   });
 });
+
+describe('discoverTools', () => {
+  it('should discover tools', async () => {
+    const mockedClient = {} as unknown as ClientLib.Client;
+    const mockedMcpToTool = vi.mocked(GenAiLib.mcpToTool).mockReturnValue({
+      tool: () => ({
+        functionDeclarations: [
+          {
+            name: 'testFunction',
+          },
+        ],
+      }),
+    } as unknown as GenAiLib.CallableTool);
+
+    const tools = await discoverTools('test-server', {}, mockedClient);
+
+    expect(tools.length).toBe(1);
+    expect(mockedMcpToTool).toHaveBeenCalledOnce();
+  });
+});
+
+describe('appendMcpServerCommand', () => {
+    it('should do nothing if no MCP servers or command are configured', () => {
+      const out = populateMcpServerCommand({}, undefined);
+      expect(out).toEqual({});
+    });
+
+    it('should discover tools via mcpServerCommand', () => {
+      const commandString = 'command --arg1 value1';
+      const out = populateMcpServerCommand({}, commandString);
+      expect(out).toEqual({
+        mcp: {
+          command: 'command',
+          args: ['--arg1', 'value1'],
+        },
+      });
+    });
+
+    it('should handle error if mcpServerCommand parsing fails', () => {
+      expect(() => populateMcpServerCommand({}, 'derp && herp')).toThrowError();
+    });
+  });
+
+  describe('createTransport', () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      vi.resetModules();
+      process.env = {};
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
+    describe('should connect via httpUrl', () => {
+      it('without headers', async () => {
+        const transport = createTransport(
+          'test-server',
+          {
+            httpUrl: 'http://test-server',
+          },
+          false,
+        );
+
+        expect(transport).toEqual(
+          new StreamableHTTPClientTransport(new URL('http://test-server'), {}),
+        );
+      });
+
+      it('with headers', async () => {
+        const transport = createTransport(
+          'test-server',
+          {
+            httpUrl: 'http://test-server',
+            headers: { Authorization: 'derp' },
+          },
+          false,
+        );
+
+        expect(transport).toEqual(
+          new StreamableHTTPClientTransport(new URL('http://test-server'), {
+            requestInit: {
+              headers: { Authorization: 'derp' },
+            },
+          }),
+        );
+      });
+    });
+
+    describe('should connect via url', () => {
+      it('without headers', async () => {
+        const transport = createTransport(
+          'test-server',
+          {
+            url: 'http://test-server',
+          },
+          false,
+        );
+        expect(transport).toEqual(
+          new SSEClientTransport(new URL('http://test-server'), {}),
+        );
+      });
+
+      it('with headers', async () => {
+        const transport = createTransport(
+          'test-server',
+          {
+            url: 'http://test-server',
+            headers: { Authorization: 'derp' },
+          },
+          false,
+        );
+
+        expect(transport).toEqual(
+          new SSEClientTransport(new URL('http://test-server'), {
+            requestInit: {
+              headers: { Authorization: 'derp' },
+            },
+          }),
+        );
+      });
+    });
+
+    it('should connect via command', () => {
+      const mockedTransport = vi.mocked(SdkClientStdioLib.StdioClientTransport);
+
+      createTransport(
+        'test-server',
+        {
+          command: 'test-command',
+          args: ['--foo', 'bar'],
+          env: { FOO: 'bar' },
+          cwd: 'test/cwd',
+        },
+        false,
+      );
+
+      expect(mockedTransport).toHaveBeenCalledWith({
+        command: 'test-command',
+        args: ['--foo', 'bar'],
+        cwd: 'test/cwd',
+        env: { FOO: 'bar' },
+        stderr: 'pipe',
+      });
+    });
+  });
+
+  describe('generateValidName', () => {
+    it('should return a valid name for a simple function', () => {
+      const funcDecl = { name: 'myFunction' };
+      const serverName = 'myServer';
+      const result = generateValidName(funcDecl, serverName);
+      expect(result).toBe('myServer__myFunction');
+    });
+
+    it('should prepend the server name', () => {
+      const funcDecl = { name: 'anotherFunction' };
+      const serverName = 'production-server';
+      const result = generateValidName(funcDecl, serverName);
+      expect(result).toBe('production-server__anotherFunction');
+    });
+
+    it('should replace invalid characters with underscores', () => {
+      const funcDecl = { name: 'invalid-name with spaces' };
+      const serverName = 'test_server';
+      const result = generateValidName(funcDecl, serverName);
+      expect(result).toBe('test_server__invalid-name_with_spaces');
+    });
+
+    it('should truncate long names', () => {
+      const funcDecl = {
+        name: 'a_very_long_function_name_that_will_definitely_exceed_the_limit',
+      };
+      const serverName = 'a_long_server_name';
+      const result = generateValidName(funcDecl, serverName);
+      expect(result.length).toBe(63);
+      expect(result).toBe(
+        'a_long_server_name__a_very_l___will_definitely_exceed_the_limit',
+      );
+    });
+
+    it('should handle names with only invalid characters', () => {
+      const funcDecl = { name: '!@#$%^&*()' };
+      const serverName = 'special-chars';
+      const result = generateValidName(funcDecl, serverName);
+      expect(result).toBe('special-chars____________');
+    });
+
+    it('should handle names that are already valid', () => {
+      const funcDecl = { name: 'already_valid' };
+      const serverName = 'validator';
+      const result = generateValidName(funcDecl, serverName);
+      expect(result).toBe('validator__already_valid');
+    });
+
+    it('should handle names with leading/trailing invalid characters', () => {
+      const funcDecl = { name: '-_invalid-_' };
+      const serverName = 'trim-test';
+      const result = generateValidName(funcDecl, serverName);
+      expect(result).toBe('trim-test__-_invalid-_');
+    });
+
+    it('should handle names that are exactly 63 characters long', () => {
+      const longName = 'a'.repeat(45);
+      const funcDecl = { name: longName };
+      const serverName = 'server';
+      const result = generateValidName(funcDecl, serverName);
+      expect(result).toBe(`server__${longName}`);
+      expect(result.length).toBe(53);
+    });
+
+    it('should handle names that are exactly 64 characters long', () => {
+      const longName = 'a'.repeat(55);
+      const funcDecl = { name: longName };
+      const serverName = 'server';
+      const result = generateValidName(funcDecl, serverName);
+      expect(result.length).toBe(63);
+      expect(result).toBe(
+        'server__aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+    });
+
+    it('should handle names that are longer than 64 characters', () => {
+      const longName = 'a'.repeat(100);
+      const funcDecl = { name: longName };
+      const serverName = 'long-server';
+      const result = generateValidName(funcDecl, serverName);
+      expect(result.length).toBe(63);
+      expect(result).toBe(
+        'long-server__aaaaaaaaaaaaaaa___aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+    });
+  });
+
+  describe('isEnabled', () => {
+    const funcDecl = { name: 'myTool' };
+    const serverName = 'myServer';
+
+    it('should return true if no include or exclude lists are provided', () => {
+      const mcpServerConfig = {};
+      expect(isEnabled(funcDecl, serverName, mcpServerConfig)).toBe(true);
+    });
+
+    it('should return false if the tool is in the exclude list', () => {
+      const mcpServerConfig = { excludeTools: ['myTool'] };
+      expect(isEnabled(funcDecl, serverName, mcpServerConfig)).toBe(false);
+    });
+
+    it('should return true if the tool is in the include list', () => {
+      const mcpServerConfig = { includeTools: ['myTool'] };
+      expect(isEnabled(funcDecl, serverName, mcpServerConfig)).toBe(true);
+    });
+
+    it('should return true if the tool is in the include list with parentheses', () => {
+      const mcpServerConfig = { includeTools: ['myTool()'] };
+      expect(isEnabled(funcDecl, serverName, mcpServerConfig)).toBe(true);
+    });
+
+    it('should return false if the include list exists but does not contain the tool', () => {
+      const mcpServerConfig = { includeTools: ['anotherTool'] };
+      expect(isEnabled(funcDecl, serverName, mcpServerConfig)).toBe(false);
+    });
+
+    it('should return false if the tool is in both the include and exclude lists', () => {
+      const mcpServerConfig = {
+        includeTools: ['myTool'],
+        excludeTools: ['myTool'],
+      };
+      expect(isEnabled(funcDecl, serverName, mcpServerConfig)).toBe(false);
+    });
+
+    it('should return false if the function declaration has no name', () => {
+      const namelessFuncDecl = {};
+      const mcpServerConfig = {};
+      expect(isEnabled(namelessFuncDecl, serverName, mcpServerConfig)).toBe(
+        false,
+      );
+    });
+  });
