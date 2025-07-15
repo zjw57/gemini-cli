@@ -8,7 +8,7 @@ import React, { Fragment, useEffect, useId } from 'react';
 import { Box, Text } from 'ink';
 import stringWidth from 'string-width';
 import { Colors } from '../../colors.js';
-import { toCodePoints, cpSlice } from '../../utils/textUtils.js';
+import { toCodePoints } from '../../utils/textUtils.js';
 import { useOverflowActions } from '../../contexts/OverflowContext.js';
 
 let enableDebugLog = false;
@@ -434,12 +434,12 @@ function layoutInkElementAsStyledText(
   if (availableWidth < 1) {
     // No room to render the wrapping segments. Truncate the non-wrapping
     // content and append an ellipsis so the line always fits within maxWidth.
-    
+
     // Handle line breaks in non-wrapping content when truncating
     const lines: StyledText[][] = [];
     let currentLine: StyledText[] = [];
     let currentLineWidth = 0;
-    
+
     for (const segment of nonWrappingContent) {
       const textLines = segment.text.split('\n');
       textLines.forEach((text, index) => {
@@ -449,10 +449,10 @@ function layoutInkElementAsStyledText(
           currentLine = [];
           currentLineWidth = 0;
         }
-        
+
         if (text) {
           const textWidth = stringWidth(text);
-          
+
           // When there's no room for wrapping content, be very conservative
           // For lines after the first line break, show only ellipsis if the text would be truncated
           if (index > 0 && textWidth > 0) {
@@ -462,7 +462,7 @@ function layoutInkElementAsStyledText(
           } else {
             // This is the first line or a continuation, try to fit what we can
             const maxContentWidth = Math.max(0, maxWidth - stringWidth('…'));
-            
+
             if (textWidth <= maxContentWidth && currentLineWidth === 0) {
               // Text fits completely on this line
               currentLine.push({ text, props: segment.props });
@@ -472,7 +472,7 @@ function layoutInkElementAsStyledText(
               const codePoints = toCodePoints(text);
               let truncatedWidth = currentLineWidth;
               let sliceEndIndex = 0;
-              
+
               for (const char of codePoints) {
                 const charWidth = stringWidth(char);
                 if (truncatedWidth + charWidth > maxContentWidth) {
@@ -481,7 +481,7 @@ function layoutInkElementAsStyledText(
                 truncatedWidth += charWidth;
                 sliceEndIndex++;
               }
-              
+
               const slice = codePoints.slice(0, sliceEndIndex).join('');
               if (slice) {
                 currentLine.push({ text: slice, props: segment.props });
@@ -493,7 +493,7 @@ function layoutInkElementAsStyledText(
         }
       });
     }
-    
+
     // Add the last line if it has content or if the last segment ended with \n
     if (
       currentLine.length > 0 ||
@@ -502,12 +502,12 @@ function layoutInkElementAsStyledText(
     ) {
       lines.push(currentLine);
     }
-    
+
     // If we don't have any lines yet, add an ellipsis line
     if (lines.length === 0) {
       lines.push([{ text: '…', props: {} }]);
     }
-    
+
     for (const line of lines) {
       output.push(line);
     }
