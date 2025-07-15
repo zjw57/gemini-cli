@@ -673,20 +673,6 @@ export class MCPOAuthProvider {
     );
     console.log('');
 
-    // For headless environments, also provide the URL in a more accessible way
-    if (
-      process.env.DISPLAY === undefined ||
-      process.env.SSH_CLIENT ||
-      process.env.SSH_TTY
-    ) {
-      console.log('🔗 For easier copying in headless/SSH environments:');
-      console.log('   You can also run: curl -s "' + authUrl + '" > /dev/null');
-      console.log(
-        '   Or save the URL to a file: echo "' + authUrl + '" > oauth_url.txt',
-      );
-      console.log('');
-    }
-
     // Start callback server
     const callbackPromise = this.startCallbackServer(pkceParams.state);
 
