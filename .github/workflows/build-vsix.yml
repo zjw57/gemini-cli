@@ -24,8 +24,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        working-directory: packages/vscode-ide-companion
-        run: npm install
+        run: npm ci
 
       - name: Build VSIX
         working-directory: packages/vscode-ide-companion
