@@ -1,6 +1,4 @@
-# .github/workflows/build-vsix.yml
-
-name: Build VSIX
+name: Build VS Code IDE Companion Extension
 
 on:
   pull_request:
@@ -8,8 +6,8 @@ on:
       - 'packages/vscode-ide-companion/**'
 
 jobs:
-  build-vsix:
-    name: Build VSIX
+  build:
+    name: Build VS Code IDE Companion Extension
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -26,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build VSIX
+      - name: Package VSIX
         working-directory: packages/vscode-ide-companion
         run: npm run package
 
