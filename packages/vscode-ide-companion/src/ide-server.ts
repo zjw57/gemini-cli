@@ -9,6 +9,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express, { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
+import getPort from 'get-port';
 import {
   isInitializeRequest,
   type JSONRPCNotification,
@@ -113,16 +114,17 @@ export async function startIDEServer(context: vscode.ExtensionContext) {
 
   app.get('/mcp', handleSessionRequest);
 
-  // TODO(#3918): Generate dynamically and write to env variable
-  const PORT = 3000;
-  app.listen(PORT, (error?: Error) => {
+  const port = await getPort();
+  process.env['GEMINI_CLI_COMPANION_PORT'] = port.toString();
+
+  app.listen(port, (error?: Error) => {
     if (error) {
       console.error('Failed to start server:', error);
       vscode.window.showErrorMessage(
-        `Companion server failed to start on port ${PORT}: ${error.message}`,
+        `Companion server failed to start on port ${port}: ${error.message}`,
       );
     }
-    console.log(`MCP Streamable HTTP Server listening on port ${PORT}`);
+    console.log(`MCP Streamable HTTP Server listening on port ${port}`);
   });
 }
 
