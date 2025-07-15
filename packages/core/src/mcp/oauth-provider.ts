@@ -650,7 +650,42 @@ export class MCPOAuthProvider {
 
     console.log('\nOpening browser for OAuth authentication...');
     console.log('If the browser does not open, please visit:');
+    console.log('');
+
+    // Get terminal width or default to 80
+    const terminalWidth = process.stdout.columns || 80;
+    const separatorLength = Math.min(terminalWidth - 2, 80);
+    const separator = '━'.repeat(separatorLength);
+
+    console.log(separator);
+    console.log(
+      'COPY THE ENTIRE URL BELOW (select all text between the lines):',
+    );
+    console.log(separator);
     console.log(authUrl);
+    console.log(separator);
+    console.log('');
+    console.log(
+      '💡 TIP: Triple-click to select the entire URL, then copy and paste it into your browser.',
+    );
+    console.log(
+      '⚠️  Make sure to copy the COMPLETE URL - it may wrap across multiple lines.',
+    );
+    console.log('');
+
+    // For headless environments, also provide the URL in a more accessible way
+    if (
+      process.env.DISPLAY === undefined ||
+      process.env.SSH_CLIENT ||
+      process.env.SSH_TTY
+    ) {
+      console.log('🔗 For easier copying in headless/SSH environments:');
+      console.log('   You can also run: curl -s "' + authUrl + '" > /dev/null');
+      console.log(
+        '   Or save the URL to a file: echo "' + authUrl + '" > oauth_url.txt',
+      );
+      console.log('');
+    }
 
     // Start callback server
     const callbackPromise = this.startCallbackServer(pkceParams.state);
