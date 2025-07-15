@@ -262,14 +262,15 @@ export class MCPOAuthProvider {
       throw new Error('Generated code verifier contains invalid characters');
     }
 
-    // Generate code challenge using SHA256 - explicitly specify UTF-8 encoding
+    // Generate code challenge using SHA256 - the spec requires SHA256 of the UTF-8 bytes
+    // Note: Node.js crypto.createHash().update() defaults to UTF-8 for strings
     const codeChallenge = this.bufferToBase64url(
-      crypto.createHash('sha256').update(codeVerifier, 'utf8').digest()
+      crypto.createHash('sha256').update(codeVerifier).digest()
     );
     
     // Verify the challenge can be recreated from the verifier
     const verificationChallenge = this.bufferToBase64url(
-      crypto.createHash('sha256').update(codeVerifier, 'utf8').digest()
+      crypto.createHash('sha256').update(codeVerifier).digest()
     );
     if (codeChallenge !== verificationChallenge) {
       console.error('PKCE challenge verification failed! Challenge generation is not deterministic.');
@@ -426,6 +427,10 @@ export class MCPOAuthProvider {
       state: pkceParams.state.substring(0, 20) + '...'
     });
 
+    // Debug: Verify the challenge in the URL is correctly encoded
+    console.log('Code challenge in URL:', params.get('code_challenge'));
+    console.log('Code challenge matches generated?', params.get('code_challenge') === pkceParams.codeChallenge);
+
     return `${config.authorizationUrl}?${params.toString()}`;
   }
 
@@ -435,24 +440,25 @@ export class MCPOAuthProvider {
    * @param config OAuth configuration
    * @param code Authorization code
    * @param codeVerifier PKCE code verifier
+   * @param pkceParams Full PKCE parameters for debugging
    * @returns The token response
    */
   private static async exchangeCodeForToken(
     config: MCPOAuthConfig,
     code: string,
     codeVerifier: string,
+    pkceParams?: PKCEParams,
   ): Promise<OAuthTokenResponse> {
     const redirectUri =
       config.redirectUri ||
       `http://localhost:${this.REDIRECT_PORT}${this.REDIRECT_PATH}`;
 
-    const params = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: redirectUri,
-      code_verifier: codeVerifier,
-      client_id: config.clientId!,
-    });
+    const params = new URLSearchParams();
+    params.append('grant_type', 'authorization_code');
+    params.append('code', code);
+    params.append('redirect_uri', redirectUri);
+    params.append('code_verifier', codeVerifier);
+    params.append('client_id', config.clientId!);
 
     if (config.clientSecret) {
       params.append('client_secret', config.clientSecret);
@@ -464,7 +470,7 @@ export class MCPOAuthProvider {
 
     // For debugging: recreate the challenge from the verifier to verify they match
     const recreatedChallenge = this.bufferToBase64url(
-      crypto.createHash('sha256').update(codeVerifier, 'utf8').digest()
+      crypto.createHash('sha256').update(codeVerifier).digest()
     );
     
     console.log('Token exchange request params:', {
@@ -478,6 +484,24 @@ export class MCPOAuthProvider {
       codeVerifierSample: codeVerifier.substring(0, 20) + '...',
       recreatedChallenge: recreatedChallenge.substring(0, 20) + '...'
     });
+
+    // Debug: Log the exact form data being sent
+    console.log('Form data being sent:', params.toString());
+    console.log('Raw code verifier value:', JSON.stringify(codeVerifier));
+    console.log('URLSearchParams encoded code verifier:', JSON.stringify(params.get('code_verifier')));
+    
+    // Debug: Test if the challenge/verifier pair is valid
+    console.log('Challenge verification test:');
+    console.log('  Original challenge:', pkceParams?.codeChallenge || 'NOT_AVAILABLE');
+    console.log('  Recreated challenge:', recreatedChallenge);
+    console.log('  Challenges match:', (pkceParams?.codeChallenge || 'NOT_AVAILABLE') === recreatedChallenge);
+    
+    // Additional debugging: Test the exact bytes being hashed
+    const verifierBytes = Buffer.from(codeVerifier, 'utf8');
+    const hashBuffer = crypto.createHash('sha256').update(verifierBytes).digest();
+    const challengeFromBytes = this.bufferToBase64url(hashBuffer);
+    console.log('  Challenge from explicit bytes:', challengeFromBytes);
+    console.log('  All challenges match:', challengeFromBytes === recreatedChallenge && challengeFromBytes === (pkceParams?.codeChallenge || 'NOT_AVAILABLE'));
 
     const response = await fetch(config.tokenUrl!, {
       method: 'POST',
@@ -695,6 +719,12 @@ export class MCPOAuthProvider {
 
       const authServerMetadata = await authServerResponse.json();
 
+      // Log server capabilities for debugging
+      console.log('Authorization server capabilities:');
+      console.log('  Code challenge methods supported:', authServerMetadata.code_challenge_methods_supported);
+      console.log('  Grant types supported:', authServerMetadata.grant_types_supported);
+      console.log('  Response types supported:', authServerMetadata.response_types_supported);
+
       // Register client if registration endpoint is available
       if (authServerMetadata.registration_endpoint) {
         const clientRegistration = await this.registerClient(
@@ -708,6 +738,10 @@ export class MCPOAuthProvider {
         }
 
         console.log('Dynamic client registration successful');
+        console.log('Registered client ID:', config.clientId);
+        console.log('Registered client secret:', config.clientSecret ? 'YES' : 'NO');
+        console.log('Registered grant types:', clientRegistration.grant_types);
+        console.log('Registered code challenge methods:', clientRegistration.code_challenge_method);
       } else {
         throw new Error(
           'No client ID provided and dynamic registration not supported',
@@ -772,6 +806,7 @@ export class MCPOAuthProvider {
         config,
         code,
         pkceParams.codeVerifier,
+        pkceParams,
       );
       console.log('Token exchange successful, processing response...');
     } catch (exchangeError) {
