@@ -434,35 +434,71 @@ function layoutInkElementAsStyledText(
   if (availableWidth < 1) {
     // No room to render the wrapping segments. Truncate the non-wrapping
     // content and append an ellipsis so the line always fits within maxWidth.
-    const truncatedLine: StyledText[] = [];
-    let remainingWidth = Math.max(0, maxWidth - stringWidth('…'));
+    
+    // Handle line breaks in non-wrapping content when truncating
+    const lines: StyledText[][] = [];
+    let currentLine: StyledText[] = [];
+    let currentLineWidth = 0;
+    
     for (const segment of nonWrappingContent) {
-      if (remainingWidth <= 0) break;
-      const segmentWidth = stringWidth(segment.text);
-      if (segmentWidth <= remainingWidth) {
-        truncatedLine.push(segment);
-        remainingWidth -= segmentWidth;
-      } else {
-        const codePoints = toCodePoints(segment.text);
-        let currentWidth = 0;
-        let sliceEndIndex = 0;
-        for (const char of codePoints) {
-          const charWidth = stringWidth(char);
-          if (currentWidth + charWidth > remainingWidth) {
-            break;
+      const textLines = segment.text.split('\n');
+      textLines.forEach((text, index) => {
+        if (index > 0) {
+          // New line encountered, finish current line and start new one
+          lines.push(currentLine);
+          currentLine = [];
+          currentLineWidth = 0;
+        }
+        
+        if (text) {
+          const textWidth = stringWidth(text);
+          const availableWidthForLine = Math.max(0, maxWidth - stringWidth('…'));
+          
+          if (currentLineWidth + textWidth <= availableWidthForLine) {
+            // Text fits completely
+            currentLine.push({ text, props: segment.props });
+            currentLineWidth += textWidth;
+          } else {
+            // Text needs truncation
+            const codePoints = toCodePoints(text);
+            let currentWidth = currentLineWidth;
+            let sliceEndIndex = 0;
+            for (const char of codePoints) {
+              const charWidth = stringWidth(char);
+              if (currentWidth + charWidth > availableWidthForLine) {
+                break;
+              }
+              currentWidth += charWidth;
+              sliceEndIndex++;
+            }
+            const slice = codePoints.slice(0, sliceEndIndex).join('');
+            if (slice) {
+              currentLine.push({ text: slice, props: segment.props });
+            }
+            currentLine.push({ text: '…', props: {} });
+            currentLineWidth = maxWidth; // Line is now full
           }
-          currentWidth += charWidth;
-          sliceEndIndex++;
         }
-        const slice = codePoints.slice(0, sliceEndIndex).join('');
-        if (slice) {
-          truncatedLine.push({ text: slice, props: segment.props });
-        }
-        remainingWidth = 0;
-      }
+      });
     }
-    truncatedLine.push({ text: '…', props: {} });
-    output.push(truncatedLine);
+    
+    // Add the last line if it has content or if the last segment ended with \n
+    if (
+      currentLine.length > 0 ||
+      (nonWrappingContent.length > 0 &&
+        nonWrappingContent[nonWrappingContent.length - 1].text.endsWith('\n'))
+    ) {
+      lines.push(currentLine);
+    }
+    
+    // If we don't have any lines yet, add an ellipsis line
+    if (lines.length === 0) {
+      lines.push([{ text: '…', props: {} }]);
+    }
+    
+    for (const line of lines) {
+      output.push(line);
+    }
     return;
   }
 
