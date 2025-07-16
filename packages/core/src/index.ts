@@ -66,14 +66,11 @@ export {
   MCPOAuthTokenStorage,
 } from './mcp/oauth-token-storage.js';
 export type { MCPOAuthConfig } from './mcp/oauth-provider.js';
-export {
-  discoverOAuthConfig,
-  parseWWWAuthenticateHeader,
-} from './mcp/oauth-discovery.js';
 export type {
   OAuthAuthorizationServerMetadata,
   OAuthProtectedResourceMetadata,
-} from './mcp/oauth-discovery.js';
+} from './mcp/oauth-utils.js';
+export { OAuthUtils } from './mcp/oauth-utils.js';
 
 // Export telemetry functions
 export * from './telemetry/index.js';

@@ -10,6 +10,7 @@ import { URL } from 'node:url';
 import open from 'open';
 import { MCPOAuthToken, MCPOAuthTokenStorage } from './oauth-token-storage.js';
 import { getErrorMessage } from '../utils/errors.js';
+import { OAuthUtils } from './oauth-utils.js';
 
 /**
  * OAuth configuration for an MCP server.
@@ -143,85 +144,8 @@ export class MCPOAuthProvider {
   private static async discoverOAuthFromMCPServer(
     mcpServerUrl: string,
   ): Promise<MCPOAuthConfig | null> {
-    try {
-      // Extract the base URL from the MCP server URL
-      const serverUrl = new URL(mcpServerUrl);
-      const baseUrl = `${serverUrl.protocol}//${serverUrl.host}`;
-
-      // Try to get the protected resource metadata first
-      const resourceMetadataUrl = new URL(
-        '/.well-known/oauth-protected-resource',
-        baseUrl,
-      ).toString();
-
-      const resourceResponse = await fetch(resourceMetadataUrl);
-      if (resourceResponse.ok) {
-        // If protected resource metadata exists, use it
-        const resourceMetadata = await resourceResponse.json();
-
-        if (
-          resourceMetadata.authorization_servers &&
-          resourceMetadata.authorization_servers.length > 0
-        ) {
-          // Use the first authorization server
-          const authServerUrl = resourceMetadata.authorization_servers[0];
-
-          // Get the authorization server metadata
-          const authServerMetadataUrl = new URL(
-            '/.well-known/oauth-authorization-server',
-            authServerUrl,
-          ).toString();
-
-          const authServerResponse = await fetch(authServerMetadataUrl);
-          if (!authServerResponse.ok) {
-            console.error(
-              `Failed to fetch authorization server metadata from ${authServerMetadataUrl}`,
-            );
-            return null;
-          }
-
-          const authServerMetadata = await authServerResponse.json();
-
-          return {
-            authorizationUrl: authServerMetadata.authorization_endpoint,
-            tokenUrl: authServerMetadata.token_endpoint,
-            scopes: authServerMetadata.scopes_supported || [],
-          };
-        }
-      }
-
-      // If protected resource metadata doesn't exist, try direct authorization server discovery
-      // This is for servers that don't follow the protected resource metadata pattern
-      console.debug(
-        `Protected resource metadata not found, trying direct authorization server discovery`,
-      );
-
-      const authServerMetadataUrl = new URL(
-        '/.well-known/oauth-authorization-server',
-        baseUrl,
-      ).toString();
-
-      const authServerResponse = await fetch(authServerMetadataUrl);
-      if (!authServerResponse.ok) {
-        console.error(
-          `Failed to fetch authorization server metadata from ${authServerMetadataUrl}`,
-        );
-        return null;
-      }
-
-      const authServerMetadata = await authServerResponse.json();
-
-      return {
-        authorizationUrl: authServerMetadata.authorization_endpoint,
-        tokenUrl: authServerMetadata.token_endpoint,
-        scopes: authServerMetadata.scopes_supported || [],
-      };
-    } catch (error) {
-      console.debug(
-        `Failed to discover OAuth configuration from MCP server: ${getErrorMessage(error)}`,
-      );
-      return null;
-    }
+    const baseUrl = OAuthUtils.extractBaseUrl(mcpServerUrl);
+    return OAuthUtils.discoverOAuthConfig(baseUrl);
   }
 
   /**
@@ -372,8 +296,10 @@ export class MCPOAuthProvider {
     }
 
     // Add resource parameter for MCP OAuth spec compliance
-    const resourceUrl = new URL(config.authorizationUrl!);
-    params.append('resource', `${resourceUrl.protocol}//${resourceUrl.host}`);
+    params.append(
+      'resource',
+      OAuthUtils.buildResourceParameter(config.authorizationUrl!),
+    );
 
     return `${config.authorizationUrl}?${params.toString()}`;
   }
@@ -408,8 +334,10 @@ export class MCPOAuthProvider {
     }
 
     // Add resource parameter for MCP OAuth spec compliance
-    const resourceUrl = new URL(config.tokenUrl!);
-    params.append('resource', `${resourceUrl.protocol}//${resourceUrl.host}`);
+    params.append(
+      'resource',
+      OAuthUtils.buildResourceParameter(config.tokenUrl!),
+    );
 
     const response = await fetch(config.tokenUrl!, {
       method: 'POST',
@@ -456,8 +384,7 @@ export class MCPOAuthProvider {
     }
 
     // Add resource parameter for MCP OAuth spec compliance
-    const resourceUrl = new URL(tokenUrl);
-    params.append('resource', `${resourceUrl.protocol}//${resourceUrl.host}`);
+    params.append('resource', OAuthUtils.buildResourceParameter(tokenUrl));
 
     const response = await fetch(tokenUrl, {
       method: 'POST',
@@ -497,7 +424,7 @@ export class MCPOAuthProvider {
       );
 
       // For SSE URLs, first check if authentication is required
-      if (mcpServerUrl.includes('/sse') || !mcpServerUrl.includes('/mcp')) {
+      if (OAuthUtils.isSSEEndpoint(mcpServerUrl)) {
         try {
           const response = await fetch(mcpServerUrl, {
             method: 'HEAD',
@@ -509,56 +436,16 @@ export class MCPOAuthProvider {
           if (response.status === 401 || response.status === 307) {
             const wwwAuthenticate = response.headers.get('www-authenticate');
             if (wwwAuthenticate) {
-              // Parse the resource metadata URI from the header
-              const resourceMetadataMatch = wwwAuthenticate.match(
-                /resource_metadata_uri="([^"]+)"/,
-              );
-              if (resourceMetadataMatch) {
-                const resourceMetadataUri = resourceMetadataMatch[1];
-                console.log(
-                  `Found resource metadata URI from www-authenticate header: ${resourceMetadataUri}`,
+              const discoveredConfig =
+                await OAuthUtils.discoverOAuthFromWWWAuthenticate(
+                  wwwAuthenticate,
                 );
-
-                // Discover OAuth configuration from the resource metadata URI
-                const resourceResponse = await fetch(resourceMetadataUri);
-                if (resourceResponse.ok) {
-                  const resourceMetadata = await resourceResponse.json();
-
-                  if (
-                    resourceMetadata.authorization_servers &&
-                    resourceMetadata.authorization_servers.length > 0
-                  ) {
-                    const authServerUrl =
-                      resourceMetadata.authorization_servers[0];
-                    const authServerMetadataUrl = new URL(
-                      '/.well-known/oauth-authorization-server',
-                      authServerUrl,
-                    ).toString();
-
-                    const authServerResponse = await fetch(
-                      authServerMetadataUrl,
-                    );
-                    if (authServerResponse.ok) {
-                      const authServerMetadata =
-                        await authServerResponse.json();
-
-                      config = {
-                        ...config,
-                        authorizationUrl:
-                          authServerMetadata.authorization_endpoint,
-                        tokenUrl: authServerMetadata.token_endpoint,
-                        scopes:
-                          authServerMetadata.scopes_supported ||
-                          config.scopes ||
-                          [],
-                      };
-
-                      console.log(
-                        'OAuth configuration discovered successfully from www-authenticate header',
-                      );
-                    }
-                  }
-                }
+              if (discoveredConfig) {
+                config = {
+                  ...config,
+                  ...discoveredConfig,
+                  scopes: discoveredConfig.scopes || config.scopes || [],
+                };
               }
             }
           }
@@ -606,14 +493,15 @@ export class MCPOAuthProvider {
         serverUrl,
       ).toString();
 
-      const authServerResponse = await fetch(authServerMetadataUrl);
-      if (!authServerResponse.ok) {
+      const authServerMetadata =
+        await OAuthUtils.fetchAuthorizationServerMetadata(
+          authServerMetadataUrl,
+        );
+      if (!authServerMetadata) {
         throw new Error(
           'Failed to fetch authorization server metadata for client registration',
         );
       }
-
-      const authServerMetadata = await authServerResponse.json();
 
       // Register client if registration endpoint is available
       if (authServerMetadata.registration_endpoint) {

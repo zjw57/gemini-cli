@@ -21,10 +21,7 @@ import { DiscoveredMCPTool } from './mcp-tool.js';
 import { FunctionDeclaration, Type, mcpToTool } from '@google/genai';
 import { sanitizeParameters, ToolRegistry } from './tool-registry.js';
 import { MCPOAuthProvider } from '../mcp/oauth-provider.js';
-import {
-  discoverOAuthConfig,
-  parseWWWAuthenticateHeader,
-} from '../mcp/oauth-discovery.js';
+import { OAuthUtils } from '../mcp/oauth-utils.js';
 import { getErrorMessage } from '../utils/errors.js';
 import { MCPOAuthTokenStorage } from '../mcp/oauth-token-storage.js';
 import {
@@ -195,40 +192,34 @@ async function handleAutomaticOAuth(
   wwwAuthenticate: string,
 ): Promise<boolean> {
   try {
-    console.log(
-      `MCP server '${mcpServerName}' requires OAuth authentication. Discovering configuration...`,
-    );
+    console.log(`🔐 '${mcpServerName}' requires OAuth authentication`);
 
     // Always try to parse the resource metadata URI from the www-authenticate header
     let oauthConfig;
-    const resourceMetadataUri = parseWWWAuthenticateHeader(wwwAuthenticate);
+    const resourceMetadataUri =
+      OAuthUtils.parseWWWAuthenticateHeader(wwwAuthenticate);
     if (resourceMetadataUri) {
-      oauthConfig = await discoverOAuthConfig(resourceMetadataUri);
+      oauthConfig = await OAuthUtils.discoverOAuthConfig(resourceMetadataUri);
     } else if (mcpServerConfig.url) {
       // Fallback: try to discover OAuth config from the base URL for SSE
       const sseUrl = new URL(mcpServerConfig.url);
       const baseUrl = `${sseUrl.protocol}//${sseUrl.host}`;
-      oauthConfig = await discoverOAuthConfig(baseUrl);
+      oauthConfig = await OAuthUtils.discoverOAuthConfig(baseUrl);
     } else if (mcpServerConfig.httpUrl) {
       // Fallback: try to discover OAuth config from the base URL for HTTP
       const httpUrl = new URL(mcpServerConfig.httpUrl);
       const baseUrl = `${httpUrl.protocol}//${httpUrl.host}`;
-      oauthConfig = await discoverOAuthConfig(baseUrl);
+      oauthConfig = await OAuthUtils.discoverOAuthConfig(baseUrl);
     }
 
     if (!oauthConfig) {
       console.error(
-        `Failed to discover OAuth configuration for server '${mcpServerName}'`,
+        `❌ Could not configure OAuth for '${mcpServerName}' - please authenticate manually with /mcp auth ${mcpServerName}`,
       );
       return false;
     }
 
-    console.log(
-      `Discovered OAuth configuration for server '${mcpServerName}':`,
-    );
-    console.log(`  Authorization URL: ${oauthConfig.authorizationUrl}`);
-    console.log(`  Token URL: ${oauthConfig.tokenUrl}`);
-    console.log(`  Scopes: ${(oauthConfig.scopes || []).join(', ')}`);
+    // OAuth configuration discovered - proceed with authentication
 
     // Create OAuth configuration for authentication
     const oauthAuthConfig = {
@@ -415,7 +406,9 @@ export async function connectAndDiscover(
       throw error;
     }
   } catch (error) {
-    console.error(`Error connecting to MCP server '${mcpServerName}':`, error);
+    // Only show the error message, not the full stack trace
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`❌ ${errorMessage}`);
     updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
   }
 }
@@ -719,9 +712,7 @@ export async function connectToMcpServer(
         }
 
         // For SSE servers, try to discover OAuth configuration from the base URL
-        console.log(
-          `401 error received but no www-authenticate header found, attempting OAuth discovery from base URL...`,
-        );
+        console.log(`🔍 Attempting OAuth discovery for '${mcpServerName}'...`);
 
         if (mcpServerConfig.url) {
           const sseUrl = new URL(mcpServerConfig.url);
@@ -729,7 +720,7 @@ export async function connectToMcpServer(
 
           try {
             // Try to discover OAuth configuration from the base URL
-            const oauthConfig = await discoverOAuthConfig(baseUrl);
+            const oauthConfig = await OAuthUtils.discoverOAuthConfig(baseUrl);
             if (oauthConfig) {
               console.log(
                 `Discovered OAuth configuration from base URL for server '${mcpServerName}'`,
@@ -812,46 +803,47 @@ export async function connectToMcpServer(
               }
             } else {
               console.error(
-                `Failed to discover OAuth configuration from base URL for server '${mcpServerName}'`,
+                `❌ Could not configure OAuth for '${mcpServerName}' - please authenticate manually with /mcp auth ${mcpServerName}`,
               );
               throw new Error(
-                `Failed to discover OAuth configuration from base URL for server '${mcpServerName}'`,
+                `OAuth configuration failed for '${mcpServerName}'. Please authenticate manually with /mcp auth ${mcpServerName}`,
               );
             }
           } catch (discoveryError) {
             console.error(
-              `Failed to discover OAuth configuration: ${getErrorMessage(discoveryError)}`,
+              `❌ OAuth discovery failed for '${mcpServerName}' - please authenticate manually with /mcp auth ${mcpServerName}`,
             );
             throw discoveryError;
           }
         } else {
           console.error(
-            `401 error received but no www-authenticate header found and no URL for discovery`,
+            `❌ '${mcpServerName}' requires authentication but no OAuth configuration found`,
           );
           throw new Error(
-            `401 error received but no www-authenticate header found and no URL for discovery`,
+            `MCP server '${mcpServerName}' requires authentication. Please configure OAuth or check server settings.`,
           );
         }
       }
     } else {
       // Handle other connection errors
-      const safeConfig = {
-        command: mcpServerConfig.command,
-        url: mcpServerConfig.url,
-        httpUrl: mcpServerConfig.httpUrl,
-        cwd: mcpServerConfig.cwd,
-        timeout: mcpServerConfig.timeout,
-        trust: mcpServerConfig.trust,
-        // Exclude args, env, and headers which may contain sensitive data
-      };
+      // Create a concise error message
+      const errorMessage = (error as Error).message || String(error);
+      const isNetworkError =
+        errorMessage.includes('ENOTFOUND') ||
+        errorMessage.includes('ECONNREFUSED');
 
-      let errorString =
-        `failed to start or connect to MCP server '${mcpServerName}' ` +
-        `${JSON.stringify(safeConfig)}; \n${error}`;
-      if (process.env.SANDBOX) {
-        errorString += `\nMake sure it is available in the sandbox`;
+      let conciseError: string;
+      if (isNetworkError) {
+        conciseError = `Cannot connect to '${mcpServerName}' - server may be down or URL incorrect`;
+      } else {
+        conciseError = `Connection failed for '${mcpServerName}': ${errorMessage}`;
       }
-      throw new Error(errorString);
+
+      if (process.env.SANDBOX) {
+        conciseError += ` (check sandbox availability)`;
+      }
+
+      throw new Error(conciseError);
     }
   }
 }
