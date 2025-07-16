@@ -58,8 +58,9 @@ export async function startIDEServer(context: vscode.ExtensionContext) {
       });
 
       const keepAlive = setInterval(() => {
+        console.log('Sending keep-alive ping');
         transport.send({ jsonrpc: '2.0', method: 'ping' });
-      }, 30000);
+      }, 30000); // Send ping every 30 seconds
 
       transport.onclose = () => {
         clearInterval(keepAlive);
