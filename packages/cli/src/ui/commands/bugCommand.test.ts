@@ -16,6 +16,15 @@ import { formatMemoryUsage } from '../utils/formatters.js';
 vi.mock('open');
 vi.mock('../../utils/version.js');
 vi.mock('../utils/formatters.js');
+vi.mock('node:process', () => ({
+  default: {
+    platform: 'test-platform',
+    version: 'v20.0.0',
+    // Keep other necessary process properties if needed by other parts of the code
+    env: process.env,
+    memoryUsage: () => ({ rss: 0 }),
+  },
+}));
 
 describe('bugCommand', () => {
   beforeEach(() => {
@@ -75,7 +84,7 @@ describe('bugCommand', () => {
     const expectedInfo = `
 * **CLI Version:** 0.1.0
 * **Git Commit:** ${GIT_COMMIT_INFO}
-* **Operating System:** ${process.platform} ${process.version}
+* **Operating System:** test-platform v20.0.0
 * **Sandbox Environment:** test
 * **Model Version:** gemini-pro
 * **Memory Usage:** 100 MB
