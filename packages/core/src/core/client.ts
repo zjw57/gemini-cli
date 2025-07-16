@@ -309,7 +309,7 @@ export class GeminiClient {
       const activeFile = ideContext.getActiveFileContext();
       if (activeFile?.filePath) {
         let context = `
-Here is the repo, structure and current active files in the IDE. how can we execute on the user's request. as part of the message sent from the user
+Here is information about the user's current IDE context. Use this if relevant to the user's query:
 - Path: ${activeFile.filePath}`;
         if (activeFile.cursor) {
           context += `
