@@ -57,7 +57,12 @@ export async function startIDEServer(context: vscode.ExtensionContext) {
         },
       });
 
+      const keepAlive = setInterval(() => {
+        transport.send({ jsonrpc: '2.0', method: 'ping' });
+      }, 30000);
+
       transport.onclose = () => {
+        clearInterval(keepAlive);
         if (transport.sessionId) {
           sessionsWithInitialNotification.delete(transport.sessionId);
           delete transports[transport.sessionId];
