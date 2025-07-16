@@ -879,9 +879,9 @@ describe('mcpCommand', () => {
       });
 
       const { MCPOAuthProvider } = await import('@google/gemini-cli-core');
-      (MCPOAuthProvider.authenticate as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error('Auth failed'),
-      );
+      (
+        MCPOAuthProvider.authenticate as ReturnType<typeof vi.fn>
+      ).mockRejectedValue(new Error('Auth failed'));
 
       const authCommand = mcpCommand.subCommands?.find(
         (cmd) => cmd.name === 'auth',
