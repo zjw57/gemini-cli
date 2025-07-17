@@ -437,6 +437,9 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
         );
         if (quitCommand && quitCommand.action) {
           quitCommand.action(commandContext, '');
+          setTimeout(() => {
+            process.exit(0);
+          }, 100);
         } else {
           // This is unlikely to be needed but added for an additional fallback.
           process.exit(0);
