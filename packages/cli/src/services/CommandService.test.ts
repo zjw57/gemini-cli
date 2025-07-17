@@ -21,13 +21,10 @@ import { aboutCommand } from '../ui/commands/aboutCommand.js';
 import { ideCommand } from '../ui/commands/ideCommand.js';
 import { extensionsCommand } from '../ui/commands/extensionsCommand.js';
 import { toolsCommand } from '../ui/commands/toolsCommand.js';
-<<<<<<< HEAD
 import { compressCommand } from '../ui/commands/compressCommand.js';
 import { mcpCommand } from '../ui/commands/mcpCommand.js';
 import { editorCommand } from '../ui/commands/editorCommand.js';
-=======
 import { bugCommand } from '../ui/commands/bugCommand.js';
->>>>>>> 0024d086 (updated /bug slash command)
 
 // Mock the command modules to isolate the service from the command implementations.
 vi.mock('../ui/commands/memoryCommand.js', () => ({
@@ -66,7 +63,6 @@ vi.mock('../ui/commands/extensionsCommand.js', () => ({
 vi.mock('../ui/commands/toolsCommand.js', () => ({
   toolsCommand: { name: 'tools', description: 'Mock Tools' },
 }));
-<<<<<<< HEAD
 vi.mock('../ui/commands/compressCommand.js', () => ({
   compressCommand: { name: 'compress', description: 'Mock Compress' },
 }));
@@ -75,14 +71,13 @@ vi.mock('../ui/commands/mcpCommand.js', () => ({
 }));
 vi.mock('../ui/commands/editorCommand.js', () => ({
   editorCommand: { name: 'editor', description: 'Mock Editor' },
-=======
+}));
 vi.mock('../ui/commands/bugCommand.js', () => ({
   bugCommand: { name: 'bug', description: 'Mock Bug' },
->>>>>>> 0024d086 (updated /bug slash command)
 }));
 
 describe('CommandService', () => {
-  const subCommandLen = 15;
+  const subCommandLen = 16;
   let mockConfig: Mocked<Config>;
 
   beforeEach(() => {
@@ -115,14 +110,11 @@ describe('CommandService', () => {
         const tree = commandService.getCommands();
 
         // Post-condition assertions
-<<<<<<< HEAD
         expect(tree.length).toBe(subCommandLen);
-=======
-        expect(tree.length).toBe(10);
->>>>>>> 0024d086 (updated /bug slash command)
 
         const commandNames = tree.map((cmd) => cmd.name);
         expect(commandNames).toContain('auth');
+        expect(commandNames).toContain('bug');
         expect(commandNames).toContain('memory');
         expect(commandNames).toContain('help');
         expect(commandNames).toContain('clear');
@@ -134,7 +126,6 @@ describe('CommandService', () => {
         expect(commandNames).toContain('about');
         expect(commandNames).toContain('extensions');
         expect(commandNames).toContain('tools');
-<<<<<<< HEAD
         expect(commandNames).toContain('compress');
         expect(commandNames).toContain('mcp');
         expect(commandNames).not.toContain('ide');
@@ -153,30 +144,19 @@ describe('CommandService', () => {
         const commandNames = tree.map((cmd) => cmd.name);
         expect(commandNames).toContain('ide');
         expect(commandNames).toContain('editor');
-=======
-        expect(commandNames).toContain('bug');
->>>>>>> 0024d086 (updated /bug slash command)
       });
 
       it('should overwrite any existing commands when called again', async () => {
         // Load once
         await commandService.loadCommands();
-<<<<<<< HEAD
         expect(commandService.getCommands().length).toBe(subCommandLen);
-=======
-        expect(commandService.getCommands().length).toBe(10);
->>>>>>> 0024d086 (updated /bug slash command)
 
         // Load again
         await commandService.loadCommands();
         const tree = commandService.getCommands();
 
         // Should not append, but overwrite
-<<<<<<< HEAD
         expect(tree.length).toBe(subCommandLen);
-=======
-        expect(tree.length).toBe(10);
->>>>>>> 0024d086 (updated /bug slash command)
       });
     });
 
@@ -188,19 +168,12 @@ describe('CommandService', () => {
         await commandService.loadCommands();
 
         const loadedTree = commandService.getCommands();
-<<<<<<< HEAD
         expect(loadedTree.length).toBe(subCommandLen);
         expect(loadedTree).toEqual([
           aboutCommand,
           authCommand,
-          chatCommand,
-=======
-        expect(loadedTree.length).toBe(10);
-        expect(loadedTree).toEqual([
-          aboutCommand,
-          authCommand,
           bugCommand,
->>>>>>> 0024d086 (updated /bug slash command)
+          chatCommand,
           clearCommand,
           compressCommand,
           docsCommand,
