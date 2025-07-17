@@ -439,5 +439,39 @@ describe('useSlashCommandProcessor', () => {
         expect.any(Number),
       );
     });
+
+    it('should handle errors thrown by a command action', async () => {
+      const mockAction = vi.fn().mockImplementation(() => {
+        throw new Error('Test error');
+      });
+      const newCommand: SlashCommand = { name: 'error', action: mockAction };
+      const mockLoader = async () => [newCommand];
+      const commandServiceInstance = new ActualCommandService(
+        mockConfig,
+        mockLoader,
+      );
+      vi.mocked(CommandService).mockImplementation(
+        () => commandServiceInstance,
+      );
+
+      const { result } = getProcessorHook();
+      await vi.waitFor(() => {
+        expect(
+          result.current.slashCommands.some((c) => c.name === 'error'),
+        ).toBe(true);
+      });
+
+      const commandResult = await result.current.handleSlashCommand('/error');
+
+      expect(mockAction).toHaveBeenCalledTimes(1);
+      expect(mockAddItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error',
+          text: 'Error executing command: Test error',
+        }),
+        expect.any(Number),
+      );
+      expect(commandResult).toEqual({ type: 'handled' });
+    });
   });
 });

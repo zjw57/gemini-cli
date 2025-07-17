@@ -378,73 +378,87 @@ export const useSlashCommandProcessor = (
         const args = parts.slice(pathIndex).join(' ');
 
         if (commandToExecute.action) {
-          const result = await commandToExecute.action(commandContext, args);
+          try {
+            const result = await commandToExecute.action(commandContext, args);
 
-          if (result) {
-            switch (result.type) {
-              case 'tool':
-                return {
-                  type: 'schedule_tool',
-                  toolName: result.toolName,
-                  toolArgs: result.toolArgs,
-                };
-              case 'message':
-                addItem(
-                  {
-                    type:
-                      result.messageType === 'error'
-                        ? MessageType.ERROR
-                        : MessageType.INFO,
-                    text: result.content,
-                  },
-                  Date.now(),
-                );
-                return { type: 'handled' };
-              case 'dialog':
-                switch (result.dialog) {
-                  case 'help':
-                    setShowHelp(true);
-                    return { type: 'handled' };
-                  case 'auth':
-                    openAuthDialog();
-                    return { type: 'handled' };
-                  case 'theme':
-                    openThemeDialog();
-                    return { type: 'handled' };
-                  case 'editor':
-                    openEditorDialog();
-                    return { type: 'handled' };
-                  case 'privacy':
-                    openPrivacyNotice();
-                    return { type: 'handled' };
-                  default: {
-                    const unhandled: never = result.dialog;
-                    throw new Error(
-                      `Unhandled slash command result: ${unhandled}`,
-                    );
+            if (result) {
+              switch (result.type) {
+                case 'tool':
+                  return {
+                    type: 'schedule_tool',
+                    toolName: result.toolName,
+                    toolArgs: result.toolArgs,
+                  };
+                case 'message':
+                  addItem(
+                    {
+                      type:
+                        result.messageType === 'error'
+                          ? MessageType.ERROR
+                          : MessageType.INFO,
+                      text: result.content,
+                    },
+                    Date.now(),
+                  );
+                  return { type: 'handled' };
+                case 'dialog':
+                  switch (result.dialog) {
+                    case 'help':
+                      setShowHelp(true);
+                      return { type: 'handled' };
+                    case 'auth':
+                      openAuthDialog();
+                      return { type: 'handled' };
+                    case 'theme':
+                      openThemeDialog();
+                      return { type: 'handled' };
+                    case 'editor':
+                      openEditorDialog();
+                      return { type: 'handled' };
+                    case 'privacy':
+                      openPrivacyNotice();
+                      return { type: 'handled' };
+                    default: {
+                      const unhandled: never = result.dialog;
+                      throw new Error(
+                        `Unhandled slash command result: ${unhandled}`,
+                      );
+                    }
                   }
+                case 'load_history': {
+                  await config
+                    ?.getGeminiClient()
+                    ?.setHistory(result.clientHistory);
+                  commandContext.ui.clear();
+                  result.history.forEach((item, index) => {
+                    commandContext.ui.addItem(item, index);
+                  });
+                  return { type: 'handled' };
                 }
-              case 'load_history': {
-                await config
-                  ?.getGeminiClient()
-                  ?.setHistory(result.clientHistory);
-                commandContext.ui.clear();
-                result.history.forEach((item, index) => {
-                  commandContext.ui.addItem(item, index);
-                });
-                return { type: 'handled' };
-              }
-              case 'quit':
-                setQuittingMessages(result.messages);
-                setTimeout(() => {
-                  process.exit(0);
-                }, 100);
-                return { type: 'handled' };
-              default: {
-                const unhandled: never = result;
-                throw new Error(`Unhandled slash command result: ${unhandled}`);
+                case 'quit':
+                  setQuittingMessages(result.messages);
+                  setTimeout(() => {
+                    process.exit(0);
+                  }, 100);
+                  return { type: 'handled' };
+                default: {
+                  const unhandled: never = result;
+                  throw new Error(
+                    `Unhandled slash command result: ${unhandled}`,
+                  );
+                }
               }
             }
+          } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            addItem(
+              {
+                type: MessageType.ERROR,
+                text: `Error executing command: ${message}`,
+              },
+              Date.now(),
+            );
+            return { type: 'handled' };
           }
 
           return { type: 'handled' };
