@@ -7,7 +7,6 @@
 import { type ActiveFile, type MCPServerConfig } from '@google/gemini-cli-core';
 import { Box, Text } from 'ink';
 import React, { useMemo } from 'react';
-import path from 'path';
 import { Colors } from '../colors.js';
 import { InfoMessage } from './messages/InfoMessage.js';
 
@@ -32,12 +31,14 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
   const hasMcpServers = mcpServerCount > 0;
   const hasActiveFile = !!activeFile?.filePath;
 
-  const contextFileLabel = useMemo(() => {
-    if (!hasGeminiMdFiles || contextFileNames.length === 0) return 'Context';
-    const allBaseNamesTheSame =
-      new Set(contextFileNames.map((p) => path.basename(p))).size < 2;
-    return allBaseNamesTheSame ? path.basename(contextFileNames[0]) : 'Context';
-  }, [contextFileNames, hasGeminiMdFiles]);
+  const geminiMdText = (() => {
+    if (geminiMdFileCount === 0) {
+      return '';
+    }
+    const allNamesTheSame = new Set(contextFileNames).size < 2;
+    const name = allNamesTheSame ? contextFileNames[0] : 'Context';
+    return `${name} File${geminiMdFileCount > 1 ? 's' : ''}`;
+  })();
 
   if (!hasGeminiMdFiles && !hasMcpServers && !hasActiveFile) {
     return <Text> </Text>; // Reserve height for layout stability.
@@ -47,13 +48,14 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     return (
       <Box flexDirection="column" paddingX={1}>
         <InfoMessage text="Files:" />
-        <Box flexDirection="column" marginLeft={2}>
-          {contextFileNames.map((item) => (
-            <Text key={item} color={Colors.AccentYellow}>
-              - {item}
-            </Text>
-          ))}
-        </Box>
+        {geminiMdFileCount > 0 && (
+          <Box flexDirection="column" marginLeft={2}>
+            <Text color={Colors.AccentYellow}>Context</Text>
+            {contextFileNames.map((item) => (
+              <Text key={item}>- {item}</Text>
+            ))}
+          </Box>
+        )}
         {activeFile?.filePath && (
           <Box flexDirection="column" marginTop={1} marginLeft={2}>
             <Text color={Colors.AccentYellow}>Open File</Text>
@@ -73,12 +75,8 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
       `${mcpServerCount} MCP Server${mcpServerCount !== 1 ? 's' : ''}`,
     );
   }
-  if (hasGeminiMdFiles) {
-    summaryParts.push(
-      `${geminiMdFileCount} ${contextFileLabel} File${
-        geminiMdFileCount !== 1 ? 's' : ''
-      }`,
-    );
+  if (geminiMdText) {
+    summaryParts.push(`${geminiMdFileCount} ${geminiMdText}`);
   }
   if (hasActiveFile) {
     summaryParts.push('1 Open File');

@@ -15,6 +15,7 @@ import {
   AccessibilitySettings,
   SandboxConfig,
   GeminiClient,
+  type ActiveFile,
 } from '@google/gemini-cli-core';
 import { LoadedSettings, SettingsFile, Settings } from '../config/settings.js';
 import process from 'node:process';
@@ -72,6 +73,7 @@ interface MockServerConfig {
   getAllGeminiMdFilenames: Mock<() => string[]>;
   getGeminiClient: Mock<() => GeminiClient | undefined>;
   getUserTier: Mock<() => Promise<string | undefined>>;
+  getActiveFile: Mock<() => ActiveFile | undefined>;
 }
 
 // Mock @google/gemini-cli-core and its Config class
@@ -503,6 +505,7 @@ describe('ContextSummaryDisplay', () => {
     mockConfig.getGeminiMdFileCount.mockReturnValue(0);
     mockConfig.getAllGeminiMdFilenames.mockReturnValue([]);
     mockConfig.getMcpServers.mockReturnValue({});
+    mockConfig.getActiveFile.mockReturnValue(undefined);
   });
 
   afterEach(() => {
@@ -539,23 +542,23 @@ describe('ContextSummaryDisplay', () => {
 
     // Summary view
     expect(lastFrame()).toContain(
-      'Using: 1 GEMINI.md File (ctrl+d for details)',
+      'Using: 1 /test/GEMINI.md File (ctrl+d for details)',
     );
 
     // Detailed view
-    stdin.write('\x04');
+    stdin.write('');
     await new Promise((resolve) => setTimeout(resolve, 0));
     const detailedFrame = lastFrame();
     expect(detailedFrame).toContain('Files:');
-    expect(detailedFrame).toContain('/test/GEMINI.md');
-    expect(detailedFrame).not.toContain('GEMINI.md\n -');
+    expect(detailedFrame).toContain('Context');
+    expect(detailedFrame).toContain('- /test/GEMINI.md');
     expect(detailedFrame).toContain('(ctrl+d to hide)');
 
     // Back to summary
-    stdin.write('\x04');
+    stdin.write('');
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(lastFrame()).toContain(
-      'Using: 1 GEMINI.md File (ctrl+d for details)',
+      'Using: 1 /test/GEMINI.md File (ctrl+d for details)',
     );
   });
 
@@ -576,23 +579,23 @@ describe('ContextSummaryDisplay', () => {
 
     // Summary view
     expect(lastFrame()).toContain(
-      'Using: 2 GEMINI.md Files (ctrl+d for details)',
+      'Using: 2 Context Files (ctrl+d for details)',
     );
 
     // Detailed view
-    stdin.write('\x04');
+    stdin.write('');
     await new Promise((resolve) => setTimeout(resolve, 0));
     const detailedFrame = lastFrame();
     expect(detailedFrame).toContain('Files:');
-    expect(detailedFrame).toContain('GEMINI.md');
+    expect(detailedFrame).toContain('Context');
     expect(detailedFrame).toContain('- /test1/GEMINI.md');
     expect(detailedFrame).toContain('- /test2/GEMINI.md');
 
     // Back to summary
-    stdin.write('\x04');
+    stdin.write('');
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(lastFrame()).toContain(
-      'Using: 2 GEMINI.md Files (ctrl+d for details)',
+      'Using: 2 Context Files (ctrl+d for details)',
     );
   });
 
@@ -617,7 +620,7 @@ describe('ContextSummaryDisplay', () => {
     );
 
     // Detailed view
-    stdin.write('\x04');
+    stdin.write('');
     await new Promise((resolve) => setTimeout(resolve, 0));
     const detailedFrame = lastFrame();
     expect(detailedFrame).toContain('Files:');
@@ -626,7 +629,7 @@ describe('ContextSummaryDisplay', () => {
     expect(detailedFrame).toContain('- /test2/BAR.md');
 
     // Back to summary
-    stdin.write('\x04');
+    stdin.write('');
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(lastFrame()).toContain(
       'Using: 2 Context Files (ctrl+d for details)',
@@ -650,14 +653,14 @@ describe('ContextSummaryDisplay', () => {
     expect(lastFrame()).toContain('Using: 1 MCP Server (ctrl+d for details)');
 
     // Detailed view (should be empty for MCP servers)
-    stdin.write('\x04');
+    stdin.write('');
     await new Promise((resolve) => setTimeout(resolve, 0));
     const detailedFrame = lastFrame();
     expect(detailedFrame).toContain('Files:');
     expect(detailedFrame).not.toContain('MCP');
 
     // Back to summary
-    stdin.write('\x04');
+    stdin.write('');
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(lastFrame()).toContain('Using: 1 MCP Server (ctrl+d for details)');
   });
@@ -681,22 +684,102 @@ describe('ContextSummaryDisplay', () => {
 
     // Summary view
     expect(lastFrame()).toContain(
-      'Using: 2 MCP Servers | 1 GEMINI.md File (ctrl+d for details)',
+      'Using: 2 MCP Servers | 1 /test/GEMINI.md File (ctrl+d for details)',
     );
 
     // Detailed view
-    stdin.write('\x04');
+    stdin.write('');
     await new Promise((resolve) => setTimeout(resolve, 0));
     const detailedFrame = lastFrame();
     expect(detailedFrame).toContain('Files:');
-    expect(detailedFrame).toContain('/test/GEMINI.md');
+    expect(detailedFrame).toContain('Context');
+    expect(detailedFrame).toContain('- /test/GEMINI.md');
     expect(detailedFrame).not.toContain('MCP');
 
     // Back to summary
-    stdin.write('\x04');
+    stdin.write('');
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(lastFrame()).toContain(
-      'Using: 2 MCP Servers | 1 GEMINI.md File (ctrl+d for details)',
+      'Using: 2 MCP Servers | 1 /test/GEMINI.md File (ctrl+d for details)',
+    );
+  });
+
+  it('should display and toggle view for one active file', async () => {
+    mockConfig.getActiveFile.mockReturnValue({
+      filePath: '/test/active.ts',
+      content: 'const x = 1;',
+    });
+    const { lastFrame, unmount, stdin } = render(
+      <App
+        config={mockConfig as unknown as ServerConfig}
+        settings={mockSettings}
+        version={mockVersion}
+      />,
+    );
+    currentUnmount = unmount;
+
+    // Summary view
+    expect(lastFrame()).toContain('Using: 1 Open File (ctrl+d for details)');
+
+    // Detailed view
+    stdin.write('');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const detailedFrame = lastFrame();
+    expect(detailedFrame).toContain('Files:');
+    expect(detailedFrame).toContain('Open File');
+    expect(detailedFrame).toContain('- /test/active.ts');
+    expect(detailedFrame).toContain('(ctrl+d to hide)');
+
+    // Back to summary
+    stdin.write('');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(lastFrame()).toContain('Using: 1 Open File (ctrl+d for details)');
+  });
+
+  it('should display and toggle a combined summary with active file', async () => {
+    mockConfig.getActiveFile.mockReturnValue({
+      filePath: '/test/active.ts',
+      content: 'const x = 1;',
+    });
+    mockConfig.getMcpServers.mockReturnValue({
+      server1: {} as MCPServerConfig,
+    });
+    mockConfig.getGeminiMdFileCount.mockReturnValue(2);
+    mockConfig.getAllGeminiMdFilenames.mockReturnValue([
+      '/test1/FOO.md',
+      '/test2/BAR.md',
+    ]);
+
+    const { lastFrame, unmount, stdin } = render(
+      <App
+        config={mockConfig as unknown as ServerConfig}
+        settings={mockSettings}
+        version={mockVersion}
+      />,
+    );
+    currentUnmount = unmount;
+
+    // Summary view
+    expect(lastFrame()).toContain(
+      'Using: 1 MCP Server | 2 Context Files | 1 Open File (ctrl+d for details)',
+    );
+
+    // Detailed view
+    stdin.write('');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const detailedFrame = lastFrame();
+    expect(detailedFrame).toContain('Files:');
+    expect(detailedFrame).toContain('Context');
+    expect(detailedFrame).toContain('- /test1/FOO.md');
+    expect(detailedFrame).toContain('- /test2/BAR.md');
+    expect(detailedFrame).toContain('Open File');
+    expect(detailedFrame).toContain('- /test/active.ts');
+
+    // Back to summary
+    stdin.write('');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(lastFrame()).toContain(
+      'Using: 1 MCP Server | 2 Context Files | 1 Open File (ctrl+d for details)',
     );
   });
 });
