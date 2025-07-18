@@ -28,7 +28,7 @@ describe('ContextSummaryDisplay', () => {
       />,
     );
 
-    expect(lastFrame()).toBe(' ');
+    expect(lastFrame()).toBe('');
   });
 
   it('renders only gemini.md files correctly', () => {

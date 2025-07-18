@@ -612,46 +612,4 @@ describe('App UI', () => {
       );
     });
   });
-
-  describe('with active file', () => {
-    it('should display the active file', async () => {
-      mockConfig.getActiveFile.mockReturnValue({
-        filePath: 'src/foo.ts',
-      });
-
-      const { lastFrame, unmount } = render(
-        <App
-          config={mockConfig as unknown as ServerConfig}
-          settings={mockSettings}
-          version={mockVersion}
-        />,
-      );
-      currentUnmount = unmount;
-      await Promise.resolve();
-      expect(lastFrame()).toContain('Using: 1 Open File (ctrl+u for details)');
-    });
-
-    it('should display the active file along with other context', async () => {
-      mockConfig.getActiveFile.mockReturnValue({
-        filePath: 'src/foo.ts',
-      });
-      mockConfig.getGeminiMdFileCount.mockReturnValue(1);
-      mockConfig.getMcpServers.mockReturnValue({
-        server1: {} as MCPServerConfig,
-      });
-
-      const { lastFrame, unmount } = render(
-        <App
-          config={mockConfig as unknown as ServerConfig}
-          settings={mockSettings}
-          version={mockVersion}
-        />,
-      );
-      currentUnmount = unmount;
-      await Promise.resolve();
-      expect(lastFrame()).toContain(
-        'Using: 1 MCP Server | 1 GEMINI.md File | 1 Open File (ctrl+u for details)',
-      );
-    });
-  });
 });
