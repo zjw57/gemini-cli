@@ -911,6 +911,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                       geminiMdFileCount={geminiMdFileCount}
                       contextFileNames={contextFileNames}
                       mcpServers={config.getMcpServers()}
+                      blockedMcpServers={config.getBlockedMcpServers()}
                       activeFile={activeFile}
                       contextDetails={contextDetails}
                     />

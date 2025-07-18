@@ -14,6 +14,7 @@ interface ContextSummaryDisplayProps {
   geminiMdFileCount: number;
   contextFileNames: string[];
   mcpServers?: Record<string, MCPServerConfig>;
+  blockedMcpServers?: Array<{ name: string; extensionName: string }>;
   activeFile?: ActiveFile;
   contextDetails?: boolean;
 }
@@ -22,14 +23,20 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
   geminiMdFileCount,
   contextFileNames,
   mcpServers,
+  blockedMcpServers,
   activeFile,
   contextDetails,
 }) => {
   const mcpServerCount = Object.keys(mcpServers || {}).length;
+  const blockedMcpServerCount = blockedMcpServers?.length || 0;
 
-  const hasGeminiMdFiles = geminiMdFileCount > 0;
-  const hasMcpServers = mcpServerCount > 0;
-  const hasActiveFile = !!activeFile?.filePath;
+  if (
+    geminiMdFileCount === 0 &&
+    mcpServerCount === 0 &&
+    blockedMcpServerCount === 0
+  ) {
+    return <Text> </Text>; // Render an empty space to reserve height
+  }
 
   const geminiMdText = (() => {
     if (geminiMdFileCount === 0) {
@@ -40,58 +47,46 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     return `${name} File${geminiMdFileCount > 1 ? 's' : ''}`;
   })();
 
-  if (!hasGeminiMdFiles && !hasMcpServers && !hasActiveFile) {
-    return <Text> </Text>; // Reserve height for layout stability.
-  }
+  const mcpText = (() => {
+    if (mcpServerCount === 0 && blockedMcpServerCount === 0) {
+      return '';
+    }
 
-  if (contextDetails) {
-    return (
-      <Box flexDirection="column" paddingX={1}>
-        <InfoMessage text="Files:" />
-        {geminiMdFileCount > 0 && (
-          <Box flexDirection="column" marginLeft={2}>
-            <Text color={Colors.AccentYellow}>Context</Text>
-            {contextFileNames.map((item) => (
-              <Text key={item}>- {item}</Text>
-            ))}
-          </Box>
-        )}
-        {activeFile?.filePath && (
-          <Box flexDirection="column" marginTop={1} marginLeft={2}>
-            <Text color={Colors.AccentYellow}>Open File</Text>
-            <Text> - {activeFile.filePath}</Text>
-          </Box>
-        )}
-        {(hasMcpServers || hasActiveFile) && (
-          <Box marginTop={1}>
-            <Text color={Colors.Gray}>(ctrl+u to hide)</Text>
-          </Box>
-        )}
-      </Box>
-    );
-  }
+    const parts = [];
+    if (mcpServerCount > 0) {
+      parts.push(
+        `${mcpServerCount} MCP server${mcpServerCount > 1 ? 's' : ''}`,
+      );
+    }
 
-  const summaryParts: string[] = [];
-  if (hasMcpServers) {
-    summaryParts.push(
-      `${mcpServerCount} MCP Server${mcpServerCount !== 1 ? 's' : ''}`,
-    );
-  }
+    if (blockedMcpServerCount > 0) {
+      let blockedText = `${blockedMcpServerCount} blocked`;
+      if (mcpServerCount === 0) {
+        blockedText += ` MCP server${blockedMcpServerCount > 1 ? 's' : ''}`;
+      }
+      parts.push(blockedText);
+    }
+    return parts.join(', ');
+  })();
+
+  let summaryText = 'Using ';
   if (geminiMdText) {
-    summaryParts.push(`${geminiMdFileCount} ${geminiMdText}`);
+    summaryText += geminiMdText;
   }
-  if (hasActiveFile) {
-    summaryParts.push('1 Open File');
+  if (geminiMdText && mcpText) {
+    summaryText += ' and ';
+  }
+  if (mcpText) {
+    summaryText += mcpText;
+    // Add ctrl+t hint when MCP servers are available
+    if (mcpServers && Object.keys(mcpServers).length > 0) {
+      if (showToolDescriptions) {
+        summaryText += ' (ctrl+t to toggle)';
+      } else {
+        summaryText += ' (ctrl+t to view)';
+      }
+    }
   }
 
-  const hint = hasMcpServers || hasActiveFile ? ` (ctrl+u for details)` : '';
-
-  return (
-    <Box paddingX={1}>
-      <Text color={Colors.Gray}>
-        Using: {summaryParts.join(' | ')}
-        {hint}
-      </Text>
-    </Box>
-  );
+  return <Text color={Colors.Gray}>{summaryText}</Text>;
 };
