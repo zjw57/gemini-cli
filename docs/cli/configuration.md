@@ -358,6 +358,14 @@ Arguments passed directly when running the CLI can override other configurations
   - Displays the current memory usage.
 - **`--yolo`**:
   - Enables YOLO mode, which automatically approves all tool calls.
+- **`--memory-discovery-mode <mode>`**:
+  - Specifies the mode for discovering for `GEMINI.md` files.
+  - `<mode>` can be either `fs-bfs` (default) or `md-tree`.
+  - `fs-bfs`: Scans a maximum number of directories (configurable with `--memory-discovery-bfs-limit`) using a breadth-first search.
+  - `md-tree`: Only scans subdirectories that themselves contain a `GEMINI.md` file.
+- **`--memory-discovery-bfs-limit <number>`**:
+  - When `--memory-discovery-mode` is `fs-bfs`, this sets the maximum number of directories to scan.
+  - Default: `200`.
 - **`--telemetry`**:
   - Enables [telemetry](../telemetry.md).
 - **`--telemetry-target`**:
@@ -493,3 +501,42 @@ You can opt out of usage statistics collection at any time by setting the `usage
   "usageStatisticsEnabled": false
 }
 ```
+
+### Understanding the `md-tree` Scan Mode
+
+The `tree` scan mode provides a more targeted way of discovering context files. When using this mode, the CLI will only traverse into subdirectories if the parent directory currently being scanned contains a `GEMINI.md` file. If a directory does not contain a `GEMINI.md` file, the traversal down that path is terminated.
+
+This behavior is useful for ensuring that only explicitly marked directory trees are included in the context.
+
+The following diagram illustrates this behavior:
+
+```
+/my-project/
+|
+├── GEMINI.md        ✅--- 1. Found! Search proceeds into subdirectories `app` and `lib`.
+|
+├── app/
+│   ├── GEMINI.md    ✅--- 2. Found! Search continues into `app/components`.
+│   │
+│   └── components/
+│       │
+│       └── Button.tsx   ✅--- 3. No `GEMINI.md` found. Traversal stops for this branch.
+│
+└── lib/
+    ├── index.js
+    │
+    └── utils/         ❌--- 4. No `GEMINI.md` found. Traversal STOPS for this branch.
+        │
+        └── advanced/
+            │
+            └── GEMINI.md  👻--- 5. NEVER FOUND. The algorithm never looks inside `lib/utils`.
+
+```
+
+#### Traversal Breakdown:
+
+1.  **`/my-project`**: A `GEMINI.md` file is found. The search continues into subdirectories `app` and `lib`.
+2.  **`/my-project/app`**: A `GEMINI.md` file is found. The search continues into `app/components`.
+3.  **`/my-project/app/components`**: No `GEMINI.md` is found. The search down this path terminates.
+4.  **`/my-project/lib`**: No `GEMINI.md` is found. The search down this path immediately terminates.
+5.  **Result**: The `GEMINI.md` file inside `/my-project/lib/utils/advanced` is never discovered because the traversal into `lib` was stopped.
