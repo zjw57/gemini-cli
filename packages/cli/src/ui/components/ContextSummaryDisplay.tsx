@@ -4,64 +4,91 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
-import { Text } from 'ink';
+import { type ActiveFile, type MCPServerConfig } from '@google/gemini-cli-core';
+import { Box, Text } from 'ink';
+import React, { useMemo } from 'react';
+import path from 'path';
 import { Colors } from '../colors.js';
-import { type MCPServerConfig } from '@google/gemini-cli-core';
+import { InfoMessage } from './messages/InfoMessage.js';
 
 interface ContextSummaryDisplayProps {
   geminiMdFileCount: number;
   contextFileNames: string[];
   mcpServers?: Record<string, MCPServerConfig>;
-  showToolDescriptions?: boolean;
+  activeFile?: ActiveFile;
+  contextDetails?: boolean;
 }
 
 export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
   geminiMdFileCount,
   contextFileNames,
   mcpServers,
-  showToolDescriptions,
+  activeFile,
+  contextDetails,
 }) => {
   const mcpServerCount = Object.keys(mcpServers || {}).length;
 
-  if (geminiMdFileCount === 0 && mcpServerCount === 0) {
-    return <Text> </Text>; // Render an empty space to reserve height
+  const hasGeminiMdFiles = geminiMdFileCount > 0;
+  const hasMcpServers = mcpServerCount > 0;
+  const hasActiveFile = !!activeFile?.filePath;
+
+  const contextFileLabel = useMemo(() => {
+    if (!hasGeminiMdFiles || contextFileNames.length === 0) return 'Context';
+    const allBaseNamesTheSame =
+      new Set(contextFileNames.map((p) => path.basename(p))).size < 2;
+    return allBaseNamesTheSame ? path.basename(contextFileNames[0]) : 'Context';
+  }, [contextFileNames, hasGeminiMdFiles]);
+
+  if (!hasGeminiMdFiles && !hasMcpServers && !hasActiveFile) {
+    return <Text> </Text>; // Reserve height for layout stability.
   }
 
-  const geminiMdText = (() => {
-    if (geminiMdFileCount === 0) {
-      return '';
-    }
-    const allNamesTheSame = new Set(contextFileNames).size < 2;
-    const name = allNamesTheSame ? contextFileNames[0] : 'context';
-    return `${geminiMdFileCount} ${name} file${
-      geminiMdFileCount > 1 ? 's' : ''
-    }`;
-  })();
-
-  const mcpText =
-    mcpServerCount > 0
-      ? `${mcpServerCount} MCP server${mcpServerCount > 1 ? 's' : ''}`
-      : '';
-
-  let summaryText = 'Using ';
-  if (geminiMdText) {
-    summaryText += geminiMdText;
-  }
-  if (geminiMdText && mcpText) {
-    summaryText += ' and ';
-  }
-  if (mcpText) {
-    summaryText += mcpText;
-    // Add ctrl+t hint when MCP servers are available
-    if (mcpServers && Object.keys(mcpServers).length > 0) {
-      if (showToolDescriptions) {
-        summaryText += ' (ctrl+t to toggle)';
-      } else {
-        summaryText += ' (ctrl+t to view)';
-      }
-    }
+  if (contextDetails) {
+    return (
+      <Box flexDirection="column" paddingX={1}>
+        <InfoMessage text="Files:" />
+        <Box flexDirection="column" marginLeft={2}>
+          {contextFileNames.map((item) => (
+            <Text key={item} color={Colors.AccentYellow}>
+              - {item}
+            </Text>
+          ))}
+        </Box>
+        {activeFile?.filePath && (
+          <Box flexDirection="column" marginTop={1} marginLeft={2}>
+            <Text color={Colors.AccentYellow}>Open File</Text>
+            <Text> - {activeFile.filePath}</Text>
+          </Box>
+        )}
+        <Box marginTop={1}>
+          <Text color={Colors.Gray}>(ctrl+d to hide)</Text>
+        </Box>
+      </Box>
+    );
   }
 
-  return <Text color={Colors.Gray}>{summaryText}</Text>;
+  const summaryParts: string[] = [];
+  if (hasMcpServers) {
+    summaryParts.push(
+      `${mcpServerCount} MCP Server${mcpServerCount !== 1 ? 's' : ''}`,
+    );
+  }
+  if (hasGeminiMdFiles) {
+    summaryParts.push(
+      `${geminiMdFileCount} ${contextFileLabel} File${
+        geminiMdFileCount !== 1 ? 's' : ''
+      }`,
+    );
+  }
+  if (hasActiveFile) {
+    summaryParts.push('1 Open File');
+  }
+
+  return (
+    <Box paddingX={1}>
+      <Text color={Colors.Gray}>
+        Using: {summaryParts.join(' | ')} (ctrl+d for details)
+      </Text>
+    </Box>
+  );
 };

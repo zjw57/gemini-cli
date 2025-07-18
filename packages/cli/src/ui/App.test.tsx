@@ -131,18 +131,18 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
         getProjectRoot: vi.fn(() => opts.targetDir),
         getGeminiClient: vi.fn(() => ({})),
         getCheckpointingEnabled: vi.fn(() => opts.checkpointing ?? true),
-        getAllGeminiMdFilenames: vi.fn(() => ['GEMINI.md']),
+        getAllGeminiMdFilenames: vi.fn(() => []),
         setFlashFallbackHandler: vi.fn(),
         getSessionId: vi.fn(() => 'test-session-id'),
         getUserTier: vi.fn().mockResolvedValue(undefined),
         getIdeMode: vi.fn(() => false),
+        getActiveFile: vi.fn(() => undefined),
       };
     });
   return {
     ...actualCore,
     Config: ConfigClassMock,
     MCPServerConfig: actualCore.MCPServerConfig,
-    getAllGeminiMdFilenames: vi.fn(() => ['GEMINI.md']),
   };
 });
 
@@ -257,165 +257,6 @@ describe('App UI', () => {
       currentUnmount = undefined;
     }
     vi.clearAllMocks(); // Clear mocks after each test
-  });
-
-  it('should display default "GEMINI.md" in footer when contextFileName is not set and count is 1', async () => {
-    mockConfig.getGeminiMdFileCount.mockReturnValue(1);
-    // For this test, ensure showMemoryUsage is false or debugMode is false if it relies on that
-    mockConfig.getDebugMode.mockReturnValue(false);
-    mockConfig.getShowMemoryUsage.mockReturnValue(false);
-
-    const { lastFrame, unmount } = render(
-      <App
-        config={mockConfig as unknown as ServerConfig}
-        settings={mockSettings}
-        version={mockVersion}
-      />,
-    );
-    currentUnmount = unmount;
-    await Promise.resolve(); // Wait for any async updates
-    expect(lastFrame()).toContain('Using 1 GEMINI.md file');
-  });
-
-  it('should display default "GEMINI.md" with plural when contextFileName is not set and count is > 1', async () => {
-    mockConfig.getGeminiMdFileCount.mockReturnValue(2);
-    mockConfig.getDebugMode.mockReturnValue(false);
-    mockConfig.getShowMemoryUsage.mockReturnValue(false);
-
-    const { lastFrame, unmount } = render(
-      <App
-        config={mockConfig as unknown as ServerConfig}
-        settings={mockSettings}
-        version={mockVersion}
-      />,
-    );
-    currentUnmount = unmount;
-    await Promise.resolve();
-    expect(lastFrame()).toContain('Using 2 GEMINI.md files');
-  });
-
-  it('should display custom contextFileName in footer when set and count is 1', async () => {
-    mockSettings = createMockSettings({
-      workspace: { contextFileName: 'AGENTS.md', theme: 'Default' },
-    });
-    mockConfig.getGeminiMdFileCount.mockReturnValue(1);
-    mockConfig.getDebugMode.mockReturnValue(false);
-    mockConfig.getShowMemoryUsage.mockReturnValue(false);
-
-    const { lastFrame, unmount } = render(
-      <App
-        config={mockConfig as unknown as ServerConfig}
-        settings={mockSettings}
-        version={mockVersion}
-      />,
-    );
-    currentUnmount = unmount;
-    await Promise.resolve();
-    expect(lastFrame()).toContain('Using 1 AGENTS.md file');
-  });
-
-  it('should display a generic message when multiple context files with different names are provided', async () => {
-    mockSettings = createMockSettings({
-      workspace: {
-        contextFileName: ['AGENTS.md', 'CONTEXT.md'],
-        theme: 'Default',
-      },
-    });
-    mockConfig.getGeminiMdFileCount.mockReturnValue(2);
-    mockConfig.getDebugMode.mockReturnValue(false);
-    mockConfig.getShowMemoryUsage.mockReturnValue(false);
-
-    const { lastFrame, unmount } = render(
-      <App
-        config={mockConfig as unknown as ServerConfig}
-        settings={mockSettings}
-        version={mockVersion}
-      />,
-    );
-    currentUnmount = unmount;
-    await Promise.resolve();
-    expect(lastFrame()).toContain('Using 2 context files');
-  });
-
-  it('should display custom contextFileName with plural when set and count is > 1', async () => {
-    mockSettings = createMockSettings({
-      workspace: { contextFileName: 'MY_NOTES.TXT', theme: 'Default' },
-    });
-    mockConfig.getGeminiMdFileCount.mockReturnValue(3);
-    mockConfig.getDebugMode.mockReturnValue(false);
-    mockConfig.getShowMemoryUsage.mockReturnValue(false);
-
-    const { lastFrame, unmount } = render(
-      <App
-        config={mockConfig as unknown as ServerConfig}
-        settings={mockSettings}
-        version={mockVersion}
-      />,
-    );
-    currentUnmount = unmount;
-    await Promise.resolve();
-    expect(lastFrame()).toContain('Using 3 MY_NOTES.TXT files');
-  });
-
-  it('should not display context file message if count is 0, even if contextFileName is set', async () => {
-    mockSettings = createMockSettings({
-      workspace: { contextFileName: 'ANY_FILE.MD', theme: 'Default' },
-    });
-    mockConfig.getGeminiMdFileCount.mockReturnValue(0);
-    mockConfig.getDebugMode.mockReturnValue(false);
-    mockConfig.getShowMemoryUsage.mockReturnValue(false);
-
-    const { lastFrame, unmount } = render(
-      <App
-        config={mockConfig as unknown as ServerConfig}
-        settings={mockSettings}
-        version={mockVersion}
-      />,
-    );
-    currentUnmount = unmount;
-    await Promise.resolve();
-    expect(lastFrame()).not.toContain('ANY_FILE.MD');
-  });
-
-  it('should display GEMINI.md and MCP server count when both are present', async () => {
-    mockConfig.getGeminiMdFileCount.mockReturnValue(2);
-    mockConfig.getMcpServers.mockReturnValue({
-      server1: {} as MCPServerConfig,
-    });
-    mockConfig.getDebugMode.mockReturnValue(false);
-    mockConfig.getShowMemoryUsage.mockReturnValue(false);
-
-    const { lastFrame, unmount } = render(
-      <App
-        config={mockConfig as unknown as ServerConfig}
-        settings={mockSettings}
-        version={mockVersion}
-      />,
-    );
-    currentUnmount = unmount;
-    await Promise.resolve();
-    expect(lastFrame()).toContain('server');
-  });
-
-  it('should display only MCP server count when GEMINI.md count is 0', async () => {
-    mockConfig.getGeminiMdFileCount.mockReturnValue(0);
-    mockConfig.getMcpServers.mockReturnValue({
-      server1: {} as MCPServerConfig,
-      server2: {} as MCPServerConfig,
-    });
-    mockConfig.getDebugMode.mockReturnValue(false);
-    mockConfig.getShowMemoryUsage.mockReturnValue(false);
-
-    const { lastFrame, unmount } = render(
-      <App
-        config={mockConfig as unknown as ServerConfig}
-        settings={mockSettings}
-        version={mockVersion}
-      />,
-    );
-    currentUnmount = unmount;
-    await Promise.resolve();
-    expect(lastFrame()).toContain('Using 2 MCP servers');
   });
 
   it('should display Tips component by default', async () => {
@@ -592,5 +433,270 @@ describe('App UI', () => {
         'hello from prompt-interactive',
       );
     });
+  });
+});
+
+describe('ContextSummaryDisplay', () => {
+  let mockConfig: MockServerConfig;
+  let mockSettings: LoadedSettings;
+  let mockVersion: string;
+  let currentUnmount: (() => void) | undefined;
+
+  const createMockSettings = (
+    settings: {
+      system?: Partial<Settings>;
+      user?: Partial<Settings>;
+      workspace?: Partial<Settings>;
+    } = {},
+  ): LoadedSettings => {
+    const systemSettingsFile: SettingsFile = {
+      path: '/system/settings.json',
+      settings: settings.system || {},
+    };
+    const userSettingsFile: SettingsFile = {
+      path: '/user/settings.json',
+      settings: settings.user || {},
+    };
+    const workspaceSettingsFile: SettingsFile = {
+      path: '/workspace/.gemini/settings.json',
+      settings: settings.workspace || {},
+    };
+    return new LoadedSettings(
+      systemSettingsFile,
+      userSettingsFile,
+      workspaceSettingsFile,
+      [],
+    );
+  };
+
+  beforeEach(() => {
+    const ServerConfigMocked = vi.mocked(ServerConfig, true);
+    mockConfig = new ServerConfigMocked({
+      embeddingModel: 'test-embedding-model',
+      sandbox: undefined,
+      targetDir: '/test/dir',
+      debugMode: false,
+      userMemory: '',
+      geminiMdFileCount: 0,
+      showMemoryUsage: false,
+      sessionId: 'test-session-id',
+      cwd: '/tmp',
+      model: 'model',
+    }) as unknown as MockServerConfig;
+    mockVersion = '0.0.0-test';
+
+    // Ensure the getShowMemoryUsage mock function is specifically set up if not covered by constructor mock
+    if (!mockConfig.getShowMemoryUsage) {
+      mockConfig.getShowMemoryUsage = vi.fn(() => false);
+    }
+    mockConfig.getShowMemoryUsage.mockReturnValue(false); // Default for most tests
+
+    // Ensure a theme is set so the theme dialog does not appear.
+    mockSettings = createMockSettings({ workspace: { theme: 'Default' } });
+    // Prevent other UI elements from interfering with snapshots
+    mockSettings = createMockSettings({
+      workspace: { hideTips: true, theme: 'Default' },
+      user: { hideBanner: true },
+    });
+
+    // Reset context-related mocks
+    mockConfig.getGeminiMdFileCount.mockReturnValue(0);
+    mockConfig.getAllGeminiMdFilenames.mockReturnValue([]);
+    mockConfig.getMcpServers.mockReturnValue({});
+  });
+
+  afterEach(() => {
+    if (currentUnmount) {
+      currentUnmount();
+      currentUnmount = undefined;
+    }
+    vi.clearAllMocks(); // Clear mocks after each test
+  });
+
+  it('should not display context when no context is available', () => {
+    const { lastFrame, unmount } = render(
+      <App
+        config={mockConfig as unknown as ServerConfig}
+        settings={mockSettings}
+        version={mockVersion}
+      />,
+    );
+    currentUnmount = unmount;
+    expect(lastFrame()).not.toContain('Using:');
+  });
+
+  it('should display and toggle view for one GEMINI.md file', async () => {
+    mockConfig.getGeminiMdFileCount.mockReturnValue(1);
+    mockConfig.getAllGeminiMdFilenames.mockReturnValue(['/test/GEMINI.md']);
+    const { lastFrame, unmount, stdin } = render(
+      <App
+        config={mockConfig as unknown as ServerConfig}
+        settings={mockSettings}
+        version={mockVersion}
+      />,
+    );
+    currentUnmount = unmount;
+
+    // Summary view
+    expect(lastFrame()).toContain(
+      'Using: 1 GEMINI.md File (ctrl+d for details)',
+    );
+
+    // Detailed view
+    stdin.write('\x04');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const detailedFrame = lastFrame();
+    expect(detailedFrame).toContain('Files:');
+    expect(detailedFrame).toContain('/test/GEMINI.md');
+    expect(detailedFrame).not.toContain('GEMINI.md\n -');
+    expect(detailedFrame).toContain('(ctrl+d to hide)');
+
+    // Back to summary
+    stdin.write('\x04');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(lastFrame()).toContain(
+      'Using: 1 GEMINI.md File (ctrl+d for details)',
+    );
+  });
+
+  it('should display and toggle view for multiple GEMINI.md files with same basename', async () => {
+    mockConfig.getGeminiMdFileCount.mockReturnValue(2);
+    mockConfig.getAllGeminiMdFilenames.mockReturnValue([
+      '/test1/GEMINI.md',
+      '/test2/GEMINI.md',
+    ]);
+    const { lastFrame, unmount, stdin } = render(
+      <App
+        config={mockConfig as unknown as ServerConfig}
+        settings={mockSettings}
+        version={mockVersion}
+      />,
+    );
+    currentUnmount = unmount;
+
+    // Summary view
+    expect(lastFrame()).toContain(
+      'Using: 2 GEMINI.md Files (ctrl+d for details)',
+    );
+
+    // Detailed view
+    stdin.write('\x04');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const detailedFrame = lastFrame();
+    expect(detailedFrame).toContain('Files:');
+    expect(detailedFrame).toContain('GEMINI.md');
+    expect(detailedFrame).toContain('- /test1/GEMINI.md');
+    expect(detailedFrame).toContain('- /test2/GEMINI.md');
+
+    // Back to summary
+    stdin.write('\x04');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(lastFrame()).toContain(
+      'Using: 2 GEMINI.md Files (ctrl+d for details)',
+    );
+  });
+
+  it('should display and toggle view for multiple context files with different basenames', async () => {
+    mockConfig.getGeminiMdFileCount.mockReturnValue(2);
+    mockConfig.getAllGeminiMdFilenames.mockReturnValue([
+      '/test1/FOO.md',
+      '/test2/BAR.md',
+    ]);
+    const { lastFrame, unmount, stdin } = render(
+      <App
+        config={mockConfig as unknown as ServerConfig}
+        settings={mockSettings}
+        version={mockVersion}
+      />,
+    );
+    currentUnmount = unmount;
+
+    // Summary view
+    expect(lastFrame()).toContain(
+      'Using: 2 Context Files (ctrl+d for details)',
+    );
+
+    // Detailed view
+    stdin.write('\x04');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const detailedFrame = lastFrame();
+    expect(detailedFrame).toContain('Files:');
+    expect(detailedFrame).toContain('Context');
+    expect(detailedFrame).toContain('- /test1/FOO.md');
+    expect(detailedFrame).toContain('- /test2/BAR.md');
+
+    // Back to summary
+    stdin.write('\x04');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(lastFrame()).toContain(
+      'Using: 2 Context Files (ctrl+d for details)',
+    );
+  });
+
+  it('should display and toggle view for one MCP server', async () => {
+    mockConfig.getMcpServers.mockReturnValue({
+      server1: {} as MCPServerConfig,
+    });
+    const { lastFrame, unmount, stdin } = render(
+      <App
+        config={mockConfig as unknown as ServerConfig}
+        settings={mockSettings}
+        version={mockVersion}
+      />,
+    );
+    currentUnmount = unmount;
+
+    // Summary view
+    expect(lastFrame()).toContain('Using: 1 MCP Server (ctrl+d for details)');
+
+    // Detailed view (should be empty for MCP servers)
+    stdin.write('\x04');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const detailedFrame = lastFrame();
+    expect(detailedFrame).toContain('Files:');
+    expect(detailedFrame).not.toContain('MCP');
+
+    // Back to summary
+    stdin.write('\x04');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(lastFrame()).toContain('Using: 1 MCP Server (ctrl+d for details)');
+  });
+
+  it('should display and toggle a combined summary', async () => {
+    mockConfig.getMcpServers.mockReturnValue({
+      server1: {} as MCPServerConfig,
+      server2: {} as MCPServerConfig,
+    });
+    mockConfig.getGeminiMdFileCount.mockReturnValue(1);
+    mockConfig.getAllGeminiMdFilenames.mockReturnValue(['/test/GEMINI.md']);
+
+    const { lastFrame, unmount, stdin } = render(
+      <App
+        config={mockConfig as unknown as ServerConfig}
+        settings={mockSettings}
+        version={mockVersion}
+      />,
+    );
+    currentUnmount = unmount;
+
+    // Summary view
+    expect(lastFrame()).toContain(
+      'Using: 2 MCP Servers | 1 GEMINI.md File (ctrl+d for details)',
+    );
+
+    // Detailed view
+    stdin.write('\x04');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const detailedFrame = lastFrame();
+    expect(detailedFrame).toContain('Files:');
+    expect(detailedFrame).toContain('/test/GEMINI.md');
+    expect(detailedFrame).not.toContain('MCP');
+
+    // Back to summary
+    stdin.write('\x04');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(lastFrame()).toContain(
+      'Using: 2 MCP Servers | 1 GEMINI.md File (ctrl+d for details)',
+    );
   });
 });

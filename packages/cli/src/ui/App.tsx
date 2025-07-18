@@ -58,6 +58,8 @@ import {
   FlashFallbackEvent,
   logFlashFallback,
   AuthType,
+  ideContext,
+  type ActiveFile,
 } from '@google/gemini-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import { useLogger } from './hooks/useLogger.js';
@@ -156,6 +158,21 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   const [modelSwitchedFromQuotaError, setModelSwitchedFromQuotaError] =
     useState<boolean>(false);
   const [userTier, setUserTier] = useState<UserTierId | undefined>(undefined);
+  const [activeFile, setActiveFile] = useState<ActiveFile | undefined>();
+  const [contextDetails, setContextDetails] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = ideContext.subscribeToActiveFile(
+      (file: ActiveFile | undefined) => {
+        setActiveFile(file);
+      },
+    );
+    // Set initial value
+    setActiveFile(ideContext.getActiveFileContext());
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const openPrivacyNotice = useCallback(() => {
     setShowPrivacyNotice(true);
@@ -465,6 +482,14 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       const mcpServers = config.getMcpServers();
       if (Object.keys(mcpServers || {}).length > 0) {
         handleSlashCommand(newValue ? '/mcp desc' : '/mcp nodesc');
+      }
+    } else if (key.ctrl && input === 'd') {
+      const newValue = !contextDetails;
+      setContextDetails(newValue);
+
+      const mcpServers = config.getMcpServers();
+      if (newValue && Object.keys(mcpServers || {}).length > 0) {
+        handleSlashCommand('/mcp desc');
       }
     } else if (key.ctrl && (input === 'c' || input === 'C')) {
       handleExit(ctrlCPressedOnce, setCtrlCPressedOnce, ctrlCTimerRef);
@@ -885,7 +910,8 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                       geminiMdFileCount={geminiMdFileCount}
                       contextFileNames={contextFileNames}
                       mcpServers={config.getMcpServers()}
-                      showToolDescriptions={showToolDescriptions}
+                      activeFile={activeFile}
+                      contextDetails={contextDetails}
                     />
                   )}
                 </Box>
