@@ -309,20 +309,20 @@ export class GeminiClient {
     let currentStream: string | undefined;
     const resultStream = turn.run(request, signal);
     for await (const event of resultStream) {
-      if (event.type === GeminiEventType.Content) {
-        if (this.checkIfLoopExists(currentStream, event.value)) {
-          console.log('loop detected with chanting');
-          yield* this.sendMessageStream(
-            [{ text: 'You have started to chant and loop responding with the same message. Look at the history and the original message to understand what should do to complete the given task.' }],
-            signal,
-            prompt_id,
-            boundedTurns - 1,
-            initialModel,
-          );
-        } else {
-          currentStream = currentStream + event.value;
-        }
-      }
+      // if (event.type === GeminiEventType.Content) {
+      //   if (this.checkIfLoopExists(currentStream, event.value)) {
+      //     console.log('loop detected with chanting');
+      //     yield* this.sendMessageStream(
+      //       [{ text: 'You have started to chant and loop responding with the same message. Look at the history and the original message to understand what should do to complete the given task.' }],
+      //       signal,
+      //       prompt_id,
+      //       boundedTurns - 1,
+      //       initialModel,
+      //     );
+      //   } else {
+      //     currentStream = currentStream + event.value;
+      //   }
+      // }
       yield event;
     }
     if (!turn.pendingToolCalls.length && signal && !signal.aborted) {

@@ -91,6 +91,7 @@ function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
   if (comprehensiveHistory === undefined || comprehensiveHistory.length === 0) {
     return [];
   }
+  return comprehensiveHistory;
   const curatedHistory: Content[] = [];
   const length = comprehensiveHistory.length;
   let i = 0;
