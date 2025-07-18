@@ -62,9 +62,11 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
             <Text> - {activeFile.filePath}</Text>
           </Box>
         )}
-        <Box marginTop={1}>
-          <Text color={Colors.Gray}>(ctrl+d to hide)</Text>
-        </Box>
+        {(hasMcpServers || hasActiveFile) && (
+          <Box marginTop={1}>
+            <Text color={Colors.Gray}>(ctrl+u to hide)</Text>
+          </Box>
+        )}
       </Box>
     );
   }
@@ -82,10 +84,13 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     summaryParts.push('1 Open File');
   }
 
+  const hint = hasMcpServers || hasActiveFile ? ` (ctrl+u for details)` : '';
+
   return (
     <Box paddingX={1}>
       <Text color={Colors.Gray}>
-        Using: {summaryParts.join(' | ')} (ctrl+d for details)
+        Using: {summaryParts.join(' | ')}
+        {hint}
       </Text>
     </Box>
   );

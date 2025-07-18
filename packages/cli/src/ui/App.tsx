@@ -483,7 +483,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       if (Object.keys(mcpServers || {}).length > 0) {
         handleSlashCommand(newValue ? '/mcp desc' : '/mcp nodesc');
       }
-    } else if (key.ctrl && input === 'd') {
+    } else if (key.ctrl && input === 'u') {
       const newValue = !contextDetails;
       setContextDetails(newValue);
 
