@@ -330,6 +330,7 @@ describe('Server Config (config.ts)', () => {
         config.getWorkingDir(),
         config.getDebugMode(),
         config.getFileService(),
+        config.getMemoryDiscoveryMode(),
         config.getExtensionContextFilePaths(),
       );
 

@@ -567,7 +567,7 @@ describe('loadServerHierarchicalMemory', () => {
     }) as unknown as typeof fsPromises.readdir);
     mockFs.access.mockRejectedValue(new Error('not found'));
 
-    await loadServerHierarchicalMemory(CWD, true, fileService);
+    await loadServerHierarchicalMemory(CWD, true, fileService, 'fs-bfs');
 
     expect(consoleDebugSpy).toHaveBeenCalledWith(
       expect.stringContaining('[DEBUG] [BfsFileSearch]'),
@@ -595,6 +595,7 @@ describe('loadServerHierarchicalMemory', () => {
       CWD,
       false,
       fileService,
+      'fs-bfs',
       [extensionFilePath],
     );
 

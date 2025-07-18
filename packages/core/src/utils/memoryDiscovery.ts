@@ -9,12 +9,14 @@ import * as fsSync from 'fs';
 import * as path from 'path';
 import { homedir } from 'os';
 import { bfsFileSearch } from './bfsFileSearch.js';
+import { findHierarchicalContext } from './findHierarchicalContext.js';
 import {
   GEMINI_CONFIG_DIR,
   getAllGeminiMdFilenames,
 } from '../tools/memoryTool.js';
 import { FileDiscoveryService } from '../services/fileDiscoveryService.js';
 import { processImports } from './memoryImportProcessor.js';
+import { MemoryDiscoveryMode } from '../config/config.js';
 
 // Simple console logger, similar to the one previously in CLI's config.ts
 // TODO: Integrate with a more robust server-side logger if available/appropriate.
@@ -85,6 +87,7 @@ async function getGeminiMdFilePathsInternal(
   userHomePath: string,
   debugMode: boolean,
   fileService: FileDiscoveryService,
+  memoryDiscoveryMode: MemoryDiscoveryMode,
   extensionContextFilePaths: string[] = [],
 ): Promise<string[]> {
   const allPaths = new Set<string>();
@@ -182,12 +185,20 @@ async function getGeminiMdFilePathsInternal(
     }
     upwardPaths.forEach((p) => allPaths.add(p));
 
-    const downwardPaths = await bfsFileSearch(resolvedCwd, {
-      fileName: geminiMdFilename,
-      maxDirs: MAX_DIRECTORIES_TO_SCAN_FOR_MEMORY,
-      debug: debugMode,
-      fileService,
-    });
+    const downwardPaths =
+      memoryDiscoveryMode === 'md-tree'
+        ? await findHierarchicalContext(resolvedCwd, {
+            fileName: geminiMdFilename,
+            debug: debugMode,
+            fileService,
+          })
+        : await bfsFileSearch(resolvedCwd, {
+            fileName: geminiMdFilename,
+            maxDirs: MAX_DIRECTORIES_TO_SCAN_FOR_MEMORY,
+            debug: debugMode,
+            fileService,
+          });
+
     downwardPaths.sort(); // Sort for consistent ordering, though hierarchy might be more complex
     if (debugMode && downwardPaths.length > 0)
       logger.debug(
@@ -282,6 +293,7 @@ export async function loadServerHierarchicalMemory(
   currentWorkingDirectory: string,
   debugMode: boolean,
   fileService: FileDiscoveryService,
+  memoryDiscoveryMode: MemoryDiscoveryMode = 'fs-bfs',
   extensionContextFilePaths: string[] = [],
 ): Promise<{ memoryContent: string; fileCount: number }> {
   if (debugMode)
@@ -296,6 +308,7 @@ export async function loadServerHierarchicalMemory(
     userHomePath,
     debugMode,
     fileService,
+    memoryDiscoveryMode,
     extensionContextFilePaths,
   );
   if (filePaths.length === 0) {

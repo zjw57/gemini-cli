@@ -19,6 +19,7 @@ import {
   TelemetryTarget,
   MCPServerConfig,
   IDE_SERVER_NAME,
+  MemoryDiscoveryMode,
 } from '@google/gemini-cli-core';
 import { Settings } from './settings.js';
 
@@ -48,6 +49,7 @@ export interface CliArgs {
   showMemoryUsage: boolean | undefined;
   show_memory_usage: boolean | undefined;
   yolo: boolean | undefined;
+  memoryDiscoveryMode: MemoryDiscoveryMode;
   telemetry: boolean | undefined;
   checkpointing: boolean | undefined;
   telemetryTarget: string | undefined;
@@ -136,6 +138,20 @@ export async function parseArguments(): Promise<CliArgs> {
         'Automatically accept all actions (aka YOLO mode, see https://www.youtube.com/watch?v=xvFZjo5PgG0 for more details)?',
       default: false,
     })
+    .option('memory-discovery-mode', {
+      type: 'string',
+      choices: ['md-tree', 'fs-bfs'],
+      description: 'The mode for discovering for GEMINI.md files.',
+      default: process.env.GEMINI_MEMORY_DISCOVERY_MODE || 'fs-bfs',
+      coerce: (arg) => {
+        if (arg !== 'md-tree' && arg !== 'fs-bfs') {
+          throw new Error(
+            'Invalid memory-discovery-mode. Must be "md-tree" or "fs-bfs".',
+          );
+        }
+        return arg;
+      },
+    })
     .option('telemetry', {
       type: 'boolean',
       description:
@@ -218,6 +234,7 @@ export async function loadHierarchicalGeminiMemory(
   currentWorkingDirectory: string,
   debugMode: boolean,
   fileService: FileDiscoveryService,
+  memoryDiscoveryMode: MemoryDiscoveryMode,
   extensionContextFilePaths: string[] = [],
 ): Promise<{ memoryContent: string; fileCount: number }> {
   if (debugMode) {
@@ -231,6 +248,7 @@ export async function loadHierarchicalGeminiMemory(
     currentWorkingDirectory,
     debugMode,
     fileService,
+    memoryDiscoveryMode,
     extensionContextFilePaths,
   );
 }
@@ -278,6 +296,7 @@ export async function loadCliConfig(
     process.cwd(),
     debugMode,
     fileService,
+    argv.memoryDiscoveryMode,
     extensionContextFilePaths,
   );
 
@@ -364,6 +383,7 @@ export async function loadCliConfig(
     mcpServers,
     userMemory: memoryContent,
     geminiMdFileCount: fileCount,
+    memoryDiscoveryMode: argv.memoryDiscoveryMode,
     approvalMode: argv.yolo || false ? ApprovalMode.YOLO : ApprovalMode.DEFAULT,
     showMemoryUsage:
       argv.showMemoryUsage ||
