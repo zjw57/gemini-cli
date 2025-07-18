@@ -15,13 +15,13 @@ import {
   AccessibilitySettings,
   SandboxConfig,
   GeminiClient,
+  ActiveFile,
 } from '@google/gemini-cli-core';
 import { LoadedSettings, SettingsFile, Settings } from '../config/settings.js';
 import process from 'node:process';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
 import { StreamingState } from './types.js';
 import { Tips } from './components/Tips.js';
-import { useIdeContext } from './contexts/IdeContext.js';
 
 // Define a more complete mock server config based on actual Config
 interface MockServerConfig {
@@ -79,6 +79,7 @@ interface MockServerConfig {
   getAllGeminiMdFilenames: Mock<() => string[]>;
   getGeminiClient: Mock<() => GeminiClient | undefined>;
   getUserTier: Mock<() => Promise<string | undefined>>;
+  getActiveFile: Mock<() => ActiveFile | undefined>;
 }
 
 // Mock @google/gemini-cli-core and its Config class
@@ -145,6 +146,7 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
         getSessionId: vi.fn(() => 'test-session-id'),
         getUserTier: vi.fn().mockResolvedValue(undefined),
         getIdeMode: vi.fn(() => false),
+        getActiveFile: vi.fn(() => undefined),
       };
     });
   return {
@@ -199,14 +201,6 @@ vi.mock('./components/Tips.js', () => ({
 
 vi.mock('./components/Header.js', () => ({
   Header: vi.fn(() => null),
-}));
-
-vi.mock('./contexts/IdeContext.js', () => ({
-  useIdeContext: vi.fn(() => ({
-    activeFile: undefined,
-    setActiveFile: vi.fn(),
-  })),
-  IdeContextProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 describe('App UI', () => {
@@ -266,11 +260,6 @@ describe('App UI', () => {
 
     // Ensure a theme is set so the theme dialog does not appear.
     mockSettings = createMockSettings({ workspace: { theme: 'Default' } });
-
-    vi.mocked(useIdeContext).mockReturnValue({
-      activeFile: undefined,
-      setActiveFile: vi.fn(),
-    });
   });
 
   afterEach(() => {
@@ -626,9 +615,8 @@ describe('App UI', () => {
 
   describe('with active file', () => {
     it('should display the active file', async () => {
-      vi.mocked(useIdeContext).mockReturnValue({
-        activeFile: { filePath: 'src/foo.ts' },
-        setActiveFile: vi.fn(),
+      mockConfig.getActiveFile.mockReturnValue({
+        filePath: 'src/foo.ts',
       });
 
       const { lastFrame, unmount } = render(
@@ -644,9 +632,8 @@ describe('App UI', () => {
     });
 
     it('should display the active file along with other context', async () => {
-      vi.mocked(useIdeContext).mockReturnValue({
-        activeFile: { filePath: 'src/foo.ts' },
-        setActiveFile: vi.fn(),
+      mockConfig.getActiveFile.mockReturnValue({
+        filePath: 'src/foo.ts',
       });
       mockConfig.getGeminiMdFileCount.mockReturnValue(1);
       mockConfig.getMcpServers.mockReturnValue({
