@@ -29,7 +29,8 @@ const logger = {
     console.error('[ERROR] [MemoryDiscovery]', ...args),
 };
 
-const MAX_DIRECTORIES_TO_SCAN_FOR_MEMORY = 200;
+const MAX_DIRECTORIES_TO_SCAN_FOR_MEMORY =
+  parseInt(process.env.GEMINI_MEMORY_DISCOVERY_MAX_DIRS ?? '', 10) || 200;
 
 interface GeminiFileContent {
   filePath: string;

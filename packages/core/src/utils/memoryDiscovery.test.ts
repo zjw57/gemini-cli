@@ -604,4 +604,44 @@ describe('loadServerHierarchicalMemory', () => {
     expect(fileCount).toBe(1);
     expect(mockFs.readFile).toHaveBeenCalledWith(extensionFilePath, 'utf-8');
   });
+  it('should respect GEMINI_MEMORY_DISCOVERY_MAX_DIRS env var during downward scan', async () => {
+    vi.resetModules();
+    process.env.GEMINI_MEMORY_DISCOVERY_MAX_DIRS = '50';
+    const { loadServerHierarchicalMemory: loadWithCustomLimit } = await import(
+      './memoryDiscovery.js'
+    );
+
+    const consoleDebugSpy = vi
+      .spyOn(console, 'debug')
+      .mockImplementation(() => {});
+
+    const dirNames: Dirent[] = [];
+    for (let i = 0; i < 100; i++) {
+      dirNames.push({
+        name: `deep_dir_${i}`,
+        isFile: () => false,
+        isDirectory: () => true,
+      } as Dirent);
+    }
+
+    mockFs.readdir.mockImplementation((async (
+      p: fsSync.PathLike,
+    ): Promise<Dirent[]> => {
+      if (p === CWD) return dirNames;
+      if (p.toString().startsWith(path.join(CWD, 'deep_dir_')))
+        return [] as Dirent[];
+      return [] as Dirent[];
+    }) as unknown as typeof fsPromises.readdir);
+    mockFs.access.mockRejectedValue(new Error('not found'));
+
+    await loadWithCustomLimit(CWD, true, fileService);
+
+    expect(consoleDebugSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[DEBUG] [BfsFileSearch]'),
+      expect.stringContaining('Scanning [50/50]:'),
+    );
+    consoleDebugSpy.mockRestore();
+    delete process.env.GEMINI_MEMORY_DISCOVERY_MAX_DIRS;
+    vi.resetModules();
+  });
 });
