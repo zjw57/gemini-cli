@@ -6,7 +6,7 @@
 
 import { type ActiveFile, type MCPServerConfig } from '@google/gemini-cli-core';
 import { Box, Text } from 'ink';
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Colors } from '../colors.js';
 import { InfoMessage } from './messages/InfoMessage.js';
 
