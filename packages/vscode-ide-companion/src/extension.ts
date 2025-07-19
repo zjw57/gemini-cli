@@ -6,15 +6,44 @@
 
 import * as vscode from 'vscode';
 import { IDEServer } from './ide-server';
+import { DiffContentProvider } from './diff-content-provider';
 
 let ideServer: IDEServer;
 let logger: vscode.OutputChannel;
+export const DIFF_SCHEME = 'gemini-diff';
 
 export async function activate(context: vscode.ExtensionContext) {
   logger = vscode.window.createOutputChannel('Gemini CLI IDE Companion');
   logger.show();
   logger.appendLine('Starting Gemini CLI IDE Companion server...');
-  ideServer = new IDEServer(logger);
+
+  const diffContentProvider = new DiffContentProvider();
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(
+      DIFF_SCHEME,
+      diffContentProvider,
+    ),
+    vscode.commands.registerCommand(
+      'gemini.diff.accept',
+      (uri?: vscode.Uri) => {
+        const docUri = uri ?? vscode.window.activeTextEditor?.document.uri;
+        if (docUri && docUri.scheme === DIFF_SCHEME) {
+          ideServer.acceptDiff(docUri);
+        }
+      },
+    ),
+    vscode.commands.registerCommand(
+      'gemini.diff.cancel',
+      (uri?: vscode.Uri) => {
+        const docUri = uri ?? vscode.window.activeTextEditor?.document.uri;
+        if (docUri && docUri.scheme === DIFF_SCHEME) {
+          ideServer.cancelDiff(docUri);
+        }
+      },
+    ),
+  );
+
+  ideServer = new IDEServer(logger, diffContentProvider);
   try {
     await ideServer.start(context);
   } catch (err) {
