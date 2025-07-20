@@ -534,8 +534,10 @@ export class GeminiChat {
           const content = chunk.candidates?.[0]?.content;
           if (content !== undefined) {
             if (this.isThoughtContent(content)) {
-              yield chunk;
+              // TODO: you are yielding twice i think
+              // yield chunk;
               // continue;
+              // console.log("yielding thought", content.parts?.map((part) => part.text).join(''));
             }
             outputContent.push(content);
           }
@@ -577,7 +579,6 @@ export class GeminiChat {
     const modelThoughts = modelOutput.filter(
       (content) => this.isThoughtContent(content),
     );
-    console.log("modelThoughts", modelThoughts);
 
     // const nonThoughtModelOutput = modelOutput.filter(
     //   (content) => !this.isThoughtContent(content),
