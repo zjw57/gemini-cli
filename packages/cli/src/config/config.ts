@@ -19,7 +19,6 @@ import {
   FileDiscoveryService,
   TelemetryTarget,
   FileFilteringOptions,
-  MCPServerConfig,
   IDE_SERVER_NAME,
 } from '@google/gemini-cli-core';
 import { Settings } from './settings.js';
@@ -352,30 +351,11 @@ export async function loadCliConfig(
       logger.warn(
         `Ignoring user-defined MCP server config for "${IDE_SERVER_NAME}" as it is a reserved name.`,
       );
+      // Remove the user-defined server since IDE integration manager handles this
+      delete mcpServers[IDE_SERVER_NAME];
     }
-    const companionPort = process.env.GEMINI_CLI_IDE_SERVER_PORT;
-    if (companionPort) {
-      const httpUrl = `http://localhost:${companionPort}/mcp`;
-      mcpServers[IDE_SERVER_NAME] = new MCPServerConfig(
-        undefined, // command
-        undefined, // args
-        undefined, // env
-        undefined, // cwd
-        undefined, // url
-        httpUrl, // httpUrl
-        undefined, // headers
-        undefined, // tcp
-        undefined, // timeout
-        false, // trust
-        'IDE connection', // description
-        undefined, // includeTools
-        undefined, // excludeTools
-      );
-    } else {
-      logger.warn(
-        'Could not connect to IDE. Make sure you have the companion VS Code extension installed from the marketplace or via /ide install.',
-      );
-    }
+    // Note: IDE server connection is now handled by the IDE integration manager
+    // in the new plugin system, so we don't add the MCP server configuration here
   }
 
   const sandboxConfig = await loadSandboxConfig(settings, argv);

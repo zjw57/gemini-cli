@@ -7,17 +7,13 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ideCommand } from './ideCommand.js';
 import { type CommandContext } from './types.js';
-import { type Config } from '@google/gemini-cli-core';
+import {
+  type Config,
+  ideIntegrationManager,
+  ideIntegrationRegistry,
+} from '@google/gemini-cli-core';
 import * as child_process from 'child_process';
 import { glob } from 'glob';
-
-import {
-  getMCPDiscoveryState,
-  getMCPServerStatus,
-  IDE_SERVER_NAME,
-  MCPDiscoveryState,
-  MCPServerStatus,
-} from '@google/gemini-cli-core';
 
 vi.mock('child_process');
 vi.mock('glob');
@@ -26,8 +22,13 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
     await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...original,
-    getMCPServerStatus: vi.fn(),
-    getMCPDiscoveryState: vi.fn(),
+    ideIntegrationManager: {
+      initialize: vi.fn(),
+      getStatus: vi.fn(),
+    },
+    ideIntegrationRegistry: {
+      getRegisteredIds: vi.fn(),
+    },
   };
 });
 
@@ -37,8 +38,6 @@ describe('ideCommand', () => {
   let execSyncSpy: vi.SpyInstance;
   let globSyncSpy: vi.SpyInstance;
   let platformSpy: vi.SpyInstance;
-  let getMCPServerStatusSpy: vi.SpyInstance;
-  let getMCPDiscoveryStateSpy: vi.SpyInstance;
 
   beforeEach(() => {
     mockContext = {
@@ -49,13 +48,19 @@ describe('ideCommand', () => {
 
     mockConfig = {
       getIdeMode: vi.fn(),
+      getDebugMode: vi.fn().mockReturnValue(false),
     } as unknown as Config;
 
     execSyncSpy = vi.spyOn(child_process, 'execSync');
     globSyncSpy = vi.spyOn(glob, 'sync');
     platformSpy = vi.spyOn(process, 'platform', 'get');
-    getMCPServerStatusSpy = vi.mocked(getMCPServerStatus);
-    getMCPDiscoveryStateSpy = vi.mocked(getMCPDiscoveryState);
+
+    // Reset mocks
+    vi.mocked(ideIntegrationManager.initialize).mockResolvedValue(undefined);
+    vi.mocked(ideIntegrationManager.getStatus).mockResolvedValue({
+      active: false,
+    });
+    vi.mocked(ideIntegrationRegistry.getRegisteredIds).mockReturnValue([]);
   });
 
   afterEach(() => {
@@ -83,50 +88,92 @@ describe('ideCommand', () => {
       (mockConfig.getIdeMode as vi.Mock).mockReturnValue(true);
     });
 
-    it('should show connected status', () => {
-      getMCPServerStatusSpy.mockReturnValue(MCPServerStatus.CONNECTED);
+    it('should show connected status', async () => {
+      vi.mocked(ideIntegrationManager.getStatus).mockResolvedValue({
+        active: true,
+        integration: {
+          id: 'vscode',
+          name: 'Visual Studio Code',
+          description: 'VS Code integration via MCP',
+          available: true,
+        },
+      });
+      vi.mocked(ideIntegrationRegistry.getRegisteredIds).mockReturnValue([
+        'vscode',
+      ]);
+
       const command = ideCommand(mockConfig);
-      const result = command?.subCommands?.[0].action(mockContext, '');
-      expect(getMCPServerStatusSpy).toHaveBeenCalledWith(IDE_SERVER_NAME);
+      const result = await command?.subCommands?.[0].action(mockContext, '');
+
+      expect(vi.mocked(ideIntegrationManager.initialize)).toHaveBeenCalledWith({
+        environment: process.env,
+        timeout: 5000,
+        debug: false,
+      });
       expect(result).toEqual({
         type: 'message',
         messageType: 'info',
-        content: '🟢 Connected',
+        content: expect.stringContaining('🟢 Visual Studio Code - Connected'),
       });
     });
 
-    it('should show connecting status', () => {
-      getMCPServerStatusSpy.mockReturnValue(MCPServerStatus.CONNECTING);
-      const command = ideCommand(mockConfig);
-      const result = command?.subCommands?.[0].action(mockContext, '');
-      expect(result).toEqual({
-        type: 'message',
-        messageType: 'info',
-        content: '🔄 Initializing...',
+    it('should show disconnected status', async () => {
+      vi.mocked(ideIntegrationManager.getStatus).mockResolvedValue({
+        active: true,
+        integration: {
+          id: 'vscode',
+          name: 'Visual Studio Code',
+          description: 'VS Code integration via MCP',
+          available: false,
+        },
       });
-    });
+      vi.mocked(ideIntegrationRegistry.getRegisteredIds).mockReturnValue([
+        'vscode',
+      ]);
 
-    it('should show discovery in progress status', () => {
-      getMCPServerStatusSpy.mockReturnValue(MCPServerStatus.DISCONNECTED);
-      getMCPDiscoveryStateSpy.mockReturnValue(MCPDiscoveryState.IN_PROGRESS);
       const command = ideCommand(mockConfig);
-      const result = command?.subCommands?.[0].action(mockContext, '');
-      expect(result).toEqual({
-        type: 'message',
-        messageType: 'info',
-        content: '🔄 Initializing...',
-      });
-    });
+      const result = await command?.subCommands?.[0].action(mockContext, '');
 
-    it('should show disconnected status', () => {
-      getMCPServerStatusSpy.mockReturnValue(MCPServerStatus.DISCONNECTED);
-      getMCPDiscoveryStateSpy.mockReturnValue(MCPDiscoveryState.NOT_FOUND);
-      const command = ideCommand(mockConfig);
-      const result = command?.subCommands?.[0].action(mockContext, '');
       expect(result).toEqual({
         type: 'message',
         messageType: 'error',
-        content: '🔴 Disconnected',
+        content: expect.stringContaining(
+          '🔴 Visual Studio Code - Disconnected',
+        ),
+      });
+    });
+
+    it('should show no active integration status', async () => {
+      vi.mocked(ideIntegrationManager.getStatus).mockResolvedValue({
+        active: false,
+      });
+      vi.mocked(ideIntegrationRegistry.getRegisteredIds).mockReturnValue([
+        'vscode',
+      ]);
+
+      const command = ideCommand(mockConfig);
+      const result = await command?.subCommands?.[0].action(mockContext, '');
+
+      expect(result).toEqual({
+        type: 'message',
+        messageType: 'error',
+        content: expect.stringContaining('🔴 No IDE integration active'),
+      });
+    });
+
+    it('should show no registered integrations', async () => {
+      vi.mocked(ideIntegrationManager.getStatus).mockResolvedValue({
+        active: false,
+      });
+      vi.mocked(ideIntegrationRegistry.getRegisteredIds).mockReturnValue([]);
+
+      const command = ideCommand(mockConfig);
+      const result = await command?.subCommands?.[0].action(mockContext, '');
+
+      expect(result).toEqual({
+        type: 'message',
+        messageType: 'error',
+        content: expect.stringContaining('⚠️  No IDE integrations registered'),
       });
     });
   });
@@ -137,7 +184,7 @@ describe('ideCommand', () => {
       platformSpy.mockReturnValue('linux');
     });
 
-    it('should show an error if VSCode is not installed', async () => {
+    it('should show an error if no supported IDEs are found', async () => {
       execSyncSpy.mockImplementation(() => {
         throw new Error('Command not found');
       });
@@ -148,9 +195,7 @@ describe('ideCommand', () => {
       expect(mockContext.ui.addItem).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'error',
-          text: expect.stringContaining(
-            'VS Code command-line tool "code" not found',
-          ),
+          text: 'No supported IDEs found on your system. Currently supported: VS Code',
         }),
         expect.any(Number),
       );
@@ -165,8 +210,17 @@ describe('ideCommand', () => {
 
       expect(mockContext.ui.addItem).toHaveBeenCalledWith(
         expect.objectContaining({
+          type: 'info',
+          text: 'Found Visual Studio Code. Installing companion extension...',
+        }),
+        expect.any(Number),
+      );
+      expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+        expect.objectContaining({
           type: 'error',
-          text: 'Could not find the required VS Code companion extension. Please file a bug via /bug.',
+          text: expect.stringContaining(
+            'Could not find the required VS Code companion extension',
+          ),
         }),
         expect.any(Number),
       );
@@ -190,14 +244,14 @@ describe('ideCommand', () => {
       expect(mockContext.ui.addItem).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'info',
-          text: `Installing VS Code companion extension...`,
+          text: 'Found Visual Studio Code. Installing companion extension...',
         }),
         expect.any(Number),
       );
       expect(mockContext.ui.addItem).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'info',
-          text: 'VS Code companion extension installed successfully. Restart gemini-cli in a fresh terminal window.',
+          text: 'Visual Studio Code companion extension installed successfully. Restart gemini-cli in a fresh terminal window.',
         }),
         expect.any(Number),
       );
@@ -220,7 +274,7 @@ describe('ideCommand', () => {
       expect(mockContext.ui.addItem).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'info',
-          text: 'VS Code companion extension installed successfully. Restart gemini-cli in a fresh terminal window.',
+          text: 'Visual Studio Code companion extension installed successfully. Restart gemini-cli in a fresh terminal window.',
         }),
         expect.any(Number),
       );
@@ -228,7 +282,6 @@ describe('ideCommand', () => {
 
     it('should show an error if installation fails', async () => {
       const vsixPath = '/path/to/bundle/gemini.vsix';
-      const errorMessage = 'Installation failed';
       execSyncSpy
         .mockReturnValueOnce('') // VSCode is installed check
         .mockImplementation(() => {
@@ -236,7 +289,7 @@ describe('ideCommand', () => {
           const error: Error & { stderr?: Buffer } = new Error(
             'Command failed',
           );
-          error.stderr = Buffer.from(errorMessage);
+          error.stderr = Buffer.from('Installation failed');
           throw error;
         });
       globSyncSpy.mockReturnValue([vsixPath]);
@@ -247,7 +300,9 @@ describe('ideCommand', () => {
       expect(mockContext.ui.addItem).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'error',
-          text: `Failed to install VS Code companion extension.`,
+          text: expect.stringContaining(
+            'Failed to install Visual Studio Code companion extension',
+          ),
         }),
         expect.any(Number),
       );

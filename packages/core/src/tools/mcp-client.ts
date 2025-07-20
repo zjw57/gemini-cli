@@ -26,6 +26,7 @@ import {
   IDE_SERVER_NAME,
   ideContext,
 } from '../services/ideContext.js';
+import { ideIntegrationManager } from '../services/ideIntegrations/index.js';
 import { getErrorMessage } from '../utils/errors.js';
 
 export const MCP_DEFAULT_TIMEOUT_MSEC = 10 * 60 * 1000; // default to 10 minutes
@@ -202,6 +203,17 @@ export async function connectAndDiscover(
   toolRegistry: ToolRegistry,
   debugMode: boolean,
 ): Promise<void> {
+  // Skip IDE server if integration manager is handling it
+  if (mcpServerName === IDE_SERVER_NAME && ideIntegrationManager.isActive()) {
+    if (debugMode) {
+      console.debug(
+        `Skipping MCP connection to ${IDE_SERVER_NAME} - using IDE integration manager`,
+      );
+    }
+    updateMCPServerStatus(mcpServerName, MCPServerStatus.CONNECTED);
+    return;
+  }
+
   updateMCPServerStatus(mcpServerName, MCPServerStatus.CONNECTING);
 
   try {

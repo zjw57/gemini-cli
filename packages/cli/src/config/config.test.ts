@@ -1011,7 +1011,7 @@ describe('loadCliConfig ideMode', () => {
     expect(config.getIdeMode()).toBe(false);
   });
 
-  it('should add _ide_server when ideMode is true', async () => {
+  it('should enable ideMode but not add _ide_server to MCP servers (handled by IDE integration manager)', async () => {
     process.argv = ['node', 'script.js', '--ide-mode'];
     const argv = await parseArguments();
     process.env.TERM_PROGRAM = 'vscode';
@@ -1020,29 +1020,23 @@ describe('loadCliConfig ideMode', () => {
     const config = await loadCliConfig(settings, [], 'test-session', argv);
     expect(config.getIdeMode()).toBe(true);
     const mcpServers = config.getMcpServers();
-    expect(mcpServers['_ide_server']).toBeDefined();
-    expect(mcpServers['_ide_server'].httpUrl).toBe('http://localhost:3000/mcp');
-    expect(mcpServers['_ide_server'].description).toBe('IDE connection');
-    expect(mcpServers['_ide_server'].trust).toBe(false);
+    // _ide_server should NOT be in MCP servers since IDE integration manager handles it
+    expect(mcpServers['_ide_server']).toBeUndefined();
   });
 
-  it('should warn if ideMode is true and no port is set', async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, 'warn')
-      .mockImplementation(() => {});
+  it('should enable ideMode even when no port is set (IDE integration manager handles connection)', async () => {
     process.argv = ['node', 'script.js', '--ide-mode'];
     const argv = await parseArguments();
     process.env.TERM_PROGRAM = 'vscode';
     const settings: Settings = {};
-    await loadCliConfig(settings, [], 'test-session', argv);
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      '[WARN]',
-      'Could not connect to IDE. Make sure you have the companion VS Code extension installed from the marketplace or via /ide install.',
-    );
-    consoleWarnSpy.mockRestore();
+    const config = await loadCliConfig(settings, [], 'test-session', argv);
+    expect(config.getIdeMode()).toBe(true);
+    // IDE integration manager will handle connection attempts
+    const mcpServers = config.getMcpServers();
+    expect(mcpServers['_ide_server']).toBeUndefined();
   });
 
-  it('should warn and overwrite if settings contain the reserved _ide_server name and ideMode is active', async () => {
+  it('should warn and remove user-defined _ide_server when ideMode is active', async () => {
     const consoleWarnSpy = vi
       .spyOn(console, 'warn')
       .mockImplementation(() => {});
@@ -1071,8 +1065,8 @@ describe('loadCliConfig ideMode', () => {
     );
 
     const mcpServers = config.getMcpServers();
-    expect(mcpServers['_ide_server']).toBeDefined();
-    expect(mcpServers['_ide_server'].httpUrl).toBe('http://localhost:3000/mcp');
+    // User-defined _ide_server should be removed, and IDE integration manager handles connection
+    expect(mcpServers['_ide_server']).toBeUndefined();
 
     consoleWarnSpy.mockRestore();
   });

@@ -7,11 +7,8 @@
 import { fileURLToPath } from 'url';
 import {
   Config,
-  getMCPDiscoveryState,
-  getMCPServerStatus,
-  IDE_SERVER_NAME,
-  MCPDiscoveryState,
-  MCPServerStatus,
+  ideIntegrationRegistry,
+  ideIntegrationManager,
 } from '@google/gemini-cli-core';
 import {
   CommandContext,
@@ -52,108 +49,193 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
       {
         name: 'status',
         description: 'check status of IDE integration',
-        action: (_context: CommandContext): SlashCommandActionReturn => {
-          const status = getMCPServerStatus(IDE_SERVER_NAME);
-          const discoveryState = getMCPDiscoveryState();
-          switch (status) {
-            case MCPServerStatus.CONNECTED:
-              return {
-                type: 'message',
-                messageType: 'info',
-                content: `🟢 Connected`,
-              };
-            case MCPServerStatus.CONNECTING:
-              return {
-                type: 'message',
-                messageType: 'info',
-                content: `🔄 Initializing...`,
-              };
-            case MCPServerStatus.DISCONNECTED:
-            default:
-              if (discoveryState === MCPDiscoveryState.IN_PROGRESS) {
-                return {
-                  type: 'message',
-                  messageType: 'info',
-                  content: `🔄 Initializing...`,
-                };
-              } else {
-                return {
-                  type: 'message',
-                  messageType: 'error',
-                  content: `🔴 Disconnected`,
-                };
-              }
+        action: async (
+          _context: CommandContext,
+        ): Promise<SlashCommandActionReturn> => {
+          // Initialize IDE integration manager if not already done
+          await ideIntegrationManager.initialize({
+            environment: process.env,
+            timeout: 5000,
+            debug: config?.getDebugMode() || false,
+          });
+
+          const managerStatus = await ideIntegrationManager.getStatus();
+          const registeredIds = ideIntegrationRegistry.getRegisteredIds();
+
+          let statusMessage = '';
+
+          if (managerStatus.active && managerStatus.integration) {
+            const { integration } = managerStatus;
+            const statusIcon = integration.available ? '🟢' : '🔴';
+            const statusText = integration.available
+              ? 'Connected'
+              : 'Disconnected';
+            statusMessage = `${statusIcon} ${integration.name} - ${statusText}`;
+
+            if (integration.description) {
+              statusMessage += `\n   ${integration.description}`;
+            }
+          } else {
+            statusMessage = `🔴 No IDE integration active`;
           }
+
+          // Add information about available integrations
+          if (registeredIds.length > 0) {
+            statusMessage += `\n\n📋 Available IDE integrations: ${registeredIds.join(', ')}`;
+
+            if (managerStatus.active && managerStatus.integration) {
+              statusMessage += `\n✅ Active: ${managerStatus.integration.id}`;
+            } else {
+              statusMessage += `\n⚠️  None currently active`;
+            }
+          } else {
+            statusMessage += `\n\n⚠️  No IDE integrations registered`;
+          }
+
+          return {
+            type: 'message',
+            messageType:
+              managerStatus.active && managerStatus.integration?.available
+                ? 'info'
+                : 'error',
+            content: statusMessage,
+          };
         },
       },
       {
         name: 'install',
-        description: 'install required VS Code companion extension',
+        description: 'install companion extensions for supported IDEs',
         action: async (context) => {
-          if (!isVSCodeInstalled()) {
+          // Check which IDEs are available on the system
+          const availableIDEs: Array<{
+            id: string;
+            name: string;
+            installer: () => Promise<void>;
+          }> = [];
+
+          // Check for VS Code
+          if (isVSCodeInstalled()) {
+            availableIDEs.push({
+              id: 'vscode',
+              name: 'Visual Studio Code',
+              installer: async () => {
+                const bundleDir = path.dirname(fileURLToPath(import.meta.url));
+                let vsixFiles = glob.sync(path.join(bundleDir, '*.vsix'));
+                if (vsixFiles.length === 0) {
+                  const devPath = path.join(
+                    bundleDir,
+                    '..',
+                    '..',
+                    '..',
+                    '..',
+                    '..',
+                    VSCODE_COMPANION_EXTENSION_FOLDER,
+                    '*.vsix',
+                  );
+                  vsixFiles = glob.sync(devPath);
+                }
+
+                if (vsixFiles.length === 0) {
+                  throw new Error(
+                    'Could not find the required VS Code companion extension. Please file a bug via /bug.',
+                  );
+                }
+
+                const vsixPath = vsixFiles[0];
+                const command = `${VSCODE_COMMAND} --install-extension ${vsixPath} --force`;
+                child_process.execSync(command, { stdio: 'pipe' });
+              },
+            });
+          }
+
+          // Future: Add checks for other IDEs here
+          // if (isIntelliJInstalled()) { ... }
+          // if (isVimInstalled()) { ... }
+
+          if (availableIDEs.length === 0) {
             context.ui.addItem(
               {
                 type: 'error',
-                text: `VS Code command-line tool "${VSCODE_COMMAND}" not found in your PATH.`,
+                text: 'No supported IDEs found on your system. Currently supported: VS Code',
               },
               Date.now(),
             );
             return;
           }
 
-          const bundleDir = path.dirname(fileURLToPath(import.meta.url));
-          // The VSIX file is copied to the bundle directory as part of the build.
-          let vsixFiles = glob.sync(path.join(bundleDir, '*.vsix'));
-          if (vsixFiles.length === 0) {
-            // If the VSIX file is not in the bundle, it might be a dev
-            // environment running with `npm start`. Look for it in the original
-            // package location, relative to the bundle dir.
-            const devPath = path.join(
-              bundleDir,
-              '..',
-              '..',
-              '..',
-              '..',
-              '..',
-              VSCODE_COMPANION_EXTENSION_FOLDER,
-              '*.vsix',
-            );
-            vsixFiles = glob.sync(devPath);
-          }
-          if (vsixFiles.length === 0) {
-            context.ui.addItem(
-              {
-                type: 'error',
-                text: 'Could not find the required VS Code companion extension. Please file a bug via /bug.',
-              },
-              Date.now(),
-            );
-            return;
-          }
-
-          const vsixPath = vsixFiles[0];
-          const command = `${VSCODE_COMMAND} --install-extension ${vsixPath} --force`;
-          context.ui.addItem(
-            {
-              type: 'info',
-              text: `Installing VS Code companion extension...`,
-            },
-            Date.now(),
-          );
-          try {
-            child_process.execSync(command, { stdio: 'pipe' });
+          // If only one IDE is available, install directly
+          if (availableIDEs.length === 1) {
+            const ide = availableIDEs[0];
             context.ui.addItem(
               {
                 type: 'info',
-                text: 'VS Code companion extension installed successfully. Restart gemini-cli in a fresh terminal window.',
+                text: `Found ${ide.name}. Installing companion extension...`,
               },
               Date.now(),
             );
-          } catch (_error) {
+
+            try {
+              await ide.installer();
+              context.ui.addItem(
+                {
+                  type: 'info',
+                  text: `${ide.name} companion extension installed successfully. Restart gemini-cli in a fresh terminal window.`,
+                },
+                Date.now(),
+              );
+            } catch (error) {
+              context.ui.addItem(
+                {
+                  type: 'error',
+                  text: `Failed to install ${ide.name} companion extension: ${error instanceof Error ? error.message : String(error)}`,
+                },
+                Date.now(),
+              );
+            }
+          } else {
+            // Multiple IDEs available - show options (for future enhancement)
             context.ui.addItem(
               {
-                type: 'error',
-                text: `Failed to install VS Code companion extension.`,
+                type: 'info',
+                text: `Multiple IDEs detected: ${availableIDEs.map((ide) => ide.name).join(', ')}. Currently installing for all supported IDEs...`,
+              },
+              Date.now(),
+            );
+
+            for (const ide of availableIDEs) {
+              try {
+                context.ui.addItem(
+                  {
+                    type: 'info',
+                    text: `Installing companion extension for ${ide.name}...`,
+                  },
+                  Date.now(),
+                );
+
+                await ide.installer();
+
+                context.ui.addItem(
+                  {
+                    type: 'info',
+                    text: `✅ ${ide.name} companion extension installed successfully.`,
+                  },
+                  Date.now(),
+                );
+              } catch (error) {
+                context.ui.addItem(
+                  {
+                    type: 'error',
+                    text: `❌ Failed to install ${ide.name} companion extension: ${error instanceof Error ? error.message : String(error)}`,
+                  },
+                  Date.now(),
+                );
+              }
+            }
+
+            context.ui.addItem(
+              {
+                type: 'info',
+                text: 'Installation complete. Restart gemini-cli in a fresh terminal window.',
               },
               Date.now(),
             );

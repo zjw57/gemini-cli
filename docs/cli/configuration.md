@@ -435,6 +435,66 @@ This example demonstrates how you can provide general project context, specific 
 
 By understanding and utilizing these configuration layers and the hierarchical nature of context files, you can effectively manage the AI's memory and tailor the Gemini CLI's responses to your specific needs and projects.
 
+## IDE Integration
+
+The Gemini CLI includes an extensible IDE integration system that allows it to communicate with various editors and IDEs to provide context-aware assistance.
+
+### Supported IDEs
+
+Currently supported IDEs:
+
+- **Visual Studio Code**: Full support via companion extension
+
+The system is designed to be extensible for future IDE integrations.
+
+### Configuration
+
+IDE integration is controlled by the `ideMode` setting:
+
+```json
+{
+  "ideMode": true
+}
+```
+
+You can also enable it with the `--ide-mode` command line flag.
+
+### Environment Variables
+
+#### VS Code
+
+- `TERM_PROGRAM=vscode` - Automatically set when running in VS Code terminal
+- `GEMINI_CLI_IDE_SERVER_PORT` - Port for MCP communication (set by extension)
+
+### Features
+
+When IDE integration is active, the CLI provides:
+
+- **Active File Context**: Automatically includes the currently active file in prompts
+- **File Change Notifications**: Updates context when you switch files
+- **Editor Integration**: Commands that interact directly with your editor
+
+### Commands
+
+Use the `/ide` command to manage IDE integration:
+
+- `/ide status` - Check integration status
+- `/ide install` - Install IDE companion extensions
+
+### Adding New IDE Support
+
+The IDE integration system is designed to be extensible. Developers can add support for new IDEs by implementing the `IDEIntegration` interface. See the [IDE Integration Developer Guide](../ide-integrations/developer-guide.md) for detailed instructions.
+
+### Troubleshooting
+
+If IDE integration isn't working:
+
+1. Ensure you're using VS Code
+2. Check that `ideMode` is enabled in settings
+3. Verify the VS Code companion extension is installed
+4. Check that `GEMINI_CLI_IDE_SERVER_PORT` environment variable is set
+5. See the [troubleshooting guide](../ide-integrations/troubleshooting.md) for detailed debugging steps
+
 ## Sandboxing
 
 The Gemini CLI can execute potentially unsafe operations (like shell commands and file modifications) within a sandboxed environment to protect your system.

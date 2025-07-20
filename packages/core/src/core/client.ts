@@ -42,6 +42,7 @@ import { ProxyAgent, setGlobalDispatcher } from 'undici';
 import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 import { LoopDetectionService } from '../services/loopDetectionService.js';
 import { ideContext } from '../services/ideContext.js';
+import { ideIntegrationManager } from '../services/ideIntegrations/index.js';
 
 function isThinkingSupported(model: string) {
   if (model.startsWith('gemini-2.5')) return true;
@@ -120,6 +121,21 @@ export class GeminiClient {
       this.config,
       this.config.getSessionId(),
     );
+
+    // Initialize IDE integration manager if IDE mode is enabled
+    if (this.config.getIdeMode()) {
+      try {
+        await ideIntegrationManager.initialize({
+          environment: process.env,
+          timeout: 10000,
+          debug: this.config.getDebugMode(),
+        });
+      } catch (error) {
+        // Don't fail initialization if IDE integration fails
+        console.debug('IDE integration initialization failed:', error);
+      }
+    }
+
     this.chat = await this.startChat();
   }
 
