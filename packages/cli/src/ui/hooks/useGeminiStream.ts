@@ -474,6 +474,11 @@ export const useGeminiStream = (
         switch (event.type) {
           case ServerGeminiEventType.Thought:
             setThought(event.value);
+            geminiMessageBuffer = handleContentEvent(
+              event.value.subject + "\n\n" + event.value.description,
+              geminiMessageBuffer,
+              userMessageTimestamp,
+            );
             break;
           case ServerGeminiEventType.Content:
             geminiMessageBuffer = handleContentEvent(

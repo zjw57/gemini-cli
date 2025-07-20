@@ -382,6 +382,14 @@ export class GeminiChat {
     await this.sendPromise;
     const userContent = createUserContent(params.message);
     const requestContents = this.getHistory(true).concat(userContent);
+    // console.log(
+    //   'requestContents',
+    //   requestContents.map((content) => content.parts?.map((part) => part.text).join('')),
+    // );
+    // console.log(
+    //   'requestContents:thoughts',
+    //   requestContents.map((content) => content.parts?.filter((part) => part.thought).map((part) => part.text + 'th').join('')),
+    // );
     this._logApiRequest(requestContents, this.config.getModel(), prompt_id);
 
     const startTime = Date.now();
@@ -527,7 +535,7 @@ export class GeminiChat {
           if (content !== undefined) {
             if (this.isThoughtContent(content)) {
               yield chunk;
-              continue;
+              // continue;
             }
             outputContent.push(content);
           }
@@ -565,10 +573,16 @@ export class GeminiChat {
     modelOutput: Content[],
     automaticFunctionCallingHistory?: Content[],
   ) {
-    const nonThoughtModelOutput = modelOutput.filter(
-      (content) => !this.isThoughtContent(content),
-    );
 
+    const modelThoughts = modelOutput.filter(
+      (content) => this.isThoughtContent(content),
+    );
+    console.log("modelThoughts", modelThoughts);
+
+    // const nonThoughtModelOutput = modelOutput.filter(
+    //   (content) => !this.isThoughtContent(content),
+    // );
+    const nonThoughtModelOutput =  modelOutput;
     let outputContents: Content[] = [];
     if (
       nonThoughtModelOutput.length > 0 &&
@@ -604,6 +618,8 @@ export class GeminiChat {
     const consolidatedOutputContents: Content[] = [];
     for (const content of outputContents) {
       if (this.isThoughtContent(content)) {
+        consolidatedOutputContents.push(content);
+        this.history.push(...consolidatedOutputContents);
         continue;
       }
       const lastContent =
