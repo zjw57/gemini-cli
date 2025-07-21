@@ -195,6 +195,18 @@ export async function parseArguments(): Promise<CliArgs> {
       description:
         'Proxy for gemini client, like schema://user:password@host:port',
     })
+    .command(
+      'usage',
+      'Show historical usage statistics with token counts and cost estimates',
+      {},
+      async () => {
+        const { readStatsHistory, formatStatsReport } = await import('../utils/statsHistory.js');
+        const stats = readStatsHistory();
+        const report = formatStatsReport(stats);
+        console.log(report);
+        process.exit(0);
+      }
+    )
     .version(await getCliVersion()) // This will enable the --version flag based on package.json
     .alias('v', 'version')
     .help()
