@@ -102,7 +102,7 @@ export class GeminiClient {
    */
   private readonly COMPRESSION_PRESERVE_THRESHOLD = 0.3;
 
-  private readonly loopDetector: LoopDetectionService;
+  private readonly loopDetector = new LoopDetectionService();
   private lastPromptId?: string;
 
   constructor(private config: Config) {
@@ -111,7 +111,6 @@ export class GeminiClient {
     }
 
     this.embeddingModel = config.getEmbeddingModel();
-    this.loopDetector = new LoopDetectionService(config);
   }
 
   async initialize(contentGeneratorConfig: ContentGeneratorConfig) {
