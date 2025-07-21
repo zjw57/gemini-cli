@@ -50,17 +50,23 @@ function isValidResponse(response: GenerateContentResponse): boolean {
   return isValidContent(content);
 }
 
+/**
+ * Checks for invalid content configurations.
+ * 
+ * @remarks
+ * The Gemini API rejects requests in which Parts is an empty list
+ * Eg, this is okay:
+ *   types.Content(role='model', parts=[types.Part(text='')])
+ * but this is not:
+ *   types.Content(role='model', parts=[])
+ * 
+ * Historical note: this function used to check also for the first
+ * case here, with just empty text, but that was allowed upstream
+ * in the Gemini API.    
+ */
 function isValidContent(content: Content): boolean {
   if (content.parts === undefined || content.parts.length === 0) {
     return false;
-  }
-  for (const part of content.parts) {
-    if (part === undefined || Object.keys(part).length === 0) {
-      return false;
-    }
-    if (!part.thought && part.text !== undefined && part.text === '') {
-      return false;
-    }
   }
   return true;
 }
