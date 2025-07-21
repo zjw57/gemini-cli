@@ -108,12 +108,11 @@ export class DiffManager {
     const fileUri = vscode.Uri.file(diffInfo.originalFilePath);
     const doc = await vscode.workspace.openTextDocument(fileUri);
     const lastLine = doc.lineAt(doc.lineCount - 1);
-    const fullRange = new vscode.Range(new vscode.Position(0, 0), lastLine.range.end);
-    workspaceEdit.replace(
-      fileUri,
-      fullRange,
-      modifiedContent,
+    const fullRange = new vscode.Range(
+      new vscode.Position(0, 0),
+      lastLine.range.end,
     );
+    workspaceEdit.replace(fileUri, fullRange, modifiedContent);
     await vscode.workspace.applyEdit(workspaceEdit);
 
     const doc = await vscode.workspace.openTextDocument(fileUri);
