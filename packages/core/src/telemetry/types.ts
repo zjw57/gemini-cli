@@ -246,23 +246,6 @@ export class FlashFallbackEvent {
   }
 }
 
-export enum LoopType {
-  CONSECUTIVE_IDENTICAL_TOOL_CALLS = 'consecutive_identical_tool_calls',
-  CHANTING_IDENTICAL_SENTENCES = 'chanting_identical_sentences',
-}
-
-export class LoopDetectedEvent {
-  'event.name': 'loop_detected';
-  'event.timestamp': string; // ISO 8601
-  loop_type: LoopType;
-
-  constructor(loop_type: LoopType) {
-    this['event.name'] = 'loop_detected';
-    this['event.timestamp'] = new Date().toISOString();
-    this.loop_type = loop_type;
-  }
-}
-
 export type TelemetryEvent =
   | StartSessionEvent
   | EndSessionEvent
@@ -271,5 +254,4 @@ export type TelemetryEvent =
   | ApiRequestEvent
   | ApiErrorEvent
   | ApiResponseEvent
-  | FlashFallbackEvent
-  | LoopDetectedEvent;
+  | FlashFallbackEvent;
