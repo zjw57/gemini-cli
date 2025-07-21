@@ -5,11 +5,7 @@
  */
 
 import { fileURLToPath } from 'url';
-import {
-  Config,
-  ideIntegrationRegistry,
-  ideIntegrationManager,
-} from '@google/gemini-cli-core';
+import { Config, ideIntegrationManager } from '@google/gemini-cli-core';
 import {
   CommandContext,
   SlashCommand,
@@ -60,7 +56,6 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
           });
 
           const managerStatus = await ideIntegrationManager.getStatus();
-          const registeredIds = ideIntegrationRegistry.getRegisteredIds();
 
           let statusMessage = '';
 
@@ -70,26 +65,13 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
             const statusText = integration.available
               ? 'Connected'
               : 'Disconnected';
-            statusMessage = `${statusIcon} ${integration.name} - ${statusText}`;
-
-            if (integration.description) {
-              statusMessage += `\n   ${integration.description}`;
-            }
+            statusMessage = `${statusIcon} MCP Integration - ${statusText}`;
+            statusMessage += `\n   Protocol-first IDE integration via MCP`;
           } else {
             statusMessage = `🔴 No IDE integration active`;
-          }
-
-          // Add information about available integrations
-          if (registeredIds.length > 0) {
-            statusMessage += `\n\n📋 Available IDE integrations: ${registeredIds.join(', ')}`;
-
-            if (managerStatus.active && managerStatus.integration) {
-              statusMessage += `\n✅ Active: ${managerStatus.integration.id}`;
-            } else {
-              statusMessage += `\n⚠️  None currently active`;
-            }
-          } else {
-            statusMessage += `\n\n⚠️  No IDE integrations registered`;
+            statusMessage += `\n\n💡 MCP Integration: Automatically detects any MCP-compatible IDE`;
+            statusMessage += `\n   Currently supported: VS Code (with companion extension)`;
+            statusMessage += `\n   Run '/ide install' to install companion extensions`;
           }
 
           return {

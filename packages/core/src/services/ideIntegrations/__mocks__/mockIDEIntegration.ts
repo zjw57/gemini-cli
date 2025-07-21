@@ -15,10 +15,6 @@ import {
  * Provides controllable behavior for all IDE integration methods.
  */
 export class MockIDEIntegration implements IDEIntegration {
-  readonly id: string;
-  readonly name: string;
-  readonly description: string;
-
   private _isAvailable = true;
   private _activeFileContext: ActiveFileContext | null = null;
   private _initializeError: Error | null = null;
@@ -35,19 +31,12 @@ export class MockIDEIntegration implements IDEIntegration {
   private _sentNotifications: string[] = [];
 
   constructor(
-    id: string = 'mock',
-    name: string = 'Mock IDE',
-    description: string = 'Mock integration for testing',
     private config: IDEIntegrationConfig = {
       environment: {},
       timeout: 5000,
       debug: false,
     },
-  ) {
-    this.id = id;
-    this.name = name;
-    this.description = description;
-  }
+  ) {}
 
   // IDEIntegration interface implementation
   async isAvailable(): Promise<boolean> {
@@ -87,6 +76,12 @@ export class MockIDEIntegration implements IDEIntegration {
     if (this._cleanupError) {
       throw this._cleanupError;
     }
+  }
+
+  setActiveFileChangeHandler(
+    handler: (context: ActiveFileContext | null) => void,
+  ): void {
+    this._fileChangeHandler = handler;
   }
 
   // Test control methods
@@ -168,8 +163,8 @@ export class MockIDEIntegration implements IDEIntegration {
   }
 
   // Utility methods for common test scenarios
-  static createUnavailable(id?: string): MockIDEIntegration {
-    const mock = new MockIDEIntegration(id);
+  static createUnavailable(): MockIDEIntegration {
+    const mock = new MockIDEIntegration();
     mock.setAvailable(false);
     return mock;
   }
@@ -214,31 +209,18 @@ export class MockIDEIntegration implements IDEIntegration {
  * Factory function for creating mock integrations.
  * Compatible with IDEIntegrationFactory type.
  */
-export function createMockIntegrationFactory(
-  id: string = 'mock',
-  name: string = 'Mock IDE',
-  description: string = 'Mock integration for testing',
-) {
-  return async (config: IDEIntegrationConfig) =>
-    new MockIDEIntegration(id, name, description, config);
+export function createMockIntegrationFactory() {
+  return async (config: IDEIntegrationConfig) => new MockIDEIntegration(config);
 }
 
 /**
- * Creates multiple mock integrations with different IDs.
- * Useful for testing integration priority and selection.
+ * Creates multiple mock integrations.
+ * Useful for testing multiple integration scenarios.
  */
 export function createMultipleMockIntegrations(
   count: number,
 ): MockIDEIntegration[] {
-  return Array.from(
-    { length: count },
-    (_, i) =>
-      new MockIDEIntegration(
-        `mock${i + 1}`,
-        `Mock IDE ${i + 1}`,
-        `Mock integration ${i + 1} for testing`,
-      ),
-  );
+  return Array.from({ length: count }, () => new MockIDEIntegration());
 }
 
 /**
@@ -257,7 +239,7 @@ export class MockVSCodeIntegration extends MockIDEIntegration {
       debug: false,
     },
   ) {
-    super('vscode', 'Visual Studio Code', 'Mock VS Code integration', config);
+    super(config);
   }
 
   setActiveFileChangeHandler(
@@ -290,7 +272,7 @@ export class MockJetBrainsIntegration extends MockIDEIntegration {
       debug: false,
     },
   ) {
-    super('jetbrains', 'JetBrains IDEs', 'Mock JetBrains integration', config);
+    super(config);
   }
 }
 
@@ -305,6 +287,6 @@ export class MockZedIntegration extends MockIDEIntegration {
       debug: false,
     },
   ) {
-    super('zed', 'Zed', 'Mock Zed integration', config);
+    super(config);
   }
 }

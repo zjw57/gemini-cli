@@ -16,53 +16,49 @@ export interface ActiveFileContext {
 }
 
 /**
- * Interface for IDE integrations that connect to various IDEs via different protocols.
- * Each IDE integration should implement this interface to provide a consistent API
- * for IDE-specific functionality.
+ * Generic IDE integration that communicates via MCP (Model Context Protocol).
+ * Any IDE can integrate with Gemini CLI by running an MCP server that implements
+ * the required tools and notifications.
+ *
+ * This design follows the same pattern as LSP, DAP, etc. - the protocol is the
+ * abstraction layer, not IDE-specific implementations.
  */
 export interface IDEIntegration {
   /**
-   * Unique identifier for this IDE integration (e.g., 'vscode', 'intellij', 'vim')
-   */
-  readonly id: string;
-
-  /**
-   * Human-readable name for this IDE integration
-   */
-  readonly name: string;
-
-  /**
-   * Description of what this integration provides
-   */
-  readonly description: string;
-
-  /**
-   * Check if this IDE integration is currently available/active
-   * @returns Promise that resolves to true if the IDE is available
+   * Check if an MCP-compatible IDE is available and connected
+   * @returns Promise that resolves to true if an IDE MCP server is available
    */
   isAvailable(): Promise<boolean>;
 
   /**
-   * Get the currently active file context from the IDE
+   * Get the currently active file context from the connected IDE via MCP
    * @returns Promise that resolves to the active file context, or null if no file is active
    */
   getActiveFileContext(): Promise<ActiveFileContext | null>;
 
   /**
-   * Send a notification to the IDE (if supported)
+   * Send a notification to the connected IDE via MCP (if supported by the IDE)
    * @param message The message to send to the IDE
    * @returns Promise that resolves when the notification is sent
    */
   sendNotification(message: string): Promise<void>;
 
   /**
-   * Initialize the IDE integration (establish connection, set up listeners, etc.)
-   * @returns Promise that resolves when initialization is complete
+   * Set up a handler for active file change notifications from the IDE
+   * @param handler Callback function to handle file context changes
+   */
+  setActiveFileChangeHandler(
+    handler: (context: ActiveFileContext | null) => void,
+  ): void;
+
+  /**
+   * Initialize the MCP connection to detect and connect to any available IDE
+   * @returns Promise that resolves when MCP connection is established
    */
   initialize(): Promise<void>;
 
   /**
-   * Clean up resources and close connections
+   * Clean up the MCP connection and resources
    * @returns Promise that resolves when cleanup is complete
    */
   cleanup(): Promise<void>;
@@ -89,7 +85,7 @@ export interface IDEIntegrationConfig {
 }
 
 /**
- * Factory function type for creating IDE integrations
+ * Factory function for creating the generic MCP-based IDE integration
  */
 export type IDEIntegrationFactory = (
   config: IDEIntegrationConfig,

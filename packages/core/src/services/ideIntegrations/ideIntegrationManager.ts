@@ -4,16 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ideIntegrationRegistry } from './index.js';
-import { vscodeIntegrationFactory } from './vscode/index.js';
-import { VSCodeIntegration } from './vscode/vscodeIntegration.js';
+import { createMCPIDEIntegration } from './mcpIntegration.js';
 import { IDEIntegration, IDEIntegrationConfig } from './types.js';
 import { ideContext } from '../ideContext.js';
 
 /**
- * Manages IDE integrations and coordinates them with the existing ideContext system.
- * This class serves as a bridge between the new plugin system and the existing
- * IDE context management.
+ * Manages the generic MCP-based IDE integration.
+ *
+ * This simplified manager works with any MCP-compatible IDE without needing
+ * to know specific IDE details. The MCP protocol handles the abstraction.
  */
 export class IDEIntegrationManager {
   private static instance: IDEIntegrationManager;
@@ -35,86 +34,63 @@ export class IDEIntegrationManager {
   }
 
   /**
-   * Initialize the IDE integration manager and detect available IDEs
+   * Initialize the IDE integration manager and connect to any available MCP-compatible IDE
    */
   async initialize(config: IDEIntegrationConfig): Promise<void> {
     if (this.initialized) {
       return;
     }
 
-    // Register built-in IDE integrations
-    if (!ideIntegrationRegistry.isRegistered('vscode')) {
-      ideIntegrationRegistry.register('vscode', vscodeIntegrationFactory);
-    }
+    // Create the generic MCP integration
+    try {
+      const integration = await createMCPIDEIntegration(config);
 
-    // Try to detect and connect to an available IDE
-    await this.detectAndConnect(config);
+      // Check if any MCP-compatible IDE is available
+      if (await integration.isAvailable()) {
+        await this.connectToIntegration(integration);
+        this.activeIntegration = integration;
+
+        if (config.debug) {
+          console.debug('Successfully connected to MCP-compatible IDE');
+        }
+      } else {
+        // Clean up if no IDE is available
+        await integration.cleanup();
+
+        if (config.debug) {
+          console.debug('No MCP-compatible IDE found');
+        }
+      }
+    } catch (error) {
+      if (config.debug) {
+        console.debug('Failed to initialize IDE integration:', error);
+      }
+    }
 
     this.initialized = true;
   }
 
   /**
-   * Detect available IDEs and connect to the first one found
-   */
-  private async detectAndConnect(config: IDEIntegrationConfig): Promise<void> {
-    // For now, we only support VS Code, but this can be extended
-    const integrationIds = ['vscode'];
-
-    for (const id of integrationIds) {
-      try {
-        if (config.debug) {
-          console.debug(`Checking availability of ${id} IDE integration...`);
-        }
-
-        const integration = await ideIntegrationRegistry.create(id, config);
-
-        if (await integration.isAvailable()) {
-          await this.connectToIntegration(integration);
-          this.activeIntegration = integration;
-
-          if (config.debug) {
-            console.debug(
-              `Successfully connected to ${integration.name} integration`,
-            );
-          }
-          return;
-        } else {
-          // Clean up if not available
-          await integration.cleanup();
-          ideIntegrationRegistry.unregister(id);
-        }
-      } catch (error) {
-        if (config.debug) {
-          console.debug(`Failed to connect to ${id} integration:`, error);
-        }
-      }
-    }
-
-    if (config.debug) {
-      console.debug('No IDE integrations available');
-    }
-  }
-
-  /**
-   * Connect to a specific IDE integration and set up event handlers
+   * Connect to the MCP integration and set up event handlers
    */
   private async connectToIntegration(
     integration: IDEIntegration,
   ): Promise<void> {
-    // Set up notification handler for active file changes
-    if (integration instanceof VSCodeIntegration) {
-      integration.setActiveFileChangeHandler((context) => {
-        if (context) {
-          // Convert from new ActiveFileContext to legacy ActiveFile format
-          ideContext.setActiveFileContext({
-            filePath: context.filePath,
-            cursor: context.cursor,
-          });
-        } else {
-          ideContext.clearActiveFileContext();
-        }
-      });
-    }
+    // Initialize the MCP connection
+    await integration.initialize();
+
+    // Set up notification handler for active file changes from any MCP-compatible IDE
+    integration.setActiveFileChangeHandler((context) => {
+      if (context) {
+        // Update the existing ideContext system with file context from the IDE
+        ideContext.setActiveFileContext({
+          filePath: context.filePath,
+          cursor: context.cursor,
+        });
+      } else {
+        ideContext.clearActiveFileContext();
+      }
+    });
 
     // Get initial active file context
     try {
@@ -125,9 +101,9 @@ export class IDEIntegrationManager {
           cursor: initialContext.cursor,
         });
       }
-    } catch (error) {
+    } catch (_error) {
       // Don't fail initialization if we can't get initial context
-      console.debug('Could not get initial active file context:', error);
+      // Note: config is not stored as instance variable in protocol-first design
     }
   }
 
@@ -151,9 +127,7 @@ export class IDEIntegrationManager {
   async getStatus(): Promise<{
     active: boolean;
     integration?: {
-      id: string;
-      name: string;
-      description: string;
+      type: string;
       available: boolean;
     };
   }> {
@@ -166,9 +140,7 @@ export class IDEIntegrationManager {
       return {
         active: true,
         integration: {
-          id: this.activeIntegration.id,
-          name: this.activeIntegration.name,
-          description: this.activeIntegration.description,
+          type: 'mcp',
           available,
         },
       };
@@ -176,9 +148,7 @@ export class IDEIntegrationManager {
       return {
         active: true,
         integration: {
-          id: this.activeIntegration.id,
-          name: this.activeIntegration.name,
-          description: this.activeIntegration.description,
+          type: 'mcp',
           available: false,
         },
       };
@@ -186,7 +156,7 @@ export class IDEIntegrationManager {
   }
 
   /**
-   * Clean up all IDE integrations
+   * Clean up the MCP IDE integration
    */
   async cleanup(): Promise<void> {
     if (this.activeIntegration) {
@@ -198,18 +168,15 @@ export class IDEIntegrationManager {
       this.activeIntegration = null;
     }
 
-    await ideIntegrationRegistry.cleanup();
     ideContext.clearActiveFileContext();
     this.initialized = false;
   }
 
   /**
-   * Manually connect to a specific IDE integration by ID
+   * Manually connect to the MCP IDE integration
+   * In protocol-first design, there's only one integration type (MCP)
    */
-  async connectToIDE(
-    ideId: string,
-    config: IDEIntegrationConfig,
-  ): Promise<boolean> {
+  async connectToMCP(config: IDEIntegrationConfig): Promise<boolean> {
     try {
       // Clean up current integration first
       if (this.activeIntegration) {
@@ -217,7 +184,7 @@ export class IDEIntegrationManager {
         this.activeIntegration = null;
       }
 
-      const integration = await ideIntegrationRegistry.create(ideId, config);
+      const integration = await createMCPIDEIntegration(config);
 
       if (await integration.isAvailable()) {
         await this.connectToIntegration(integration);
@@ -229,7 +196,7 @@ export class IDEIntegrationManager {
       }
     } catch (error) {
       if (config.debug) {
-        console.error(`Failed to connect to ${ideId} integration:`, error);
+        console.error('Failed to connect to MCP integration:', error);
       }
       return false;
     }

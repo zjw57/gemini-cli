@@ -14,58 +14,27 @@ vi.mock('../ideContext.js', () => ({
   },
 }));
 
-// Mock the VS Code integration factory to return our mock
-vi.mock('./vscode/index.js', () => ({
-  vscodeIntegrationFactory: vi.fn(),
+// Mock the MCP integration factory
+vi.mock('./mcpIntegration.js', () => ({
+  createMCPIDEIntegration: vi.fn(),
 }));
 
-// Mock the index.js to provide a mock registry that we can control
-vi.mock('./index.js', () => {
-  const mockRegistry = {
-    isRegistered: vi.fn(),
-    register: vi.fn(),
-    create: vi.fn(),
-    unregister: vi.fn(),
-    cleanup: vi.fn(),
-    getRegisteredIds: vi.fn(() => []),
-  };
-  return {
-    ideIntegrationRegistry: mockRegistry,
-    IDEIntegrationRegistry: vi.fn(() => mockRegistry),
-    IDEIntegrationManager: vi.fn(),
-  };
-});
-
 import { IDEIntegrationManager } from './ideIntegrationManager.js';
-import { ideIntegrationRegistry } from './index.js';
+import { createMCPIDEIntegration } from './mcpIntegration.js';
 import {
   IDEIntegration,
   IDEIntegrationConfig,
   ActiveFileContext,
 } from './types.js';
 import { ideContext } from '../ideContext.js';
-import { vscodeIntegrationFactory } from './vscode/index.js';
 
 // Mock integration for testing
-class MockIntegration implements IDEIntegration {
-  readonly id: string;
-  readonly name: string;
-  readonly description: string;
-
+class MockMCPIntegration implements IDEIntegration {
   private _isAvailable = true;
   private _activeFileContext: ActiveFileContext | null = null;
   private _fileChangeHandler?: (context: ActiveFileContext | null) => void;
 
-  constructor(
-    id: string,
-    name: string,
-    description: string,
-    private config: IDEIntegrationConfig,
-  ) {
-    this.id = id;
-    this.name = name;
-    this.description = description;
-  }
+  constructor(private config: IDEIntegrationConfig) {}
 
   // Test helpers
   setAvailable(available: boolean) {
@@ -94,23 +63,10 @@ class MockIntegration implements IDEIntegration {
 
   async cleanup(): Promise<void> {}
 
-  // Additional method for VS Code integration compatibility
   setActiveFileChangeHandler(
     handler: (context: ActiveFileContext | null) => void,
   ): void {
     this._fileChangeHandler = handler;
-  }
-}
-
-// Create a VSCodeMockIntegration that extends MockIntegration to properly simulate VSCode behavior
-class VSCodeMockIntegration extends MockIntegration {
-  constructor(config: IDEIntegrationConfig) {
-    super(
-      'vscode',
-      'Visual Studio Code',
-      'Microsoft Visual Studio Code integration via MCP over HTTP',
-      config,
-    );
   }
 }
 
@@ -131,18 +87,13 @@ describe('IDEIntegrationManager', () => {
       debug: false,
     };
 
-    // Reset all mocks and configure the mocked registry
+    // Reset all mocks
     vi.clearAllMocks();
 
-    vi.mocked(ideIntegrationRegistry.isRegistered).mockReturnValue(false);
-    vi.mocked(ideIntegrationRegistry.register).mockImplementation(() => {});
-    vi.mocked(ideIntegrationRegistry.create).mockImplementation(async () => {
-      const defaultIntegration = new VSCodeMockIntegration(mockConfig);
-      defaultIntegration.setAvailable(false);
-      return defaultIntegration;
-    });
-    vi.mocked(ideIntegrationRegistry.cleanup).mockResolvedValue();
-    vi.mocked(ideIntegrationRegistry.unregister).mockImplementation(() => {});
+    // Default mock behavior - return unavailable integration
+    const defaultMock = new MockMCPIntegration(mockConfig);
+    defaultMock.setAvailable(false);
+    vi.mocked(createMCPIDEIntegration).mockResolvedValue(defaultMock);
   });
 
   afterEach(async () => {
@@ -160,42 +111,22 @@ describe('IDEIntegrationManager', () => {
   });
 
   describe('initialize', () => {
-    it('should register built-in integrations', async () => {
-      await manager.initialize(mockConfig);
-
-      // Should register VS Code integration
-      expect(ideIntegrationRegistry.register).toHaveBeenCalledWith(
-        'vscode',
-        expect.any(Function),
-      );
-    });
-
-    it('should attempt to create integrations during initialization', async () => {
-      // Unit test: Verify manager tries to create integrations during initialization
-      const createSpy = vi.mocked(ideIntegrationRegistry.create);
-      const mockIntegration = new VSCodeMockIntegration(mockConfig);
+    it('should attempt to create MCP integration during initialization', async () => {
+      const mockIntegration = new MockMCPIntegration(mockConfig);
       mockIntegration.setAvailable(false); // Not available, so won't be connected
-      createSpy.mockResolvedValue(mockIntegration);
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
 
       await manager.initialize(mockConfig);
 
-      // Should attempt to create VS Code integration
-      expect(createSpy).toHaveBeenCalledWith('vscode', mockConfig);
+      // Should attempt to create MCP integration
+      expect(createMCPIDEIntegration).toHaveBeenCalledWith(mockConfig);
     });
 
     it('should handle no available integrations gracefully', async () => {
-      const mockIntegration = new MockIntegration(
-        'vscode',
-        'VS Code',
-        'VS Code integration',
-        mockConfig,
-      );
+      const mockIntegration = new MockMCPIntegration(mockConfig);
       mockIntegration.setAvailable(false);
 
-      // Mock registry to return unavailable integration
-      vi.mocked(ideIntegrationRegistry.create).mockResolvedValue(
-        mockIntegration,
-      );
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
 
       await manager.initialize(mockConfig);
 
@@ -203,32 +134,37 @@ describe('IDEIntegrationManager', () => {
       expect(manager.getActiveIntegration()).toBeNull();
     });
 
-    it('should only initialize once', async () => {
-      // Unit test: Test the manager's initialization flag behavior
+    it('should connect to available MCP integration', async () => {
+      const mockIntegration = new MockMCPIntegration(mockConfig);
+      mockIntegration.setAvailable(true);
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
+
       await manager.initialize(mockConfig);
-      const firstCallCount = vi.mocked(ideIntegrationRegistry.register).mock
-        .calls.length;
+
+      expect(manager.isActive()).toBe(true);
+      expect(manager.getActiveIntegration()).toBe(mockIntegration);
+    });
+
+    it('should only initialize once', async () => {
+      await manager.initialize(mockConfig);
+      const firstCallCount = vi.mocked(createMCPIDEIntegration).mock.calls
+        .length;
 
       await manager.initialize(mockConfig); // Second call
-      const secondCallCount = vi.mocked(ideIntegrationRegistry.register).mock
-        .calls.length;
+      const secondCallCount = vi.mocked(createMCPIDEIntegration).mock.calls
+        .length;
 
-      // Should not register again on second call
+      // Should not create integration again on second call
       expect(secondCallCount).toBe(firstCallCount);
     });
 
     it('should handle integration initialization errors', async () => {
-      const mockIntegration = new MockIntegration(
-        'vscode',
-        'VS Code',
-        'VS Code integration',
-        mockConfig,
-      );
+      const mockIntegration = new MockMCPIntegration(mockConfig);
       mockIntegration.setAvailable(true);
       vi.spyOn(mockIntegration, 'initialize').mockRejectedValue(
         new Error('Init failed'),
       );
-      vi.mocked(vscodeIntegrationFactory).mockResolvedValue(mockIntegration);
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
 
       // Should not throw, but should not set active integration
       await manager.initialize(mockConfig);
@@ -237,49 +173,60 @@ describe('IDEIntegrationManager', () => {
     });
   });
 
-  describe('detectAndConnect', () => {
-    it('should call registry create for VS Code during detection', async () => {
-      // Unit test: Verify that detectAndConnect calls registry.create for VS Code
-      const createSpy = vi.mocked(ideIntegrationRegistry.create);
-      const mockIntegration = new VSCodeMockIntegration(mockConfig);
+  describe('connectToMCP', () => {
+    it('should connect to available MCP integration', async () => {
+      const mockIntegration = new MockMCPIntegration(mockConfig);
+      mockIntegration.setAvailable(true);
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
+
+      const success = await manager.connectToMCP(mockConfig);
+
+      expect(success).toBe(true);
+      expect(manager.getActiveIntegration()).toBe(mockIntegration);
+    });
+
+    it('should return false for unavailable integration', async () => {
+      const mockIntegration = new MockMCPIntegration(mockConfig);
       mockIntegration.setAvailable(false);
-      createSpy.mockResolvedValue(mockIntegration);
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
 
-      await manager.initialize(mockConfig);
+      const success = await manager.connectToMCP(mockConfig);
 
-      // Should attempt to create VS Code integration during initialization
-      expect(createSpy).toHaveBeenCalledWith('vscode', mockConfig);
-    });
-  });
-
-  describe('connectToIntegration', () => {
-    it('should test connection behavior via connectToIDE', async () => {
-      // Unit test: Test the connection flow via connectToIDE
-      const mockIntegration = new VSCodeMockIntegration(mockConfig);
-      mockIntegration.setAvailable(true);
-      const getContextSpy = vi.spyOn(mockIntegration, 'getActiveFileContext');
-
-      vi.mocked(ideIntegrationRegistry.create).mockResolvedValue(
-        mockIntegration,
-      );
-
-      await manager.connectToIDE('vscode', mockConfig);
-
-      // Should attempt to get initial context when connecting
-      expect(getContextSpy).toHaveBeenCalled();
+      expect(success).toBe(false);
+      expect(manager.getActiveIntegration()).toBeNull();
     });
 
-    it('should handle context retrieval errors gracefully', async () => {
-      // Unit test: Manager should not throw when context retrieval fails
-      const mockIntegration = new VSCodeMockIntegration(mockConfig);
-      mockIntegration.setAvailable(true);
-      vi.spyOn(mockIntegration, 'getActiveFileContext').mockRejectedValue(
-        new Error('Context failed'),
-      );
-      vi.mocked(vscodeIntegrationFactory).mockResolvedValue(mockIntegration);
+    it('should clean up previous integration before connecting to new one', async () => {
+      const integration1 = new MockMCPIntegration(mockConfig);
+      const integration2 = new MockMCPIntegration(mockConfig);
 
-      // Should not throw
-      await expect(manager.initialize(mockConfig)).resolves.not.toThrow();
+      integration1.setAvailable(true);
+      integration2.setAvailable(true);
+
+      const cleanup1Spy = vi.spyOn(integration1, 'cleanup');
+
+      // First connection
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(integration1);
+      await manager.connectToMCP(mockConfig);
+      expect(manager.getActiveIntegration()).toBe(integration1);
+
+      // Second connection with different integration
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(integration2);
+      await manager.connectToMCP(mockConfig);
+
+      expect(cleanup1Spy).toHaveBeenCalled();
+      expect(manager.getActiveIntegration()).toBe(integration2);
+    });
+
+    it('should handle connection errors', async () => {
+      vi.mocked(createMCPIDEIntegration).mockRejectedValue(
+        new Error('Connection failed'),
+      );
+
+      const success = await manager.connectToMCP(mockConfig);
+
+      expect(success).toBe(false);
+      expect(manager.getActiveIntegration()).toBeNull();
     });
   });
 
@@ -292,26 +239,29 @@ describe('IDEIntegrationManager', () => {
       });
     });
 
-    it('should return status structure correctly', async () => {
-      // Unit test: Test status format without requiring full integration setup
+    it('should return active status with MCP type', async () => {
+      const mockIntegration = new MockMCPIntegration(mockConfig);
+      mockIntegration.setAvailable(true);
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
+
+      await manager.connectToMCP(mockConfig);
       const status = await manager.getStatus();
 
-      expect(status).toHaveProperty('active');
-      expect(typeof status.active).toBe('boolean');
+      expect(status).toEqual({
+        active: true,
+        integration: {
+          type: 'mcp',
+          available: true,
+        },
+      });
     });
 
     it('should handle availability check errors in status', async () => {
-      // Unit test: Test that getStatus handles errors gracefully
-      const mockIntegration = new VSCodeMockIntegration(mockConfig);
+      const mockIntegration = new MockMCPIntegration(mockConfig);
       mockIntegration.setAvailable(true);
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
 
-      // Mock the registry to return our integration
-      vi.mocked(ideIntegrationRegistry.create).mockResolvedValue(
-        mockIntegration,
-      );
-
-      const success = await manager.connectToIDE('vscode', mockConfig);
-      expect(success).toBe(true);
+      await manager.connectToMCP(mockConfig);
 
       // Make isAvailable throw an error
       vi.spyOn(mockIntegration, 'isAvailable').mockRejectedValue(
@@ -325,109 +275,14 @@ describe('IDEIntegrationManager', () => {
     });
   });
 
-  describe('connectToIDE', () => {
-    beforeEach(async () => {
-      await manager.cleanup(); // Ensure clean state
-    });
-
-    it('should connect to specific IDE integration', async () => {
-      const mockIntegration = new MockIntegration(
-        'vscode',
-        'VS Code',
-        'VS Code integration',
-        mockConfig,
-      );
-      mockIntegration.setAvailable(true);
-
-      // Mock registry to return our integration
-      vi.mocked(ideIntegrationRegistry.create).mockResolvedValue(
-        mockIntegration,
-      );
-
-      const success = await manager.connectToIDE('vscode', mockConfig);
-
-      expect(success).toBe(true);
-      expect(manager.getActiveIntegration()).toBe(mockIntegration);
-    });
-
-    it('should return false for unavailable integration', async () => {
-      const mockIntegration = new MockIntegration(
-        'vscode',
-        'VS Code',
-        'VS Code integration',
-        mockConfig,
-      );
-      mockIntegration.setAvailable(false);
-
-      // Mock registry to return unavailable integration
-      vi.mocked(ideIntegrationRegistry.create).mockResolvedValue(
-        mockIntegration,
-      );
-
-      const success = await manager.connectToIDE('vscode', mockConfig);
-
-      expect(success).toBe(false);
-      expect(manager.getActiveIntegration()).toBeNull();
-    });
-
-    it('should clean up previous integration before connecting to new one', async () => {
-      const integration1 = new MockIntegration(
-        'vscode',
-        'VS Code',
-        'VS Code integration',
-        mockConfig,
-      );
-      const integration2 = new MockIntegration(
-        'vscode',
-        'VS Code',
-        'VS Code integration v2',
-        mockConfig,
-      );
-
-      integration1.setAvailable(true);
-      integration2.setAvailable(true);
-
-      const cleanup1Spy = vi.spyOn(integration1, 'cleanup');
-
-      // First connection
-      vi.mocked(ideIntegrationRegistry.create).mockResolvedValue(integration1);
-      await manager.connectToIDE('vscode', mockConfig);
-      expect(manager.getActiveIntegration()).toBe(integration1);
-
-      // Second connection with different integration
-      vi.mocked(ideIntegrationRegistry.create).mockResolvedValue(integration2);
-      await manager.connectToIDE('vscode', mockConfig);
-
-      expect(cleanup1Spy).toHaveBeenCalled();
-      expect(manager.getActiveIntegration()).toBe(integration2);
-    });
-
-    it('should handle connection errors', async () => {
-      // Mock registry to throw error
-      vi.mocked(ideIntegrationRegistry.create).mockRejectedValue(
-        new Error('Connection failed'),
-      );
-
-      const success = await manager.connectToIDE('vscode', mockConfig);
-
-      expect(success).toBe(false);
-      expect(manager.getActiveIntegration()).toBeNull();
-    });
-  });
-
   describe('cleanup', () => {
     it('should clean up active integration', async () => {
-      // Unit test: Test cleanup via connectToIDE then cleanup
-      const mockIntegration = new VSCodeMockIntegration(mockConfig);
+      const mockIntegration = new MockMCPIntegration(mockConfig);
       mockIntegration.setAvailable(true);
       const cleanupSpy = vi.spyOn(mockIntegration, 'cleanup');
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
 
-      // Mock the registry to return our integration
-      vi.mocked(ideIntegrationRegistry.create).mockResolvedValue(
-        mockIntegration,
-      );
-
-      await manager.connectToIDE('vscode', mockConfig);
+      await manager.connectToMCP(mockConfig);
       expect(manager.isActive()).toBe(true);
 
       await manager.cleanup();
@@ -444,14 +299,9 @@ describe('IDEIntegrationManager', () => {
     });
 
     it('should reset initialization state', async () => {
-      const mockIntegration = new MockIntegration(
-        'vscode',
-        'VS Code',
-        'VS Code integration',
-        mockConfig,
-      );
+      const mockIntegration = new MockMCPIntegration(mockConfig);
       mockIntegration.setAvailable(false); // Not available to avoid connection
-      vi.mocked(vscodeIntegrationFactory).mockResolvedValue(mockIntegration);
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
 
       await manager.initialize(mockConfig);
       await manager.cleanup();
@@ -461,19 +311,14 @@ describe('IDEIntegrationManager', () => {
     });
 
     it('should handle cleanup errors gracefully', async () => {
-      const mockIntegration = new MockIntegration(
-        'vscode',
-        'VS Code',
-        'VS Code integration',
-        mockConfig,
-      );
+      const mockIntegration = new MockMCPIntegration(mockConfig);
       mockIntegration.setAvailable(true);
       vi.spyOn(mockIntegration, 'cleanup').mockRejectedValue(
         new Error('Cleanup failed'),
       );
-      vi.mocked(vscodeIntegrationFactory).mockResolvedValue(mockIntegration);
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
 
-      await manager.initialize(mockConfig);
+      await manager.connectToMCP(mockConfig);
 
       // Should not throw
       await expect(manager.cleanup()).resolves.not.toThrow();
@@ -486,15 +331,11 @@ describe('IDEIntegrationManager', () => {
     });
 
     it('should return true when integration is active', async () => {
-      // Unit test: Use connectToIDE to establish active state
-      const mockIntegration = new VSCodeMockIntegration(mockConfig);
+      const mockIntegration = new MockMCPIntegration(mockConfig);
       mockIntegration.setAvailable(true);
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
 
-      // Mock the registry to return our integration
-      vi.mocked(ideIntegrationRegistry.create).mockResolvedValue(
-        mockIntegration,
-      );
-      await manager.connectToIDE('vscode', mockConfig);
+      await manager.connectToMCP(mockConfig);
 
       expect(manager.isActive()).toBe(true);
     });
@@ -506,17 +347,62 @@ describe('IDEIntegrationManager', () => {
     });
 
     it('should return active integration', async () => {
-      // Unit test: Use connectToIDE to establish active integration
-      const mockIntegration = new VSCodeMockIntegration(mockConfig);
+      const mockIntegration = new MockMCPIntegration(mockConfig);
       mockIntegration.setAvailable(true);
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
 
-      // Mock the registry to return our integration
-      vi.mocked(ideIntegrationRegistry.create).mockResolvedValue(
-        mockIntegration,
-      );
-      await manager.connectToIDE('vscode', mockConfig);
+      await manager.connectToMCP(mockConfig);
 
       expect(manager.getActiveIntegration()).toBe(mockIntegration);
+    });
+  });
+
+  describe('file context handling', () => {
+    it('should set up file change handler during connection', async () => {
+      const mockIntegration = new MockMCPIntegration(mockConfig);
+      mockIntegration.setAvailable(true);
+      const handlerSpy = vi.spyOn(
+        mockIntegration,
+        'setActiveFileChangeHandler',
+      );
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
+
+      await manager.connectToMCP(mockConfig);
+
+      expect(handlerSpy).toHaveBeenCalledWith(expect.any(Function));
+    });
+
+    it('should update IDE context when file changes', async () => {
+      const mockIntegration = new MockMCPIntegration(mockConfig);
+      mockIntegration.setAvailable(true);
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
+
+      await manager.connectToMCP(mockConfig);
+
+      // Simulate file change
+      const testContext: ActiveFileContext = {
+        filePath: '/test/file.ts',
+        cursor: { line: 10, character: 5 },
+      };
+      mockIntegration.setActiveFileContext(testContext);
+
+      expect(ideContext.setActiveFileContext).toHaveBeenCalledWith({
+        filePath: '/test/file.ts',
+        cursor: { line: 10, character: 5 },
+      });
+    });
+
+    it('should clear IDE context when file becomes null', async () => {
+      const mockIntegration = new MockMCPIntegration(mockConfig);
+      mockIntegration.setAvailable(true);
+      vi.mocked(createMCPIDEIntegration).mockResolvedValue(mockIntegration);
+
+      await manager.connectToMCP(mockConfig);
+
+      // Simulate clearing file
+      mockIntegration.setActiveFileContext(null);
+
+      expect(ideContext.clearActiveFileContext).toHaveBeenCalled();
     });
   });
 });

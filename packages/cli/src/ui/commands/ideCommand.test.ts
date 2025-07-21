@@ -7,11 +7,7 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ideCommand } from './ideCommand.js';
 import { type CommandContext } from './types.js';
-import {
-  type Config,
-  ideIntegrationManager,
-  ideIntegrationRegistry,
-} from '@google/gemini-cli-core';
+import { type Config, ideIntegrationManager } from '@google/gemini-cli-core';
 import * as child_process from 'child_process';
 import { glob } from 'glob';
 
@@ -25,9 +21,6 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
     ideIntegrationManager: {
       initialize: vi.fn(),
       getStatus: vi.fn(),
-    },
-    ideIntegrationRegistry: {
-      getRegisteredIds: vi.fn(),
     },
   };
 });
@@ -60,7 +53,6 @@ describe('ideCommand', () => {
     vi.mocked(ideIntegrationManager.getStatus).mockResolvedValue({
       active: false,
     });
-    vi.mocked(ideIntegrationRegistry.getRegisteredIds).mockReturnValue([]);
   });
 
   afterEach(() => {
@@ -92,15 +84,10 @@ describe('ideCommand', () => {
       vi.mocked(ideIntegrationManager.getStatus).mockResolvedValue({
         active: true,
         integration: {
-          id: 'vscode',
-          name: 'Visual Studio Code',
-          description: 'VS Code integration via MCP',
+          type: 'mcp',
           available: true,
         },
       });
-      vi.mocked(ideIntegrationRegistry.getRegisteredIds).mockReturnValue([
-        'vscode',
-      ]);
 
       const command = ideCommand(mockConfig);
       const result = await command?.subCommands?.[0].action(mockContext, '');
@@ -113,7 +100,7 @@ describe('ideCommand', () => {
       expect(result).toEqual({
         type: 'message',
         messageType: 'info',
-        content: expect.stringContaining('🟢 Visual Studio Code - Connected'),
+        content: expect.stringContaining('🟢 MCP Integration - Connected'),
       });
     });
 
@@ -121,15 +108,10 @@ describe('ideCommand', () => {
       vi.mocked(ideIntegrationManager.getStatus).mockResolvedValue({
         active: true,
         integration: {
-          id: 'vscode',
-          name: 'Visual Studio Code',
-          description: 'VS Code integration via MCP',
+          type: 'mcp',
           available: false,
         },
       });
-      vi.mocked(ideIntegrationRegistry.getRegisteredIds).mockReturnValue([
-        'vscode',
-      ]);
 
       const command = ideCommand(mockConfig);
       const result = await command?.subCommands?.[0].action(mockContext, '');
@@ -137,9 +119,7 @@ describe('ideCommand', () => {
       expect(result).toEqual({
         type: 'message',
         messageType: 'error',
-        content: expect.stringContaining(
-          '🔴 Visual Studio Code - Disconnected',
-        ),
+        content: expect.stringContaining('🔴 MCP Integration - Disconnected'),
       });
     });
 
@@ -147,9 +127,6 @@ describe('ideCommand', () => {
       vi.mocked(ideIntegrationManager.getStatus).mockResolvedValue({
         active: false,
       });
-      vi.mocked(ideIntegrationRegistry.getRegisteredIds).mockReturnValue([
-        'vscode',
-      ]);
 
       const command = ideCommand(mockConfig);
       const result = await command?.subCommands?.[0].action(mockContext, '');
@@ -158,22 +135,6 @@ describe('ideCommand', () => {
         type: 'message',
         messageType: 'error',
         content: expect.stringContaining('🔴 No IDE integration active'),
-      });
-    });
-
-    it('should show no registered integrations', async () => {
-      vi.mocked(ideIntegrationManager.getStatus).mockResolvedValue({
-        active: false,
-      });
-      vi.mocked(ideIntegrationRegistry.getRegisteredIds).mockReturnValue([]);
-
-      const command = ideCommand(mockConfig);
-      const result = await command?.subCommands?.[0].action(mockContext, '');
-
-      expect(result).toEqual({
-        type: 'message',
-        messageType: 'error',
-        content: expect.stringContaining('⚠️  No IDE integrations registered'),
       });
     });
   });
