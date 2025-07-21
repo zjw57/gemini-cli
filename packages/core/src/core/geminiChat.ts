@@ -90,6 +90,8 @@ function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
   if (comprehensiveHistory === undefined || comprehensiveHistory.length === 0) {
     return [];
   }
+  console.log('comprehensiveHistory', comprehensiveHistory.map((content) => content.parts?.map((part) => part.text).join('')));
+
   const curatedHistory: Content[] = [];
   const length = comprehensiveHistory.length;
   let i = 0;
@@ -115,6 +117,8 @@ function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
       }
     }
   }
+  console.log('curatedHistory', curatedHistory.map((content) => content.parts?.map((part) => part.text).join('')));
+
   return curatedHistory;
 }
 
