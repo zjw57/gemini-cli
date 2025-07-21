@@ -32,8 +32,8 @@ This documentation is organized into the following sections:
   - **[Memory Tool](./tools/memory.md):** Documentation for the `save_memory` tool.
 - **Extensibility:**
   - **IDE Integration:** Protocol-first IDE integration system using Model Context Protocol (MCP).
+    - **[Developer Guide](./ide-integrations/developer-guide.md):** How to create IDE companion extensions and MCP servers.  
     - **[Architecture](./ide-integrations/architecture.md):** System overview and protocol-first design details.
-    - **[Developer Guide](./ide-integrations/developer-guide.md):** How to create IDE companion extensions and MCP servers.
     - **[Troubleshooting](./ide-integrations/troubleshooting.md):** Debug and resolve IDE integration issues.
 - **[Contributing & Development Guide](../CONTRIBUTING.md):** Information for contributors and developers, including setup, building, testing, and coding conventions.
 - **[NPM Workspaces and Publishing](./npm.md):** Details on how the project's packages are managed and published.
