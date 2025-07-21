@@ -80,46 +80,6 @@ function validateHistory(history: Content[]) {
 }
 
 /**
- * Extracts the curated (valid) history from a comprehensive history.
- *
- * @remarks
- * The model may sometimes generate invalid or empty contents(e.g., due to safety
- * filters or recitation). Extracting valid turns from the history
- * ensures that subsequent requests could be accepted by the model.
- */
-function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
-  if (comprehensiveHistory === undefined || comprehensiveHistory.length === 0) {
-    return [];
-  }
-  const curatedHistory: Content[] = [];
-  const length = comprehensiveHistory.length;
-  let i = 0;
-  while (i < length) {
-    if (comprehensiveHistory[i].role === 'user') {
-      curatedHistory.push(comprehensiveHistory[i]);
-      i++;
-    } else {
-      const modelOutput: Content[] = [];
-      let isValid = true;
-      while (i < length && comprehensiveHistory[i].role === 'model') {
-        modelOutput.push(comprehensiveHistory[i]);
-        if (isValid && !isValidContent(comprehensiveHistory[i])) {
-          isValid = false;
-        }
-        i++;
-      }
-      if (isValid) {
-        curatedHistory.push(...modelOutput);
-      } else {
-        // Remove the last user input when model content is invalid.
-        curatedHistory.pop();
-      }
-    }
-  }
-  return curatedHistory;
-}
-
-/**
  * Chat session that enables sending messages to the model with previous
  * conversation context.
  *
@@ -272,7 +232,7 @@ export class GeminiChat {
   ): Promise<GenerateContentResponse> {
     await this.sendPromise;
     const userContent = createUserContent(params.message);
-    const requestContents = this.getHistory(true).concat(userContent);
+    const requestContents = this.getHistory().concat(userContent);
 
     this._logApiRequest(requestContents, this.config.getModel(), prompt_id);
 
@@ -327,7 +287,7 @@ export class GeminiChat {
         // to deduplicate the existing chat history.
         const fullAutomaticFunctionCallingHistory =
           response.automaticFunctionCallingHistory;
-        const index = this.getHistory(true).length;
+        const index = this.getHistory().length;
         let automaticFunctionCallingHistory: Content[] = [];
         if (fullAutomaticFunctionCallingHistory != null) {
           automaticFunctionCallingHistory =
@@ -381,7 +341,7 @@ export class GeminiChat {
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
     await this.sendPromise;
     const userContent = createUserContent(params.message);
-    const requestContents = this.getHistory(true).concat(userContent);
+    const requestContents = this.getHistory().concat(userContent);
     this._logApiRequest(requestContents, this.config.getModel(), prompt_id);
 
     const startTime = Date.now();
@@ -453,30 +413,19 @@ export class GeminiChat {
    * @remarks
    * The history is a list of contents alternating between user and model.
    *
-   * There are two types of history:
-   * - The `curated history` contains only the valid turns between user and
-   * model, which will be included in the subsequent requests sent to the model.
-   * - The `comprehensive history` contains all turns, including invalid or
-   *   empty model outputs, providing a complete record of the history.
+   * The history is updated after receiving the response from the model;
+   * for streaming responses, this means after receiving the last chunk.
    *
-   * The history is updated after receiving the response from the model,
-   * for streaming response, it means receiving the last chunk of the response.
-   *
-   * The `comprehensive history` is returned by default. To get the `curated
-   * history`, set the `curated` parameter to `true`.
-   *
-   * @param curated - whether to return the curated history or the comprehensive
-   *     history.
-   * @return History contents alternating between user and model for the entire
-   *     chat session.
+   * @return A deep copy of the history contents, alternating between user and
+   *     model for the entire chat session.
    */
-  getHistory(curated: boolean = false): Content[] {
-    const history = curated
-      ? extractCuratedHistory(this.history)
-      : this.history;
+  getHistory(): Content[] {
+    if (this.history === undefined || this.history.length === 0) {
+      return [];
+    }
     // Deep copy the history to avoid mutating the history outside of the
     // chat session.
-    return structuredClone(history);
+    return structuredClone(this.history);
   }
 
   /**
@@ -593,9 +542,7 @@ export class GeminiChat {
       automaticFunctionCallingHistory &&
       automaticFunctionCallingHistory.length > 0
     ) {
-      this.history.push(
-        ...extractCuratedHistory(automaticFunctionCallingHistory),
-      );
+      this.history.push(...automaticFunctionCallingHistory);
     } else {
       this.history.push(userInput);
     }
