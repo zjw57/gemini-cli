@@ -83,4 +83,3 @@ export interface IDEIntegrationConfig {
    */
   debug?: boolean;
 }
-

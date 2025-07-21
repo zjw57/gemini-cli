@@ -17,7 +17,9 @@ interface IDEIntegration {
   isAvailable(): Promise<boolean>;
   getActiveFileContext(): Promise<ActiveFileContext | null>;
   sendNotification(message: string): Promise<void>;
-  setActiveFileChangeHandler(handler: (context: ActiveFileContext | null) => void): void;
+  setActiveFileChangeHandler(
+    handler: (context: ActiveFileContext | null) => void,
+  ): void;
   initialize(): Promise<void>;
   cleanup(): Promise<void>;
 }
@@ -32,7 +34,8 @@ Checks if an MCP-compatible IDE is currently available and can be connected to.
 **Returns**: Promise that resolves to `true` if an MCP server is detected and responding.
 
 **Implementation**: Tests connection to MCP servers discovered through:
-- Environment variable `GEMINI_CLI_IDE_SERVER_PORT`  
+
+- Environment variable `GEMINI_CLI_IDE_SERVER_PORT`
 - Well-known ports (58767, 3000, 8080)
 
 ##### `getActiveFileContext(): Promise<ActiveFileContext | null>`
@@ -48,6 +51,7 @@ Gets the currently active file context from the connected IDE via MCP.
 Sends a notification to the connected IDE via MCP (if supported by the IDE).
 
 **Parameters**:
+
 - `message` - The message to send to the IDE
 
 **Returns**: Promise that resolves when the notification is sent.
@@ -59,6 +63,7 @@ Sends a notification to the connected IDE via MCP (if supported by the IDE).
 Sets up a handler for active file change notifications from the IDE.
 
 **Parameters**:
+
 - `handler` - Callback function invoked when the active file changes
 
 **MCP Implementation**: Listens for `activeFileNotification` messages from the MCP server.
@@ -69,7 +74,8 @@ Initializes the MCP connection to detect and connect to any available IDE.
 
 **Returns**: Promise that resolves when MCP connection is established.
 
-**Implementation**: 
+**Implementation**:
+
 1. Discovers available MCP servers
 2. Establishes HTTP connection
 3. Verifies required MCP tools are available
@@ -105,6 +111,7 @@ The absolute path to the currently active file.
 ##### `cursor?: { line: number; character: number }`
 
 Optional cursor position information.
+
 - `line` - Zero-based line number
 - `character` - Zero-based character position within the line
 
@@ -127,6 +134,7 @@ interface IDEIntegrationConfig {
 Environment variables that might be needed for the integration.
 
 **Key Variables**:
+
 - `GEMINI_CLI_IDE_SERVER_PORT` - Primary MCP server discovery method
 - `TERM_PROGRAM` - IDE environment detection (legacy)
 
@@ -135,8 +143,9 @@ Environment variables that might be needed for the integration.
 Optional timeout for operations in milliseconds.
 
 **Defaults**:
+
 - Availability checks: 5000ms
-- Initialization: 10000ms  
+- Initialization: 10000ms
 - Tool calls: 5000ms
 
 ##### `debug?: boolean`
@@ -152,22 +161,25 @@ The generic MCP-based IDE integration that works with any MCP-compatible IDE.
 ```typescript
 class MCPIDEIntegration implements IDEIntegration {
   constructor(config: IDEIntegrationConfig);
-  
+
   async isAvailable(): Promise<boolean>;
   async getActiveFileContext(): Promise<ActiveFileContext | null>;
   async sendNotification(message: string): Promise<void>;
-  setActiveFileChangeHandler(handler: (context: ActiveFileContext | null) => void): void;
+  setActiveFileChangeHandler(
+    handler: (context: ActiveFileContext | null) => void,
+  ): void;
   async initialize(): Promise<void>;
   async cleanup(): Promise<void>;
 }
 ```
 
 **Usage**:
+
 ```typescript
 const integration = new MCPIDEIntegration({
   environment: process.env,
   timeout: 5000,
-  debug: true
+  debug: true,
 });
 
 await integration.initialize();
@@ -181,11 +193,13 @@ Generic MCP transport that handles server discovery and communication.
 ```typescript
 class MCPTransport {
   constructor(config: IDEIntegrationConfig);
-  
+
   async isAvailable(): Promise<boolean>;
   async initialize(): Promise<void>;
   async getActiveFile(): Promise<ActiveFileContext | null>;
-  setNotificationHandler(handler: (context: ActiveFileContext | null) => void): void;
+  setNotificationHandler(
+    handler: (context: ActiveFileContext | null) => void,
+  ): void;
   async sendNotification(message: string): Promise<void>;
   async cleanup(): Promise<void>;
 }
@@ -196,11 +210,13 @@ class MCPTransport {
 The transport uses multiple methods to discover MCP servers:
 
 1. **Environment Variable** (Primary):
+
    ```typescript
    const port = config.environment.GEMINI_CLI_IDE_SERVER_PORT;
    ```
 
 2. **Well-known Ports** (Fallback):
+
    ```typescript
    const wellKnownPorts = [58767, 3000, 8080];
    ```
@@ -210,7 +226,7 @@ The transport uses multiple methods to discover MCP servers:
    // Test each discovered server
    const response = await fetch(`http://localhost:${port}/mcp`, {
      method: 'GET',
-     timeout: 2000
+     timeout: 2000,
    });
    // Expect HTTP 400 for MCP discovery
    ```
@@ -222,9 +238,9 @@ Simplified manager for the single MCP integration.
 ```typescript
 class IDEIntegrationManager {
   async initialize(config: IDEIntegrationConfig): Promise<void>;
-  async getStatus(): Promise<{ 
-    active: boolean; 
-    integration?: { type: string; available: boolean } 
+  async getStatus(): Promise<{
+    active: boolean;
+    integration?: { type: string; available: boolean };
   }>;
   async connectToMCP(config: IDEIntegrationConfig): Promise<boolean>;
   getActiveIntegration(): IDEIntegration | null;
@@ -254,7 +270,7 @@ class IDEIntegrationManager {
 {
   active: true,
   integration: {
-    type: 'mcp', 
+    type: 'mcp',
     available: false
   }
 }
@@ -280,18 +296,20 @@ IDE MCP servers must implement the following tools:
 ```
 
 **Response Formats**:
+
 ```typescript
 // With cursor position
-"Active file: /path/to/file.ts (line: 10, char: 5)"
+'Active file: /path/to/file.ts (line: 10, char: 5)';
 
-// Without cursor position  
-"Active file: /path/to/file.ts"
+// Without cursor position
+'Active file: /path/to/file.ts';
 
 // No active file
-"No file is currently active"
+'No file is currently active';
 ```
 
 **MCP Response Structure**:
+
 ```typescript
 {
   "jsonrpc": "2.0",
@@ -338,6 +356,7 @@ export GEMINI_CLI_IDE_SERVER_PORT=58767
 ```
 
 Your extension should:
+
 1. Start an MCP server on the specified port
 2. Implement the required `getActiveFile` tool
 3. Set the environment variable for discovery
@@ -346,6 +365,7 @@ Your extension should:
 ### For Gemini CLI Users
 
 The integration is automatically detected when:
+
 - An IDE companion extension is running an MCP server
 - The server is accessible on a discoverable port
 - The server implements required MCP tools
@@ -396,13 +416,14 @@ The protocol-first architecture replaces the previous registry-based system:
 ### Removed Concepts
 
 - `IDEIntegrationRegistry` - No longer needed
-- `IDEIntegrationFactory` - Replaced by direct instantiation  
+- `IDEIntegrationFactory` - Replaced by direct instantiation
 - IDE-specific integration classes - Replaced by generic MCP integration
 - `id`, `name`, `description` properties - No longer relevant
 
 ### Migration Path
 
 **Before** (Registry-based):
+
 ```typescript
 const registry = new IDEIntegrationRegistry();
 registry.register('vscode', vscodeFactory);
@@ -410,6 +431,7 @@ const integration = await registry.create('vscode', config);
 ```
 
 **After** (Protocol-first):
+
 ```typescript
 const integration = new MCPIDEIntegration(config);
 await integration.initialize(); // Auto-discovers any MCP-compatible IDE
@@ -421,7 +443,7 @@ The protocol-first architecture enables:
 
 - **WebSocket MCP connections** for better performance
 - **Bidirectional notifications** for real-time updates
-- **Multi-workspace support** for complex projects  
+- **Multi-workspace support** for complex projects
 - **Language-specific context** for better suggestions
 - **Debugging integration** for development workflows
 

@@ -30,6 +30,7 @@ Use the `/ide status` command to see the current MCP integration state:
 ```
 
 Expected responses:
+
 - `🟢 MCP Integration - Connected` - Working properly
 - `🔴 No IDE integration active` - No MCP server found
 
@@ -38,6 +39,7 @@ Expected responses:
 ### 1. No IDE Integration Active
 
 **Symptoms**:
+
 - `/ide status` shows "🔴 No IDE integration active"
 - Debug logs show "No MCP-compatible IDE found"
 
@@ -57,6 +59,7 @@ curl -X GET http://localhost:58767/mcp
 ```
 
 **Solutions**:
+
 1. **VS Code**: Ensure companion extension is installed and enabled
 2. **Other IDEs**: Verify your IDE extension/plugin is running the MCP server
 3. **Custom IDEs**: Check that your MCP server implementation is correct
@@ -87,6 +90,7 @@ telnet localhost 58767
 ```
 
 **Solutions**:
+
 - Restart IDE extension/plugin
 - Check firewall settings
 - Try alternative ports (3000, 8080)
@@ -97,6 +101,7 @@ telnet localhost 58767
 #### Wrong Port Detection
 
 **Symptoms**:
+
 - Connection timeouts
 - "No MCP-compatible IDE server found" errors
 
@@ -111,6 +116,7 @@ done
 ```
 
 **Solutions**:
+
 1. Set `GEMINI_CLI_IDE_SERVER_PORT` explicitly
 2. Configure your IDE extension to use a specific port
 3. Check IDE extension logs for startup errors
@@ -118,6 +124,7 @@ done
 #### MCP Server Not Responding Correctly
 
 **Symptoms**:
+
 - Server responds but Gemini CLI doesn't detect it
 - HTTP errors other than 400 for GET requests
 
@@ -142,6 +149,7 @@ curl -X POST http://localhost:58767/mcp \
 ```
 
 **Expected Response**:
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -162,6 +170,7 @@ curl -X POST http://localhost:58767/mcp \
 #### Extension Not Starting MCP Server
 
 **Symptoms**:
+
 - `GEMINI_CLI_IDE_SERVER_PORT` not set in VS Code terminal
 - Extension errors in VS Code output
 
@@ -172,6 +181,7 @@ curl -X POST http://localhost:58767/mcp \
 3. Look for server startup logs and errors
 
 **Common Solutions**:
+
 - Restart VS Code completely
 - Reinstall extension: `/ide install`
 - Check VS Code version (requires 1.101.0+)
@@ -180,6 +190,7 @@ curl -X POST http://localhost:58767/mcp \
 #### Port Conflicts
 
 **Symptoms**:
+
 - "Port already in use" in VS Code output
 - Extension fails to start server
 
@@ -197,6 +208,7 @@ lsof -ti:58767 | xargs kill -9
 #### MCP Tool Not Implemented
 
 **Symptoms**:
+
 - Connection established but "No file is currently active" always returned
 - MCP tool call errors in debug logs
 
@@ -224,6 +236,7 @@ Your IDE's MCP server must implement the `getActiveFile` tool:
 #### Incorrect MCP Response Format
 
 **Symptoms**:
+
 - JSON parsing errors in debug logs
 - "Invalid MCP response" messages
 
@@ -238,6 +251,7 @@ curl -X POST http://localhost:58767/mcp \
 ```
 
 **Required Fields**:
+
 - `jsonrpc: "2.0"`
 - `id: <matching request id>`
 - `result.content[0].type: "text"`
@@ -250,10 +264,12 @@ curl -X POST http://localhost:58767/mcp \
 #### Security Restrictions
 
 **Symptoms**:
+
 - "App can't be opened" messages for IDE extensions
 - Network permission dialogs
 
 **Solutions**:
+
 - Grant network permissions to IDE and extensions
 - Allow extensions in Security & Privacy settings
 - Use signed extensions when available
@@ -261,6 +277,7 @@ curl -X POST http://localhost:58767/mcp \
 #### Localhost Resolution
 
 **Symptoms**:
+
 - Connection timeouts on localhost
 - IPv6/IPv4 resolution issues
 
@@ -280,10 +297,12 @@ curl -X GET http://127.0.0.1:58767/mcp
 #### Firewall Blocking
 
 **Symptoms**:
+
 - Connection timeouts
 - Windows Defender/Firewall alerts
 
 **Solutions**:
+
 - Add IDE and Gemini CLI to Windows Defender exclusions
 - Configure firewall rules for localhost connections
 - Run IDE as administrator if needed
@@ -291,6 +310,7 @@ curl -X GET http://127.0.0.1:58767/mcp
 #### Process Communication
 
 **Symptoms**:
+
 - Environment variables not inherited
 - Extension processes fail to start
 
@@ -309,6 +329,7 @@ Get-ChildItem Env: | Where-Object {$_.Name -like "*GEMINI*"}
 #### Permission Issues
 
 **Symptoms**:
+
 - Port binding failures
 - Socket permission errors
 
@@ -328,6 +349,7 @@ sudo setcap 'cap_net_bind_service=+ep' /path/to/ide
 #### AppImage/Snap Restrictions
 
 **Symptoms**:
+
 - Environment variables not passed to sandboxed apps
 - Network restrictions
 
@@ -348,6 +370,7 @@ snap connect ide-app:network
 ### Connection Timeouts
 
 **Symptoms**:
+
 - "Connection timeout" errors in debug logs
 - MCP server discovery fails
 
@@ -365,6 +388,7 @@ sudo tcpdump -i lo port 58767
 ```
 
 **Solutions**:
+
 - Increase timeout values in Gemini CLI
 - Check for interfering VPN/proxy software
 - Try different network interfaces
@@ -373,10 +397,12 @@ sudo tcpdump -i lo port 58767
 ### HTTP Protocol Issues
 
 **Symptoms**:
+
 - Protocol mismatch errors
 - SSL/TLS connection failures
 
 **Solutions**:
+
 - Ensure MCP server uses HTTP (not HTTPS) for localhost
 - Check Content-Type headers in requests/responses
 - Validate JSON-RPC 2.0 format compliance
@@ -386,6 +412,7 @@ sudo tcpdump -i lo port 58767
 ### High Latency
 
 **Symptoms**:
+
 - Slow response to file changes
 - Delayed active file detection
 
@@ -399,6 +426,7 @@ time curl -X POST http://localhost:58767/mcp \
 ```
 
 **Solutions**:
+
 - Optimize IDE extension implementation
 - Use local caching for file information
 - Implement connection pooling
@@ -406,10 +434,12 @@ time curl -X POST http://localhost:58767/mcp \
 ### Resource Usage
 
 **Symptoms**:
+
 - High CPU usage from MCP server
 - Memory leaks in IDE extensions
 
 **Solutions**:
+
 - Monitor MCP server resource usage
 - Implement proper connection cleanup
 - Use efficient polling strategies
@@ -502,6 +532,7 @@ jq . ~/.config/gemini-cli/settings.json
 ### Environment Variable Conflicts
 
 **Symptoms**:
+
 - Wrong ports detected
 - IDE misidentification
 
@@ -516,6 +547,7 @@ grep -r GEMINI_CLI ~/.bashrc ~/.zshrc ~/.profile
 ```
 
 **Solutions**:
+
 - Clear conflicting variables
 - Set variables in IDE-specific profiles
 - Use explicit port configuration
@@ -527,6 +559,7 @@ grep -r GEMINI_CLI ~/.bashrc ~/.zshrc ~/.profile
 When reporting issues, include:
 
 1. **System Information**:
+
    ```bash
    uname -a
    gemini-cli --version
@@ -534,16 +567,18 @@ When reporting issues, include:
    ```
 
 2. **IDE Information**:
+
    ```bash
    # VS Code
    code --version
-   
+
    # Generic
    which ide-executable
    ide-executable --version
    ```
 
 3. **Network Status**:
+
    ```bash
    netstat -an | grep -E "(58767|3000|8080)"
    lsof -i :58767
@@ -551,6 +586,7 @@ When reporting issues, include:
    ```
 
 4. **Environment Variables**:
+
    ```bash
    env | grep -E "(GEMINI|IDE|MCP)" > env.txt
    ```
@@ -587,7 +623,7 @@ for port in 58767 3000 8080; do
     else
         echo "  Available"
     fi
-    
+
     echo "  Connection test:"
     if timeout 2s curl -s -X GET http://localhost:$port/mcp >/dev/null 2>&1; then
         echo "    ✓ Responds"

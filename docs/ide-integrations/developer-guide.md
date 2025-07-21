@@ -67,13 +67,13 @@ Your MCP server should return one of these formats:
 
 ```typescript
 // With cursor position
-"Active file: /path/to/file.ts (line: 10, char: 5)"
+'Active file: /path/to/file.ts (line: 10, char: 5)';
 
-// Without cursor position  
-"Active file: /path/to/file.ts"
+// Without cursor position
+'Active file: /path/to/file.ts';
 
 // No active file
-"No file is currently active"
+'No file is currently active';
 ```
 
 ### Step 2: Set Up Environment Variables
@@ -86,6 +86,7 @@ export GEMINI_CLI_IDE_SERVER_PORT=58767
 ```
 
 Gemini CLI will automatically discover MCP servers using:
+
 1. The `GEMINI_CLI_IDE_SERVER_PORT` environment variable (primary)
 2. Well-known ports: 58767, 3000, 8080 (fallback)
 
@@ -115,19 +116,19 @@ For real-time file change updates, implement MCP notifications:
 // IntelliJ plugin that runs an MCP server
 class GeminiCliMCPServer : ApplicationComponent {
     private var mcpServer: HttpServer? = null
-    
+
     override fun initComponent() {
         // Start MCP server on port from environment or default
         val port = System.getenv("GEMINI_CLI_IDE_SERVER_PORT")?.toIntOrNull() ?: 58767
         startMCPServer(port)
-        
+
         // Set environment variable for discovery
         System.setProperty("GEMINI_CLI_IDE_SERVER_PORT", port.toString())
     }
-    
+
     private fun startMCPServer(port: Int) {
         mcpServer = HttpServer.create(InetSocketAddress(port), 0)
-        
+
         // Implement getActiveFile tool
         mcpServer?.createContext("/mcp") { exchange ->
             when (exchange.requestMethod) {
@@ -139,39 +140,39 @@ class GeminiCliMCPServer : ApplicationComponent {
                 }
             }
         }
-        
+
         mcpServer?.start()
     }
-    
+
     private fun handleMCPRequest(exchange: HttpExchange) {
         val request = exchange.requestBody.bufferedReader().readText()
         val mcpRequest = parseRequest(request)
-        
-        if (mcpRequest.method == "tools/call" && 
+
+        if (mcpRequest.method == "tools/call" &&
             mcpRequest.params.name == "getActiveFile") {
-            
+
             val activeFile = getActiveFileFromIDE()
             val response = createMCPResponse(activeFile)
-            
+
             exchange.responseHeaders.set("Content-Type", "application/json")
             exchange.sendResponseHeaders(200, response.length.toLong())
             exchange.responseBody.write(response.toByteArray())
             exchange.responseBody.close()
         }
     }
-    
+
     private fun getActiveFileFromIDE(): String {
         val fileEditorManager = FileEditorManager.getInstance(project)
         val selectedEditor = fileEditorManager.selectedEditor as? TextEditor
         val virtualFile = selectedEditor?.editor?.virtualFile
-        
+
         return if (virtualFile != null) {
             val filePath = virtualFile.path
             val editor = selectedEditor.editor
             val caretModel = editor.caretModel
             val line = caretModel.logicalPosition.line
             val char = caretModel.logicalPosition.column
-            
+
             "Active file: $filePath (line: $line, char: $char)"
         } else {
             "No file is currently active"
@@ -186,11 +187,11 @@ class GeminiCliMCPServer : ApplicationComponent {
 " Vim plugin that starts MCP server
 function! StartGeminiMCPServer()
     let l:port = $GEMINI_CLI_IDE_SERVER_PORT != "" ? $GEMINI_CLI_IDE_SERVER_PORT : 58767
-    
+
     " Start Python MCP server
     let l:server_script = expand('<sfile>:p:h') . '/mcp_server.py'
     let l:job = job_start(['python3', l:server_script, l:port])
-    
+
     " Set environment variable
     let $GEMINI_CLI_IDE_SERVER_PORT = l:port
 endfunction
@@ -211,16 +212,16 @@ class MCPHandler(BaseHTTPRequestHandler):
         # Return 400 for GET requests (MCP discovery)
         self.send_response(400)
         self.end_headers()
-    
+
     def do_POST(self):
         if self.path == '/mcp':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
-            
+
             try:
                 request = json.loads(post_data.decode('utf-8'))
                 response = self.handle_mcp_request(request)
-                
+
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
@@ -228,11 +229,11 @@ class MCPHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_response(500)
                 self.end_headers()
-    
+
     def handle_mcp_request(self, request):
-        if (request.get('method') == 'tools/call' and 
+        if (request.get('method') == 'tools/call' and
             request.get('params', {}).get('name') == 'getActiveFile'):
-            
+
             # Get active file from Vim
             try:
                 current_file = vim.current.buffer.name
@@ -242,7 +243,7 @@ class MCPHandler(BaseHTTPRequestHandler):
                     result = f"Active file: {current_file} (line: {line}, char: {col})"
                 else:
                     result = "No file is currently active"
-                
+
                 return {
                     "jsonrpc": "2.0",
                     "id": request.get("id"),
@@ -272,42 +273,43 @@ The existing VS Code extension serves as a reference implementation:
 ```typescript
 // See packages/vscode-ide-companion/ for complete implementation
 export class IDEServer {
-    async start(port: number): Promise<void> {
-        const app = express();
-        app.use(cors());
-        app.use(express.json());
-        
-        // Set environment variable for discovery
-        process.env.GEMINI_CLI_IDE_SERVER_PORT = port.toString();
-        
-        // MCP endpoint
-        app.all('/mcp', async (req, res) => {
-            if (req.method === 'GET') {
-                return res.status(400).end();
-            }
-            
-            // Handle MCP requests
-            const response = await this.handleMCPRequest(req.body);
-            res.json(response);
-        });
-        
-        this.server = app.listen(port, 'localhost');
+  async start(port: number): Promise<void> {
+    const app = express();
+    app.use(cors());
+    app.use(express.json());
+
+    // Set environment variable for discovery
+    process.env.GEMINI_CLI_IDE_SERVER_PORT = port.toString();
+
+    // MCP endpoint
+    app.all('/mcp', async (req, res) => {
+      if (req.method === 'GET') {
+        return res.status(400).end();
+      }
+
+      // Handle MCP requests
+      const response = await this.handleMCPRequest(req.body);
+      res.json(response);
+    });
+
+    this.server = app.listen(port, 'localhost');
+  }
+
+  private async handleMCPRequest(request: any): Promise<any> {
+    if (
+      request.method === 'tools/call' &&
+      request.params?.name === 'getActiveFile'
+    ) {
+      const activeFile = this.getActiveFile();
+      return {
+        jsonrpc: '2.0',
+        id: request.id,
+        result: {
+          content: [{ type: 'text', text: activeFile }],
+        },
+      };
     }
-    
-    private async handleMCPRequest(request: any): Promise<any> {
-        if (request.method === 'tools/call' && 
-            request.params?.name === 'getActiveFile') {
-            
-            const activeFile = this.getActiveFile();
-            return {
-                jsonrpc: "2.0",
-                id: request.id,
-                result: {
-                    content: [{ type: "text", text: activeFile }]
-                }
-            };
-        }
-    }
+  }
 }
 ```
 
@@ -361,11 +363,11 @@ Always handle errors gracefully in your MCP server:
 
 ```typescript
 try {
-    const activeFile = await getActiveFile();
-    return createSuccessResponse(activeFile);
+  const activeFile = await getActiveFile();
+  return createSuccessResponse(activeFile);
 } catch (error) {
-    console.error('Error getting active file:', error);
-    return createErrorResponse("No file is currently active");
+  console.error('Error getting active file:', error);
+  return createErrorResponse('No file is currently active');
 }
 ```
 
@@ -375,14 +377,14 @@ Handle port conflicts gracefully:
 
 ```typescript
 async function findAvailablePort(preferredPort: number): Promise<number> {
-    // Try preferred port first, then find alternatives
-    const ports = [preferredPort, 58767, 3000, 8080];
-    for (const port of ports) {
-        if (await isPortAvailable(port)) {
-            return port;
-        }
+  // Try preferred port first, then find alternatives
+  const ports = [preferredPort, 58767, 3000, 8080];
+  for (const port of ports) {
+    if (await isPortAvailable(port)) {
+      return port;
     }
-    throw new Error('No available ports for MCP server');
+  }
+  throw new Error('No available ports for MCP server');
 }
 ```
 
@@ -397,9 +399,9 @@ process.env.GEMINI_CLI_IDE_SERVER_PORT = port.toString();
 
 // Also set for child processes if needed
 if (process.platform === 'win32') {
-    // Windows-specific environment variable setting
+  // Windows-specific environment variable setting
 } else {
-    // Unix-like systems
+  // Unix-like systems
 }
 ```
 
@@ -410,13 +412,13 @@ Clean up resources properly:
 ```typescript
 // Extension deactivation
 export function deactivate() {
-    if (mcpServer) {
-        mcpServer.close();
-        mcpServer = null;
-    }
-    
-    // Clear environment variable
-    delete process.env.GEMINI_CLI_IDE_SERVER_PORT;
+  if (mcpServer) {
+    mcpServer.close();
+    mcpServer = null;
+  }
+
+  // Clear environment variable
+  delete process.env.GEMINI_CLI_IDE_SERVER_PORT;
 }
 ```
 
@@ -471,7 +473,7 @@ When contributing IDE integrations:
 The protocol-first architecture supports future enhancements:
 
 - **WebSocket MCP connections** for better performance
-- **Bidirectional notifications** for real-time updates  
+- **Bidirectional notifications** for real-time updates
 - **Multi-workspace support** for complex projects
 - **Language-specific context** for better suggestions
 - **Debugging integration** for development workflows

@@ -53,21 +53,22 @@ gemini-cli-companion/
 ### 2. Plugin Configuration
 
 **`src/main/resources/META-INF/plugin.xml`**:
+
 ```xml
 <idea-plugin>
   <id>com.google.gemini-cli-companion</id>
   <name>Gemini CLI Companion</name>
   <vendor email="support@google.com" url="https://github.com/google/gemini-cli">Google</vendor>
-  
+
   <description><![CDATA[
-    JetBrains IDE companion for Gemini CLI. Provides context about active files 
+    JetBrains IDE companion for Gemini CLI. Provides context about active files
     and editor state via Model Context Protocol (MCP).
   ]]></description>
 
   <depends>com.intellij.modules.platform</depends>
-  
+
   <applicationListeners>
-    <listener class="com.google.geminicli.GeminiCliPlugin" 
+    <listener class="com.google.geminicli.GeminiCliPlugin"
               topic="com.intellij.ide.AppLifecycleListener"/>
   </applicationListeners>
 
@@ -81,6 +82,7 @@ gemini-cli-companion/
 ### 3. Main Plugin Class
 
 **`src/main/kotlin/com/google/geminicli/GeminiCliPlugin.kt`**:
+
 ```kotlin
 package com.google.geminicli
 
@@ -89,27 +91,27 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.thisLogger
 
 class GeminiCliPlugin : AppLifecycleListener {
-    
+
     override fun appStarted() {
         thisLogger().info("Starting Gemini CLI companion plugin...")
-        
+
         try {
             val mcpServer = ApplicationManager.getApplication().getService(MCPServer::class.java)
             mcpServer.start()
-            
+
             // Set environment variable for Gemini CLI discovery
             val port = mcpServer.getPort()
             System.setProperty("GEMINI_CLI_IDE_SERVER_PORT", port.toString())
-            
+
             thisLogger().info("Gemini CLI MCP server started on port $port")
         } catch (e: Exception) {
             thisLogger().error("Failed to start Gemini CLI MCP server", e)
         }
     }
-    
+
     override fun appWillBeClosed(isRestart: Boolean) {
         thisLogger().info("Stopping Gemini CLI companion plugin...")
-        
+
         try {
             val mcpServer = ApplicationManager.getApplication().getService(MCPServer::class.java)
             mcpServer.stop()
@@ -123,6 +125,7 @@ class GeminiCliPlugin : AppLifecycleListener {
 ### 4. Active File Service
 
 **`src/main/kotlin/com/google/geminicli/ActiveFileService.kt`**:
+
 ```kotlin
 package com.google.geminicli
 
@@ -137,11 +140,11 @@ import com.intellij.openapi.vfs.VirtualFile
 
 @Service(Service.Level.APP)
 class ActiveFileService {
-    
+
     private var currentFile: VirtualFile? = null
     private var currentLine: Int = 0
     private var currentColumn: Int = 0
-    
+
     init {
         // Listen for file editor changes
         ApplicationManager.getApplication().messageBus.connect()
@@ -149,12 +152,12 @@ class ActiveFileService {
                 override fun fileOpened(source: FileEditorManager, file: VirtualFile) {
                     updateActiveFile(file)
                 }
-                
+
                 override fun selectionChanged(event: FileEditorManagerListener.FileEditorManagerSelectionChangeEvent) {
                     event.newFile?.let { updateActiveFile(it) }
                 }
             })
-        
+
         // Listen for cursor position changes
         EditorFactory.getInstance().addEditorFactoryListener(object : EditorFactoryListener {
             override fun editorCreated(event: EditorFactoryEvent) {
@@ -166,12 +169,12 @@ class ActiveFileService {
             }
         }, ApplicationManager.getApplication())
     }
-    
+
     private fun updateActiveFile(file: VirtualFile) {
         currentFile = file
         // Could send MCP notification here if real-time updates are needed
     }
-    
+
     fun getActiveFileInfo(): String {
         val file = currentFile
         return if (file != null) {
@@ -180,7 +183,7 @@ class ActiveFileService {
             "No file is currently active"
         }
     }
-    
+
     fun getCurrentFile(): VirtualFile? = currentFile
     fun getCurrentLine(): Int = currentLine
     fun getCurrentColumn(): Int = currentColumn
@@ -190,6 +193,7 @@ class ActiveFileService {
 ### 5. MCP Server Implementation
 
 **`src/main/kotlin/com/google/geminicli/MCPServer.kt`**:
+
 ```kotlin
 package com.google.geminicli
 
@@ -212,18 +216,18 @@ import java.net.ServerSocket
 
 @Service(Service.Level.APP)
 class MCPServer {
-    
+
     private var server: NettyApplicationEngine? = null
     private var port: Int = 0
-    
+
     fun start() {
         port = findAvailablePort()
-        
+
         server = embeddedServer(Netty, port = port) {
             install(ContentNegotiation) {
                 json()
             }
-            
+
             install(CORS) {
                 allowMethod(HttpMethod.Get)
                 allowMethod(HttpMethod.Post)
@@ -231,7 +235,7 @@ class MCPServer {
                 allowHeader(HttpHeaders.ContentType)
                 anyHost()
             }
-            
+
             routing {
                 // MCP endpoint
                 route("/mcp") {
@@ -239,7 +243,7 @@ class MCPServer {
                         // Return 400 for GET requests (MCP discovery pattern)
                         call.respond(HttpStatusCode.BadRequest)
                     }
-                    
+
                     post {
                         try {
                             val requestBody = call.receiveText()
@@ -247,51 +251,51 @@ class MCPServer {
                             call.respond(response)
                         } catch (e: Exception) {
                             thisLogger().error("Error handling MCP request", e)
-                            call.respond(HttpStatusCode.InternalServerError, 
+                            call.respond(HttpStatusCode.InternalServerError,
                                 mapOf("error" to e.message))
                         }
                     }
                 }
             }
         }
-        
+
         server?.start(wait = false)
     }
-    
+
     fun stop() {
         server?.stop(1000, 2000)
         server = null
     }
-    
+
     fun getPort(): Int = port
-    
+
     private fun findAvailablePort(): Int {
         // Try preferred port first
         val preferredPort = System.getenv("GEMINI_CLI_IDE_SERVER_PORT")?.toIntOrNull() ?: 58767
-        
+
         val portsToTry = listOf(preferredPort, 58767, 3000, 8080)
-        
+
         for (testPort in portsToTry) {
             try {
-                ServerSocket(testPort).use { 
-                    return testPort 
+                ServerSocket(testPort).use {
+                    return testPort
                 }
             } catch (e: Exception) {
                 // Port is in use, try next
             }
         }
-        
+
         // Find any available port
         return ServerSocket(0).use { it.localPort }
     }
-    
+
     private fun handleMCPRequest(requestBody: String): Map<String, Any> {
         val request = Json.parseToJsonElement(requestBody).jsonObject
-        
+
         val method = request["method"]?.jsonPrimitive?.content
         val id = request["id"]?.jsonPrimitive?.int ?: 1
         val params = request["params"]?.jsonObject
-        
+
         return when (method) {
             "tools/call" -> {
                 val toolName = params?.get("name")?.jsonPrimitive?.content
@@ -300,7 +304,7 @@ class MCPServer {
                         val activeFileService = ApplicationManager.getApplication()
                             .getService(ActiveFileService::class.java)
                         val fileInfo = activeFileService.getActiveFileInfo()
-                        
+
                         mapOf(
                             "jsonrpc" to "2.0",
                             "id" to id,
@@ -320,7 +324,7 @@ class MCPServer {
             else -> createErrorResponse(id, "Unknown method: $method")
         }
     }
-    
+
     private fun createErrorResponse(id: Int, message: String): Map<String, Any> {
         return mapOf(
             "jsonrpc" to "2.0",
@@ -337,6 +341,7 @@ class MCPServer {
 ### 6. Build Configuration
 
 **`build.gradle.kts`**:
+
 ```kotlin
 plugins {
     id("org.jetbrains.kotlin.jvm") version "1.9.10"
@@ -368,7 +373,7 @@ tasks {
         sinceBuild.set("232")
         untilBuild.set("241.*")
     }
-    
+
     buildPlugin {
         archiveFileName.set("gemini-cli-companion.zip")
     }
@@ -427,7 +432,7 @@ Add MCP notifications for real-time updates:
 // In ActiveFileService.kt
 private fun updateActiveFile(file: VirtualFile) {
     currentFile = file
-    
+
     // Send MCP notification (if WebSocket support is added)
     val notification = mapOf(
         "method" to "activeFileNotification",
@@ -439,7 +444,7 @@ private fun updateActiveFile(file: VirtualFile) {
             )
         )
     )
-    
+
     // Send notification to connected MCP clients
     sendNotificationToClients(notification)
 }
@@ -455,7 +460,7 @@ fun getActiveFileInfo(): String {
     val activeProject = projects.find { project ->
         FileEditorManager.getInstance(project).selectedFiles.isNotEmpty()
     }
-    
+
     return if (activeProject != null) {
         val fileManager = FileEditorManager.getInstance(activeProject)
         val selectedFile = fileManager.selectedFiles.firstOrNull()

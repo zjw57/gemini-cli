@@ -145,7 +145,7 @@ sequenceDiagram
     ENV-->>TRANS: Port 58767
     TRANS->>IDE: Test connection to localhost:58767
     IDE-->>TRANS: MCP server available
-    
+
     Note over TRANS: If env var fails, try well-known ports
     TRANS->>PORTS: Try ports 58767, 3000, 8080
     PORTS->>IDE: Test each port
@@ -160,6 +160,7 @@ sequenceDiagram
 **Purpose**: Generic MCP-based IDE integration that works with any MCP-compatible IDE.
 
 **Responsibilities**:
+
 - Provide uniform interface regardless of IDE type
 - Handle MCP protocol communication
 - Manage connection lifecycle
@@ -171,7 +172,9 @@ class MCPIDEIntegration implements IDEIntegration {
   async isAvailable(): Promise<boolean>;
   async getActiveFileContext(): Promise<ActiveFileContext | null>;
   async sendNotification(message: string): Promise<void>;
-  setActiveFileChangeHandler(handler: (context: ActiveFileContext | null) => void): void;
+  setActiveFileChangeHandler(
+    handler: (context: ActiveFileContext | null) => void,
+  ): void;
   async initialize(): Promise<void>;
   async cleanup(): Promise<void>;
 }
@@ -182,12 +185,14 @@ class MCPIDEIntegration implements IDEIntegration {
 **Purpose**: Generic MCP transport that discovers and communicates with MCP servers.
 
 **Responsibilities**:
+
 - Auto-discover MCP servers through multiple methods
 - Handle HTTP/WebSocket MCP communication
 - Manage MCP client lifecycle
 - Parse and format MCP messages
 
 **Discovery Methods**:
+
 1. Environment variables (`GEMINI_CLI_IDE_SERVER_PORT`)
 2. Well-known ports (58767, 3000, 8080)
 3. Process detection (future enhancement)
@@ -200,7 +205,9 @@ class MCPTransport {
   async isAvailable(): Promise<boolean>;
   async initialize(): Promise<void>;
   async getActiveFile(): Promise<ActiveFileContext | null>;
-  setNotificationHandler(handler: (context: ActiveFileContext | null) => void): void;
+  setNotificationHandler(
+    handler: (context: ActiveFileContext | null) => void,
+  ): void;
   async sendNotification(message: string): Promise<void>;
   async cleanup(): Promise<void>;
 }
@@ -211,11 +218,13 @@ class MCPTransport {
 **Purpose**: Simplified manager for the single MCP integration.
 
 **Changes from Registry System**:
+
 - No longer manages multiple IDE types
 - Single MCP integration instead of registry
 - Simplified initialization and status reporting
 
 **Responsibilities**:
+
 - Initialize MCP integration
 - Bridge MCP events to IDE context
 - Provide status information
@@ -226,7 +235,10 @@ class MCPTransport {
 ```typescript
 class IDEIntegrationManager {
   async initialize(config: IDEIntegrationConfig): Promise<void>;
-  async getStatus(): Promise<{ active: boolean; integration?: { type: string; available: boolean } }>;
+  async getStatus(): Promise<{
+    active: boolean;
+    integration?: { type: string; available: boolean };
+  }>;
   async connectToMCP(config: IDEIntegrationConfig): Promise<boolean>;
   getActiveIntegration(): IDEIntegration | null;
   isActive(): boolean;
@@ -239,6 +251,7 @@ class IDEIntegrationManager {
 **Purpose**: Simplified contract for MCP-based integrations.
 
 **Changes from Registry System**:
+
 - Removed `id`, `name`, `description` properties (no longer needed)
 - Added `setActiveFileChangeHandler` method
 - Focus on protocol methods, not IDE identity
@@ -251,10 +264,12 @@ interface IDEIntegration {
   isAvailable(): Promise<boolean>;
   getActiveFileContext(): Promise<ActiveFileContext | null>;
   sendNotification(message: string): Promise<void>;
-  
+
   // Event handling
-  setActiveFileChangeHandler(handler: (context: ActiveFileContext | null) => void): void;
-  
+  setActiveFileChangeHandler(
+    handler: (context: ActiveFileContext | null) => void,
+  ): void;
+
   // Lifecycle
   initialize(): Promise<void>;
   cleanup(): Promise<void>;
@@ -294,8 +309,7 @@ interface IDEIntegrationConfig {
 
 ```typescript
 const ideMode =
-  (argv.ideMode ?? settings.ideMode ?? false) &&
-  !process.env.SANDBOX;
+  (argv.ideMode ?? settings.ideMode ?? false) && !process.env.SANDBOX;
 ```
 
 Note: No longer requires `TERM_PROGRAM === 'vscode'` - works with any MCP-compatible IDE.
@@ -401,6 +415,7 @@ Gemini CLI
 ```
 
 **Issues**:
+
 - Each IDE requires custom integration code
 - Registry manages multiple integration types
 - Complex initialization and status tracking
@@ -416,6 +431,7 @@ Gemini CLI
 ```
 
 **Benefits**:
+
 - Single generic integration for all IDEs
 - No IDE-specific code in core
 - Simpler architecture and testing

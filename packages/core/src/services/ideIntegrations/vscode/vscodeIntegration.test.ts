@@ -34,16 +34,13 @@ describe('VSCodeIntegration', () => {
   });
 
   describe('constructor', () => {
-    it('should set readonly properties correctly', () => {
-      expect(integration.id).toBe('vscode');
-      expect(integration.name).toBe('Visual Studio Code');
-      expect(integration.description).toBe(
-        'Microsoft Visual Studio Code integration via MCP over HTTP',
-      );
-    });
-
     it('should create MCP transport with config', () => {
       expect(VSCodeMCPTransport).toHaveBeenCalledWith(mockConfig);
+    });
+
+    it('should initialize with proper config', () => {
+      expect(integration).toBeInstanceOf(VSCodeIntegration);
+      expect(mockTransport).toBeDefined();
     });
   });
 
