@@ -25,7 +25,11 @@ import { getStartupWarnings } from './utils/startupWarnings.js';
 import { getUserStartupWarnings } from './utils/userStartupWarnings.js';
 import { runNonInteractive } from './nonInteractiveCli.js';
 import { loadExtensions, Extension } from './config/extension.js';
-import { cleanupCheckpoints, registerCleanup } from './utils/cleanup.js';
+import {
+  cleanupCheckpoints,
+  initializeExitHooks,
+  registerCleanup,
+} from './utils/cleanup.js';
 import { getCliVersion } from './utils/version.js';
 import {
   ApprovalMode,
@@ -88,6 +92,7 @@ async function relaunchWithAdditionalArgs(additionalArgs: string[]) {
 import { runAcpPeer } from './acp/acpPeer.js';
 
 export async function main() {
+  initializeExitHooks();
   const workspaceRoot = process.cwd();
   const settings = loadSettings(workspaceRoot);
 

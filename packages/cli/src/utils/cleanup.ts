@@ -4,9 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { promises as fs } from 'fs';
+import { promises as fs, mkdirSync, appendFileSync } from 'fs';
 import { join } from 'path';
-import { getProjectTempDir } from '@google/gemini-cli-core';
+import {
+  getProjectTempDir,
+  sessionId,
+  uiTelemetryService,
+  SessionMetrics,
+} from '@google/gemini-cli-core';
 
 const cleanupFunctions: Array<() => void> = [];
 
@@ -25,10 +30,40 @@ export function runExitCleanup() {
   cleanupFunctions.length = 0; // Clear the array
 }
 
-export async function cleanupCheckpoints() {
-  const tempDir = getProjectTempDir(process.cwd());
-  const checkpointsDir = join(tempDir, 'checkpoints');
+export function initializeExitHooks() {
+  process.on('exit', runExitCleanup);
+  registerCleanup(saveSessionStats);
+}
+
+export type SessionStats = SessionMetrics & {
+  sessionId: string;
+  timestamp: string;
+};
+
+export function saveSessionStats() {
   try {
+    const tempDir = getProjectTempDir(process.cwd());
+    mkdirSync(tempDir, { recursive: true });
+    const statsFile = join(tempDir, 'stats.jsonl');
+
+    const currentMetrics = uiTelemetryService.getMetrics();
+    const sessionStats: SessionStats = {
+      ...currentMetrics,
+      sessionId,
+      timestamp: new Date().toISOString(),
+    };
+
+    appendFileSync(statsFile, JSON.stringify(sessionStats) + '\n');
+  } catch {
+    // Ignore errors.
+  }
+}
+
+export async function cleanupCheckpoints() {
+  try {
+    const tempDir = getProjectTempDir(process.cwd());
+    mkdirSync(tempDir, { recursive: true });
+    const checkpointsDir = join(tempDir, 'checkpoints');
     await fs.rm(checkpointsDir, { recursive: true, force: true });
   } catch {
     // Ignore errors if the directory doesn't exist or fails to delete.
