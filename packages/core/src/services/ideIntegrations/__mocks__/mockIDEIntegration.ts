@@ -207,7 +207,6 @@ export class MockIDEIntegration implements IDEIntegration {
 
 /**
  * Factory function for creating mock integrations.
- * Compatible with IDEIntegrationFactory type.
  */
 export function createMockIntegrationFactory() {
   return async (config: IDEIntegrationConfig) => new MockIDEIntegration(config);

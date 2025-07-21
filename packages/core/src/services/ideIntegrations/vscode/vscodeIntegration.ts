@@ -16,11 +16,6 @@ import { VSCodeMCPTransport } from './mcpTransport.js';
  * This integration communicates with the VS Code companion extension via HTTP transport.
  */
 export class VSCodeIntegration implements IDEIntegration {
-  readonly id = 'vscode';
-  readonly name = 'Visual Studio Code';
-  readonly description =
-    'Microsoft Visual Studio Code integration via MCP over HTTP';
-
   private transport: VSCodeMCPTransport;
   private config: IDEIntegrationConfig;
 

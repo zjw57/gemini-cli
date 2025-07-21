@@ -1,744 +1,489 @@
 # JetBrains IDE Integration Example
 
-This document provides a complete example of how to implement JetBrains IDE integration for Gemini CLI.
+This document provides a complete example of how to create a JetBrains IDE plugin that implements an MCP server for Gemini CLI integration.
 
 ## Overview
 
-JetBrains IDEs (IntelliJ IDEA, PyCharm, WebStorm, etc.) support plugin development that can expose APIs for external tools. This example shows how to create a Gemini CLI integration that communicates with a JetBrains plugin.
+JetBrains IDEs (IntelliJ IDEA, PyCharm, WebStorm, etc.) can integrate with Gemini CLI by running an MCP (Model Context Protocol) server in a plugin. This follows the protocol-first architecture where the IDE plugin handles IDE-specific logic and communicates with Gemini CLI via the standard MCP protocol.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Gemini CLI                           │
+│              (IDE-agnostic)                             │
 ├─────────────────────────────────────────────────────────┤
-│              JetBrains Integration                      │
+│                MCP Protocol                             │
+│                HTTP Transport                           │
+├─────────────────────────────────────────────────────────┤
+│               JetBrains Plugin                          │
+│                (MCP Server)                             │
 │  ┌─────────────────────────────────────────────────┐    │
-│  │            HTTP Transport                       │    │
-│  │  - REST API client                              │    │
-│  │  - Active file detection                        │    │
+│  │            MCP Server                           │    │
+│  │  - HTTP server for MCP protocol                 │    │
+│  │  - getActiveFile tool implementation            │    │
 │  │  - File change notifications                    │    │
 │  └─────────────────────────────────────────────────┘    │
 ├─────────────────────────────────────────────────────────┤
-│                   HTTP/REST API                         │
-├─────────────────────────────────────────────────────────┤
-│                 JetBrains Plugin                        │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │           Gemini Helper Plugin                  │    │
-│  │  - HTTP server                                  │    │
-│  │  - File state tracking                          │    │
-│  │  - Editor event listeners                       │    │
-│  └─────────────────────────────────────────────────┘    │
-├─────────────────────────────────────────────────────────┤
 │            IntelliJ Platform APIs                       │
+│            (FileEditorManager, etc.)                    │
 └─────────────────────────────────────────────────────────┘
 ```
 
-## Integration Implementation
+## Plugin Implementation
 
-### 1. JetBrains Integration Class
+### 1. Plugin Structure
 
-```typescript
-// packages/core/src/services/ideIntegrations/jetbrains/jetbrainsIntegration.ts
-import {
-  IDEIntegration,
-  ActiveFileContext,
-  IDEIntegrationConfig,
-} from '../types.js';
-import { JetBrainsHTTPTransport } from './httpTransport.js';
-
-export class JetBrainsIntegration implements IDEIntegration {
-  readonly id = 'jetbrains';
-  readonly name = 'JetBrains IDEs';
-  readonly description =
-    'IntelliJ IDEA, PyCharm, WebStorm, and other JetBrains IDEs';
-
-  private transport: JetBrainsHTTPTransport;
-  private config: IDEIntegrationConfig;
-
-  constructor(config: IDEIntegrationConfig) {
-    this.config = config;
-    this.transport = new JetBrainsHTTPTransport(config);
-  }
-
-  async isAvailable(): Promise<boolean> {
-    // Check for JetBrains-specific environment variables
-    const ideaInitialDir = this.config.environment.IDEA_INITIAL_DIRECTORY;
-    const pycharmHosted = this.config.environment.PYCHARM_HOSTED;
-    const webstormPath = this.config.environment.WEBSTORM_VM_OPTIONS;
-
-    // Check if any JetBrains IDE indicators are present
-    const hasJetBrainsEnv = !!(ideaInitialDir || pycharmHosted || webstormPath);
-
-    if (!hasJetBrainsEnv) {
-      if (this.config.debug) {
-        console.debug('No JetBrains environment variables detected');
-      }
-      return false;
-    }
-
-    // Check if the JetBrains plugin is running and reachable
-    return await this.transport.isAvailable();
-  }
-
-  async getActiveFileContext(): Promise<ActiveFileContext | null> {
-    try {
-      const fileInfo = await this.transport.getActiveFile();
-
-      if (!fileInfo || !fileInfo.filePath) {
-        return null;
-      }
-
-      return {
-        filePath: fileInfo.filePath,
-        cursor: fileInfo.cursor
-          ? {
-              line: fileInfo.cursor.line,
-              character: fileInfo.cursor.column,
-            }
-          : undefined,
-      };
-    } catch (error) {
-      if (this.config.debug) {
-        console.warn('Error getting active file from JetBrains:', error);
-      }
-      return null;
-    }
-  }
-
-  async sendNotification(message: string): Promise<void> {
-    try {
-      await this.transport.sendNotification(message);
-    } catch (error) {
-      if (this.config.debug) {
-        console.warn('Failed to send notification to JetBrains:', error);
-      }
-    }
-  }
-
-  async initialize(): Promise<void> {
-    if (this.config.debug) {
-      console.debug('Initializing JetBrains integration...');
-    }
-
-    try {
-      await this.transport.initialize();
-
-      if (this.config.debug) {
-        console.debug('JetBrains integration initialized successfully');
-      }
-    } catch (error) {
-      if (this.config.debug) {
-        console.error('Failed to initialize JetBrains integration:', error);
-      }
-      throw error;
-    }
-  }
-
-  async cleanup(): Promise<void> {
-    if (this.config.debug) {
-      console.debug('Cleaning up JetBrains integration...');
-    }
-
-    try {
-      await this.transport.cleanup();
-    } catch (error) {
-      if (this.config.debug) {
-        console.warn('Error during JetBrains integration cleanup:', error);
-      }
-    }
-  }
-
-  /**
-   * Set up a handler for active file change notifications
-   */
-  setActiveFileChangeHandler(
-    handler: (context: ActiveFileContext | null) => void,
-  ): void {
-    this.transport.setFileChangeHandler((fileInfo) => {
-      if (fileInfo?.filePath) {
-        handler({
-          filePath: fileInfo.filePath,
-          cursor: fileInfo.cursor
-            ? {
-                line: fileInfo.cursor.line,
-                character: fileInfo.cursor.column,
-              }
-            : undefined,
-        });
-      } else {
-        handler(null);
-      }
-    });
-  }
-}
-```
-
-### 2. HTTP Transport Layer
-
-```typescript
-// packages/core/src/services/ideIntegrations/jetbrains/httpTransport.ts
-import { IDEIntegrationConfig } from '../types.js';
-
-const JETBRAINS_DEFAULT_PORT = 8888;
-const DEFAULT_TIMEOUT = 10000;
-
-interface JetBrainsFileInfo {
-  filePath: string;
-  cursor?: {
-    line: number;
-    column: number;
-  };
-  projectPath?: string;
-}
-
-export class JetBrainsHTTPTransport {
-  private port: number;
-  private config: IDEIntegrationConfig;
-  private baseUrl: string;
-  private fileChangeHandler?: (fileInfo: JetBrainsFileInfo | null) => void;
-  private pollingInterval?: NodeJS.Timeout;
-
-  constructor(config: IDEIntegrationConfig) {
-    this.config = config;
-    this.port = this.discoverPort();
-    this.baseUrl = `http://localhost:${this.port}`;
-  }
-
-  private discoverPort(): number {
-    // Check for JetBrains plugin-specific port environment variable
-    const portStr = this.config.environment.GEMINI_CLI_JETBRAINS_PORT;
-    if (portStr) {
-      const port = parseInt(portStr, 10);
-      if (!isNaN(port) && port > 0 && port <= 65535) {
-        return port;
-      }
-    }
-
-    // Fall back to default port
-    return JETBRAINS_DEFAULT_PORT;
-  }
-
-  async isAvailable(): Promise<boolean> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-      const response = await fetch(`${this.baseUrl}/health`, {
-        method: 'GET',
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      return response.ok;
-    } catch (error) {
-      if (this.config.debug) {
-        console.debug(
-          `JetBrains plugin not available on port ${this.port}:`,
-          error,
-        );
-      }
-      return false;
-    }
-  }
-
-  async initialize(): Promise<void> {
-    if (!(await this.isAvailable())) {
-      throw new Error(`JetBrains plugin not available on port ${this.port}`);
-    }
-
-    // Start polling for file changes if handler is set
-    if (this.fileChangeHandler) {
-      this.startFileChangePolling();
-    }
-
-    if (this.config.debug) {
-      console.debug(`Connected to JetBrains plugin on port ${this.port}`);
-    }
-  }
-
-  async cleanup(): Promise<void> {
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
-      this.pollingInterval = undefined;
-    }
-
-    if (this.config.debug) {
-      console.debug('JetBrains HTTP transport cleaned up');
-    }
-  }
-
-  async getActiveFile(): Promise<JetBrainsFileInfo | null> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        this.config.timeout || DEFAULT_TIMEOUT,
-      );
-
-      const response = await fetch(`${this.baseUrl}/api/editor/active-file`, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        if (this.config.debug) {
-          console.debug(
-            `JetBrains API returned ${response.status}: ${response.statusText}`,
-          );
-        }
-        return null;
-      }
-
-      const data = await response.json();
-
-      return {
-        filePath: data.filePath,
-        cursor: data.cursor
-          ? {
-              line: data.cursor.line,
-              column: data.cursor.column,
-            }
-          : undefined,
-        projectPath: data.projectPath,
-      };
-    } catch (error) {
-      if (this.config.debug) {
-        console.warn('Error getting active file from JetBrains:', error);
-      }
-      return null;
-    }
-  }
-
-  async sendNotification(message: string): Promise<void> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        this.config.timeout || DEFAULT_TIMEOUT,
-      );
-
-      const response = await fetch(`${this.baseUrl}/api/notifications`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(
-          `Notification failed: ${response.status} ${response.statusText}`,
-        );
-      }
-    } catch (error) {
-      if (this.config.debug) {
-        console.warn('Failed to send notification to JetBrains:', error);
-      }
-      throw error;
-    }
-  }
-
-  setFileChangeHandler(
-    handler: (fileInfo: JetBrainsFileInfo | null) => void,
-  ): void {
-    this.fileChangeHandler = handler;
-
-    // Start polling if we're already initialized
-    if (!this.pollingInterval) {
-      this.startFileChangePolling();
-    }
-  }
-
-  private startFileChangePolling(): void {
-    if (this.pollingInterval) {
-      return; // Already polling
-    }
-
-    let lastFilePath = '';
-    let lastCursorPosition = '';
-
-    this.pollingInterval = setInterval(async () => {
-      try {
-        const fileInfo = await this.getActiveFile();
-        const currentFilePath = fileInfo?.filePath || '';
-        const currentCursorPosition = fileInfo?.cursor
-          ? `${fileInfo.cursor.line}:${fileInfo.cursor.column}`
-          : '';
-
-        // Only notify if file or cursor position changed
-        if (
-          currentFilePath !== lastFilePath ||
-          currentCursorPosition !== lastCursorPosition
-        ) {
-          lastFilePath = currentFilePath;
-          lastCursorPosition = currentCursorPosition;
-
-          if (this.fileChangeHandler) {
-            this.fileChangeHandler(fileInfo);
-          }
-        }
-      } catch (error) {
-        if (this.config.debug) {
-          console.debug('Error during file change polling:', error);
-        }
-      }
-    }, 1000); // Poll every second
-  }
-}
-```
-
-### 3. Integration Factory
-
-```typescript
-// packages/core/src/services/ideIntegrations/jetbrains/index.ts
-import { IDEIntegrationFactory } from '../types.js';
-import { JetBrainsIntegration } from './jetbrainsIntegration.js';
-
-export const jetbrainsIntegrationFactory: IDEIntegrationFactory = (config) => {
-  return new JetBrainsIntegration(config);
-};
-
-export { JetBrainsIntegration } from './jetbrainsIntegration.js';
-export { JetBrainsHTTPTransport } from './httpTransport.js';
-```
-
-## JetBrains Plugin Implementation
-
-### Plugin Structure
+Create a JetBrains plugin with the following structure:
 
 ```
-gemini-helper-plugin/
-├── src/
-│   └── main/
-│       ├── java/
-│       │   └── com/
-│       │       └── example/
-│       │           └── gemini/
-│       │               ├── GeminiHelperPlugin.java
-│       │               ├── server/
-│       │               │   ├── GeminiHttpServer.java
-│       │               │   └── handlers/
-│       │               │       ├── HealthHandler.java
-│       │               │       ├── ActiveFileHandler.java
-│       │               │       └── NotificationHandler.java
-│       │               └── listeners/
-│       │                   └── FileChangeListener.java
-│       └── resources/
-│           └── META-INF/
-│               └── plugin.xml
-└── build.gradle
+gemini-cli-companion/
+├── src/main/kotlin/
+│   ├── com/google/geminicli/
+│   │   ├── GeminiCliPlugin.kt          # Main plugin class
+│   │   ├── MCPServer.kt                # MCP server implementation
+│   │   ├── ActiveFileService.kt        # File tracking service
+│   │   └── MCPHandler.kt               # MCP request handler
+├── src/main/resources/
+│   └── META-INF/
+│       └── plugin.xml                  # Plugin configuration
+└── build.gradle.kts                    # Build configuration
 ```
 
-### Plugin Main Class
+### 2. Plugin Configuration
 
-```java
-// GeminiHelperPlugin.java
-package com.example.gemini;
+**`src/main/resources/META-INF/plugin.xml`**:
+```xml
+<idea-plugin>
+  <id>com.google.gemini-cli-companion</id>
+  <name>Gemini CLI Companion</name>
+  <vendor email="support@google.com" url="https://github.com/google/gemini-cli">Google</vendor>
+  
+  <description><![CDATA[
+    JetBrains IDE companion for Gemini CLI. Provides context about active files 
+    and editor state via Model Context Protocol (MCP).
+  ]]></description>
 
-import com.intellij.openapi.components.Service;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.startup.StartupActivity;
-import com.example.gemini.server.GeminiHttpServer;
+  <depends>com.intellij.modules.platform</depends>
+  
+  <applicationListeners>
+    <listener class="com.google.geminicli.GeminiCliPlugin" 
+              topic="com.intellij.ide.AppLifecycleListener"/>
+  </applicationListeners>
 
-@Service
-public class GeminiHelperPlugin implements StartupActivity {
-    private GeminiHttpServer httpServer;
-
-    @Override
-    public void runActivity(Project project) {
-        // Start HTTP server when IDE starts
-        startHttpServer();
-
-        // Set environment variable for Gemini CLI to discover
-        int port = httpServer.getPort();
-        System.setProperty("GEMINI_CLI_JETBRAINS_PORT", String.valueOf(port));
-    }
-
-    private void startHttpServer() {
-        httpServer = new GeminiHttpServer();
-        httpServer.start();
-    }
-
-    public void dispose() {
-        if (httpServer != null) {
-            httpServer.stop();
-        }
-    }
-}
+  <extensions defaultExtensionNs="com.intellij">
+    <applicationService serviceImplementation="com.google.geminicli.ActiveFileService"/>
+    <applicationService serviceImplementation="com.google.geminicli.MCPServer"/>
+  </extensions>
+</idea-plugin>
 ```
 
-### HTTP Server Implementation
+### 3. Main Plugin Class
 
-```java
-// GeminiHttpServer.java
-package com.example.gemini.server;
+**`src/main/kotlin/com/google/geminicli/GeminiCliPlugin.kt`**:
+```kotlin
+package com.google.geminicli
 
-import com.sun.net.httpserver.HttpServer;
-import com.example.gemini.server.handlers.*;
+import com.intellij.ide.AppLifecycleListener
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.thisLogger
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-
-public class GeminiHttpServer {
-    private HttpServer server;
-    private int port = 8888;
-
-    public void start() {
+class GeminiCliPlugin : AppLifecycleListener {
+    
+    override fun appStarted() {
+        thisLogger().info("Starting Gemini CLI companion plugin...")
+        
         try {
-            server = HttpServer.create(new InetSocketAddress(port), 0);
-
-            // Register endpoints
-            server.createContext("/health", new HealthHandler());
-            server.createContext("/api/editor/active-file", new ActiveFileHandler());
-            server.createContext("/api/notifications", new NotificationHandler());
-
-            server.setExecutor(null);
-            server.start();
-
-            System.out.println("Gemini Helper server started on port " + port);
-        } catch (IOException e) {
-            System.err.println("Failed to start Gemini Helper server: " + e.getMessage());
+            val mcpServer = ApplicationManager.getApplication().getService(MCPServer::class.java)
+            mcpServer.start()
+            
+            // Set environment variable for Gemini CLI discovery
+            val port = mcpServer.getPort()
+            System.setProperty("GEMINI_CLI_IDE_SERVER_PORT", port.toString())
+            
+            thisLogger().info("Gemini CLI MCP server started on port $port")
+        } catch (e: Exception) {
+            thisLogger().error("Failed to start Gemini CLI MCP server", e)
         }
     }
-
-    public void stop() {
-        if (server != null) {
-            server.stop(0);
+    
+    override fun appWillBeClosed(isRestart: Boolean) {
+        thisLogger().info("Stopping Gemini CLI companion plugin...")
+        
+        try {
+            val mcpServer = ApplicationManager.getApplication().getService(MCPServer::class.java)
+            mcpServer.stop()
+        } catch (e: Exception) {
+            thisLogger().error("Error stopping Gemini CLI MCP server", e)
         }
-    }
-
-    public int getPort() {
-        return port;
     }
 }
 ```
 
-### Active File Handler
+### 4. Active File Service
 
-```java
-// ActiveFileHandler.java
-package com.example.gemini.server.handlers;
+**`src/main/kotlin/com/google/geminicli/ActiveFileService.kt`**:
+```kotlin
+package com.google.geminicli
 
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.editor.Editor;
-import com.intellij.openapi.fileEditor.FileEditorManager;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.project.ProjectManager;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.components.Service
+import com.intellij.openapi.editor.EditorFactory
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.FileEditorManagerListener
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ProjectManager
+import com.intellij.openapi.vfs.VirtualFile
 
-import java.io.IOException;
-import java.io.OutputStream;
-
-public class ActiveFileHandler implements HttpHandler {
-    @Override
-    public void handle(HttpExchange exchange) throws IOException {
-        if (!"GET".equals(exchange.getRequestMethod())) {
-            exchange.sendResponseHeaders(405, 0);
-            exchange.close();
-            return;
-        }
-
-        ApplicationManager.getApplication().invokeAndWait(() -> {
-            try {
-                String response = getActiveFileInfo();
-                byte[] responseBytes = response.getBytes("UTF-8");
-
-                exchange.getResponseHeaders().add("Content-Type", "application/json");
-                exchange.sendResponseHeaders(200, responseBytes.length);
-
-                OutputStream os = exchange.getResponseBody();
-                os.write(responseBytes);
-                os.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
-    private String getActiveFileInfo() {
-        Project[] projects = ProjectManager.getInstance().getOpenProjects();
-
-        for (Project project : projects) {
-            FileEditorManager editorManager = FileEditorManager.getInstance(project);
-            VirtualFile[] selectedFiles = editorManager.getSelectedFiles();
-
-            if (selectedFiles.length > 0) {
-                VirtualFile activeFile = selectedFiles[0];
-                Editor editor = editorManager.getSelectedTextEditor();
-
-                StringBuilder json = new StringBuilder();
-                json.append("{");
-                json.append("\"filePath\":\"").append(activeFile.getPath()).append("\",");
-                json.append("\"projectPath\":\"").append(project.getBasePath()).append("\"");
-
-                if (editor != null) {
-                    int line = editor.getCaretModel().getLogicalPosition().line;
-                    int column = editor.getCaretModel().getLogicalPosition().column;
-                    json.append(",\"cursor\":{");
-                    json.append("\"line\":").append(line).append(",");
-                    json.append("\"column\":").append(column);
-                    json.append("}");
+@Service(Service.Level.APP)
+class ActiveFileService {
+    
+    private var currentFile: VirtualFile? = null
+    private var currentLine: Int = 0
+    private var currentColumn: Int = 0
+    
+    init {
+        // Listen for file editor changes
+        ApplicationManager.getApplication().messageBus.connect()
+            .subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, object : FileEditorManagerListener {
+                override fun fileOpened(source: FileEditorManager, file: VirtualFile) {
+                    updateActiveFile(file)
                 }
+                
+                override fun selectionChanged(event: FileEditorManagerListener.FileEditorManagerSelectionChangeEvent) {
+                    event.newFile?.let { updateActiveFile(it) }
+                }
+            })
+        
+        // Listen for cursor position changes
+        EditorFactory.getInstance().addEditorFactoryListener(object : EditorFactoryListener {
+            override fun editorCreated(event: EditorFactoryEvent) {
+                val editor = event.editor
+                editor.caretModel.addCaretListener { caretEvent ->
+                    currentLine = caretEvent.caret?.logicalPosition?.line ?: 0
+                    currentColumn = caretEvent.caret?.logicalPosition?.column ?: 0
+                }
+            }
+        }, ApplicationManager.getApplication())
+    }
+    
+    private fun updateActiveFile(file: VirtualFile) {
+        currentFile = file
+        // Could send MCP notification here if real-time updates are needed
+    }
+    
+    fun getActiveFileInfo(): String {
+        val file = currentFile
+        return if (file != null) {
+            "Active file: ${file.path} (line: $currentLine, char: $currentColumn)"
+        } else {
+            "No file is currently active"
+        }
+    }
+    
+    fun getCurrentFile(): VirtualFile? = currentFile
+    fun getCurrentLine(): Int = currentLine
+    fun getCurrentColumn(): Int = currentColumn
+}
+```
 
-                json.append("}");
-                return json.toString();
+### 5. MCP Server Implementation
+
+**`src/main/kotlin/com/google/geminicli/MCPServer.kt`**:
+```kotlin
+package com.google.geminicli
+
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.components.Service
+import com.intellij.openapi.diagnostic.thisLogger
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.application.*
+import io.ktor.server.engine.*
+import io.ktor.server.netty.*
+import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.cors.routing.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.*
+import java.net.ServerSocket
+
+@Service(Service.Level.APP)
+class MCPServer {
+    
+    private var server: NettyApplicationEngine? = null
+    private var port: Int = 0
+    
+    fun start() {
+        port = findAvailablePort()
+        
+        server = embeddedServer(Netty, port = port) {
+            install(ContentNegotiation) {
+                json()
+            }
+            
+            install(CORS) {
+                allowMethod(HttpMethod.Get)
+                allowMethod(HttpMethod.Post)
+                allowMethod(HttpMethod.Options)
+                allowHeader(HttpHeaders.ContentType)
+                anyHost()
+            }
+            
+            routing {
+                // MCP endpoint
+                route("/mcp") {
+                    get {
+                        // Return 400 for GET requests (MCP discovery pattern)
+                        call.respond(HttpStatusCode.BadRequest)
+                    }
+                    
+                    post {
+                        try {
+                            val requestBody = call.receiveText()
+                            val response = handleMCPRequest(requestBody)
+                            call.respond(response)
+                        } catch (e: Exception) {
+                            thisLogger().error("Error handling MCP request", e)
+                            call.respond(HttpStatusCode.InternalServerError, 
+                                mapOf("error" to e.message))
+                        }
+                    }
+                }
             }
         }
-
-        return "{\"filePath\":null}";
+        
+        server?.start(wait = false)
+    }
+    
+    fun stop() {
+        server?.stop(1000, 2000)
+        server = null
+    }
+    
+    fun getPort(): Int = port
+    
+    private fun findAvailablePort(): Int {
+        // Try preferred port first
+        val preferredPort = System.getenv("GEMINI_CLI_IDE_SERVER_PORT")?.toIntOrNull() ?: 58767
+        
+        val portsToTry = listOf(preferredPort, 58767, 3000, 8080)
+        
+        for (testPort in portsToTry) {
+            try {
+                ServerSocket(testPort).use { 
+                    return testPort 
+                }
+            } catch (e: Exception) {
+                // Port is in use, try next
+            }
+        }
+        
+        // Find any available port
+        return ServerSocket(0).use { it.localPort }
+    }
+    
+    private fun handleMCPRequest(requestBody: String): Map<String, Any> {
+        val request = Json.parseToJsonElement(requestBody).jsonObject
+        
+        val method = request["method"]?.jsonPrimitive?.content
+        val id = request["id"]?.jsonPrimitive?.int ?: 1
+        val params = request["params"]?.jsonObject
+        
+        return when (method) {
+            "tools/call" -> {
+                val toolName = params?.get("name")?.jsonPrimitive?.content
+                when (toolName) {
+                    "getActiveFile" -> {
+                        val activeFileService = ApplicationManager.getApplication()
+                            .getService(ActiveFileService::class.java)
+                        val fileInfo = activeFileService.getActiveFileInfo()
+                        
+                        mapOf(
+                            "jsonrpc" to "2.0",
+                            "id" to id,
+                            "result" to mapOf(
+                                "content" to listOf(
+                                    mapOf(
+                                        "type" to "text",
+                                        "text" to fileInfo
+                                    )
+                                )
+                            )
+                        )
+                    }
+                    else -> createErrorResponse(id, "Unknown tool: $toolName")
+                }
+            }
+            else -> createErrorResponse(id, "Unknown method: $method")
+        }
+    }
+    
+    private fun createErrorResponse(id: Int, message: String): Map<String, Any> {
+        return mapOf(
+            "jsonrpc" to "2.0",
+            "id" to id,
+            "error" to mapOf(
+                "code" to -32601,
+                "message" to message
+            )
+        )
     }
 }
 ```
 
-## Registration and Usage
+### 6. Build Configuration
 
-### Register the Integration
+**`build.gradle.kts`**:
+```kotlin
+plugins {
+    id("org.jetbrains.kotlin.jvm") version "1.9.10"
+    id("org.jetbrains.intellij") version "1.15.0"
+    kotlin("plugin.serialization") version "1.9.10"
+}
 
-```typescript
-// In IDE Integration Manager initialization
-import { jetbrainsIntegrationFactory } from './jetbrains/index.js';
+repositories {
+    mavenCentral()
+}
 
-if (!ideIntegrationRegistry.isRegistered('jetbrains')) {
-  ideIntegrationRegistry.register('jetbrains', jetbrainsIntegrationFactory);
+dependencies {
+    implementation("io.ktor:ktor-server-core:2.3.4")
+    implementation("io.ktor:ktor-server-netty:2.3.4")
+    implementation("io.ktor:ktor-server-content-negotiation:2.3.4")
+    implementation("io.ktor:ktor-server-cors:2.3.4")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+}
+
+intellij {
+    version.set("2023.2")
+    type.set("IC") // IntelliJ IDEA Community Edition
+    plugins.set(listOf(/* Plugin Dependencies */))
+}
+
+tasks {
+    patchPluginXml {
+        sinceBuild.set("232")
+        untilBuild.set("241.*")
+    }
+    
+    buildPlugin {
+        archiveFileName.set("gemini-cli-companion.zip")
+    }
 }
 ```
-
-### Detection Priority
-
-Update the detection order to include JetBrains:
-
-```typescript
-// In ideIntegrationManager.ts
-const integrationIds = ['vscode', 'jetbrains', 'zed'];
-```
-
-## Environment Variables
-
-The JetBrains integration uses these environment variables:
-
-- `GEMINI_CLI_JETBRAINS_PORT` - Port where the JetBrains plugin server is running
-- `IDEA_INITIAL_DIRECTORY` - Set by IntelliJ IDEA
-- `PYCHARM_HOSTED` - Set by PyCharm
-- `WEBSTORM_VM_OPTIONS` - Set by WebStorm
-
-## API Endpoints
-
-The JetBrains plugin exposes these HTTP endpoints:
-
-### GET /health
-
-Health check endpoint.
-
-**Response**: `200 OK` if plugin is running
-
-### GET /api/editor/active-file
-
-Get information about the currently active file.
-
-**Response**:
-
-```json
-{
-  "filePath": "/path/to/active/file.java",
-  "projectPath": "/path/to/project",
-  "cursor": {
-    "line": 42,
-    "column": 15
-  }
-}
-```
-
-### POST /api/notifications
-
-Send a notification to the IDE.
-
-**Request Body**:
-
-```json
-{
-  "message": "Notification message"
-}
-```
-
-**Response**: `200 OK` if notification was sent
 
 ## Testing the Integration
 
-### Unit Tests
+### 1. Install the Plugin
 
-```typescript
-// jetbrainsIntegration.test.ts
-describe('JetBrainsIntegration', () => {
-  it('should detect JetBrains environment', async () => {
-    const config = {
-      environment: { IDEA_INITIAL_DIRECTORY: '/path/to/project' },
-      timeout: 5000,
-      debug: false,
-    };
+1. Build the plugin: `./gradlew buildPlugin`
+2. Install in IntelliJ: **Settings** → **Plugins** → **Install Plugin from Disk**
+3. Restart IntelliJ IDEA
 
-    const integration = new JetBrainsIntegration(config);
-
-    // Mock transport availability
-    jest.spyOn(integration['transport'], 'isAvailable').mockResolvedValue(true);
-
-    const available = await integration.isAvailable();
-    expect(available).toBe(true);
-  });
-});
-```
-
-### Integration Tests
-
-```typescript
-it('should get active file from JetBrains plugin', async () => {
-  const integration = new JetBrainsIntegration(mockConfig);
-
-  // Mock HTTP response
-  global.fetch = jest.fn().mockResolvedValue({
-    ok: true,
-    json: () =>
-      Promise.resolve({
-        filePath: '/test/file.java',
-        cursor: { line: 10, column: 5 },
-      }),
-  });
-
-  const context = await integration.getActiveFileContext();
-
-  expect(context).toEqual({
-    filePath: '/test/file.java',
-    cursor: { line: 10, character: 5 },
-  });
-});
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Plugin not detected**: Check that JetBrains environment variables are set
-2. **Connection failed**: Verify the plugin is installed and HTTP server is running
-3. **Port conflicts**: Ensure port 8888 (or custom port) is available
-4. **Active file not found**: Check that a file is actually open in the editor
-
-### Debug Logging
-
-Enable debug mode to see detailed logs:
+### 2. Test MCP Server
 
 ```bash
-gemini --debug --ide-mode
+# Check if the MCP server is running
+curl -X GET http://localhost:58767/mcp
+# Should return HTTP 400
+
+# Test the getActiveFile tool
+curl -X POST http://localhost:58767/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "getActiveFile",
+      "arguments": {}
+    }
+  }'
 ```
 
-This will show connection attempts, API calls, and error details for the JetBrains integration.
+### 3. Test with Gemini CLI
+
+```bash
+# Start Gemini CLI in IDE mode
+gemini-cli --ide-mode
+
+# Check integration status
+/ide status
+# Should show: 🟢 MCP Integration - Connected
+
+# The active file context should now be automatically available in prompts
+```
+
+## Advanced Features
+
+### Real-time File Change Notifications
+
+Add MCP notifications for real-time updates:
+
+```kotlin
+// In ActiveFileService.kt
+private fun updateActiveFile(file: VirtualFile) {
+    currentFile = file
+    
+    // Send MCP notification (if WebSocket support is added)
+    val notification = mapOf(
+        "method" to "activeFileNotification",
+        "params" to mapOf(
+            "filePath" to file.path,
+            "cursor" to mapOf(
+                "line" to currentLine,
+                "character" to currentColumn
+            )
+        )
+    )
+    
+    // Send notification to connected MCP clients
+    sendNotificationToClients(notification)
+}
+```
+
+### Multi-project Support
+
+Handle multiple open projects:
+
+```kotlin
+fun getActiveFileInfo(): String {
+    val projects = ProjectManager.getInstance().openProjects
+    val activeProject = projects.find { project ->
+        FileEditorManager.getInstance(project).selectedFiles.isNotEmpty()
+    }
+    
+    return if (activeProject != null) {
+        val fileManager = FileEditorManager.getInstance(activeProject)
+        val selectedFile = fileManager.selectedFiles.firstOrNull()
+        if (selectedFile != null) {
+            "Active file: ${selectedFile.path} (project: ${activeProject.name}, line: $currentLine, char: $currentColumn)"
+        } else {
+            "No file is currently active"
+        }
+    } else {
+        "No file is currently active"
+    }
+}
+```
+
+## Benefits of This Approach
+
+1. **Standard Protocol**: Uses MCP instead of custom API
+2. **IDE Agnostic**: Gemini CLI doesn't need JetBrains-specific code
+3. **Maintainable**: Plugin handles all IDE-specific logic
+4. **Extensible**: Can add more MCP tools without changing Gemini CLI
+5. **Testable**: Can test MCP server independently
+
+## Next Steps
+
+1. Add more MCP tools (workspace information, debugging context)
+2. Implement WebSocket transport for better performance
+3. Add configuration UI in the plugin
+4. Support for multiple file contexts
+5. Integration with JetBrains debugging APIs
+
+This example demonstrates how the protocol-first architecture enables rich IDE integration while keeping the core Gemini CLI simple and IDE-agnostic.

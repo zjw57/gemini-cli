@@ -84,9 +84,3 @@ export interface IDEIntegrationConfig {
   debug?: boolean;
 }
 
-/**
- * Factory function for creating the generic MCP-based IDE integration
- */
-export type IDEIntegrationFactory = (
-  config: IDEIntegrationConfig,
-) => Promise<IDEIntegration>;
