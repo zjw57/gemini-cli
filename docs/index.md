@@ -31,7 +31,10 @@ This documentation is organized into the following sections:
   - **[Web Search Tool](./tools/web-search.md):** Documentation for the `google_web_search` tool.
   - **[Memory Tool](./tools/memory.md):** Documentation for the `save_memory` tool.
 - **Extensibility:**
-  - **[IDE Integration](./ide-integrations/architecture.md):** Protocol-first IDE integration system using Model Context Protocol (MCP).
+  - **IDE Integration:** Protocol-first IDE integration system using Model Context Protocol (MCP).
+    - **[Architecture](./ide-integrations/architecture.md):** System overview and protocol-first design details.
+    - **[Developer Guide](./ide-integrations/developer-guide.md):** How to create IDE companion extensions and MCP servers.
+    - **[Troubleshooting](./ide-integrations/troubleshooting.md):** Debug and resolve IDE integration issues.
 - **[Contributing & Development Guide](../CONTRIBUTING.md):** Information for contributors and developers, including setup, building, testing, and coding conventions.
 - **[NPM Workspaces and Publishing](./npm.md):** Details on how the project's packages are managed and published.
 - **[Troubleshooting Guide](./troubleshooting.md):** Find solutions to common problems and FAQs.
