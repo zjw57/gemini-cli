@@ -78,6 +78,13 @@ function validateHistory(history: Content[]) {
   }
 }
 
+function printContent(contents: Content[]) {
+  for (const content of contents) {
+    for (const part of content.parts ?? []) {
+      console.log("content part", part)
+    }
+  }
+}
 /**
  * Extracts the curated (valid) history from a comprehensive history.
  *
@@ -90,8 +97,8 @@ function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
   if (comprehensiveHistory === undefined || comprehensiveHistory.length === 0) {
     return [];
   }
-  console.log('comprehensiveHistory', comprehensiveHistory.map((content) => content.parts?.map((part) => part.text).join('')));
-
+  // console.log('comprehensiveHistory', comprehensiveHistory.map((content) => content.parts?.map((part) => part.text).join('')));
+  printContent(comprehensiveHistory);
   const curatedHistory: Content[] = [];
   const length = comprehensiveHistory.length;
   let i = 0;
@@ -105,6 +112,7 @@ function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
       while (i < length && comprehensiveHistory[i].role === 'model') {
         modelOutput.push(comprehensiveHistory[i]);
         if (isValid && !isValidContent(comprehensiveHistory[i])) {
+          console.log('Setting isValid to false', printContent([comprehensiveHistory[i]]));
           isValid = false;
         }
         i++;
@@ -112,13 +120,15 @@ function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
       if (isValid) {
         curatedHistory.push(...modelOutput);
       } else {
+        console.log('Popping out user message');
         // Remove the last user input when model content is invalid.
         curatedHistory.pop();
       }
     }
   }
-  console.log('curatedHistory', curatedHistory.map((content) => content.parts?.map((part) => part.text).join('')));
-
+  // console.log('curatedHistory', curatedHistory.map((content) => content.parts?.map((part) => part.text).join('')));
+  printContent(curatedHistory);
+  
   return curatedHistory;
 }
 
