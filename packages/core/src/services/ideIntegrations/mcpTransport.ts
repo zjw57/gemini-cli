@@ -5,6 +5,7 @@
  */
 
 import { IDEIntegrationConfig, ActiveFileContext } from './types.js';
+import { ActiveFileNotificationSchema, ActiveFile } from '../ideContext.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -24,13 +25,16 @@ export class MCPTransport {
   private config: IDEIntegrationConfig;
   private mcpClient: Client | null = null;
   private serverUrl: URL | null = null;
+  private notificationHandler:
+    | ((context: ActiveFileContext | null) => void)
+    | null = null;
 
   constructor(config: IDEIntegrationConfig) {
     this.config = config;
   }
 
   async isAvailable(): Promise<boolean> {
-    const serverUrl = this.discoverMCPServer();
+    const serverUrl = await this.discoverMCPServer();
     if (!serverUrl) {
       return false;
     }
@@ -56,7 +60,7 @@ export class MCPTransport {
   }
 
   async initialize(): Promise<void> {
-    this.serverUrl = this.discoverMCPServer();
+    this.serverUrl = await this.discoverMCPServer();
     if (!this.serverUrl) {
       throw new Error(
         'No MCP-compatible IDE server found. Make sure your IDE is running with MCP support enabled.',
@@ -87,6 +91,9 @@ export class MCPTransport {
           console.error('MCP client error:', error.toString());
         }
       };
+
+      // Set up notification handling for active file changes
+      this.setupNotificationHandling();
 
       if (this.config.debug) {
         console.debug(`Connected to MCP server at ${this.serverUrl}`);
@@ -181,31 +188,17 @@ export class MCPTransport {
   }
 
   setNotificationHandler(
-    _handler: (context: ActiveFileContext | null) => void,
+    handler: (context: ActiveFileContext | null) => void,
   ): void {
-    if (!this.mcpClient) {
-      throw new Error('MCP client not initialized');
+    this.notificationHandler = handler;
+
+    if (this.config.debug) {
+      console.debug('MCP notification handler registered');
     }
 
-    // Set up handler for active file change notifications
-    // Note: MCP notification handling implementation may need adjustment based on actual MCP SDK
-    try {
-      // This is a placeholder - actual implementation depends on MCP SDK notification system
-      if (this.config.debug) {
-        console.debug(
-          'MCP notification handler set up (placeholder implementation)',
-        );
-      }
-
-      // Store handler for future use when MCP notification system is properly implemented
-      // The actual implementation will depend on the specific MCP SDK being used
-    } catch (error) {
-      if (this.config.debug) {
-        console.warn(
-          'Could not set up MCP notification handler:',
-          error instanceof Error ? error.message : error,
-        );
-      }
+    // If MCP client is already initialized, set up notification handling immediately
+    if (this.mcpClient) {
+      this.setupNotificationHandling();
     }
   }
 
@@ -219,13 +212,16 @@ export class MCPTransport {
   /**
    * Discover available MCP servers through various methods
    */
-  private discoverMCPServer(): URL | null {
+  private async discoverMCPServer(): Promise<URL | null> {
     // Method 1: Check environment variable (primary method)
     const portFromEnv = this.config.environment.GEMINI_CLI_IDE_SERVER_PORT;
     if (portFromEnv) {
       const port = parseInt(portFromEnv, 10);
       if (port > 0 && port < 65536) {
-        return new URL(`http://localhost:${port}/mcp`);
+        const url = new URL(`http://localhost:${port}/mcp`);
+        if (await this.testMCPServer(url)) {
+          return url;
+        }
       }
     }
 
@@ -237,10 +233,91 @@ export class MCPTransport {
     ];
 
     for (const port of wellKnownPorts) {
-      // We'll return the first well-known port and let isAvailable() test connectivity
-      return new URL(`http://localhost:${port}/mcp`);
+      const url = new URL(`http://localhost:${port}/mcp`);
+      if (await this.testMCPServer(url)) {
+        return url;
+      }
     }
 
     return null;
+  }
+
+  /**
+   * Test if an MCP server is available at the given URL
+   */
+  private async testMCPServer(url: URL): Promise<boolean> {
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        signal: AbortSignal.timeout(2000), // Quick test
+      });
+      // MCP servers return 400 for GET requests on the MCP endpoint
+      return response.status === 400;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Set up notification handling for MCP events
+   */
+  private setupNotificationHandling(): void {
+    if (!this.mcpClient || !this.notificationHandler) {
+      return;
+    }
+
+    try {
+      // Set up notification listener for active file changes
+      this.mcpClient.setNotificationHandler(
+        ActiveFileNotificationSchema,
+        (notification) => {
+          if (this.notificationHandler) {
+            const fileContext = this.parseActiveFileNotification(
+              notification.params,
+            );
+            this.notificationHandler(fileContext);
+          }
+        },
+      );
+
+      if (this.config.debug) {
+        console.debug('MCP notification handling set up successfully');
+      }
+    } catch (error) {
+      if (this.config.debug) {
+        console.warn(
+          'Could not set up MCP notification handling:',
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+  }
+
+  /**
+   * Parse active file notification from MCP server
+   */
+  private parseActiveFileNotification(
+    params: ActiveFile,
+  ): ActiveFileContext | null {
+    if (!params?.filePath) {
+      return null;
+    }
+
+    const result: ActiveFileContext = {
+      filePath: params.filePath,
+    };
+
+    if (
+      params.cursor &&
+      typeof params.cursor.line === 'number' &&
+      typeof params.cursor.character === 'number'
+    ) {
+      result.cursor = {
+        line: params.cursor.line,
+        character: params.cursor.character,
+      };
+    }
+
+    return result;
   }
 }
