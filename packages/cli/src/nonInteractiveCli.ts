@@ -51,6 +51,7 @@ export async function runNonInteractive(
     while (true) {
       const functionCalls: FunctionCall[] = [];
 
+      console.dir(currentMessages);
       const responseStream = await chat.sendMessageStream({
         message: currentMessages[0]?.parts || [], // Ensure parts are always provided
         config: {
