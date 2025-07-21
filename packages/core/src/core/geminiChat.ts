@@ -575,15 +575,9 @@ export class GeminiChat {
     modelOutput: Content[],
     automaticFunctionCallingHistory?: Content[],
   ) {
-
-    const modelThoughts = modelOutput.filter(
-      (content) => this.isThoughtContent(content),
+    const nonThoughtModelOutput = modelOutput.filter(
+      (content) => !this.isThoughtContent(content),
     );
-
-    // const nonThoughtModelOutput = modelOutput.filter(
-    //   (content) => !this.isThoughtContent(content),
-    // );
-    const nonThoughtModelOutput =  modelOutput;
     let outputContents: Content[] = [];
     if (
       nonThoughtModelOutput.length > 0 &&
@@ -618,11 +612,6 @@ export class GeminiChat {
     // Consolidate adjacent model roles in outputContents
     const consolidatedOutputContents: Content[] = [];
     for (const content of outputContents) {
-      if (this.isThoughtContent(content)) {
-        consolidatedOutputContents.push(content);
-        this.history.push(...consolidatedOutputContents);
-        continue;
-      }
       const lastContent =
         consolidatedOutputContents[consolidatedOutputContents.length - 1];
       if (this.isTextContent(lastContent) && this.isTextContent(content)) {

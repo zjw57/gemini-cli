@@ -43,6 +43,38 @@ function getResponseText(response: GenerateContentResponse): string | null {
   return null;
 }
 
+function getThoughtSignature(
+  response: GenerateContentResponse,
+): string | undefined {
+  if (response.candidates && response.candidates.length > 0) {
+    const candidate = response.candidates[0];
+    if (
+      candidate.content &&
+      candidate.content.parts &&
+      candidate.content.parts.length > 0
+    ) {
+      let currentThoughtSignature: string | undefined;
+      for (const part of candidate.content.parts) {
+        if (part.thoughtSignature && part.thoughtSignature.length > 0) {
+          currentThoughtSignature = part.thoughtSignature;
+        }
+      }
+      return currentThoughtSignature;
+    }
+  }
+  return undefined;
+}
+
+function printContent(content: Content[]) {
+  console.log('start content');
+  for (const con of content) {
+    for (const part of con.parts ?? []) {
+      console.log('part', part);
+    }
+  }
+  console.log('end content');
+}
+
 export async function runNonInteractive(
   config: Config,
   input: string,
@@ -78,6 +110,7 @@ export async function runNonInteractive(
       }
       const functionCalls: FunctionCall[] = [];
 
+      printContent(currentMessages);
       const responseStream = await chat.sendMessageStream(
         {
           message: currentMessages[0]?.parts || [], // Ensure parts are always provided
@@ -104,7 +137,6 @@ export async function runNonInteractive(
           functionCalls.push(...resp.functionCalls);
         }
       }
-
       if (functionCalls.length > 0) {
         const toolResponseParts: Part[] = [];
 
