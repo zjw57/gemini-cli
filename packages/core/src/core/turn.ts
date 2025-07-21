@@ -49,7 +49,6 @@ export enum GeminiEventType {
   ChatCompressed = 'chat_compressed',
   Thought = 'thought',
   MaxSessionTurns = 'max_session_turns',
-  LoopDetected = 'loop_detected',
 }
 
 export interface StructuredError {
@@ -134,10 +133,6 @@ export type ServerGeminiMaxSessionTurnsEvent = {
   type: GeminiEventType.MaxSessionTurns;
 };
 
-export type ServerGeminiLoopDetectedEvent = {
-  type: GeminiEventType.LoopDetected;
-};
-
 // The original union type, now composed of the individual types
 export type ServerGeminiStreamEvent =
   | ServerGeminiContentEvent
@@ -148,8 +143,7 @@ export type ServerGeminiStreamEvent =
   | ServerGeminiErrorEvent
   | ServerGeminiChatCompressedEvent
   | ServerGeminiThoughtEvent
-  | ServerGeminiMaxSessionTurnsEvent
-  | ServerGeminiLoopDetectedEvent;
+  | ServerGeminiMaxSessionTurnsEvent;
 
 // A turn manages the agentic loop turn within the server context.
 export class Turn {
