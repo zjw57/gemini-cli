@@ -1,21 +1,39 @@
 # IDE Integration Architecture
 
-This document provides a detailed overview of the IDE integration system architecture in Gemini CLI.
+This document provides a detailed overview of the protocol-first IDE integration system architecture in Gemini CLI.
 
 ## System Overview
 
-The IDE integration system enables Gemini CLI to communicate with various IDEs and editors to provide context-aware assistance. The architecture is designed to be:
+The IDE integration system enables Gemini CLI to communicate with various IDEs and editors to provide context-aware assistance. The architecture follows a protocol-first design pattern, similar to the Language Server Protocol (LSP) and Debug Adapter Protocol (DAP).
 
-- **Extensible**: Easy to add new IDE integrations
-- **Modular**: Clean separation of concerns
+Key principles:
+
+- **Protocol-First**: Uses Model Context Protocol (MCP) as the abstraction layer
+- **IDE-Agnostic**: Gemini CLI has no IDE-specific knowledge
+- **Extensible**: New IDEs can integrate without core changes
+- **Auto-Discovery**: Automatically detects MCP-compatible IDEs
 - **Non-blocking**: Failures don't prevent CLI operation
-- **Backward compatible**: Existing functionality preserved
 
-## Architecture Layers
+## Architecture Overview
 
-### 1. Application Layer
+### Protocol-First Design
 
-The main Gemini CLI application that uses IDE context for enhanced prompts and suggestions.
+Unlike traditional IDE-specific integrations, this system uses a protocol-first approach where the protocol (MCP) is the abstraction layer:
+
+```
+┌─────────────────┐    MCP Protocol    ┌──────────────────────┐
+│   Gemini CLI    │◄─────────────────► │ IDE Companion       │
+│  (IDE-agnostic) │     HTTP/WebSocket │ Extension/Plugin     │
+└─────────────────┘                    └──────────────────────┘
+                                                │
+                                                ▼
+                                       ┌──────────────────────┐
+                                       │ IDE (VS Code,        │
+                                       │ IntelliJ, Vim, etc.) │
+                                       └──────────────────────┘
+```
+
+### Architecture Layers
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -27,78 +45,38 @@ The main Gemini CLI application that uses IDE context for enhanced prompts and s
 │  │  - File change notifications            │    │
 │  └─────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────┘
-```
-
-### 2. Integration Management Layer
-
-Coordinates all IDE integrations and provides a unified interface.
-
-```
+                         │
+                         ▼
 ┌─────────────────────────────────────────────────┐
-│            IDE Integration Manager              │
+│         IDE Integration Manager                 │
 │  ┌─────────────────────────────────────────┐    │
-│  │         Registry System                 │    │
-│  │  - Plugin discovery                     │    │
-│  │  - Factory management                   │    │
-│  │  - Lifecycle coordination               │    │
-│  └─────────────────────────────────────────┘    │
-│  ┌─────────────────────────────────────────┐    │
-│  │        Active Integration               │    │
-│  │  - Single active IDE connection         │    │
+│  │        Single MCP Integration           │    │
+│  │  - Generic MCP protocol handling        │    │
+│  │  - Auto-discovery of MCP servers        │    │
 │  │  - Event handling and bridging          │    │
-│  │  - Error recovery                       │    │
 │  └─────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────┘
-```
-
-### 3. Plugin Implementation Layer
-
-IDE-specific integration implementations.
-
-```
+                         │
+                         ▼
 ┌─────────────────────────────────────────────────┐
-│              IDE Integrations                   │
-│  ┌─────────────┐  ┌─────────────┐  ┌──────────┐ │
-│  │   VS Code   │  │  JetBrains  │  │   Zed    │ │
-│  │ Integration │  │ Integration │  │Integration│ │
-│  │             │  │             │  │          │ │
-│  │ - Detection │  │ - Detection │  │- Detection│ │
-│  │ - File Ctx  │  │ - File Ctx  │  │- File Ctx│ │
-│  │ - Notify    │  │ - Notify    │  │- Notify  │ │
-│  └─────────────┘  └─────────────┘  └──────────┘ │
+│              MCP Transport Layer                │
+│  ┌─────────────────────────────────────────┐    │
+│  │           Generic MCP Client            │    │
+│  │  - Server discovery (env vars, ports)   │    │
+│  │  - HTTP/WebSocket communication         │    │
+│  │  - Tool calls and notifications         │    │
+│  └─────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────┘
-```
-
-### 4. Transport Layer
-
-Communication protocols between CLI and IDE.
-
-```
+                         │
+                         ▼
 ┌─────────────────────────────────────────────────┐
-│               Transport Layer                   │
+│            IDE MCP Servers                      │
 │  ┌─────────────┐  ┌─────────────┐  ┌──────────┐ │
-│  │     MCP     │  │     LSP     │  │  Custom  │ │
-│  │  over HTTP  │  │   Protocol  │  │ Protocol │ │
+│  │   VS Code   │  │  IntelliJ   │  │   Vim    │ │
+│  │ Extension   │  │   Plugin    │  │  Plugin  │ │
 │  │             │  │             │  │          │ │
-│  │ - Tool calls│  │ - Requests  │  │- Messages│ │
-│  │ - Notifications│ │ - Events  │  │- Events  │ │
-│  └─────────────┘  └─────────────┘  └──────────┘ │
-└─────────────────────────────────────────────────┘
-```
-
-### 5. IDE/Editor Layer
-
-The actual IDE or editor with companion extensions/plugins.
-
-```
-┌─────────────────────────────────────────────────┐
-│                IDE/Editor                       │
-│  ┌─────────────┐  ┌─────────────┐  ┌──────────┐ │
-│  │   VS Code   │  │  IntelliJ   │  │   Zed    │ │
-│  │ Extension   │  │   Plugin    │  │Extension │ │
-│  │             │  │             │  │          │ │
-│  │ - MCP Server│  │ - API Server│  │- Handler │ │
-│  │ - File Watch│  │ - File Watch│  │- Events  │ │
+│  │ - MCP Server│  │ - MCP Server│  │- MCP Srvr│ │
+│  │ - File APIs │  │ - File APIs │  │- File API│ │
 │  └─────────────┘  └─────────────┘  └──────────┘ │
 └─────────────────────────────────────────────────┘
 ```
@@ -111,23 +89,25 @@ The actual IDE or editor with companion extensions/plugins.
 sequenceDiagram
     participant CLI as Gemini CLI
     participant IIM as IDE Integration Manager
-    participant REG as Integration Registry
-    participant VSC as VS Code Integration
-    participant EXT as VS Code Extension
+    participant MCP as MCP Integration
+    participant TRANS as MCP Transport
+    participant IDE as IDE Extension/Plugin
 
     CLI->>IIM: Initialize IDE mode
-    IIM->>REG: Register built-in integrations
-    REG->>REG: Register VS Code factory
-    IIM->>VSC: Create VS Code integration
-    VSC->>VSC: Check environment (TERM_PROGRAM)
-    VSC->>EXT: Test connection via MCP
-    EXT-->>VSC: Connection successful
-    VSC-->>IIM: Integration available
-    IIM->>VSC: Initialize and connect
-    VSC->>EXT: Setup MCP client
-    EXT-->>VSC: Active file context
-    VSC-->>IIM: Ready
-    IIM-->>CLI: IDE integration active
+    IIM->>MCP: Create MCP integration
+    MCP->>TRANS: Initialize transport
+    TRANS->>TRANS: Discover MCP servers (env vars, ports)
+    TRANS->>IDE: Test connection
+    IDE-->>TRANS: Connection successful
+    TRANS-->>MCP: Available
+    MCP-->>IIM: Integration ready
+    IIM->>MCP: Connect and initialize
+    MCP->>TRANS: Setup MCP client
+    TRANS->>IDE: Establish MCP connection
+    IDE-->>TRANS: Active file context
+    TRANS-->>MCP: File context
+    MCP-->>IIM: Ready
+    IIM-->>CLI: MCP integration active
 ```
 
 ### 2. Active File Detection Flow
@@ -137,127 +117,167 @@ sequenceDiagram
     participant CLI as Gemini CLI
     participant CTX as IDE Context Store
     participant IIM as IDE Integration Manager
-    participant VSC as VS Code Integration
-    participant MCP as MCP Transport
-    participant EXT as VS Code Extension
+    participant MCP as MCP Integration
+    participant TRANS as MCP Transport
+    participant IDE as IDE Extension/Plugin
 
     CLI->>IIM: Get active file context
-    IIM->>VSC: getActiveFileContext()
-    VSC->>MCP: getActiveFile()
-    MCP->>EXT: callTool('getActiveFile')
-    EXT-->>MCP: {filePath, cursor}
-    MCP-->>VSC: Parsed response
-    VSC-->>IIM: ActiveFileContext
+    IIM->>MCP: getActiveFileContext()
+    MCP->>TRANS: getActiveFile()
+    TRANS->>IDE: callTool('getActiveFile')
+    IDE-->>TRANS: {filePath, cursor}
+    TRANS-->>MCP: Parsed response
+    MCP-->>IIM: ActiveFileContext
     IIM->>CTX: setActiveFileContext()
     CTX-->>CLI: Context available for prompts
 ```
 
-### 3. File Change Notification Flow
+### 3. Auto-Discovery Flow
 
 ```mermaid
 sequenceDiagram
-    participant USER as User
-    participant EXT as VS Code Extension
-    participant MCP as MCP Transport
-    participant VSC as VS Code Integration
-    participant IIM as IDE Integration Manager
-    participant CTX as IDE Context Store
-    participant CLI as Gemini CLI
+    participant TRANS as MCP Transport
+    participant ENV as Environment Variables
+    participant PORTS as Well-known Ports
+    participant IDE as IDE MCP Server
 
-    USER->>EXT: Switch active file
-    EXT->>MCP: Send notification
-    MCP->>VSC: Handle notification
-    VSC->>IIM: setActiveFileChangeHandler
-    IIM->>CTX: setActiveFileContext()
-    CTX->>CLI: Trigger UI update
+    TRANS->>ENV: Check GEMINI_CLI_IDE_SERVER_PORT
+    ENV-->>TRANS: Port 58767
+    TRANS->>IDE: Test connection to localhost:58767
+    IDE-->>TRANS: MCP server available
+    
+    Note over TRANS: If env var fails, try well-known ports
+    TRANS->>PORTS: Try ports 58767, 3000, 8080
+    PORTS->>IDE: Test each port
+    IDE-->>PORTS: First available port
+    PORTS-->>TRANS: Connection established
 ```
 
 ## Key Components
 
-### IDEIntegrationRegistry
+### MCPIDEIntegration
 
-**Purpose**: Central registry for all IDE integration factories.
+**Purpose**: Generic MCP-based IDE integration that works with any MCP-compatible IDE.
 
 **Responsibilities**:
-
-- Register integration factories by ID
-- Create integration instances
-- Manage integration lifecycle
-- Prevent duplicate registrations
+- Provide uniform interface regardless of IDE type
+- Handle MCP protocol communication
+- Manage connection lifecycle
 
 **Interface**:
 
 ```typescript
-class IDEIntegrationRegistry {
-  register(id: string, factory: IDEIntegrationFactory): void;
-  create(id: string, config: IDEIntegrationConfig): Promise<IDEIntegration>;
-  isRegistered(id: string): boolean;
-  getRegisteredIds(): string[];
-  unregister(id: string): void;
-  cleanup(): Promise<void>;
+class MCPIDEIntegration implements IDEIntegration {
+  async isAvailable(): Promise<boolean>;
+  async getActiveFileContext(): Promise<ActiveFileContext | null>;
+  async sendNotification(message: string): Promise<void>;
+  setActiveFileChangeHandler(handler: (context: ActiveFileContext | null) => void): void;
+  async initialize(): Promise<void>;
+  async cleanup(): Promise<void>;
+}
+```
+
+### MCPTransport
+
+**Purpose**: Generic MCP transport that discovers and communicates with MCP servers.
+
+**Responsibilities**:
+- Auto-discover MCP servers through multiple methods
+- Handle HTTP/WebSocket MCP communication
+- Manage MCP client lifecycle
+- Parse and format MCP messages
+
+**Discovery Methods**:
+1. Environment variables (`GEMINI_CLI_IDE_SERVER_PORT`)
+2. Well-known ports (58767, 3000, 8080)
+3. Process detection (future enhancement)
+4. Configuration files (future enhancement)
+
+**Interface**:
+
+```typescript
+class MCPTransport {
+  async isAvailable(): Promise<boolean>;
+  async initialize(): Promise<void>;
+  async getActiveFile(): Promise<ActiveFileContext | null>;
+  setNotificationHandler(handler: (context: ActiveFileContext | null) => void): void;
+  async sendNotification(message: string): Promise<void>;
+  async cleanup(): Promise<void>;
 }
 ```
 
 ### IDEIntegrationManager
 
-**Purpose**: Singleton manager that coordinates IDE integrations.
+**Purpose**: Simplified manager for the single MCP integration.
+
+**Changes from Registry System**:
+- No longer manages multiple IDE types
+- Single MCP integration instead of registry
+- Simplified initialization and status reporting
 
 **Responsibilities**:
-
-- Initialize and detect available IDE integrations
-- Maintain single active integration
-- Bridge integration events to legacy `ideContext`
-- Handle graceful failure and recovery
-
-**State Management**:
-
-- `initialized`: Whether manager has been initialized
-- `activeIntegration`: Currently active IDE integration (if any)
+- Initialize MCP integration
+- Bridge MCP events to IDE context
+- Provide status information
+- Handle graceful failure
 
 **Key Methods**:
 
-- `initialize()`: Setup and detect available IDEs
-- `detectAndConnect()`: Try integrations in priority order
-- `getStatus()`: Get current integration status
-- `cleanup()`: Clean up all resources
+```typescript
+class IDEIntegrationManager {
+  async initialize(config: IDEIntegrationConfig): Promise<void>;
+  async getStatus(): Promise<{ active: boolean; integration?: { type: string; available: boolean } }>;
+  async connectToMCP(config: IDEIntegrationConfig): Promise<boolean>;
+  getActiveIntegration(): IDEIntegration | null;
+  isActive(): boolean;
+  async cleanup(): Promise<void>;
+}
+```
 
-### IDEIntegration Interface
+### IDEIntegration Interface (Protocol-First)
 
-**Purpose**: Contract that all IDE integrations must implement.
+**Purpose**: Simplified contract for MCP-based integrations.
 
-**Core Methods**:
+**Changes from Registry System**:
+- Removed `id`, `name`, `description` properties (no longer needed)
+- Added `setActiveFileChangeHandler` method
+- Focus on protocol methods, not IDE identity
+
+**Interface**:
 
 ```typescript
 interface IDEIntegration {
-  readonly id: string;
-  readonly name: string;
-  readonly description: string;
-
+  // Core protocol methods
   isAvailable(): Promise<boolean>;
   getActiveFileContext(): Promise<ActiveFileContext | null>;
   sendNotification(message: string): Promise<void>;
+  
+  // Event handling
+  setActiveFileChangeHandler(handler: (context: ActiveFileContext | null) => void): void;
+  
+  // Lifecycle
   initialize(): Promise<void>;
   cleanup(): Promise<void>;
 }
 ```
 
-**Implementation Pattern**:
-
-1. Constructor accepts `IDEIntegrationConfig`
-2. `isAvailable()` performs environment detection
-3. `initialize()` sets up communication channel
-4. `getActiveFileContext()` returns current file info
-5. `cleanup()` releases resources
-
 ## Configuration System
 
-### IDE Mode Detection
+### MCP Server Discovery
+
+The system discovers MCP servers through multiple methods in order:
 
 ```typescript
-const ideMode =
-  (argv.ideMode ?? settings.ideMode ?? false) &&
-  process.env.TERM_PROGRAM === 'vscode' &&
-  !process.env.SANDBOX;
+// Method 1: Environment variable (primary)
+const port = process.env.GEMINI_CLI_IDE_SERVER_PORT;
+
+// Method 2: Well-known ports (fallback)
+const wellKnownPorts = [58767, 3000, 8080];
+
+// Method 3: Future enhancements
+// - Process scanning
+// - Configuration files
+// - Registry entries
 ```
 
 ### Integration Configuration
@@ -265,132 +285,193 @@ const ideMode =
 ```typescript
 interface IDEIntegrationConfig {
   environment: Record<string, string | undefined>;
-  timeout: number;
-  debug: boolean;
+  timeout?: number; // Default: 5000ms for availability, 10000ms for initialization
+  debug?: boolean;
 }
 ```
 
-### Discovery Priority
+### IDE Mode Detection
 
-Integrations are attempted in order:
+```typescript
+const ideMode =
+  (argv.ideMode ?? settings.ideMode ?? false) &&
+  !process.env.SANDBOX;
+```
 
-1. VS Code (if `TERM_PROGRAM === 'vscode'`)
-2. JetBrains (if JetBrains environment detected)
-3. Zed (if Zed environment detected)
-4. Generic detection fallbacks
+Note: No longer requires `TERM_PROGRAM === 'vscode'` - works with any MCP-compatible IDE.
+
+## Benefits of Protocol-First Architecture
+
+### For Gemini CLI Core
+
+1. **Simplified Codebase**: Single integration instead of multiple IDE-specific classes
+2. **No IDE-Specific Knowledge**: Core doesn't need to know about VS Code, IntelliJ, etc.
+3. **Easier Maintenance**: One code path instead of many
+4. **Better Testability**: Single integration to test thoroughly
+
+### For IDE Developers
+
+1. **Standard Protocol**: Implement MCP instead of custom Gemini CLI APIs
+2. **Industry Standard**: MCP follows LSP/DAP patterns that developers know
+3. **Future-Proof**: Protocol evolution handled at MCP level
+4. **Tool Reuse**: MCP servers can work with multiple clients
+
+### For Users
+
+1. **Consistent Experience**: Same integration quality across all IDEs
+2. **Automatic Discovery**: Works when IDE MCP server is available
+3. **Better Reliability**: Simpler system with fewer failure points
+4. **Broader IDE Support**: Any IDE can add MCP support
 
 ## Error Handling Strategy
 
 ### Non-blocking Initialization
 
-- IDE integration failures don't prevent CLI startup
-- Graceful degradation when no IDE is available
-- Debug logging for troubleshooting
+- MCP integration failures don't prevent CLI startup
+- Graceful degradation when no MCP server is found
+- Clear status messages via `/ide status`
+
+### Auto-Discovery Resilience
+
+- Multiple discovery methods provide fallbacks
+- Network timeout handling for connection tests
+- Clean error messages for users
 
 ### Connection Recovery
 
-- Automatic reconnection attempts
+- Automatic server detection on each operation
 - Fallback to manual file specification
-- Clear error messages for users
-
-### Resource Management
-
-- Proper cleanup on shutdown
-- Connection timeout handling
-- Memory leak prevention
-
-## Integration with Existing Systems
-
-### Legacy IDE Context Bridge
-
-The new system maintains compatibility with existing `ideContext`:
-
-```typescript
-// Bridge pattern in IDE Integration Manager
-integration.setActiveFileChangeHandler((context) => {
-  if (context) {
-    ideContext.setActiveFileContext({
-      filePath: context.filePath,
-      cursor: context.cursor,
-    });
-  } else {
-    ideContext.clearActiveFileContext();
-  }
-});
-```
-
-### Tool Registry Integration
-
-IDE integrations don't register tools in the main tool registry. Instead:
-
-- Direct communication through integration interface
-- No MCP tool discovery for IDE servers
-- Isolated from general MCP tool system
-
-### Configuration System Integration
-
-- Uses existing CLI configuration flags (`--ide-mode`)
-- Respects debug mode settings
-- Integrates with settings files
-
-## Performance Considerations
-
-### Lazy Initialization
-
-- Integrations only initialize when IDE mode is enabled
-- Connection setup happens asynchronously
-- No impact on CLI startup time
-
-### Resource Efficiency
-
-- Single active integration (not multiple simultaneous)
-- Connection pooling where appropriate
-- Minimal memory footprint
-
-### Scalability
-
-- Registry pattern supports unlimited integrations
-- Factory pattern enables efficient instantiation
-- Clean separation allows independent development
+- Resource cleanup on connection failures
 
 ## Security Considerations
 
 ### Trust Model
 
-- IDE integrations are implicitly trusted (no confirmation prompts)
-- Local communication only (no external network calls)
-- Environment-based detection (no file system scanning)
+- MCP servers run locally (localhost only)
+- No external network communication
+- Implicit trust for local IDE extensions
+
+### Protocol Security
+
+- MCP protocol handles authentication/authorization
+- Standard HTTP/WebSocket security practices
+- No sensitive data in discovery process
 
 ### Isolation
 
-- Each integration is isolated from others
-- Failed integrations don't affect system stability
-- Proper error boundaries and exception handling
+- MCP integration isolated from other CLI functions
+- Failed connections don't affect CLI operation
+- Proper resource cleanup prevents leaks
 
 ## Future Extensions
 
-### Multi-IDE Support
+### Protocol Evolution
 
-While currently single-active, the architecture supports future multi-IDE scenarios:
+- Support for WebSocket MCP connections
+- Enhanced notification systems
+- Bidirectional tool calling
 
-- Registry can manage multiple active integrations
-- Event routing to multiple destinations
-- Conflict resolution for overlapping contexts
+### Discovery Enhancements
 
-### Protocol Extensibility
-
-The transport layer can support new protocols:
-
-- WebSocket connections
-- Direct TCP/UDP
-- Message queues
-- Shared memory
+- Process-based detection
+- Configuration file discovery
+- IDE-specific registry checks
+- Network service discovery
 
 ### Advanced Features
 
-Future enhancements could include:
+- Multi-workspace support
+- Language-specific context
+- Debugging session integration
+- Project-aware suggestions
 
-- IDE-specific tool suggestions
-- Project-aware context
-- Language server integration
-- Debugging session context
+## Comparison: Registry vs Protocol-First
+
+### Before (Registry-Based)
+
+```
+Gemini CLI
+├── IDEIntegrationRegistry
+│   ├── VSCodeIntegrationFactory
+│   ├── IntelliJIntegrationFactory
+│   └── VimIntegrationFactory
+├── VSCodeIntegration (IDE-specific)
+├── IntelliJIntegration (IDE-specific)
+└── VimIntegration (IDE-specific)
+```
+
+**Issues**:
+- Each IDE requires custom integration code
+- Registry manages multiple integration types
+- Complex initialization and status tracking
+- IDE-specific knowledge in core
+
+### After (Protocol-First)
+
+```
+Gemini CLI
+├── IDEIntegrationManager (simplified)
+├── MCPIDEIntegration (generic)
+└── MCPTransport (protocol handler)
+```
+
+**Benefits**:
+- Single generic integration for all IDEs
+- No IDE-specific code in core
+- Simpler architecture and testing
+- Standard MCP protocol interface
+
+## Implementation Notes
+
+### MCP Tool Expectations
+
+IDE MCP servers should implement:
+
+```typescript
+// Required MCP tool
+{
+  name: "getActiveFile",
+  description: "Get the currently active file and cursor position",
+  inputSchema: {
+    type: "object",
+    properties: {}
+  }
+}
+
+// Expected response format
+"Active file: /path/to/file.ts (line: 10, char: 5)"
+// or
+"Active file: /path/to/file.ts"
+// or
+"No file is currently active"
+```
+
+### Notification Handling
+
+```typescript
+// Expected MCP notification (future enhancement)
+{
+  method: "activeFileNotification",
+  params: {
+    filePath?: string,
+    cursor?: {
+      line: number,
+      character: number
+    }
+  }
+}
+```
+
+### Environment Setup
+
+IDE extensions should set:
+
+```bash
+# Primary discovery method
+export GEMINI_CLI_IDE_SERVER_PORT=58767
+
+# Extension should run MCP server on specified port
+# and implement required tools and notifications
+```
+
+This protocol-first architecture provides a clean, maintainable, and extensible foundation for IDE integration that follows industry standards and best practices.

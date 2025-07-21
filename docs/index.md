@@ -30,6 +30,8 @@ This documentation is organized into the following sections:
   - **[Web Fetch Tool](./tools/web-fetch.md):** Documentation for the `web_fetch` tool.
   - **[Web Search Tool](./tools/web-search.md):** Documentation for the `google_web_search` tool.
   - **[Memory Tool](./tools/memory.md):** Documentation for the `save_memory` tool.
+- **Extensibility:**
+  - **[IDE Integration](./ide-integrations/architecture.md):** Protocol-first IDE integration system using Model Context Protocol (MCP).
 - **[Contributing & Development Guide](../CONTRIBUTING.md):** Information for contributors and developers, including setup, building, testing, and coding conventions.
 - **[NPM Workspaces and Publishing](./npm.md):** Details on how the project's packages are managed and published.
 - **[Troubleshooting Guide](./troubleshooting.md):** Find solutions to common problems and FAQs.
