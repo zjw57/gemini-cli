@@ -6,41 +6,6 @@ This guide explains how to create IDE companion extensions/plugins for the Gemin
 
 The Gemini CLI uses a protocol-first approach for IDE integration. Instead of creating IDE-specific integration code in Gemini CLI, you implement an MCP server in your IDE extension/plugin that communicates with Gemini CLI's generic MCP client.
 
-This approach follows industry standards like the Language Server Protocol (LSP) and Debug Adapter Protocol (DAP).
-
-## Architecture
-
-The protocol-first architecture shifts IDE-specific logic to companion extensions:
-
-```
-┌─────────────────┐    MCP Protocol    ┌──────────────────────┐
-│   Gemini CLI    │◄─────────────────► │ Your IDE Extension/  │
-│  (IDE-agnostic) │     HTTP/WebSocket │ Plugin (MCP Server)  │
-└─────────────────┘                    └──────────────────────┘
-                                                │
-                                                ▼
-                                       ┌──────────────────────┐
-                                       │ Your IDE             │
-                                       │ (IntelliJ, Vim, etc.) │
-                                       └──────────────────────┘
-```
-
-## Benefits of Protocol-First Approach
-
-### For IDE Extension Developers
-
-1. **Standard Protocol**: Implement MCP instead of custom Gemini CLI APIs
-2. **Industry Pattern**: Follows LSP/DAP patterns developers already know
-3. **Tool Reuse**: Your MCP server can work with other MCP clients
-4. **Future-Proof**: Protocol evolution handled at MCP level
-5. **No Core Changes**: Add IDE support without modifying Gemini CLI
-
-### For Users
-
-1. **Automatic Discovery**: Works when MCP server is detected
-2. **Consistent Experience**: Same functionality across all IDEs
-3. **Better Reliability**: Simpler architecture with fewer failure points
-
 ## Creating an IDE Integration
 
 ### Step 1: Implement MCP Server in Your IDE Extension
@@ -107,6 +72,25 @@ For real-time file change updates, implement MCP notifications:
   }
 }
 ```
+
+## Architecture
+
+The protocol-first architecture shifts IDE-specific logic to companion extensions:
+
+```
+┌─────────────────┐    MCP Protocol    ┌──────────────────────┐
+│   Gemini CLI    │◄─────────────────► │ Your IDE Extension/  │
+│  (IDE-agnostic) │     HTTP/WebSocket │ Plugin (MCP Server)  │
+└─────────────────┘                    └──────────────────────┘
+                                                │
+                                                ▼
+                                       ┌──────────────────────┐
+                                       │ Your IDE             │
+                                       │ (IntelliJ, Vim, etc.) │
+                                       └──────────────────────┘
+```
+
+For more information, see the [Architecture Documentation](./architecture.md).
 
 ## Implementation Examples
 
