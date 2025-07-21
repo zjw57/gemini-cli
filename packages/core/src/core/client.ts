@@ -534,7 +534,7 @@ This is the cursor position in the file:
     prompt_id: string,
     force: boolean = false,
   ): Promise<ChatCompressionInfo | null> {
-    const curatedHistory = this.getChat().getHistory(true);
+    const curatedHistory = this.getChat().getHistory();
 
     // Regardless of `force`, don't do anything if the history is empty.
     if (curatedHistory.length === 0) {
