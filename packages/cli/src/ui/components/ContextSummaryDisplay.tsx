@@ -8,7 +8,6 @@ import React from 'react';
 import { Text } from 'ink';
 import { Colors } from '../colors.js';
 import { type OpenFiles, type MCPServerConfig } from '@google/gemini-cli-core';
-import path from 'path';
 
 interface ContextSummaryDisplayProps {
   geminiMdFileCount: number;
@@ -40,10 +39,10 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
   }
 
   const activeFileText = (() => {
-    if (!openFiles?.activeFile) {
+    if (!openFiles?.recentOpenFiles) {
       return '';
     }
-    return `Open File (${path.basename(openFiles.activeFile)})`;
+    return `${openFiles.recentOpenFiles.length} recent files (ctrl+e for IDE context)`;
   })();
 
   const geminiMdText = (() => {
