@@ -1,13 +1,16 @@
 # Gemini CLI Companion
+
 The Gemini CLI Companion extension seamlessly integrates the [Gemini CLI tool](https://github.com/google-gemini/gemini-cli) with your VS Code environment. This integration enhances the CLI's access to your coding workspace, allowing it to leverage information directly from your preferred development environment.
 
 # Features
-* Open Editor File Context: Gemini CLI gains awareness of the files you have open in your editor, providing it with a richer understanding of your project's structure and content.
 
-* Selection Context: Gemini CLI can easily access your cursor's position and selected text within the editor, giving it valuable context directly from your current work.
+- Open Editor File Context: Gemini CLI gains awareness of the files you have open in your editor, providing it with a richer understanding of your project's structure and content.
+
+- Selection Context: Gemini CLI can easily access your cursor's position and selected text within the editor, giving it valuable context directly from your current work.
 
 # Requirements
+
 To use this extension, you'll need:
 
-* VS Code version 1.101.0 or newer
-* Gemini CLI (installed separately) and running within the VS Code integrated terminal
+- VS Code version 1.101.0 or newer
+- Gemini CLI (installed separately) and running within the VS Code integrated terminal
