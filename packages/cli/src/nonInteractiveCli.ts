@@ -50,9 +50,11 @@ export async function runNonInteractive(
   try {
     while (true) {
       const functionCalls: FunctionCall[] = [];
-
+      const history = chat.getHistory();
       console.log("currentMessages");
       console.dir(currentMessages, { depth: null });
+      console.log("history");
+      console.dir(history, { depth: null });
       const responseStream = await chat.sendMessageStream({
         message: currentMessages[0]?.parts || [], // Ensure parts are always provided
         config: {

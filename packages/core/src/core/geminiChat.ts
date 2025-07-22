@@ -98,8 +98,8 @@ function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
     return [];
   }
   // console.log('comprehensiveHistory', comprehensiveHistory.map((content) => content.parts?.map((part) => part.text).join('')));
-  console.log("comprehensiveHistory");
-  console.dir(comprehensiveHistory, { depth: null });
+  // console.log("comprehensiveHistory");
+  // console.dir(comprehensiveHistory, { depth: null });
   const curatedHistory: Content[] = [];
   const length = comprehensiveHistory.length;
   let i = 0;
@@ -127,8 +127,8 @@ function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
       }
     }
   }
-  console.log('curatedHistory');
-  console.dir(curatedHistory, { depth: null });
+  // console.log('curatedHistory');
+  // console.dir(curatedHistory, { depth: null });
   
   return curatedHistory;
 }
