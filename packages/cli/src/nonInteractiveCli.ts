@@ -52,7 +52,7 @@ export async function runNonInteractive(
       const functionCalls: FunctionCall[] = [];
 
       console.log("currentMessages");
-      console.dir(currentMessages);
+      console.dir(currentMessages, { depth: null });
       const responseStream = await chat.sendMessageStream({
         message: currentMessages[0]?.parts || [], // Ensure parts are always provided
         config: {
