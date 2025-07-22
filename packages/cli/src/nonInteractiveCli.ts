@@ -20,6 +20,7 @@ import {
 } from '@google/genai';
 
 import { parseAndFormatApiError } from './ui/utils/errorParsing.js';
+import { inspect } from 'util';
 
 function getResponseText(response: GenerateContentResponse): string | null {
   if (response.candidates && response.candidates.length > 0) {
@@ -64,6 +65,7 @@ export async function runNonInteractive(
   const abortController = new AbortController();
   let currentMessages: Content[] = [{ role: 'user', parts: [{ text: input }] }];
   let turnCount = 0;
+  let exitCode = 0;
   try {
     while (true) {
       turnCount++;
@@ -163,10 +165,27 @@ export async function runNonInteractive(
         config.getContentGeneratorConfig()?.authType,
       ),
     );
-    process.exit(1);
+    exitCode = 1;
   } finally {
+    const writeAsync = (data: string): Promise<void> => {
+      return new Promise((resolve) => {
+        // process.stdout.write is async, this ensures it completes
+        process.stdout.write(data, () => resolve());
+      });
+    };
+
+    await writeAsync(`Comprehensive history:\n\n`);
+    await writeAsync(inspect(chat.getHistory(), { depth: null, maxArrayLength: null }) + `\n\n`);
+
+    await writeAsync(`Curated history:\n\n`);
+    await writeAsync(
+      inspect(chat.getHistory(true), { depth: null, maxArrayLength: null }) + `\n\n`,
+    );
+
     if (isTelemetrySdkInitialized()) {
       await shutdownTelemetry();
     }
+
+    process.exit(exitCode);
   }
 }

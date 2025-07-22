@@ -35,6 +35,7 @@ import {
   ApiResponseEvent,
 } from '../telemetry/types.js';
 import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
+import { inspect } from 'util';
 
 /**
  * Returns true if the response is valid, false otherwise.
@@ -112,7 +113,10 @@ function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
         curatedHistory.push(...modelOutput);
       } else {
         // Remove the last user input when model content is invalid.
-        curatedHistory.pop();
+        const popped = curatedHistory.pop();
+        console.log("Popping off\n\n")
+        console.log(inspect(popped, { depth: null, maxArrayLength: null }))
+        
       }
     }
   }
