@@ -332,4 +332,60 @@ describe('oauth2', () => {
       );
     });
   });
+
+  describe('with GCP access token environment variables', () => {
+    const OLD_ENV = process.env;
+
+    beforeEach(() => {
+      process.env = { ...OLD_ENV }; // create a copy
+    });
+
+    afterEach(() => {
+      process.env = OLD_ENV; // restore original
+    });
+
+    it('should use GCP access token when GOOGLE_GENAI_USE_GCP and GOOGLE_CLOUD_ACCESS_TOKEN are set', async () => {
+      process.env.GOOGLE_GENAI_USE_GCP = 'true';
+      process.env.GOOGLE_CLOUD_ACCESS_TOKEN = 'test-gcp-access-token';
+
+      const mockSetCredentials = vi.fn();
+      const mockGetAccessToken = vi
+        .fn()
+        .mockResolvedValue({ token: 'test-gcp-access-token' });
+      const mockOAuth2Client = {
+        setCredentials: mockSetCredentials,
+        getAccessToken: mockGetAccessToken,
+        on: vi.fn(),
+      } as unknown as OAuth2Client;
+      (OAuth2Client as unknown as Mock).mockImplementation(
+        () => mockOAuth2Client,
+      );
+
+      (global.fetch as Mock).mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ email: 'test-gcp-user@example.com' }),
+      });
+
+      const client = await getOauthClient(
+        AuthType.LOGIN_WITH_GOOGLE,
+        mockConfig,
+      );
+
+      expect(client).toBe(mockOAuth2Client);
+      expect(OAuth2Client).toHaveBeenCalledOnce();
+      expect(mockSetCredentials).toHaveBeenCalledWith({
+        access_token: 'test-gcp-access-token',
+      });
+
+      // Verify user info was fetched and cached
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://www.googleapis.com/oauth2/v2/userinfo',
+        {
+          headers: {
+            Authorization: 'Bearer test-gcp-access-token',
+          },
+        },
+      );
+    });
+  });
 });
