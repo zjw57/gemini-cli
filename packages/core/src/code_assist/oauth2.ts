@@ -70,17 +70,7 @@ export async function getOauthClient(
   authType: AuthType,
   config: Config,
 ): Promise<OAuth2Client> {
-  if (
-    process.env.GOOGLE_GENAI_USE_GCP &&
-    process.env.GOOGLE_CLOUD_ACCESS_TOKEN
-  ) {
-    const client = new OAuth2Client();
-    client.setCredentials({
-      access_token: process.env.GOOGLE_CLOUD_ACCESS_TOKEN,
-    });
-    await fetchAndCacheUserInfo(client);
-    return client;
-  }
+
   const client = new OAuth2Client({
     clientId: OAUTH_CLIENT_ID,
     clientSecret: OAUTH_CLIENT_SECRET,
@@ -88,6 +78,17 @@ export async function getOauthClient(
       proxy: config.getProxy(),
     },
   });
+
+  if (
+    process.env.GOOGLE_GENAI_USE_GCP &&
+    process.env.GOOGLE_CLOUD_ACCESS_TOKEN
+  ) {
+    client.setCredentials({
+      access_token: process.env.GOOGLE_CLOUD_ACCESS_TOKEN,
+    });
+    await fetchAndCacheUserInfo(client);
+    return client;
+  }
 
   client.on('tokens', async (tokens: Credentials) => {
     await cacheCredentials(tokens);
