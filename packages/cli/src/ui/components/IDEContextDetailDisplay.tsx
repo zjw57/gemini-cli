@@ -16,10 +16,13 @@ interface IDEContextDetailDisplayProps {
 export function IDEContextDetailDisplay({
   openFiles,
 }: IDEContextDetailDisplayProps) {
-  if (!openFiles || (!openFiles.activeFile && !openFiles.recentOpenFiles)) {
+  if (
+    !openFiles ||
+    (!openFiles.activeFile &&
+      (!openFiles.recentOpenFiles || openFiles.recentOpenFiles.length === 0))
+  ) {
     return null;
   }
-
   const recentFiles = openFiles.recentOpenFiles || [];
 
   return (
@@ -42,8 +45,8 @@ export function IDEContextDetailDisplay({
       {recentFiles.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
           <Text bold>Recent Files:</Text>
-          {recentFiles.map((file, index) => (
-            <Text key={index}>- {path.basename(file.filePath)}</Text>
+          {recentFiles.map((file, _) => (
+            <Text key={file.filePath}>- {path.basename(file.filePath)}</Text>
           ))}
         </Box>
       )}
