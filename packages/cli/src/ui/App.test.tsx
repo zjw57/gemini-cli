@@ -329,7 +329,7 @@ describe('App UI', () => {
     );
     currentUnmount = unmount;
     await Promise.resolve();
-    expect(lastFrame()).toContain('Open File (my-file.ts) | 1 GEMINI.md File');
+    expect(lastFrame()).toContain('Open File (my-file.ts) (ctrl+e for all IDE context) | 1 GEMINI.md File');
   });
 
   it('should display default "GEMINI.md" in footer when contextFileName is not set and count is 1', async () => {
