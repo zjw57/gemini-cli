@@ -11,7 +11,7 @@ import {
   GenerateContentResponse,
 } from '@google/genai';
 import { GeminiClient } from '../core/client.js';
-import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
+import { DEFAULT_GEMINI_FLASH_LITE_MODEL } from '../config/models.js';
 import { PartListUnion } from '@google/genai';
 
 /**
