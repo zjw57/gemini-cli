@@ -25,6 +25,8 @@ import {
   IDE_SERVER_NAME,
   MCPDiscoveryState,
   MCPServerStatus,
+  logIdeCommandTriggered,
+  IdeCommandTriggeredEvent,
 } from '@google/gemini-cli-core';
 
 vi.mock('child_process');
@@ -36,6 +38,7 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
     ...original,
     getMCPServerStatus: vi.fn(),
     getMCPDiscoveryState: vi.fn(),
+    logIdeCommandTriggered: vi.fn(),
   };
 });
 
@@ -51,6 +54,7 @@ describe('ideCommand', () => {
   let platformSpy: MockInstance;
   let getMCPServerStatusSpy: MockInstance;
   let getMCPDiscoveryStateSpy: MockInstance;
+  let logIdeCommandTriggeredSpy: MockInstance;
 
   beforeEach(() => {
     mockContext = {
@@ -61,6 +65,7 @@ describe('ideCommand', () => {
 
     mockConfig = {
       getIdeMode: vi.fn(),
+      getUsageStatisticsEnabled: vi.fn(),
     } as unknown as Config;
 
     execSyncSpy = vi.spyOn(child_process, 'execSync');
@@ -68,6 +73,7 @@ describe('ideCommand', () => {
     platformSpy = vi.spyOn(process, 'platform', 'get');
     getMCPServerStatusSpy = vi.mocked(getMCPServerStatus);
     getMCPDiscoveryStateSpy = vi.mocked(getMCPDiscoveryState);
+    logIdeCommandTriggeredSpy = vi.mocked(logIdeCommandTriggered);
   });
 
   afterEach(() => {
@@ -105,6 +111,10 @@ describe('ideCommand', () => {
         messageType: 'info',
         content: '🟢 Connected',
       });
+      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+        mockConfig,
+        expect.any(IdeCommandTriggeredEvent),
+      );
     });
 
     it('should show connecting status', () => {
@@ -116,6 +126,10 @@ describe('ideCommand', () => {
         messageType: 'info',
         content: '🔄 Initializing...',
       });
+      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+        mockConfig,
+        expect.any(IdeCommandTriggeredEvent),
+      );
     });
 
     it('should show discovery in progress status', () => {
@@ -128,6 +142,10 @@ describe('ideCommand', () => {
         messageType: 'info',
         content: '🔄 Initializing...',
       });
+      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+        mockConfig,
+        expect.any(IdeCommandTriggeredEvent),
+      );
     });
 
     it('should show disconnected status', () => {
@@ -140,6 +158,10 @@ describe('ideCommand', () => {
         messageType: 'error',
         content: '🔴 Disconnected',
       });
+      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+        mockConfig,
+        expect.any(IdeCommandTriggeredEvent),
+      );
     });
   });
 
@@ -164,6 +186,10 @@ describe('ideCommand', () => {
         }),
         expect.any(Number),
       );
+      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+        mockConfig,
+        expect.any(IdeCommandTriggeredEvent),
+      );
     });
 
     it('should show an error if the VSIX file is not found', async () => {
@@ -179,6 +205,10 @@ describe('ideCommand', () => {
           text: 'Could not find the required VS Code companion extension. Please file a bug via /bug.',
         }),
         expect.any(Number),
+      );
+      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+        mockConfig,
+        expect.any(IdeCommandTriggeredEvent),
       );
     });
 
@@ -215,6 +245,10 @@ describe('ideCommand', () => {
         }),
         expect.any(Number),
       );
+      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+        mockConfig,
+        expect.any(IdeCommandTriggeredEvent),
+      );
     });
 
     it('should install the extension if found in the dev directory', async () => {
@@ -242,6 +276,10 @@ describe('ideCommand', () => {
         }),
         expect.any(Number),
       );
+      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+        mockConfig,
+        expect.any(IdeCommandTriggeredEvent),
+      );
     });
 
     it('should show an error if installation fails', async () => {
@@ -268,6 +306,10 @@ describe('ideCommand', () => {
           text: `Failed to install VS Code companion extension.`,
         }),
         expect.any(Number),
+      );
+      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+        mockConfig,
+        expect.any(IdeCommandTriggeredEvent),
       );
     });
   });

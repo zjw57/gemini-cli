@@ -17,6 +17,8 @@ import {
   EVENT_FLASH_FALLBACK,
   EVENT_FLASH_DECIDED_TO_CONTINUE,
   SERVICE_NAME,
+  EVENT_IDE_COMMAND,
+  EVENT_IDE_NOTIFICATION,
 } from './constants.js';
 import {
   ApiErrorEvent,
@@ -27,6 +29,8 @@ import {
   UserPromptEvent,
   FlashFallbackEvent,
   FlashDecidedToContinueEvent,
+  IdeCommandTriggeredEvent,
+  IdeNotificationReceivedEvent,
   LoopDetectedEvent,
 } from './types.js';
 import {
@@ -39,6 +43,12 @@ import { isTelemetrySdkInitialized } from './sdk.js';
 import { uiTelemetryService, UiEvent } from './uiTelemetry.js';
 import { ClearcutLogger } from './clearcut-logger/clearcut-logger.js';
 import { safeJsonStringify } from '../utils/safeJsonStringify.js';
+
+export let lastLoggedNotificationSessionId: string | null = null;
+
+export function initializeLastLoggedNotificationSessionId() {
+  lastLoggedNotificationSessionId = null;
+}
 
 const shouldLogUserPrompts = (config: Config): boolean =>
   config.getTelemetryLogPromptsEnabled();
@@ -328,6 +338,55 @@ export function logFlashDecidedToContinue(
   const logger = logs.getLogger(SERVICE_NAME);
   const logRecord: LogRecord = {
     body: `Flash decided to continue.`,
+    attributes,
+  };
+  logger.emit(logRecord);
+}
+
+export function logIdeCommandTriggered(
+  config: Config,
+  event: IdeCommandTriggeredEvent,
+) {
+  ClearcutLogger.getInstance(config)?.logIdeCommandTriggeredEvent(event);
+  if (!isTelemetrySdkInitialized()) return;
+
+  const attributes: LogAttributes = {
+    ...getCommonAttributes(config),
+    ...event,
+    'event.name': EVENT_IDE_COMMAND,
+  };
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const logRecord: LogRecord = {
+    body: `IDE command triggered: ${event.subcommand}`,
+    attributes,
+  };
+  logger.emit(logRecord);
+}
+
+export function logIdeNotificationReceived(
+  config: Config,
+  notification_type: string,
+) {
+  const currentSessionId = config.getSessionId();
+  if (lastLoggedNotificationSessionId === currentSessionId) {
+    return;
+  }
+
+  const event = new IdeNotificationReceivedEvent(notification_type);
+  ClearcutLogger.getInstance(config)?.logIdeNotificationReceivedEvent(event);
+  lastLoggedNotificationSessionId = currentSessionId;
+  if (!isTelemetrySdkInitialized()) return;
+
+  const attributes: LogAttributes = {
+    ...getCommonAttributes(config),
+    ...event,
+    'event.name': EVENT_IDE_NOTIFICATION,
+  };
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const logRecord: LogRecord = {
+    body: `IDE notification received: ${notification_type}`,
     attributes,
   };
   logger.emit(logRecord);

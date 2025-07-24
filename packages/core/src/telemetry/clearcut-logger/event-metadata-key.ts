@@ -163,6 +163,20 @@ export enum EventMetadataKey {
 
   // Logs the type of loop detected.
   GEMINI_CLI_LOOP_DETECTED_TYPE = 38,
+
+  // ==========================================================================
+  // IDE Command Triggered Event Keys
+  // ===========================================================================
+
+  // Logs the subcommand of the /ide command that was triggered.
+  GEMINI_CLI_IDE_COMMAND_SUBCOMMAND = 41,
+
+  // ==========================================================================
+  // IDE Notification Received Event Keys
+  // ===========================================================================
+
+  // Logs the type of notification received from the IDE.
+  GEMINI_CLI_IDE_NOTIFICATION_TYPE = 42,
 }
 
 export function getEventMetadataKey(

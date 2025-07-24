@@ -12,6 +12,8 @@ import {
   IDE_SERVER_NAME,
   MCPDiscoveryState,
   MCPServerStatus,
+  logIdeCommandTriggered,
+  IdeCommandTriggeredEvent,
 } from '@google/gemini-cli-core';
 import {
   CommandContext,
@@ -50,12 +52,23 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
     name: 'ide',
     description: 'manage IDE integration',
     kind: CommandKind.BUILT_IN,
+    action: () => {
+      if (config) {
+        logIdeCommandTriggered(config, new IdeCommandTriggeredEvent('ide'));
+      }
+    },
     subCommands: [
       {
         name: 'status',
         description: 'check status of IDE integration',
         kind: CommandKind.BUILT_IN,
         action: (_context: CommandContext): SlashCommandActionReturn => {
+          if (config) {
+            logIdeCommandTriggered(
+              config,
+              new IdeCommandTriggeredEvent('status'),
+            );
+          }
           const status = getMCPServerStatus(IDE_SERVER_NAME);
           const discoveryState = getMCPDiscoveryState();
           switch (status) {
@@ -94,6 +107,12 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
         description: 'install required VS Code companion extension',
         kind: CommandKind.BUILT_IN,
         action: async (context) => {
+          if (config) {
+            logIdeCommandTriggered(
+              config,
+              new IdeCommandTriggeredEvent('install'),
+            );
+          }
           if (!isVSCodeInstalled()) {
             context.ui.addItem(
               {
