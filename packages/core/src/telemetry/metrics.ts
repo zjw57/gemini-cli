@@ -139,9 +139,6 @@ export function recordApiResponseMetrics(
   statusCode?: number | string,
   error?: string,
 ): void {
-  setTimeout(() => {
-    console.log("timeout passed...");
-  }, 50000);
   if (
     !apiRequestCounter ||
     !apiRequestLatencyHistogram ||
