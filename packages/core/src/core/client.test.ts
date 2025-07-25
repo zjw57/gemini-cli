@@ -647,14 +647,21 @@ describe('Gemini Client (client.ts)', () => {
   describe('sendMessageStream', () => {
     it('should include IDE context when ideMode is enabled', async () => {
       // Arrange
-      vi.mocked(ideContext.getOpenFilesContext).mockReturnValue({
-        activeFile: '/path/to/active/file.ts',
-        selectedText: 'hello',
-        cursor: { line: 5, character: 10 },
-        recentOpenFiles: [
-          { filePath: '/path/to/recent/file1.ts', timestamp: Date.now() },
-          { filePath: '/path/to/recent/file2.ts', timestamp: Date.now() },
-        ],
+      vi.mocked(ideContext.getIDEContext).mockReturnValue({
+        activeContext: {
+          file: {
+            filePath: '/path/to/active/file.ts',
+            timestamp: 12345,
+          },
+          selectedText: 'hello',
+          cursor: { line: 5, character: 10 },
+        },
+        otherContext: {
+          openFiles: [
+            { filePath: '/path/to/recent/file1.ts', timestamp: Date.now() },
+            { filePath: '/path/to/recent/file2.ts', timestamp: Date.now() },
+          ],
+        },
       });
 
       vi.spyOn(client['config'], 'getIdeMode').mockReturnValue(true);
@@ -689,13 +696,13 @@ describe('Gemini Client (client.ts)', () => {
       }
 
       // Assert
-      expect(ideContext.getOpenFilesContext).toHaveBeenCalled();
+      expect(ideContext.getIDEContext).toHaveBeenCalled();
       const expectedContext = `
 This is the file that the user was most recently looking at:
 - Path: /path/to/active/file.ts
 This is the cursor position in the file:
 - Cursor Position: Line 5, Character 10
-This is the selected text in the active file:
+This is the selected text in the file:
 - hello
 Here are files the user has recently opened, with the most recent at the top:
 - /path/to/recent/file1.ts

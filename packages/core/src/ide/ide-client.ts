@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ideContext, OpenFilesNotificationSchema } from '../ide/ideContext.js';
+import { ideContext, IDEContextNotificationSchema } from '../ide/ideContext.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -75,20 +75,20 @@ export class IdeClient {
       );
       await this.client.connect(transport);
       this.client.setNotificationHandler(
-        OpenFilesNotificationSchema,
+        IDEContextNotificationSchema,
         (notification) => {
-          ideContext.setOpenFilesContext(notification.params);
+          ideContext.setIDEContext(notification.params);
         },
       );
       this.client.onerror = (error) => {
         logger.debug('IDE MCP client error:', error);
         this.connectionStatus = IDEConnectionStatus.Disconnected;
-        ideContext.clearOpenFilesContext();
+        ideContext.clearIDEContext();
       };
       this.client.onclose = () => {
         logger.debug('IDE MCP client connection closed.');
         this.connectionStatus = IDEConnectionStatus.Disconnected;
-        ideContext.clearOpenFilesContext();
+        ideContext.clearIDEContext();
       };
 
       this.connectionStatus = IDEConnectionStatus.Connected;

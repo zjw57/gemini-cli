@@ -5,25 +5,21 @@
  */
 
 import { Box, Text } from 'ink';
-import { type OpenFiles } from '@google/gemini-cli-core';
+import { type IDEContext } from '@google/gemini-cli-core';
 import { Colors } from '../colors.js';
 import path from 'node:path';
 
 interface IDEContextDetailDisplayProps {
-  openFiles: OpenFiles | undefined;
+  ideContext: IDEContext | undefined;
 }
 
 export function IDEContextDetailDisplay({
-  openFiles,
+  ideContext,
 }: IDEContextDetailDisplayProps) {
-  if (
-    !openFiles ||
-    !openFiles.recentOpenFiles ||
-    openFiles.recentOpenFiles.length === 0
-  ) {
+  const openFiles = ideContext?.otherContext?.openFiles;
+  if (!openFiles || openFiles.length === 0) {
     return null;
   }
-  const recentFiles = openFiles.recentOpenFiles || [];
 
   return (
     <Box
@@ -36,13 +32,15 @@ export function IDEContextDetailDisplay({
       <Text color={Colors.AccentCyan} bold>
         IDE Context (ctrl+e to toggle)
       </Text>
-      {recentFiles.length > 0 && (
+      {openFiles.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
-          <Text bold>Recent files:</Text>
-          {recentFiles.map((file) => (
+          <Text bold>Open files:</Text>
+          {openFiles.map((file) => (
             <Text key={file.filePath}>
               - {path.basename(file.filePath)}
-              {file.filePath === openFiles.activeFile ? ' (active)' : ''}
+              {file.filePath === ideContext?.activeContext?.file.filePath
+                ? ' (active)'
+                : ''}
             </Text>
           ))}
         </Box>

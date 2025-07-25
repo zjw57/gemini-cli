@@ -7,7 +7,7 @@
 import React from 'react';
 import { Text } from 'ink';
 import { Colors } from '../colors.js';
-import { type OpenFiles, type MCPServerConfig } from '@google/gemini-cli-core';
+import { type IDEContext, type MCPServerConfig } from '@google/gemini-cli-core';
 
 interface ContextSummaryDisplayProps {
   geminiMdFileCount: number;
@@ -15,7 +15,7 @@ interface ContextSummaryDisplayProps {
   mcpServers?: Record<string, MCPServerConfig>;
   blockedMcpServers?: Array<{ name: string; extensionName: string }>;
   showToolDescriptions?: boolean;
-  openFiles?: OpenFiles;
+  ideContext?: IDEContext;
 }
 
 export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
@@ -24,7 +24,7 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
   mcpServers,
   blockedMcpServers,
   showToolDescriptions,
-  openFiles,
+  ideContext,
 }) => {
   const mcpServerCount = Object.keys(mcpServers || {}).length;
   const blockedMcpServerCount = blockedMcpServers?.length || 0;
@@ -33,17 +33,17 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     geminiMdFileCount === 0 &&
     mcpServerCount === 0 &&
     blockedMcpServerCount === 0 &&
-    (openFiles?.recentOpenFiles?.length ?? 0) === 0
+    (ideContext?.otherContext?.openFiles.length ?? 0) === 0
   ) {
     return <Text> </Text>; // Render an empty space to reserve height
   }
 
   const recentFilesText = (() => {
-    const count = openFiles?.recentOpenFiles?.length ?? 0;
+    const count = ideContext?.otherContext?.openFiles.length ?? 0;
     if (count === 0) {
       return '';
     }
-    return `${count} recent file${count > 1 ? 's' : ''} (ctrl+e to view)`;
+    return `${count} open file${count > 1 ? 's' : ''} (ctrl+e to view)`;
   })();
 
   const geminiMdText = (() => {

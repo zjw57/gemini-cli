@@ -20,43 +20,58 @@ const MCP_SESSION_ID_HEADER = 'mcp-session-id';
 const IDE_SERVER_PORT_ENV_VAR = 'GEMINI_CLI_IDE_SERVER_PORT';
 const MAX_SELECTED_TEXT_LENGTH = 16384; // 16 KiB limit
 
-function sendOpenFilesChangedNotification(
+function sendContextUpdateNotification(
   transport: StreamableHTTPServerTransport,
   log: (message: string) => void,
   recentFilesManager: RecentFilesManager,
 ) {
   const editor = vscode.window.activeTextEditor;
-  const filePath =
+  const activeEditorFilePath =
     editor && editor.document.uri.scheme === 'file'
       ? editor.document.uri.fsPath
-      : '';
+      : undefined;
+
   const selection = editor?.selection;
-  const cursor = selection
-    ? {
-        // This value is a zero-based index, but the vscode IDE is one-based.
-        line: selection.active.line + 1,
-        character: selection.active.character,
-      }
-    : undefined;
+  const cursor =
+    selection && editor
+      ? {
+          line: selection.active.line + 1,
+          character: selection.active.character,
+        }
+      : undefined;
+
   let selectedText = editor?.document.getText(selection) ?? undefined;
   if (selectedText && selectedText.length > MAX_SELECTED_TEXT_LENGTH) {
     selectedText =
       selectedText.substring(0, MAX_SELECTED_TEXT_LENGTH) + '... [TRUNCATED]';
   }
+
+  const activeContext = activeEditorFilePath
+    ? {
+        file: {
+          filePath: activeEditorFilePath,
+          timestamp: Date.now(),
+        },
+        cursor,
+        selectedText,
+      }
+    : undefined;
+
+  const otherContext = {
+    openFiles: recentFilesManager.recentFiles,
+  };
+
   const notification: JSONRPCNotification = {
     jsonrpc: '2.0',
-    method: 'ide/openFilesChanged',
+    method: 'ide/contextUpdate',
     params: {
-      activeFile: filePath,
-      recentOpenFiles: recentFilesManager.recentFiles.filter(
-        (file) => file.filePath !== filePath,
-      ),
-      cursor,
-      selectedText,
+      activeContext,
+      otherContext,
     },
   };
+
   log(
-    `Sending active file changed notification: ${JSON.stringify(
+    `Sending context update notification: ${JSON.stringify(
       notification,
       null,
       2,
@@ -87,7 +102,7 @@ export class IDEServer {
     const recentFilesManager = new RecentFilesManager(context);
     const onDidChangeSubscription = recentFilesManager.onDidChange(() => {
       for (const transport of Object.values(transports)) {
-        sendOpenFilesChangedNotification(
+        sendContextUpdateNotification(
           transport,
           this.log.bind(this),
           recentFilesManager,
@@ -191,7 +206,7 @@ export class IDEServer {
       }
 
       if (!sessionsWithInitialNotification.has(sessionId)) {
-        sendOpenFilesChangedNotification(
+        sendContextUpdateNotification(
           transport,
           this.log.bind(this),
           recentFilesManager,

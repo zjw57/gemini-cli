@@ -320,31 +320,34 @@ export class GeminiClient {
     }
 
     if (this.config.getIdeMode()) {
-      const openFiles = ideContext.getOpenFilesContext();
-      if (openFiles) {
+      const ideContextState = ideContext.getIDEContext();
+      if (ideContextState) {
         const contextParts: string[] = [];
-        if (openFiles.activeFile) {
+        if (ideContextState.activeContext) {
           contextParts.push(
-            `This is the file that the user was most recently looking at:\n- Path: ${openFiles.activeFile}`,
+            `This is the file that the user was most recently looking at:\n- Path: ${ideContextState.activeContext.file.filePath}`,
           );
-          if (openFiles.cursor) {
+          if (ideContextState.activeContext.cursor) {
             contextParts.push(
-              `This is the cursor position in the file:\n- Cursor Position: Line ${openFiles.cursor.line}, Character ${openFiles.cursor.character}`,
+              `This is the cursor position in the file:\n- Cursor Position: Line ${ideContextState.activeContext.cursor.line}, Character ${ideContextState.activeContext.cursor.character}`,
             );
           }
-          if (openFiles.selectedText) {
+          if (ideContextState.activeContext.selectedText) {
             contextParts.push(
-              `This is the selected text in the active file:\n- ${openFiles.selectedText}`,
+              `This is the selected text in the file:\n- ${ideContextState.activeContext.selectedText}`,
             );
           }
         }
 
-        if (openFiles.recentOpenFiles && openFiles.recentOpenFiles.length > 0) {
-          const recentFiles = openFiles.recentOpenFiles
+        if (
+          ideContextState.otherContext &&
+          ideContextState.otherContext.openFiles.length > 0
+        ) {
+          const openFiles = ideContextState.otherContext.openFiles
             .map((file) => `- ${file.filePath}`)
             .join('\n');
           contextParts.push(
-            `Here are files the user has recently opened, with the most recent at the top:\n${recentFiles}`,
+            `Here are files the user has recently opened, with the most recent at the top:\n${openFiles}`,
           );
         }
 

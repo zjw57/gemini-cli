@@ -151,8 +151,8 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
     });
 
   const ideContextMock = {
-    getOpenFilesContext: vi.fn(),
-    subscribeToOpenFiles: vi.fn(() => vi.fn()), // subscribe returns an unsubscribe function
+    getIDEContext: vi.fn(),
+    subscribeToIDEContext: vi.fn(() => vi.fn()), // subscribe returns an unsubscribe function
   };
 
   return {
@@ -267,7 +267,7 @@ describe('App UI', () => {
 
     // Ensure a theme is set so the theme dialog does not appear.
     mockSettings = createMockSettings({ workspace: { theme: 'Default' } });
-    vi.mocked(ideContext.getOpenFilesContext).mockReturnValue(undefined);
+    vi.mocked(ideContext.getIDEContext).mockReturnValue(undefined);
   });
 
   afterEach(() => {
@@ -279,10 +279,22 @@ describe('App UI', () => {
   });
 
   it('should display active file when available', async () => {
-    vi.mocked(ideContext.getOpenFilesContext).mockReturnValue({
-      activeFile: '/path/to/my-file.ts',
-      recentOpenFiles: [{ filePath: '/path/to/my-file.ts', content: 'hello' }],
-      selectedText: 'hello',
+    vi.mocked(ideContext.getIDEContext).mockReturnValue({
+      activeContext: {
+        file: {
+          filePath: '/path/to/my-file.ts',
+          timestamp: 12345,
+        },
+        selectedText: 'hello',
+      },
+      otherContext: {
+        openFiles: [
+          {
+            filePath: '/path/to/my-file.ts',
+            timestamp: 12345,
+          },
+        ],
+      },
     });
 
     const { lastFrame, unmount } = render(
@@ -294,12 +306,12 @@ describe('App UI', () => {
     );
     currentUnmount = unmount;
     await Promise.resolve();
-    expect(lastFrame()).toContain('1 recent file (ctrl+e to view)');
+    expect(lastFrame()).toContain('1 open file (ctrl+e to view)');
   });
 
   it('should not display active file when not available', async () => {
-    vi.mocked(ideContext.getOpenFilesContext).mockReturnValue({
-      activeFile: '',
+    vi.mocked(ideContext.getIDEContext).mockReturnValue({
+      activeContext: undefined,
     });
 
     const { lastFrame, unmount } = render(
@@ -315,10 +327,22 @@ describe('App UI', () => {
   });
 
   it('should display active file and other context', async () => {
-    vi.mocked(ideContext.getOpenFilesContext).mockReturnValue({
-      activeFile: '/path/to/my-file.ts',
-      recentOpenFiles: [{ filePath: '/path/to/my-file.ts', content: 'hello' }],
-      selectedText: 'hello',
+    vi.mocked(ideContext.getIDEContext).mockReturnValue({
+      activeContext: {
+        file: {
+          filePath: '/path/to/my-file.ts',
+          timestamp: 12345,
+        },
+        selectedText: 'hello',
+      },
+      otherContext: {
+        openFiles: [
+          {
+            filePath: '/path/to/my-file.ts',
+            timestamp: 12345,
+          },
+        ],
+      },
     });
     mockConfig.getGeminiMdFileCount.mockReturnValue(1);
     mockConfig.getAllGeminiMdFilenames.mockReturnValue(['GEMINI.md']);
@@ -333,7 +357,7 @@ describe('App UI', () => {
     currentUnmount = unmount;
     await Promise.resolve();
     expect(lastFrame()).toContain(
-      'Using: 1 recent file (ctrl+e to view) | 1 GEMINI.md file',
+      'Using: 1 open file (ctrl+e to view) | 1 GEMINI.md file',
     );
   });
 
