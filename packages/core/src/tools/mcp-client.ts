@@ -16,18 +16,14 @@ import {
   StreamableHTTPClientTransportOptions,
 } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { parse } from 'shell-quote';
-import { MCPServerConfig } from '../config/config.js';
+import { AuthProviderType, MCPServerConfig } from '../config/config.js';
+import { GoogleCredentialProvider } from '../mcp/google-auth-provider.js';
 import { DiscoveredMCPTool } from './mcp-tool.js';
 import { FunctionDeclaration, mcpToTool } from '@google/genai';
 import { ToolRegistry } from './tool-registry.js';
 import { MCPOAuthProvider } from '../mcp/oauth-provider.js';
 import { OAuthUtils } from '../mcp/oauth-utils.js';
 import { MCPOAuthTokenStorage } from '../mcp/oauth-token-storage.js';
-import {
-  OpenFilesNotificationSchema,
-  IDE_SERVER_NAME,
-  ideContext,
-} from '../services/ideContext.js';
 import { getErrorMessage } from '../utils/errors.js';
 
 export const MCP_DEFAULT_TIMEOUT_MSEC = 10 * 60 * 1000; // default to 10 minutes
@@ -378,23 +374,10 @@ export async function connectAndDiscover(
     );
     try {
       updateMCPServerStatus(mcpServerName, MCPServerStatus.CONNECTED);
-
       mcpClient.onerror = (error) => {
         console.error(`MCP ERROR (${mcpServerName}):`, error.toString());
         updateMCPServerStatus(mcpServerName, MCPServerStatus.DISCONNECTED);
-        if (mcpServerName === IDE_SERVER_NAME) {
-          ideContext.clearOpenFilesContext();
-        }
       };
-
-      if (mcpServerName === IDE_SERVER_NAME) {
-        mcpClient.setNotificationHandler(
-          OpenFilesNotificationSchema,
-          (notification) => {
-            ideContext.setOpenFilesContext(notification.params);
-          },
-        );
-      }
 
       const tools = await discoverTools(
         mcpServerName,
@@ -852,6 +835,29 @@ export async function createTransport(
   mcpServerConfig: MCPServerConfig,
   debugMode: boolean,
 ): Promise<Transport> {
+  if (
+    mcpServerConfig.authProviderType === AuthProviderType.GOOGLE_CREDENTIALS
+  ) {
+    const provider = new GoogleCredentialProvider(mcpServerConfig);
+    const transportOptions:
+      | StreamableHTTPClientTransportOptions
+      | SSEClientTransportOptions = {
+      authProvider: provider,
+    };
+    if (mcpServerConfig.httpUrl) {
+      return new StreamableHTTPClientTransport(
+        new URL(mcpServerConfig.httpUrl),
+        transportOptions,
+      );
+    } else if (mcpServerConfig.url) {
+      return new SSEClientTransport(
+        new URL(mcpServerConfig.url),
+        transportOptions,
+      );
+    }
+    throw new Error('No URL configured for Google Credentials MCP server');
+  }
+
   // Check if we have OAuth configuration or stored tokens
   let accessToken: string | null = null;
   let hasOAuthConfig = mcpServerConfig.oauth?.enabled;

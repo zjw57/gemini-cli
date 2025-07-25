@@ -540,11 +540,18 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       if (inputs.includes(input) && keyMatch) {
         return h.condition ? h.condition(context) : true;
       }
-      return false;
-    });
-
-    if (handler) {
-      handler.handler();
+    } else if (key.ctrl && input === 'e' && ideContext) {
+      setShowIDEContextDetail((prev) => !prev);
+    } else if (key.ctrl && (input === 'c' || input === 'C')) {
+      handleExit(ctrlCPressedOnce, setCtrlCPressedOnce, ctrlCTimerRef);
+    } else if (key.ctrl && (input === 'd' || input === 'D')) {
+      if (buffer.text.length > 0) {
+        // Do nothing if there is text in the input.
+        return;
+      }
+      handleExit(ctrlDPressedOnce, setCtrlDPressedOnce, ctrlDTimerRef);
+    } else if (key.ctrl && input === 's' && !enteringConstrainHeightMode) {
+      setConstrainHeight(false);
     }
   });
 
