@@ -366,14 +366,13 @@ export function logIdeCommandTriggered(
 
 export function logIdeNotificationReceived(
   config: Config,
-  notification_type: string,
+  event: IdeNotificationReceivedEvent,
 ) {
   const currentSessionId = config.getSessionId();
   if (lastLoggedNotificationSessionId === currentSessionId) {
     return;
   }
 
-  const event = new IdeNotificationReceivedEvent(notification_type);
   ClearcutLogger.getInstance(config)?.logIdeNotificationReceivedEvent(event);
   lastLoggedNotificationSessionId = currentSessionId;
   if (!isTelemetrySdkInitialized()) return;
@@ -386,7 +385,7 @@ export function logIdeNotificationReceived(
 
   const logger = logs.getLogger(SERVICE_NAME);
   const logRecord: LogRecord = {
-    body: `IDE notification received: ${notification_type}`,
+    body: `IDE notification received: ${event.notification_type}`,
     attributes,
   };
   logger.emit(logRecord);

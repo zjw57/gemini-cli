@@ -45,6 +45,7 @@ import {
   UserPromptEvent,
   FlashFallbackEvent,
   IdeCommandTriggeredEvent,
+  IdeNotificationReceivedEvent,
 } from './types.js';
 import * as metrics from './metrics.js';
 import * as sdk from './sdk.js';
@@ -786,22 +787,24 @@ describe('loggers', () => {
     } as unknown as Config;
 
     it('should log an IDE notification received event', () => {
-      logIdeNotificationReceived(mockConfig, 'test-notification');
+      const event = new IdeNotificationReceivedEvent('test-notification');
+      logIdeNotificationReceived(mockConfig, event);
 
       expect(mockLogger.emit).toHaveBeenCalledWith({
         body: 'IDE notification received: test-notification',
         attributes: {
           'session.id': 'test-session-id',
           'event.name': 'gemini_cli.ide_notification',
-          'event.timestamp': '2025-01-01T00:00:00.000Z',
+          event_name: 'ide_notification_received',
           notification_type: 'test-notification',
         },
       });
     });
 
     it('should not log if the session ID is the same', () => {
-      logIdeNotificationReceived(mockConfig, 'test-notification');
-      logIdeNotificationReceived(mockConfig, 'test-notification');
+      const event = new IdeNotificationReceivedEvent('test-notification');
+      logIdeNotificationReceived(mockConfig, event);
+      logIdeNotificationReceived(mockConfig, event);
 
       expect(mockLogger.emit).toHaveBeenCalledTimes(1);
     });

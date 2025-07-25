@@ -31,6 +31,7 @@ import {
 } from '../services/ideContext.js';
 import { getErrorMessage } from '../utils/errors.js';
 import { logIdeNotificationReceived } from '../telemetry/loggers.js';
+import { IdeNotificationReceivedEvent } from '../telemetry/types.js';
 
 export const MCP_DEFAULT_TIMEOUT_MSEC = 10 * 60 * 1000; // default to 10 minutes
 
@@ -396,7 +397,10 @@ export async function connectAndDiscover(
         mcpClient.setNotificationHandler(
           OpenFilesNotificationSchema,
           (notification) => {
-            logIdeNotificationReceived(config, notification.method);
+            logIdeNotificationReceived(
+              config,
+              new IdeNotificationReceivedEvent(notification.method),
+            );
             ideContext.setOpenFilesContext(notification.params);
           },
         );
