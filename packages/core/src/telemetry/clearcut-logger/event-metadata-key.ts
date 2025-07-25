@@ -177,6 +177,16 @@ export enum EventMetadataKey {
 
   // Logs the type of notification received from the IDE.
   GEMINI_CLI_IDE_NOTIFICATION_TYPE = 42,
+
+  // ==========================================================================
+  // Slash Command Triggered Event Keys
+  // ===========================================================================
+
+  // Logs the command of the slash command that was triggered.
+  GEMINI_CLI_SLASH_COMMAND_COMMAND = 43,
+
+  // Logs the subcommand of the slash command that was triggered.
+  GEMINI_CLI_SLASH_COMMAND_SUBCOMMAND = 44,
 }
 
 export function getEventMetadataKey(

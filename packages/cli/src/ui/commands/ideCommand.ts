@@ -12,8 +12,8 @@ import {
   IDE_SERVER_NAME,
   MCPDiscoveryState,
   MCPServerStatus,
-  logIdeCommandTriggered,
-  IdeCommandTriggeredEvent,
+  logSlashCommandTriggered,
+  SlashCommandTriggeredEvent,
 } from '@google/gemini-cli-core';
 import {
   CommandContext,
@@ -54,7 +54,7 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
     kind: CommandKind.BUILT_IN,
     action: () => {
       if (config) {
-        logIdeCommandTriggered(config, new IdeCommandTriggeredEvent('ide'));
+        logSlashCommandTriggered(config, new SlashCommandTriggeredEvent('ide'));
       }
     },
     subCommands: [
@@ -64,9 +64,9 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
         kind: CommandKind.BUILT_IN,
         action: (_context: CommandContext): SlashCommandActionReturn => {
           if (config) {
-            logIdeCommandTriggered(
+            logSlashCommandTriggered(
               config,
-              new IdeCommandTriggeredEvent('status'),
+              new SlashCommandTriggeredEvent('ide', 'status'),
             );
           }
           const status = getMCPServerStatus(IDE_SERVER_NAME);
@@ -108,9 +108,9 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
         kind: CommandKind.BUILT_IN,
         action: async (context) => {
           if (config) {
-            logIdeCommandTriggered(
+            logSlashCommandTriggered(
               config,
-              new IdeCommandTriggeredEvent('install'),
+              new SlashCommandTriggeredEvent('ide', 'install'),
             );
           }
           if (!isVSCodeInstalled()) {

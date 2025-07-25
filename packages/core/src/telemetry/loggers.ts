@@ -32,6 +32,7 @@ import {
   IdeCommandTriggeredEvent,
   IdeNotificationReceivedEvent,
   LoopDetectedEvent,
+  SlashCommandTriggeredEvent,
 } from './types.js';
 import {
   recordApiErrorMetrics,
@@ -359,6 +360,27 @@ export function logIdeCommandTriggered(
   const logger = logs.getLogger(SERVICE_NAME);
   const logRecord: LogRecord = {
     body: `IDE command triggered: ${event.subcommand}`,
+    attributes,
+  };
+  logger.emit(logRecord);
+}
+
+export function logSlashCommandTriggered(
+  config: Config,
+  event: SlashCommandTriggeredEvent,
+) {
+  ClearcutLogger.getInstance(config)?.logSlashCommandTriggeredEvent(event);
+  if (!isTelemetrySdkInitialized()) return;
+
+  const attributes: LogAttributes = {
+    ...getCommonAttributes(config),
+    ...event,
+    'event.name': 'slash_command_triggered',
+  };
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const logRecord: LogRecord = {
+    body: `Slash command triggered: ${event.command} ${event.subcommand ?? ''}`,
     attributes,
   };
   logger.emit(logRecord);

@@ -302,6 +302,20 @@ export class IdeCommandTriggeredEvent {
   }
 }
 
+export class SlashCommandTriggeredEvent {
+  'event.name': 'slash_command_triggered';
+  'event.timestamp': string; // ISO 8601
+  command: string;
+  subcommand?: string;
+
+  constructor(command: string, subcommand?: string) {
+    this['event.name'] = 'slash_command_triggered';
+    this['event.timestamp'] = new Date().toISOString();
+    this.command = command;
+    this.subcommand = subcommand;
+  }
+}
+
 export type TelemetryEvent =
   | StartSessionEvent
   | EndSessionEvent
@@ -314,4 +328,5 @@ export type TelemetryEvent =
   | LoopDetectedEvent
   | FlashDecidedToContinueEvent
   | IdeCommandTriggeredEvent
-  | IdeNotificationReceivedEvent;
+  | IdeNotificationReceivedEvent
+  | SlashCommandTriggeredEvent;

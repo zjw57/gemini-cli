@@ -25,8 +25,8 @@ import {
   IDE_SERVER_NAME,
   MCPDiscoveryState,
   MCPServerStatus,
-  logIdeCommandTriggered,
-  IdeCommandTriggeredEvent,
+  logSlashCommandTriggered,
+  SlashCommandTriggeredEvent,
 } from '@google/gemini-cli-core';
 
 vi.mock('child_process');
@@ -38,7 +38,7 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
     ...original,
     getMCPServerStatus: vi.fn(),
     getMCPDiscoveryState: vi.fn(),
-    logIdeCommandTriggered: vi.fn(),
+    logSlashCommandTriggered: vi.fn(),
   };
 });
 
@@ -54,7 +54,7 @@ describe('ideCommand', () => {
   let platformSpy: MockInstance;
   let getMCPServerStatusSpy: MockInstance;
   let getMCPDiscoveryStateSpy: MockInstance;
-  let logIdeCommandTriggeredSpy: MockInstance;
+  let logSlashCommandTriggeredSpy: MockInstance;
 
   beforeEach(() => {
     mockContext = {
@@ -73,7 +73,7 @@ describe('ideCommand', () => {
     platformSpy = vi.spyOn(process, 'platform', 'get');
     getMCPServerStatusSpy = vi.mocked(getMCPServerStatus);
     getMCPDiscoveryStateSpy = vi.mocked(getMCPDiscoveryState);
-    logIdeCommandTriggeredSpy = vi.mocked(logIdeCommandTriggered);
+    logSlashCommandTriggeredSpy = vi.mocked(logSlashCommandTriggered);
   });
 
   afterEach(() => {
@@ -111,9 +111,9 @@ describe('ideCommand', () => {
         messageType: 'info',
         content: '🟢 Connected',
       });
-      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
         mockConfig,
-        expect.any(IdeCommandTriggeredEvent),
+        expect.any(SlashCommandTriggeredEvent),
       );
     });
 
@@ -126,9 +126,9 @@ describe('ideCommand', () => {
         messageType: 'info',
         content: '🔄 Initializing...',
       });
-      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
         mockConfig,
-        expect.any(IdeCommandTriggeredEvent),
+        expect.any(SlashCommandTriggeredEvent),
       );
     });
 
@@ -142,9 +142,9 @@ describe('ideCommand', () => {
         messageType: 'info',
         content: '🔄 Initializing...',
       });
-      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
         mockConfig,
-        expect.any(IdeCommandTriggeredEvent),
+        expect.any(SlashCommandTriggeredEvent),
       );
     });
 
@@ -158,9 +158,9 @@ describe('ideCommand', () => {
         messageType: 'error',
         content: '🔴 Disconnected',
       });
-      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
         mockConfig,
-        expect.any(IdeCommandTriggeredEvent),
+        expect.any(SlashCommandTriggeredEvent),
       );
     });
   });
@@ -186,9 +186,9 @@ describe('ideCommand', () => {
         }),
         expect.any(Number),
       );
-      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
         mockConfig,
-        expect.any(IdeCommandTriggeredEvent),
+        expect.any(SlashCommandTriggeredEvent),
       );
     });
 
@@ -206,9 +206,9 @@ describe('ideCommand', () => {
         }),
         expect.any(Number),
       );
-      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
         mockConfig,
-        expect.any(IdeCommandTriggeredEvent),
+        expect.any(SlashCommandTriggeredEvent),
       );
     });
 
@@ -245,9 +245,9 @@ describe('ideCommand', () => {
         }),
         expect.any(Number),
       );
-      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
         mockConfig,
-        expect.any(IdeCommandTriggeredEvent),
+        expect.any(SlashCommandTriggeredEvent),
       );
     });
 
@@ -276,9 +276,9 @@ describe('ideCommand', () => {
         }),
         expect.any(Number),
       );
-      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
         mockConfig,
-        expect.any(IdeCommandTriggeredEvent),
+        expect.any(SlashCommandTriggeredEvent),
       );
     });
 
@@ -307,9 +307,9 @@ describe('ideCommand', () => {
         }),
         expect.any(Number),
       );
-      expect(logIdeCommandTriggeredSpy).toHaveBeenCalledWith(
+      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
         mockConfig,
-        expect.any(IdeCommandTriggeredEvent),
+        expect.any(SlashCommandTriggeredEvent),
       );
     });
   });

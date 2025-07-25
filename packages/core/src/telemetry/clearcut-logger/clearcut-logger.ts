@@ -21,6 +21,7 @@ import {
   FlashDecidedToContinueEvent,
   IdeCommandTriggeredEvent,
   IdeNotificationReceivedEvent,
+  SlashCommandTriggeredEvent,
 } from '../types.js';
 import { EventMetadataKey } from './event-metadata-key.js';
 import { Config } from '../../config/config.js';
@@ -43,6 +44,7 @@ const loop_detected_event_name = 'loop_detected';
 const flash_decided_to_continue_event_name = 'flash_decided_to_continue';
 const ide_command_triggered_event_name = 'ide_command_triggered';
 const ide_notification_received_event_name = 'ide_notification_received';
+const slash_command_triggered_event_name = 'slash_command_triggered';
 
 export interface LogResponse {
   nextRequestWaitMs?: number;
@@ -548,6 +550,28 @@ export class ClearcutLogger {
 
     this.enqueueLogEvent(
       this.createLogEvent(ide_notification_received_event_name, data),
+    );
+    this.flushIfNeeded();
+  }
+
+  logSlashCommandTriggeredEvent(event: SlashCommandTriggeredEvent): void {
+    const data = [
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_SLASH_COMMAND_COMMAND,
+        value: event.command,
+      },
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_SLASH_COMMAND_SUBCOMMAND,
+        value: event.subcommand ?? '',
+      },
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_SESSION_ID,
+        value: this.config?.getSessionId() ?? '',
+      },
+    ];
+
+    this.enqueueLogEvent(
+      this.createLogEvent(slash_command_triggered_event_name, data),
     );
     this.flushIfNeeded();
   }
