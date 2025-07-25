@@ -29,7 +29,7 @@ function sendOpenFilesChangedNotification(
 
   const params = {
     // activeFile is now a string (filePath), so no .fsPath needed
-    activeFile: activeFile,
+    activeFile,
     recentOpenFiles: openFiles.map((file) => ({
       // file.filePath is now a string, no .uri.fsPath needed
       filePath: file.filePath,
@@ -114,9 +114,7 @@ export class IDEServer {
           try {
             transport.send({ jsonrpc: '2.0', method: 'ping' });
           } catch (_e) {
-            this.log(
-              'Failed to send keep-alive ping, cleaning up interval.',
-            );
+            this.log('Failed to send keep-alive ping, cleaning up interval.');
             clearInterval(keepAlive);
             if (transport.sessionId) {
               delete transports[transport.sessionId];

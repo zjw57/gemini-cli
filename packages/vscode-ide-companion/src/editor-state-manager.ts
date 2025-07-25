@@ -34,6 +34,9 @@ export class EditorStateManager {
   private debounceTimer: NodeJS.Timeout | undefined;
 
   private openFiles: OpenFile[] = [];
+  private cursor?: { line: number; character: number };
+  private selectedText?: string;
+  private activeFileForCursor?: string;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     const editorWatcher = vscode.window.onDidChangeActiveTextEditor(
@@ -46,19 +49,53 @@ export class EditorStateManager {
     );
 
     const selectionWatcher = vscode.window.onDidChangeTextEditorSelection(
-      () => {
+      (event) => {
+        const editor = event.textEditor;
+        if (editor && editor.document.uri.scheme === 'file') {
+          this.activeFileForCursor = editor.document.uri.fsPath;
+          this.cursor = editor.selection.active
+            ? {
+                line: editor.selection.active.line + 1,
+                character: editor.selection.active.character,
+              }
+            : undefined;
+
+          let selectedText: string | undefined = editor.document.getText(
+            event.selections[0],
+          );
+          if (selectedText) {
+            if (selectedText.length > MAX_SELECTED_TEXT_LENGTH) {
+              selectedText =
+                selectedText.substring(0, MAX_SELECTED_TEXT_LENGTH) +
+                '... [TRUNCATED]';
+            }
+          } else {
+            selectedText = undefined;
+          }
+          this.selectedText = selectedText;
+        }
         this.fireWithDebounce();
       },
     );
 
     const closeWatcher = vscode.workspace.onDidCloseTextDocument((document) => {
       this.remove(document.uri);
+      if (document.uri.fsPath === this.activeFileForCursor) {
+        this.cursor = undefined;
+        this.selectedText = undefined;
+        this.activeFileForCursor = undefined;
+      }
       this.fireWithDebounce();
     });
 
     const deleteWatcher = vscode.workspace.onDidDeleteFiles((event) => {
       for (const uri of event.files) {
         this.remove(uri);
+        if (uri.fsPath === this.activeFileForCursor) {
+          this.cursor = undefined;
+          this.selectedText = undefined;
+          this.activeFileForCursor = undefined;
+        }
       }
       this.fireWithDebounce();
     });
@@ -66,6 +103,9 @@ export class EditorStateManager {
     const renameWatcher = vscode.workspace.onDidRenameFiles((event) => {
       for (const { oldUri, newUri } of event.files) {
         this.rename(oldUri, newUri);
+        if (oldUri.fsPath === this.activeFileForCursor) {
+          this.activeFileForCursor = newUri.fsPath;
+        }
       }
       this.fireWithDebounce();
     });
@@ -134,49 +174,14 @@ export class EditorStateManager {
   }
 
   get state(): EditorState {
-    const editor = vscode.window.activeTextEditor;
     const openFiles = [...this.openFiles];
-    const activeFile = openFiles.length > 0 ? openFiles[0].filePath : undefined; // Use filePath
-    if (
-      !editor ||
-      editor.document.uri.scheme !== 'file' ||
-      !activeFile ||
-      activeFile !== editor.document.uri.fsPath // Compare filePaths
-    ) {
-      return {
-        openFiles,
-        activeFile,
-        cursor: undefined,
-        selectedText: undefined,
-      };
-    }
-
-    const cursor = editor.selection.active
-      ? {
-          // This value is a zero-based index, but the vscode IDE is one-based.
-          line: editor.selection.active.line + 1,
-          character: editor.selection.active.character,
-        }
-      : undefined;
-
-    let selectedText: string | undefined = editor.document.getText(
-      editor.selection,
-    );
-    if (selectedText) {
-      if (selectedText.length > MAX_SELECTED_TEXT_LENGTH) {
-        selectedText =
-          selectedText.substring(0, MAX_SELECTED_TEXT_LENGTH) +
-          '... [TRUNCATED]';
-      }
-    } else {
-      selectedText = undefined;
-    }
+    const activeFile = openFiles.length > 0 ? openFiles[0].filePath : undefined;
 
     return {
       openFiles,
       activeFile,
-      cursor,
-      selectedText,
+      cursor: this.cursor,
+      selectedText: this.selectedText,
     };
   }
 }
