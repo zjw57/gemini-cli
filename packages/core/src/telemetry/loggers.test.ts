@@ -795,7 +795,7 @@ describe('loggers', () => {
         attributes: {
           'session.id': 'test-session-id',
           'event.name': 'gemini_cli.ide_notification',
-          event_name: 'ide_notification_received',
+          'event.timestamp': '2025-01-01T00:00:00.000Z',
           notification_type: 'test-notification',
         },
       });
