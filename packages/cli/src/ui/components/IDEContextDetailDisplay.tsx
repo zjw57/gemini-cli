@@ -34,7 +34,7 @@ export function IDEContextDetailDisplay({
       </Text>
       {recentOpenFiles.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
-          <Text bold>Open files:</Text>
+          <Text bold>Recent open files:</Text>
           {recentOpenFiles.map((file) => (
             <Text key={file.filePath}>
               - {path.basename(file.filePath)}

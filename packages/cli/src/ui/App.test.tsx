@@ -306,7 +306,7 @@ describe('App UI', () => {
     );
     currentUnmount = unmount;
     await Promise.resolve();
-    expect(lastFrame()).toContain('1 open file (ctrl+e to view)');
+    expect(lastFrame()).toContain('1 recent open file (ctrl+e to view)');
   });
 
   it('should not display active context when not available', async () => {
@@ -357,7 +357,7 @@ describe('App UI', () => {
     currentUnmount = unmount;
     await Promise.resolve();
     expect(lastFrame()).toContain(
-      'Using: 1 open file (ctrl+e to view) | 1 GEMINI.md file',
+      'Using: 1 recent open file (ctrl+e to view) | 1 GEMINI.md file',
     );
   });
 

@@ -325,7 +325,7 @@ export class GeminiClient {
         const contextParts: string[] = [];
         if (ideContextState.activeContext) {
           contextParts.push(
-            `This is the file that the user was most recently looking at:\n- Path: ${ideContextState.activeContext.file.filePath}`,
+            `This is the file that the user is actively looking at:\n- Path: ${ideContextState.activeContext.file.filePath}`,
           );
           if (ideContextState.activeContext.cursor) {
             contextParts.push(

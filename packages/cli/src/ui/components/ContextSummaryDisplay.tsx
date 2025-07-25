@@ -43,7 +43,7 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     if (count === 0) {
       return '';
     }
-    return `${count} open file${count > 1 ? 's' : ''} (ctrl+e to view)`;
+    return `${count} recent open file${count > 1 ? 's' : ''} (ctrl+e to view)`;
   })();
 
   const geminiMdText = (() => {

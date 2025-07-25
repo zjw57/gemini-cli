@@ -698,7 +698,7 @@ describe('Gemini Client (client.ts)', () => {
       // Assert
       expect(ideContext.getIDEContext).toHaveBeenCalled();
       const expectedContext = `
-This is the file that the user was most recently looking at:
+This is the file that the user is actively looking at:
 - Path: /path/to/active/file.ts
 This is the cursor position in the file:
 - Cursor Position: Line 5, Character 10
