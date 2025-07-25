@@ -575,9 +575,10 @@ export class GeminiChat {
     modelOutput: Content[],
     automaticFunctionCallingHistory?: Content[],
   ) {
-    const nonThoughtModelOutput = modelOutput.filter(
-      (content) => !this.isThoughtContent(content),
-    );
+    // const nonThoughtModelOutput = modelOutput.filter(
+    //   (content) => !this.isThoughtContent(content),
+    // );
+    const nonThoughtModelOutput = modelOutput;
     let outputContents: Content[] = [];
     if (
       nonThoughtModelOutput.length > 0 &&

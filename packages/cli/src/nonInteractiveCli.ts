@@ -43,27 +43,6 @@ function getResponseText(response: GenerateContentResponse): string | null {
   return null;
 }
 
-function getThoughtSignature(
-  response: GenerateContentResponse,
-): string | undefined {
-  if (response.candidates && response.candidates.length > 0) {
-    const candidate = response.candidates[0];
-    if (
-      candidate.content &&
-      candidate.content.parts &&
-      candidate.content.parts.length > 0
-    ) {
-      let currentThoughtSignature: string | undefined;
-      for (const part of candidate.content.parts) {
-        if (part.thoughtSignature && part.thoughtSignature.length > 0) {
-          currentThoughtSignature = part.thoughtSignature;
-        }
-      }
-      return currentThoughtSignature;
-    }
-  }
-  return undefined;
-}
 
 function printContent(content: Content[]) {
   console.log('start content');
