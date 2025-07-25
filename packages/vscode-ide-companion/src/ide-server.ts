@@ -14,46 +14,35 @@ import {
   type JSONRPCNotification,
 } from '@modelcontextprotocol/sdk/types.js';
 import { Server as HTTPServer } from 'node:http';
-import { RecentFilesManager } from './recent-files-manager.js';
+import { EditorStateManager } from './editor-state-manager.js'; // Ensure this path is correct
 
 const MCP_SESSION_ID_HEADER = 'mcp-session-id';
 const IDE_SERVER_PORT_ENV_VAR = 'GEMINI_CLI_IDE_SERVER_PORT';
-const MAX_SELECTED_TEXT_LENGTH = 16384; // 16 KiB limit
 
 function sendOpenFilesChangedNotification(
   transport: StreamableHTTPServerTransport,
   log: (message: string) => void,
-  recentFilesManager: RecentFilesManager,
+  editorStateManager: EditorStateManager,
 ) {
-  const editor = vscode.window.activeTextEditor;
-  const filePath =
-    editor && editor.document.uri.scheme === 'file'
-      ? editor.document.uri.fsPath
-      : '';
-  const selection = editor?.selection;
-  const cursor = selection
-    ? {
-        // This value is a zero-based index, but the vscode IDE is one-based.
-        line: selection.active.line + 1,
-        character: selection.active.character,
-      }
-    : undefined;
-  let selectedText = editor?.document.getText(selection) ?? undefined;
-  if (selectedText && selectedText.length > MAX_SELECTED_TEXT_LENGTH) {
-    selectedText =
-      selectedText.substring(0, MAX_SELECTED_TEXT_LENGTH) + '... [TRUNCATED]';
-  }
+  const { activeFile, openFiles, cursor, selectedText } =
+    editorStateManager.state;
+
+  const params = {
+    // activeFile is now a string (filePath), so no .fsPath needed
+    activeFile: activeFile,
+    recentOpenFiles: openFiles.map((file) => ({
+      // file.filePath is now a string, no .uri.fsPath needed
+      filePath: file.filePath,
+      timestamp: file.timestamp,
+    })),
+    ...(cursor && { cursor }),
+    ...(selectedText && { selectedText }),
+  };
+
   const notification: JSONRPCNotification = {
     jsonrpc: '2.0',
     method: 'ide/openFilesChanged',
-    params: {
-      activeFile: filePath,
-      recentOpenFiles: recentFilesManager.recentFiles.filter(
-        (file) => file.filePath !== filePath,
-      ),
-      cursor,
-      selectedText,
-    },
+    params,
   };
   log(
     `Sending active file changed notification: ${JSON.stringify(
@@ -82,16 +71,24 @@ export class IDEServer {
 
     const app = express();
     app.use(express.json());
-    const mcpServer = createMcpServer();
-
-    const recentFilesManager = new RecentFilesManager(context);
-    const onDidChangeSubscription = recentFilesManager.onDidChange(() => {
+    const editorStateManager = new EditorStateManager(context);
+    const mcpServer = createMcpServer(editorStateManager);
+    const onDidChangeSubscription = editorStateManager.onDidChange(() => {
       for (const transport of Object.values(transports)) {
-        sendOpenFilesChangedNotification(
-          transport,
-          this.log.bind(this),
-          recentFilesManager,
-        );
+        try {
+          sendOpenFilesChangedNotification(
+            transport,
+            this.log.bind(this),
+            editorStateManager,
+          );
+        } catch (_e) {
+          if (transport.sessionId) {
+            this.log(
+              `Failed to send notification to session ${transport.sessionId}, removing transport.`,
+            );
+            delete transports[transport.sessionId];
+          }
+        }
       }
     });
     context.subscriptions.push(onDidChangeSubscription);
@@ -116,11 +113,14 @@ export class IDEServer {
         const keepAlive = setInterval(() => {
           try {
             transport.send({ jsonrpc: '2.0', method: 'ping' });
-          } catch (e) {
+          } catch (_e) {
             this.log(
-              'Failed to send keep-alive ping, cleaning up interval.' + e,
+              'Failed to send keep-alive ping, cleaning up interval.',
             );
             clearInterval(keepAlive);
+            if (transport.sessionId) {
+              delete transports[transport.sessionId];
+            }
           }
         }, 60000); // 60 sec
 
@@ -194,7 +194,7 @@ export class IDEServer {
         sendOpenFilesChangedNotification(
           transport,
           this.log.bind(this),
-          recentFilesManager,
+          editorStateManager,
         );
         sessionsWithInitialNotification.add(sessionId);
       }
@@ -236,7 +236,7 @@ export class IDEServer {
   }
 }
 
-const createMcpServer = () => {
+const createMcpServer = (editorStateManager: EditorStateManager) => {
   const server = new McpServer(
     {
       name: 'gemini-cli-companion-mcp-server',
@@ -252,14 +252,15 @@ const createMcpServer = () => {
       inputSchema: {},
     },
     async () => {
-      const editor = vscode.window.activeTextEditor;
-      const filePath =
-        editor && editor.document.uri.scheme === 'file'
-          ? editor.document.uri.fsPath
-          : '';
-      if (filePath) {
+      const state = editorStateManager.state;
+      // activeFile is now a string (filePath) directly
+      const activeFile = state.activeFile;
+      if (activeFile) {
         return {
-          content: [{ type: 'text', text: `Active file: ${filePath}` }],
+          content: [
+            // activeFile is already the filePath string
+            { type: 'text', text: `Active file: ${activeFile}` },
+          ],
         };
       } else {
         return {
