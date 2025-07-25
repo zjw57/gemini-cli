@@ -278,7 +278,7 @@ describe('App UI', () => {
     vi.clearAllMocks(); // Clear mocks after each test
   });
 
-  it('should display active file when available', async () => {
+  it('should display active context when available', async () => {
     vi.mocked(ideContext.getIDEContext).mockReturnValue({
       activeContext: {
         file: {
@@ -309,7 +309,7 @@ describe('App UI', () => {
     expect(lastFrame()).toContain('1 open file (ctrl+e to view)');
   });
 
-  it('should not display active file when not available', async () => {
+  it('should not display active context when not available', async () => {
     vi.mocked(ideContext.getIDEContext).mockReturnValue({
       activeContext: undefined,
     });
@@ -326,7 +326,7 @@ describe('App UI', () => {
     expect(lastFrame()).not.toContain('Open File');
   });
 
-  it('should display active file and other context', async () => {
+  it('should display active file and workspace state', async () => {
     vi.mocked(ideContext.getIDEContext).mockReturnValue({
       activeContext: {
         file: {
