@@ -44,10 +44,10 @@ import { uiTelemetryService, UiEvent } from './uiTelemetry.js';
 import { ClearcutLogger } from './clearcut-logger/clearcut-logger.js';
 import { safeJsonStringify } from '../utils/safeJsonStringify.js';
 
-export let lastLoggedNotificationSessionId: string | null = null;
+export const loggedNotificationSessionIds = new Set<string>();
 
 export function initializeLastLoggedNotificationSessionId() {
-  lastLoggedNotificationSessionId = null;
+  loggedNotificationSessionIds.clear();
 }
 
 const shouldLogUserPrompts = (config: Config): boolean =>
@@ -369,12 +369,12 @@ export function logIdeNotificationReceived(
   event: IdeNotificationReceivedEvent,
 ) {
   const currentSessionId = config.getSessionId();
-  if (lastLoggedNotificationSessionId === currentSessionId) {
+  if (loggedNotificationSessionIds.has(currentSessionId)) {
     return;
   }
 
   ClearcutLogger.getInstance(config)?.logIdeNotificationReceivedEvent(event);
-  lastLoggedNotificationSessionId = currentSessionId;
+  loggedNotificationSessionIds.add(currentSessionId);
   if (!isTelemetrySdkInitialized()) return;
 
   const attributes: LogAttributes = {

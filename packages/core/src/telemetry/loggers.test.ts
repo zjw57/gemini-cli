@@ -803,10 +803,17 @@ describe('loggers', () => {
 
     it('should not log if the session ID is the same', () => {
       const event = new IdeNotificationReceivedEvent('test-notification');
-      logIdeNotificationReceived(mockConfig, event);
-      logIdeNotificationReceived(mockConfig, event);
+      const mockConfig2 = {
+        ...mockConfig,
+        getSessionId: () => 'test-session-id-2',
+      } as unknown as Config;
 
-      expect(mockLogger.emit).toHaveBeenCalledTimes(1);
+      logIdeNotificationReceived(mockConfig, event);
+      logIdeNotificationReceived(mockConfig, event);
+      logIdeNotificationReceived(mockConfig2, event);
+      logIdeNotificationReceived(mockConfig2, event);
+
+      expect(mockLogger.emit).toHaveBeenCalledTimes(2);
     });
   });
 });
