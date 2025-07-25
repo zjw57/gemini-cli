@@ -86,14 +86,9 @@ import { OverflowProvider } from './contexts/OverflowContext.js';
 import { ShowMoreLines } from './components/ShowMoreLines.js';
 import { PrivacyNotice } from './privacy/PrivacyNotice.js';
 
-const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
+import { type KeystrokeHandler } from './KeystrokeHandler.js';
 
-interface KeystrokeHandler {
-  input: string | string[];
-  ctrl?: boolean;
-  handler: () => void;
-  condition?: (context: { enteringConstrainHeightMode: boolean }) => boolean;
-}
+const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 
 interface AppProps {
   config: Config;
@@ -481,16 +476,18 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
         handler: () => setShowIDEContextDetail((prev) => !prev),
       },
       {
-        input: ['c', 'C'],
+        input: 'c',
         ctrl: true,
+        shift: true,
         handler: () => {
           handleExit(ctrlCPressedOnce, setCtrlCPressedOnce, ctrlCTimerRef);
         },
       },
       {
-        input: ['d', 'D'],
+        input: 'd',
         ctrl: true,
-        condition: () => buffer.text.length === 0,
+        shift: true,
+        condition: () => useTextBuffer.length === 0,
         handler: () => {
           handleExit(ctrlDPressedOnce, setCtrlDPressedOnce, ctrlDTimerRef);
         },
@@ -519,7 +516,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       ctrlDPressedOnce,
       setCtrlDPressedOnce,
       ctrlDTimerRef,
-      buffer.text.length,
       setConstrainHeight,
     ],
   );
