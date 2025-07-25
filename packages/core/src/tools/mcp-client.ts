@@ -16,7 +16,7 @@ import {
   StreamableHTTPClientTransportOptions,
 } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { parse } from 'shell-quote';
-import { AuthProviderType, MCPServerConfig } from '../config/config.js';
+import { Config, AuthProviderType, MCPServerConfig } from '../config/config.js';
 import { GoogleCredentialProvider } from '../mcp/google-auth-provider.js';
 import { DiscoveredMCPTool } from './mcp-tool.js';
 import { FunctionDeclaration, mcpToTool } from '@google/genai';
@@ -30,6 +30,8 @@ import {
   ideContext,
 } from '../services/ideContext.js';
 import { getErrorMessage } from '../utils/errors.js';
+import { logIdeNotificationReceived } from '../telemetry/loggers.js';
+import { IdeNotificationReceivedEvent } from '../telemetry/types.js';
 
 export const MCP_DEFAULT_TIMEOUT_MSEC = 10 * 60 * 1000; // default to 10 minutes
 
@@ -313,6 +315,7 @@ export async function discoverMcpTools(
   mcpServerCommand: string | undefined,
   toolRegistry: ToolRegistry,
   debugMode: boolean,
+  config: Config,
 ): Promise<void> {
   mcpDiscoveryState = MCPDiscoveryState.IN_PROGRESS;
   try {
@@ -325,6 +328,7 @@ export async function discoverMcpTools(
           mcpServerConfig,
           toolRegistry,
           debugMode,
+          config,
         ),
     );
     await Promise.all(discoveryPromises);
@@ -368,6 +372,7 @@ export async function connectAndDiscover(
   mcpServerConfig: MCPServerConfig,
   toolRegistry: ToolRegistry,
   debugMode: boolean,
+  config: Config,
 ): Promise<void> {
   updateMCPServerStatus(mcpServerName, MCPServerStatus.CONNECTING);
 
@@ -392,6 +397,10 @@ export async function connectAndDiscover(
         mcpClient.setNotificationHandler(
           OpenFilesNotificationSchema,
           (notification) => {
+            logIdeNotificationReceived(
+              config,
+              new IdeNotificationReceivedEvent(notification.method),
+            );
             ideContext.setOpenFilesContext(notification.params);
           },
         );

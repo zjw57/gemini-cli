@@ -209,6 +209,27 @@ Logs are timestamped records of specific events. The following events are logged
   - **Attributes**:
     - `auth_type`
 
+- `gemini_cli.loop_detected`: This event occurs when a loop is detected.
+  - **Attributes**:
+    - `loop_type` (string)
+
+- `gemini_cli.flash_decided_to_continue`: This event occurs when flash decides to continue.
+  - **Attributes**:
+    - `auth_type`
+
+- `gemini_cli.ide_command_triggered`: This event occurs when an IDE command is triggered.
+  - **Attributes**:
+    - `subcommand` (string)
+
+- `gemini_cli.slash_command_triggered`: This event occurs when a slash command is triggered.
+  - **Attributes**:
+    - `command` (string)
+    - `subcommand` (string)
+
+- `gemini_cli.ide_notification_received`: This event occurs when an IDE notification is received. Only one notification per session is logged.
+  - **Attributes**:
+    - `notification_type` (string)
+
 ### Metrics
 
 Metrics are numerical measurements of behavior over time. The following metrics are collected for Gemini CLI:

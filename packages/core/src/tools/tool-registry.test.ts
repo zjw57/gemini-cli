@@ -345,6 +345,7 @@ describe('ToolRegistry', () => {
         undefined,
         toolRegistry,
         false,
+        config,
       );
     });
 
@@ -367,6 +368,7 @@ describe('ToolRegistry', () => {
         undefined,
         toolRegistry,
         false,
+        config,
       );
     });
   });

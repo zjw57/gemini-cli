@@ -32,6 +32,9 @@ import {
   logUserPrompt,
   logToolCall,
   logFlashFallback,
+  logIdeCommandTriggered,
+  logIdeNotificationReceived,
+  initializeLastLoggedNotificationSessionId,
 } from './loggers.js';
 import {
   ApiRequestEvent,
@@ -41,6 +44,8 @@ import {
   ToolCallEvent,
   UserPromptEvent,
   FlashFallbackEvent,
+  IdeCommandTriggeredEvent,
+  IdeNotificationReceivedEvent,
 } from './types.js';
 import * as metrics from './metrics.js';
 import * as sdk from './sdk.js';
@@ -64,6 +69,8 @@ describe('loggers', () => {
     );
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-01-01T00:00:00.000Z'));
+    initializeLastLoggedNotificationSessionId();
+    mockLogger.emit.mockClear();
   });
 
   describe('logCliConfiguration', () => {
@@ -748,6 +755,65 @@ describe('loggers', () => {
         'event.name': EVENT_TOOL_CALL,
         'event.timestamp': '2025-01-01T00:00:00.000Z',
       });
+    });
+  });
+
+  describe('logIdeCommandTriggered', () => {
+    const mockConfig = {
+      getSessionId: () => 'test-session-id',
+      getUsageStatisticsEnabled: () => true,
+    } as unknown as Config;
+
+    it('should log an IDE command trigger event', () => {
+      const event = new IdeCommandTriggeredEvent('test-subcommand');
+      logIdeCommandTriggered(mockConfig, event);
+
+      expect(mockLogger.emit).toHaveBeenCalledWith({
+        body: 'IDE command triggered: test-subcommand',
+        attributes: {
+          'session.id': 'test-session-id',
+          'event.name': 'gemini_cli.ide_command',
+          'event.timestamp': '2025-01-01T00:00:00.000Z',
+          subcommand: 'test-subcommand',
+        },
+      });
+    });
+  });
+
+  describe('logIdeNotificationReceived', () => {
+    const mockConfig = {
+      getSessionId: () => 'test-session-id',
+      getUsageStatisticsEnabled: () => true,
+    } as unknown as Config;
+
+    it('should log an IDE notification received event', () => {
+      const event = new IdeNotificationReceivedEvent('test-notification');
+      logIdeNotificationReceived(mockConfig, event);
+
+      expect(mockLogger.emit).toHaveBeenCalledWith({
+        body: 'IDE notification received: test-notification',
+        attributes: {
+          'session.id': 'test-session-id',
+          'event.name': 'gemini_cli.ide_notification',
+          'event.timestamp': '2025-01-01T00:00:00.000Z',
+          notification_type: 'test-notification',
+        },
+      });
+    });
+
+    it('should not log if the session ID is the same', () => {
+      const event = new IdeNotificationReceivedEvent('test-notification');
+      const mockConfig2 = {
+        ...mockConfig,
+        getSessionId: () => 'test-session-id-2',
+      } as unknown as Config;
+
+      logIdeNotificationReceived(mockConfig, event);
+      logIdeNotificationReceived(mockConfig, event);
+      logIdeNotificationReceived(mockConfig2, event);
+      logIdeNotificationReceived(mockConfig2, event);
+
+      expect(mockLogger.emit).toHaveBeenCalledTimes(2);
     });
   });
 });

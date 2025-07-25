@@ -171,6 +171,7 @@ export class ToolRegistry {
       this.config.getMcpServerCommand(),
       this,
       this.config.getDebugMode(),
+      this.config,
     );
   }
 
@@ -216,6 +217,7 @@ export class ToolRegistry {
         undefined,
         this,
         this.config.getDebugMode(),
+        this.config,
       );
     }
   }

@@ -278,6 +278,44 @@ export class FlashDecidedToContinueEvent {
   }
 }
 
+export class IdeNotificationReceivedEvent {
+  'event.name': 'ide_notification_received';
+  'event.timestamp': string; // ISO 8601
+  notification_type: string;
+
+  constructor(notification_type: string) {
+    this['event.name'] = 'ide_notification_received';
+    this['event.timestamp'] = new Date().toISOString();
+    this.notification_type = notification_type;
+  }
+}
+
+export class IdeCommandTriggeredEvent {
+  'event.name': 'ide_command_triggered';
+  'event.timestamp': string; // ISO 8601
+  subcommand: string;
+
+  constructor(subcommand: string) {
+    this['event.name'] = 'ide_command_triggered';
+    this['event.timestamp'] = new Date().toISOString();
+    this.subcommand = subcommand;
+  }
+}
+
+export class SlashCommandTriggeredEvent {
+  'event.name': 'slash_command_triggered';
+  'event.timestamp': string; // ISO 8601
+  command: string;
+  subcommand?: string;
+
+  constructor(command: string, subcommand?: string) {
+    this['event.name'] = 'slash_command_triggered';
+    this['event.timestamp'] = new Date().toISOString();
+    this.command = command;
+    this.subcommand = subcommand;
+  }
+}
+
 export type TelemetryEvent =
   | StartSessionEvent
   | EndSessionEvent
@@ -288,4 +326,7 @@ export type TelemetryEvent =
   | ApiResponseEvent
   | FlashFallbackEvent
   | LoopDetectedEvent
-  | FlashDecidedToContinueEvent;
+  | FlashDecidedToContinueEvent
+  | IdeCommandTriggeredEvent
+  | IdeNotificationReceivedEvent
+  | SlashCommandTriggeredEvent;
