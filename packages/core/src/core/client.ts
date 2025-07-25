@@ -341,6 +341,7 @@ export class GeminiClient {
 
         if (
           ideContextState.workspaceState &&
+          ideContextState.workspaceState.recentOpenFiles &&
           ideContextState.workspaceState.recentOpenFiles.length > 0
         ) {
           const recentOpenFiles = ideContextState.workspaceState.recentOpenFiles

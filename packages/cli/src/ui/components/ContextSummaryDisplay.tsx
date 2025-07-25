@@ -33,13 +33,13 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     geminiMdFileCount === 0 &&
     mcpServerCount === 0 &&
     blockedMcpServerCount === 0 &&
-    (ideContext?.workspaceState?.recentOpenFiles.length ?? 0) === 0
+    (ideContext?.workspaceState?.recentOpenFiles?.length ?? 0) === 0
   ) {
     return <Text> </Text>; // Render an empty space to reserve height
   }
 
   const recentFilesText = (() => {
-    const count = ideContext?.workspaceState?.recentOpenFiles.length ?? 0;
+    const count = ideContext?.workspaceState?.recentOpenFiles?.length ?? 0;
     if (count === 0) {
       return '';
     }
