@@ -16,8 +16,8 @@ interface IDEContextDetailDisplayProps {
 export function IDEContextDetailDisplay({
   ideContext,
 }: IDEContextDetailDisplayProps) {
-  const openFiles = ideContext?.otherContext?.openFiles;
-  if (!openFiles || openFiles.length === 0) {
+  const recentOpenFiles = ideContext?.workspaceState?.recentOpenFiles;
+  if (!recentOpenFiles || recentOpenFiles.length === 0) {
     return null;
   }
 
@@ -32,10 +32,10 @@ export function IDEContextDetailDisplay({
       <Text color={Colors.AccentCyan} bold>
         IDE Context (ctrl+e to toggle)
       </Text>
-      {openFiles.length > 0 && (
+      {recentOpenFiles.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
           <Text bold>Open files:</Text>
-          {openFiles.map((file) => (
+          {recentOpenFiles.map((file) => (
             <Text key={file.filePath}>
               - {path.basename(file.filePath)}
               {file.filePath === ideContext?.activeContext?.file.filePath

@@ -17,7 +17,7 @@ export type File = z.infer<typeof FileSchema>;
 
 /**
  * Zod schema for validating the complete IDE context, including the active
- * file, other open files, and editor state like cursor position.
+ * context and workspace state.
  */
 export const IDEContextSchema = z.object({
   activeContext: z
@@ -32,9 +32,9 @@ export const IDEContextSchema = z.object({
         .optional(),
     })
     .optional(),
-  otherContext: z
+  workspaceState: z
     .object({
-      openFiles: z.array(FileSchema),
+      recentOpenFiles: z.array(FileSchema).optional(),
     })
     .optional(),
 });

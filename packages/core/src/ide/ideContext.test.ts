@@ -187,4 +187,22 @@ describe('ideContext', () => {
 
     expect(ideContext.getIDEContext()).toBeUndefined();
   });
+
+  it('should handle workspaceState correctly', () => {
+    const testContext = {
+      workspaceState: {
+        recentOpenFiles: [
+          {
+            filePath: '/path/to/test/file.ts',
+            timestamp: 12345,
+          },
+        ],
+      },
+    };
+
+    ideContext.setIDEContext(testContext);
+
+    const activeContext = ideContext.getIDEContext();
+    expect(activeContext).toEqual(testContext);
+  });
 });

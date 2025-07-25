@@ -57,8 +57,8 @@ function sendContextUpdateNotification(
       }
     : undefined;
 
-  const otherContext = {
-    openFiles: recentFilesManager.recentFiles,
+  const workspaceState = {
+    recentOpenFiles: recentFilesManager.recentFiles,
   };
 
   const notification: JSONRPCNotification = {
@@ -66,7 +66,7 @@ function sendContextUpdateNotification(
     method: 'ide/contextUpdate',
     params: {
       activeContext,
-      otherContext,
+      workspaceState,
     },
   };
 

@@ -287,8 +287,8 @@ describe('App UI', () => {
         },
         selectedText: 'hello',
       },
-      otherContext: {
-        openFiles: [
+      workspaceState: {
+        recentOpenFiles: [
           {
             filePath: '/path/to/my-file.ts',
             timestamp: 12345,
@@ -335,8 +335,8 @@ describe('App UI', () => {
         },
         selectedText: 'hello',
       },
-      otherContext: {
-        openFiles: [
+      workspaceState: {
+        recentOpenFiles: [
           {
             filePath: '/path/to/my-file.ts',
             timestamp: 12345,

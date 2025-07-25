@@ -656,8 +656,8 @@ describe('Gemini Client (client.ts)', () => {
           selectedText: 'hello',
           cursor: { line: 5, character: 10 },
         },
-        otherContext: {
-          openFiles: [
+        workspaceState: {
+          recentOpenFiles: [
             { filePath: '/path/to/recent/file1.ts', timestamp: Date.now() },
             { filePath: '/path/to/recent/file2.ts', timestamp: Date.now() },
           ],

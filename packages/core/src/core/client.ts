@@ -340,14 +340,14 @@ export class GeminiClient {
         }
 
         if (
-          ideContextState.otherContext &&
-          ideContextState.otherContext.openFiles.length > 0
+          ideContextState.workspaceState &&
+          ideContextState.workspaceState.recentOpenFiles.length > 0
         ) {
-          const openFiles = ideContextState.otherContext.openFiles
+          const recentOpenFiles = ideContextState.workspaceState.recentOpenFiles
             .map((file) => `- ${file.filePath}`)
             .join('\n');
           contextParts.push(
-            `Here are files the user has recently opened, with the most recent at the top:\n${openFiles}`,
+            `Here are files the user has recently opened, with the most recent at the top:\n${recentOpenFiles}`,
           );
         }
 
