@@ -11,6 +11,7 @@ import {
   Tool,
   ToolCallConfirmationDetails,
   ToolResult,
+  ToolResultDisplay,
   ToolRegistry,
   ApprovalMode,
   EditorType,
@@ -335,6 +336,22 @@ export class CoreToolScheduler {
           const durationMs = existingStartTime
             ? Date.now() - existingStartTime
             : undefined;
+
+          // Preserve diff for cancelled edit operations
+          let resultDisplay: ToolResultDisplay | undefined = undefined;
+          if (currentCall.status === 'awaiting_approval') {
+            const waitingCall = currentCall as WaitingToolCall;
+            if (waitingCall.confirmationDetails.type === 'edit') {
+              resultDisplay = {
+                fileDiff: waitingCall.confirmationDetails.fileDiff,
+                fileName: waitingCall.confirmationDetails.fileName,
+                originalContent:
+                  waitingCall.confirmationDetails.originalContent,
+                newContent: waitingCall.confirmationDetails.newContent,
+              };
+            }
+          }
+
           return {
             request: currentCall.request,
             tool: toolInstance,
@@ -350,7 +367,7 @@ export class CoreToolScheduler {
                   },
                 },
               },
-              resultDisplay: undefined,
+              resultDisplay,
               error: undefined,
             },
             durationMs,
@@ -656,39 +673,15 @@ export class CoreToolScheduler {
               return;
             }
 
-            let resultForDisplay: ToolResult = toolResult;
-            let summary: string | undefined;
-            if (scheduledCall.tool.summarizer) {
-              try {
-                const toolSignal = new AbortController();
-                summary = await scheduledCall.tool.summarizer(
-                  toolResult,
-                  this.config.getGeminiClient(),
-                  toolSignal.signal,
-                );
-                if (toolSignal.signal.aborted) {
-                  console.debug('aborted summarizing tool result');
-                  return;
-                }
-                if (scheduledCall.tool?.shouldSummarizeDisplay) {
-                  resultForDisplay = {
-                    ...toolResult,
-                    returnDisplay: summary,
-                  };
-                }
-              } catch (e) {
-                console.error('Error summarizing tool result:', e);
-              }
-            }
             const response = convertToFunctionResponse(
               toolName,
               callId,
-              summary ? [summary] : toolResult.llmContent,
+              toolResult.llmContent,
             );
             const successResponse: ToolCallResponseInfo = {
               callId,
               responseParts: response,
-              resultDisplay: resultForDisplay.returnDisplay,
+              resultDisplay: toolResult.returnDisplay,
               error: undefined,
             };
 

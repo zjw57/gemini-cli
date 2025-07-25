@@ -15,6 +15,7 @@ import {
   ToolCallConfirmationDetails,
   ToolExecuteConfirmationDetails,
   ToolConfirmationOutcome,
+  Icon,
 } from './tools.js';
 import { Type } from '@google/genai';
 import { SchemaValidator } from '../utils/schemaValidator.js';
@@ -27,7 +28,7 @@ export interface ShellToolParams {
   directory?: string;
 }
 import { spawn } from 'child_process';
-import { llmSummarizer } from '../utils/summarizer.js';
+import { summarizeToolOutput } from '../utils/summarizer.js';
 
 const OUTPUT_UPDATE_INTERVAL_MS = 1000;
 
@@ -52,6 +53,7 @@ Exit Code: Exit code or \`(none)\` if terminated by signal.
 Signal: Signal number or \`(none)\` if no signal was received.
 Background PIDs: List of background processes started or \`(none)\`.
 Process Group PGID: Process group started or \`(none)\``,
+      Icon.Terminal,
       {
         type: Type.OBJECT,
         properties: {
@@ -74,8 +76,6 @@ Process Group PGID: Process group started or \`(none)\``,
       },
       false, // output is not markdown
       true, // output can be updated
-      llmSummarizer,
-      true, // should summarize display output
     );
   }
 
@@ -322,11 +322,19 @@ Process Group PGID: Process group started or \`(none)\``,
           stdio: ['ignore', 'pipe', 'pipe'],
           // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
           cwd: path.resolve(this.config.getTargetDir(), params.directory || ''),
+          env: {
+            ...process.env,
+            GEMINI_CLI: '1',
+          },
         })
       : spawn('bash', ['-c', command], {
           stdio: ['ignore', 'pipe', 'pipe'],
           detached: true, // ensure subprocess starts its own process group (esp. in Linux)
           cwd: path.resolve(this.config.getTargetDir(), params.directory || ''),
+          env: {
+            ...process.env,
+            GEMINI_CLI: '1',
+          },
         });
 
     let exited = false;
@@ -490,6 +498,24 @@ Process Group PGID: Process group started or \`(none)\``,
         // returnDisplayMessage will remain empty, which is fine.
       }
     }
-    return { llmContent, returnDisplay: returnDisplayMessage };
+
+    const summarizeConfig = this.config.getSummarizeToolOutputConfig();
+    if (summarizeConfig && summarizeConfig[this.name]) {
+      const summary = await summarizeToolOutput(
+        llmContent,
+        this.config.getGeminiClient(),
+        abortSignal,
+        summarizeConfig[this.name].tokenBudget,
+      );
+      return {
+        llmContent: summary,
+        returnDisplay: returnDisplayMessage,
+      };
+    }
+
+    return {
+      llmContent,
+      returnDisplay: returnDisplayMessage,
+    };
   }
 }
