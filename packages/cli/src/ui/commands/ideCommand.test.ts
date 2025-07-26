@@ -25,8 +25,6 @@ import {
   IDE_SERVER_NAME,
   MCPDiscoveryState,
   MCPServerStatus,
-  logSlashCommandTriggered,
-  SlashCommandTriggeredEvent,
 } from '@google/gemini-cli-core';
 
 vi.mock('child_process');
@@ -38,7 +36,6 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
     ...original,
     getMCPServerStatus: vi.fn(),
     getMCPDiscoveryState: vi.fn(),
-    logSlashCommandTriggered: vi.fn(),
   };
 });
 
@@ -54,7 +51,6 @@ describe('ideCommand', () => {
   let platformSpy: MockInstance;
   let getMCPServerStatusSpy: MockInstance;
   let getMCPDiscoveryStateSpy: MockInstance;
-  let logSlashCommandTriggeredSpy: MockInstance;
 
   beforeEach(() => {
     mockContext = {
@@ -73,7 +69,6 @@ describe('ideCommand', () => {
     platformSpy = vi.spyOn(process, 'platform', 'get');
     getMCPServerStatusSpy = vi.mocked(getMCPServerStatus);
     getMCPDiscoveryStateSpy = vi.mocked(getMCPDiscoveryState);
-    logSlashCommandTriggeredSpy = vi.mocked(logSlashCommandTriggered);
   });
 
   afterEach(() => {
@@ -91,6 +86,7 @@ describe('ideCommand', () => {
     const command = ideCommand(mockConfig);
     expect(command).not.toBeNull();
     expect(command?.name).toBe('ide');
+    expect(command?.action).toBeUndefined();
     expect(command?.subCommands).toHaveLength(2);
     expect(command?.subCommands?.[0].name).toBe('status');
     expect(command?.subCommands?.[1].name).toBe('install');
@@ -111,10 +107,6 @@ describe('ideCommand', () => {
         messageType: 'info',
         content: '🟢 Connected',
       });
-      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
-        mockConfig,
-        expect.any(SlashCommandTriggeredEvent),
-      );
     });
 
     it('should show connecting status', () => {
@@ -126,10 +118,6 @@ describe('ideCommand', () => {
         messageType: 'info',
         content: '🔄 Initializing...',
       });
-      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
-        mockConfig,
-        expect.any(SlashCommandTriggeredEvent),
-      );
     });
 
     it('should show discovery in progress status', () => {
@@ -142,10 +130,6 @@ describe('ideCommand', () => {
         messageType: 'info',
         content: '🔄 Initializing...',
       });
-      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
-        mockConfig,
-        expect.any(SlashCommandTriggeredEvent),
-      );
     });
 
     it('should show disconnected status', () => {
@@ -158,10 +142,6 @@ describe('ideCommand', () => {
         messageType: 'error',
         content: '🔴 Disconnected',
       });
-      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
-        mockConfig,
-        expect.any(SlashCommandTriggeredEvent),
-      );
     });
   });
 
@@ -186,10 +166,6 @@ describe('ideCommand', () => {
         }),
         expect.any(Number),
       );
-      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
-        mockConfig,
-        expect.any(SlashCommandTriggeredEvent),
-      );
     });
 
     it('should show an error if the VSIX file is not found', async () => {
@@ -205,10 +181,6 @@ describe('ideCommand', () => {
           text: 'Could not find the required VS Code companion extension. Please file a bug via /bug.',
         }),
         expect.any(Number),
-      );
-      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
-        mockConfig,
-        expect.any(SlashCommandTriggeredEvent),
       );
     });
 
@@ -245,10 +217,6 @@ describe('ideCommand', () => {
         }),
         expect.any(Number),
       );
-      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
-        mockConfig,
-        expect.any(SlashCommandTriggeredEvent),
-      );
     });
 
     it('should install the extension if found in the dev directory', async () => {
@@ -276,10 +244,6 @@ describe('ideCommand', () => {
         }),
         expect.any(Number),
       );
-      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
-        mockConfig,
-        expect.any(SlashCommandTriggeredEvent),
-      );
     });
 
     it('should show an error if installation fails', async () => {
@@ -306,10 +270,6 @@ describe('ideCommand', () => {
           text: `Failed to install VS Code companion extension.`,
         }),
         expect.any(Number),
-      );
-      expect(logSlashCommandTriggeredSpy).toHaveBeenCalledWith(
-        mockConfig,
-        expect.any(SlashCommandTriggeredEvent),
       );
     });
   });

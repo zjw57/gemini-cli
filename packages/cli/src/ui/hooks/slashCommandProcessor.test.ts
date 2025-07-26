@@ -8,6 +8,8 @@ const { mockProcessExit } = vi.hoisted(() => ({
   mockProcessExit: vi.fn((_code?: number): never => undefined as never),
 }));
 
+const mockLogSlashCommandTriggered = vi.hoisted(() => vi.fn());
+
 vi.mock('node:process', () => ({
   default: {
     exit: mockProcessExit,
@@ -31,6 +33,15 @@ vi.mock('../../services/FileCommandLoader.js', () => ({
 vi.mock('../contexts/SessionContext.js', () => ({
   useSessionStats: vi.fn(() => ({ stats: {} })),
 }));
+
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
+  return {
+    ...original,
+    logSlashCommandTriggered: mockLogSlashCommandTriggered,
+  };
+});
 
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, type Mock } from 'vitest';
@@ -500,6 +511,78 @@ describe('useSlashCommandProcessor', () => {
         { type: MessageType.USER, text: '/exit' },
         expect.any(Number),
       );
+    });
+  });
+
+  describe('Telemetry', () => {
+    it('should log a simple command', async () => {
+      const command = createTestCommand({
+        name: 'test',
+        action: vi.fn(),
+      });
+      const result = setupProcessorHook([command]);
+      await waitFor(() => expect(result.current.slashCommands).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.handleSlashCommand('/test foo bar');
+      });
+
+      expect(mockLogSlashCommandTriggered).toHaveBeenCalledWith(
+        mockConfig,
+        expect.objectContaining({
+          command: 'test',
+          subcommand: '',
+        }),
+      );
+    });
+
+    it('should log a nested command', async () => {
+      const childAction = vi.fn();
+      const parentCommand: SlashCommand = {
+        name: 'parent',
+        description: 'a parent command',
+        kind: CommandKind.BUILT_IN,
+        subCommands: [
+          {
+            name: 'child',
+            description: 'a child command',
+            kind: CommandKind.BUILT_IN,
+            action: childAction,
+          },
+        ],
+      };
+      const result = setupProcessorHook([parentCommand]);
+      await waitFor(() => expect(result.current.slashCommands).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.handleSlashCommand('/parent child with args');
+      });
+
+      expect(mockLogSlashCommandTriggered).toHaveBeenCalledWith(
+        mockConfig,
+        expect.objectContaining({
+          command: 'parent',
+          subcommand: 'child',
+        }),
+      );
+    });
+
+    it('should not log a file-based command', async () => {
+      const command = createTestCommand(
+        {
+          name: 'filetest',
+          action: vi.fn(),
+        },
+        CommandKind.FILE,
+      );
+      const result = setupProcessorHook([], [command]);
+      await waitFor(() => expect(result.current.slashCommands).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.handleSlashCommand('/filetest foo bar');
+      });
+
+      expect(mockLogSlashCommandTriggered).not.toHaveBeenCalled();
     });
   });
 

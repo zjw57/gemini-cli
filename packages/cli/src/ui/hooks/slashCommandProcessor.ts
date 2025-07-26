@@ -9,7 +9,13 @@ import { type PartListUnion } from '@google/genai';
 import process from 'node:process';
 import { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { useStateAndRef } from './useStateAndRef.js';
-import { Config, GitService, Logger } from '@google/gemini-cli-core';
+import {
+  Config,
+  GitService,
+  Logger,
+  logSlashCommandTriggered,
+  SlashCommandTriggeredEvent,
+} from '@google/gemini-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import {
   Message,
@@ -19,7 +25,11 @@ import {
   SlashCommandProcessorResult,
 } from '../types.js';
 import { LoadedSettings } from '../../config/settings.js';
-import { type CommandContext, type SlashCommand } from '../commands/types.js';
+import {
+  type CommandContext,
+  type SlashCommand,
+  CommandKind,
+} from '../commands/types.js';
 import { CommandService } from '../../services/CommandService.js';
 import { BuiltinCommandLoader } from '../../services/BuiltinCommandLoader.js';
 import { FileCommandLoader } from '../../services/FileCommandLoader.js';
@@ -203,6 +213,7 @@ export const useSlashCommandProcessor = (
       let currentCommands = commands;
       let commandToExecute: SlashCommand | undefined;
       let pathIndex = 0;
+      const commandFullPath: string[] = [];
 
       for (const part of commandPath) {
         // TODO: For better performance and architectural clarity, this two-pass
@@ -223,6 +234,7 @@ export const useSlashCommandProcessor = (
 
         if (foundCommand) {
           commandToExecute = foundCommand;
+          commandFullPath.push(foundCommand.name);
           pathIndex++;
           if (foundCommand.subCommands) {
             currentCommands = foundCommand.subCommands;
@@ -238,6 +250,15 @@ export const useSlashCommandProcessor = (
         const args = parts.slice(pathIndex).join(' ');
 
         if (commandToExecute.action) {
+          if (config && commandToExecute.kind === CommandKind.BUILT_IN) {
+            logSlashCommandTriggered(
+              config,
+              new SlashCommandTriggeredEvent(
+                commandFullPath[0],
+                commandFullPath.slice(1).join(' '),
+              ),
+            );
+          }
           const fullCommandContext: CommandContext = {
             ...commandContext,
             invocation: {
