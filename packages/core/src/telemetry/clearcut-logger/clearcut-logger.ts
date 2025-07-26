@@ -19,6 +19,7 @@ import {
   FlashFallbackEvent,
   LoopDetectedEvent,
   FlashDecidedToContinueEvent,
+  SlashCommandTriggeredEvent,
 } from '../types.js';
 import { EventMetadataKey } from './event-metadata-key.js';
 import { Config } from '../../config/config.js';
@@ -39,6 +40,7 @@ const end_session_event_name = 'end_session';
 const flash_fallback_event_name = 'flash_fallback';
 const loop_detected_event_name = 'loop_detected';
 const flash_decided_to_continue_event_name = 'flash_decided_to_continue';
+const slash_command_triggered_event_name = 'slash_command_triggered';
 
 export interface LogResponse {
   nextRequestWaitMs?: number;
@@ -508,6 +510,28 @@ export class ClearcutLogger {
 
     this.enqueueLogEvent(
       this.createLogEvent(flash_decided_to_continue_event_name, data),
+    );
+    this.flushIfNeeded();
+  }
+
+  logSlashCommandTriggeredEvent(event: SlashCommandTriggeredEvent): void {
+    const data = [
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_SLASH_COMMAND_COMMAND,
+        value: JSON.stringify(event.command),
+      },
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_SLASH_COMMAND_SUBCOMMAND,
+        value: JSON.stringify(event.subcommand),
+      },
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_SESSION_ID,
+        value: this.config?.getSessionId() ?? '',
+      },
+    ];
+
+    this.enqueueLogEvent(
+      this.createLogEvent(slash_command_triggered_event_name, data),
     );
     this.flushIfNeeded();
   }

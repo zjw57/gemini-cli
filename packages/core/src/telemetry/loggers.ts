@@ -16,6 +16,7 @@ import {
   EVENT_USER_PROMPT,
   EVENT_FLASH_FALLBACK,
   EVENT_FLASH_DECIDED_TO_CONTINUE,
+  EVENT_SLASH_COMMAND_TRIGGERED,
   SERVICE_NAME,
 } from './constants.js';
 import {
@@ -28,6 +29,7 @@ import {
   FlashFallbackEvent,
   FlashDecidedToContinueEvent,
   LoopDetectedEvent,
+  SlashCommandTriggeredEvent,
 } from './types.js';
 import {
   recordApiErrorMetrics,
@@ -328,6 +330,27 @@ export function logFlashDecidedToContinue(
   const logger = logs.getLogger(SERVICE_NAME);
   const logRecord: LogRecord = {
     body: `Flash decided to continue.`,
+    attributes,
+  };
+  logger.emit(logRecord);
+}
+
+export function logSlashCommandTriggered(
+  config: Config,
+  event: SlashCommandTriggeredEvent,
+): void {
+  ClearcutLogger.getInstance(config)?.logSlashCommandTriggeredEvent(event);
+  if (!isTelemetrySdkInitialized()) return;
+
+  const attributes: LogAttributes = {
+    ...getCommonAttributes(config),
+    ...event,
+    'event.name': EVENT_SLASH_COMMAND_TRIGGERED,
+  };
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const logRecord: LogRecord = {
+    body: `Slash command triggered: ${event.command}`,
     attributes,
   };
   logger.emit(logRecord);

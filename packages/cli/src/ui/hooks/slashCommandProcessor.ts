@@ -9,7 +9,13 @@ import { type PartListUnion } from '@google/genai';
 import process from 'node:process';
 import { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { useStateAndRef } from './useStateAndRef.js';
-import { Config, GitService, Logger } from '@google/gemini-cli-core';
+import {
+  Config,
+  GitService,
+  Logger,
+  logSlashCommandTriggered,
+  SlashCommandTriggeredEvent,
+} from '@google/gemini-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import {
   Message,
@@ -19,7 +25,11 @@ import {
   SlashCommandProcessorResult,
 } from '../types.js';
 import { LoadedSettings } from '../../config/settings.js';
-import { type CommandContext, type SlashCommand } from '../commands/types.js';
+import {
+  type CommandContext,
+  type SlashCommand,
+  CommandKind,
+} from '../commands/types.js';
 import { CommandService } from '../../services/CommandService.js';
 import { BuiltinCommandLoader } from '../../services/BuiltinCommandLoader.js';
 import { FileCommandLoader } from '../../services/FileCommandLoader.js';
@@ -202,6 +212,7 @@ export const useSlashCommandProcessor = (
 
       let currentCommands = commands;
       let commandToExecute: SlashCommand | undefined;
+      const executedCommandPath: string[] = [];
       let pathIndex = 0;
 
       for (const part of commandPath) {
@@ -222,6 +233,7 @@ export const useSlashCommandProcessor = (
         }
 
         if (foundCommand) {
+          executedCommandPath.push(foundCommand.name);
           commandToExecute = foundCommand;
           pathIndex++;
           if (foundCommand.subCommands) {
@@ -235,6 +247,13 @@ export const useSlashCommandProcessor = (
       }
 
       if (commandToExecute) {
+        if (config && commandToExecute.kind === CommandKind.BUILT_IN) {
+          const event = new SlashCommandTriggeredEvent(
+            executedCommandPath[0],
+            executedCommandPath.slice(1).join(' '),
+          );
+          logSlashCommandTriggered(config, event);
+        }
         const args = parts.slice(pathIndex).join(' ');
 
         if (commandToExecute.action) {

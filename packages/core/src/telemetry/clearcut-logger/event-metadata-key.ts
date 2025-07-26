@@ -163,6 +163,16 @@ export enum EventMetadataKey {
 
   // Logs the type of loop detected.
   GEMINI_CLI_LOOP_DETECTED_TYPE = 38,
+
+  // ==========================================================================
+  // Slash Command Triggered Event Keys
+  // ===========================================================================
+
+  // Logs the command that was triggered.
+  GEMINI_CLI_SLASH_COMMAND_COMMAND = 41,
+
+  // Logs the subcommand that was triggered.
+  GEMINI_CLI_SLASH_COMMAND_SUBCOMMAND = 42,
 }
 
 export function getEventMetadataKey(

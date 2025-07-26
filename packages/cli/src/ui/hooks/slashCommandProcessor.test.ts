@@ -32,6 +32,19 @@ vi.mock('../contexts/SessionContext.js', () => ({
   useSessionStats: vi.fn(() => ({ stats: {} })),
 }));
 
+const { mockLogSlashCommandTriggered } = vi.hoisted(() => ({
+  mockLogSlashCommandTriggered: vi.fn(),
+}));
+
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
+  return {
+    ...original,
+    logSlashCommandTriggered: mockLogSlashCommandTriggered,
+  };
+});
+
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, type Mock } from 'vitest';
 import { useSlashCommandProcessor } from './slashCommandProcessor.js';
@@ -66,6 +79,7 @@ describe('useSlashCommandProcessor', () => {
     getGeminiClient: () => ({
       setHistory: vi.fn().mockResolvedValue(undefined),
     }),
+    getUsageStatisticsEnabled: () => true,
   } as unknown as Config;
 
   const mockSettings = {} as LoadedSettings;
@@ -75,6 +89,7 @@ describe('useSlashCommandProcessor', () => {
     (vi.mocked(BuiltinCommandLoader) as Mock).mockClear();
     mockBuiltinLoadCommands.mockResolvedValue([]);
     mockFileLoadCommands.mockResolvedValue([]);
+    mockLogSlashCommandTriggered.mockClear();
   });
 
   const setupProcessorHook = (
@@ -528,6 +543,86 @@ describe('useSlashCommandProcessor', () => {
       unmount();
 
       expect(abortSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Telemetry Logging', () => {
+    it('should log a built-in command', async () => {
+      const command = createTestCommand({
+        name: 'test-log',
+        action: vi.fn(),
+      });
+      const result = setupProcessorHook([command]);
+      await waitFor(() => expect(result.current.slashCommands).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.handleSlashCommand('/test-log');
+      });
+
+      expect(mockLogSlashCommandTriggered).toHaveBeenCalledTimes(1);
+      expect(mockLogSlashCommandTriggered).toHaveBeenCalledWith(
+        mockConfig,
+        expect.objectContaining({
+          command: 'test-log',
+          subcommand: '',
+        }),
+      );
+    });
+
+    it('should log a built-in command with a subcommand', async () => {
+      const command = createTestCommand({
+        name: 'parent',
+        subCommands: [
+          createTestCommand({
+            name: 'child',
+            action: vi.fn(),
+          }),
+        ],
+      });
+      const result = setupProcessorHook([command]);
+      await waitFor(() => expect(result.current.slashCommands).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.handleSlashCommand('/parent child');
+      });
+
+      expect(mockLogSlashCommandTriggered).toHaveBeenCalledTimes(1);
+      expect(mockLogSlashCommandTriggered).toHaveBeenCalledWith(
+        mockConfig,
+        expect.objectContaining({
+          command: 'parent',
+          subcommand: 'child',
+        }),
+      );
+    });
+
+    it('should not log a file-based command', async () => {
+      const command = createTestCommand(
+        {
+          name: 'file-command',
+          action: vi.fn(),
+        },
+        CommandKind.FILE,
+      );
+      const result = setupProcessorHook([], [command]);
+      await waitFor(() => expect(result.current.slashCommands).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.handleSlashCommand('/file-command');
+      });
+
+      expect(mockLogSlashCommandTriggered).not.toHaveBeenCalled();
+    });
+
+    it('should not log an unknown command', async () => {
+      const result = setupProcessorHook();
+      await waitFor(() => expect(result.current.slashCommands).toBeDefined());
+
+      await act(async () => {
+        await result.current.handleSlashCommand('/unknown-command');
+      });
+
+      expect(mockLogSlashCommandTriggered).not.toHaveBeenCalled();
     });
   });
 });
