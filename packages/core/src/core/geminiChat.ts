@@ -92,6 +92,7 @@ function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
   if (comprehensiveHistory === undefined || comprehensiveHistory.length === 0) {
     return [];
   }
+  return comprehensiveHistory;
   const curatedHistory: Content[] = [];
   const length = comprehensiveHistory.length;
   let i = 0;
@@ -114,9 +115,10 @@ function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
       } else {
         // Remove the last user input when model content is invalid.
         const popped = curatedHistory.pop();
-        console.log("Popping off\n\n")
+        //curatedHistory.push(...modelOutput);
+        console.log("Popping off\n\n");
+        console.log(inspect(modelOutput, { depth: null, maxArrayLength: null }))
         console.log(inspect(popped, { depth: null, maxArrayLength: null }))
-        
       }
     }
   }
@@ -529,10 +531,10 @@ export class GeminiChat {
           chunks.push(chunk);
           const content = chunk.candidates?.[0]?.content;
           if (content !== undefined) {
-            if (this.isThoughtContent(content)) {
-              yield chunk;
-              continue;
-            }
+            // if (this.isThoughtContent(content)) {
+            //   yield chunk;
+            //   continue;
+            // }
             outputContent.push(content);
           }
         }
@@ -569,9 +571,12 @@ export class GeminiChat {
     modelOutput: Content[],
     automaticFunctionCallingHistory?: Content[],
   ) {
-    const nonThoughtModelOutput = modelOutput.filter(
-      (content) => !this.isThoughtContent(content),
-    );
+    console.log(inspect(userInput, { depth: null, maxArrayLength: null }));
+    console.log(inspect(modelOutput, { depth: null, maxArrayLength: null }));
+
+    const nonThoughtModelOutput = modelOutput //.filter(
+      //(content) => !this.isThoughtContent(content),
+    //);
 
     let outputContents: Content[] = [];
     if (
@@ -604,50 +609,51 @@ export class GeminiChat {
       this.history.push(userInput);
     }
 
+    this.history.push(...modelOutput);
     // Consolidate adjacent model roles in outputContents
-    const consolidatedOutputContents: Content[] = [];
-    for (const content of outputContents) {
-      if (this.isThoughtContent(content)) {
-        continue;
-      }
-      const lastContent =
-        consolidatedOutputContents[consolidatedOutputContents.length - 1];
-      if (this.isTextContent(lastContent) && this.isTextContent(content)) {
-        // If both current and last are text, combine their text into the lastContent's first part
-        // and append any other parts from the current content.
-        lastContent.parts[0].text += content.parts[0].text || '';
-        if (content.parts.length > 1) {
-          lastContent.parts.push(...content.parts.slice(1));
-        }
-      } else {
-        consolidatedOutputContents.push(content);
-      }
-    }
+    // const consolidatedOutputContents: Content[] = [];
+    // for (const content of outputContents) {
+    //   // if (this.isThoughtContent(content)) {
+    //   //   continue;
+    //   // }
+    //   const lastContent =
+    //     consolidatedOutputContents[consolidatedOutputContents.length - 1];
+    //   if (this.isTextContent(lastContent) && this.isTextContent(content)) {
+    //     // If both current and last are text, combine their text into the lastContent's first part
+    //     // and append any other parts from the current content.
+    //     lastContent.parts[0].text += content.parts[0].text || '';
+    //     if (content.parts.length > 1) {
+    //       lastContent.parts.push(...content.parts.slice(1));
+    //     }
+    //   } else {
+    //     consolidatedOutputContents.push(content);
+    //   }
+    // }
 
-    if (consolidatedOutputContents.length > 0) {
-      const lastHistoryEntry = this.history[this.history.length - 1];
-      const canMergeWithLastHistory =
-        !automaticFunctionCallingHistory ||
-        automaticFunctionCallingHistory.length === 0;
+    // if (consolidatedOutputContents.length > 0) {
+    //   const lastHistoryEntry = this.history[this.history.length - 1];
+    //   const canMergeWithLastHistory =
+    //     !automaticFunctionCallingHistory ||
+    //     automaticFunctionCallingHistory.length === 0;
 
-      if (
-        canMergeWithLastHistory &&
-        this.isTextContent(lastHistoryEntry) &&
-        this.isTextContent(consolidatedOutputContents[0])
-      ) {
-        // If both current and last are text, combine their text into the lastHistoryEntry's first part
-        // and append any other parts from the current content.
-        lastHistoryEntry.parts[0].text +=
-          consolidatedOutputContents[0].parts[0].text || '';
-        if (consolidatedOutputContents[0].parts.length > 1) {
-          lastHistoryEntry.parts.push(
-            ...consolidatedOutputContents[0].parts.slice(1),
-          );
-        }
-        consolidatedOutputContents.shift(); // Remove the first element as it's merged
-      }
-      this.history.push(...consolidatedOutputContents);
-    }
+    //   if (
+    //     canMergeWithLastHistory &&
+    //     this.isTextContent(lastHistoryEntry) &&
+    //     this.isTextContent(consolidatedOutputContents[0])
+    //   ) {
+    //     // If both current and last are text, combine their text into the lastHistoryEntry's first part
+    //     // and append any other parts from the current content.
+    //     lastHistoryEntry.parts[0].text +=
+    //       consolidatedOutputContents[0].parts[0].text || '';
+    //     if (consolidatedOutputContents[0].parts.length > 1) {
+    //       lastHistoryEntry.parts.push(
+    //         ...consolidatedOutputContents[0].parts.slice(1),
+    //       );
+    //     }
+    //     consolidatedOutputContents.shift(); // Remove the first element as it's merged
+    //   }
+    //   this.history.push(...consolidatedOutputContents);
+    // }
   }
 
   private isTextContent(

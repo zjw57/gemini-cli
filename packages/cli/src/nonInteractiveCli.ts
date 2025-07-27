@@ -33,12 +33,14 @@ function getResponseText(response: GenerateContentResponse): string | null {
       // We are running in headless mode so we don't need to return thoughts to STDOUT.
       const thoughtPart = candidate.content.parts[0];
       if (thoughtPart?.thought) {
+        // console.log("\n\nThinking a thought:\n\n")
+        // console.log(inspect(thoughtPart, { depth: null, maxArrayLength: null }))
         return null;
       }
       return candidate.content.parts
         .filter((part) => part.text)
         .map((part) => part.text)
-        .join('');
+        .join('').concat('\n');
     }
   }
   return null;
@@ -175,12 +177,7 @@ export async function runNonInteractive(
     };
 
     await writeAsync(`Comprehensive history:\n\n`);
-    await writeAsync(inspect(chat.getHistory(), { depth: null, maxArrayLength: null }) + `\n\n`);
-
-    await writeAsync(`Curated history:\n\n`);
-    await writeAsync(
-      inspect(chat.getHistory(true), { depth: null, maxArrayLength: null }) + `\n\n`,
-    );
+    await writeAsync(inspect(chat.getHistory(false), { depth: null, maxArrayLength: null }) + `\n\n`);
 
     if (isTelemetrySdkInitialized()) {
       await shutdownTelemetry();
