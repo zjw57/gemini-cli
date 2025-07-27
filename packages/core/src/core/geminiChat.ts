@@ -571,8 +571,8 @@ export class GeminiChat {
     modelOutput: Content[],
     automaticFunctionCallingHistory?: Content[],
   ) {
-    console.log(inspect(userInput, { depth: null, maxArrayLength: null }));
-    console.log(inspect(modelOutput, { depth: null, maxArrayLength: null }));
+    //console.log(inspect(userInput, { depth: null, maxArrayLength: null }));
+    //console.log(inspect(modelOutput, { depth: null, maxArrayLength: null }));
 
     const nonThoughtModelOutput = modelOutput //.filter(
       //(content) => !this.isThoughtContent(content),
