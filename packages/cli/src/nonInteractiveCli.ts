@@ -88,8 +88,10 @@ export async function runNonInteractive(
         return;
       }
       const functionCalls: FunctionCall[] = [];
-
+      console.log("<START>")
+      console.log("REQUEST, TURNCOUNT: ", turnCount);
       console.dir(currentMessages, { depth: null });
+      console.log("<END>")
       const responseStream = await chat.sendMessageStream(
         {
           message: currentMessages[0]?.parts || [], // Ensure parts are always provided
@@ -104,7 +106,10 @@ export async function runNonInteractive(
       );
 
       for await (const resp of responseStream) {
+        console.log("<START>")
+        console.log("RESPONSE, TURNCOUNT: ", turnCount);
         console.dir(resp, { depth: null });
+        console.log("<END>")
         if (abortController.signal.aborted) {
           console.error('Operation cancelled.');
           return;
