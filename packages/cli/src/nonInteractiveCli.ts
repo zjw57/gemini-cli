@@ -135,7 +135,7 @@ export async function runNonInteractive(
             if (!isToolNotFound) {
               // process.exit(1);
               console.error(
-                `It was supposed to exist process here`
+                `It was supposed to exist process here `
               );
             }
           }

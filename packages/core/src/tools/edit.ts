@@ -22,12 +22,12 @@ import { SchemaValidator } from '../utils/schemaValidator.js';
 import { makeRelative, shortenPath } from '../utils/paths.js';
 import { isNodeError } from '../utils/errors.js';
 import { Config, ApprovalMode } from '../config/config.js';
-import { ensureCorrectEdit } from '../utils/editCorrector.js';
+import { ensureCorrectEdit, countOccurrences } from '../utils/editCorrector.js';
 import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
 import { ReadFileTool } from './read-file.js';
 import { ModifiableTool, ModifyContext } from './modifiable-tool.js';
 import { isWithinRoot } from '../utils/fileUtils.js';
-
+import process from 'node:process';
 /**
  * Parameters for the Edit tool
  */
@@ -75,8 +75,21 @@ export class EditTool
   implements ModifiableTool<EditToolParams>
 {
   static readonly Name = 'replace';
+  edit_mode: string;
 
   constructor(private readonly config: Config) {
+    // calculate edit mode
+    let edit_mode = 'search_and_replace';
+    // CHANGED: Correctly assign to this.edit_mode instead of a local variable.
+    if (process.env.FUZZY_EDITOR !== undefined) {
+      edit_mode = 'fuzzy_search_and_replace';
+    } else if (process.env.SMART_EDITOR !== undefined) {
+      edit_mode = 'smart';
+    } else if (process.env.DIFF_EDITOR !== undefined) {
+      edit_mode = 'diff';
+    } else if (process.env.ENSURE_CORRECT_EDITOR) {
+      edit_mode = 'search_and_replace_corrector';
+    }
     super(
       EditTool.Name,
       'Edit',
@@ -120,8 +133,8 @@ Expectation for required parameters:
         type: Type.OBJECT,
       },
     );
+    this.edit_mode = edit_mode;
   }
-
   /**
    * Validates the parameters for the Edit tool
    * @param params Parameters to validate
@@ -174,6 +187,96 @@ Expectation for required parameters:
   }
 
   /**
+   * Applies one or more search-and-replace edits to a string of code.
+   * It first attempts a simple, exact-match replacement for all occurrences.
+   * If no exact matches are found, it falls back to a "fuzzy" line-by-line match.
+   *
+   * @param fileContent The source code or text to modify.
+   * @param oldString The block of text to find.
+   * @param newString The block of text to substitute.
+   * @returns An object containing the modified code and the number of replacements made.
+   */
+  private applyFileEdits(
+    fileContent: string,
+    oldString: string,
+    newString: string,
+  ): { modifiedCode: string; occurrences: number } {
+    const hadTrailingNewline = fileContent.endsWith('\n');
+
+    // 1. Normalize line endings for consistent processing.
+    const normalizedCode = fileContent.replace(/\r\n/g, '\n');
+    const normalizedSearch = oldString.replace(/\r\n/g, '\n');
+    const normalizedReplace = newString.replace(/\r\n/g, '\n');
+    
+    if (normalizedSearch === '') {
+        return { modifiedCode: fileContent, occurrences: 0 };
+    }
+
+    // 2. First attempt: a simple, exact string replacement for ALL occurrences.
+    const exactOccurrences = normalizedCode.split(normalizedSearch).length - 1;
+    if (exactOccurrences > 0) {
+      let modifiedCode = normalizedCode.replaceAll(
+        normalizedSearch,
+        normalizedReplace,
+      );
+
+      // Enforce the original trailing newline state.
+      if (hadTrailingNewline && !modifiedCode.endsWith('\n')) {
+        modifiedCode += '\n';
+      } else if (!hadTrailingNewline && modifiedCode.endsWith('\n')) {
+        modifiedCode = modifiedCode.replace(/\n$/, '');
+      }
+      return { modifiedCode, occurrences: exactOccurrences };
+    }
+
+    // 3. Flexible match: Compare line-by-line, ignoring leading/trailing whitespace.
+    const sourceLines =
+      normalizedCode.match(/.*(?:\n|$)/g)?.slice(0, -1) ?? [];
+    const searchLinesStripped = normalizedSearch
+      .split('\n')
+      .map((line) => line.trim());
+    const replaceLines = normalizedReplace.split('\n');
+
+    let flexibleOccurrences = 0;
+    let i = 0;
+    while (i <= sourceLines.length - searchLinesStripped.length) {
+      const window = sourceLines.slice(i, i + searchLinesStripped.length);
+      const windowStripped = window.map((line) => line.trim());
+
+      const isMatch = windowStripped.every(
+        (line, index) => line === searchLinesStripped[index],
+      );
+
+      if (isMatch) {
+        flexibleOccurrences++;
+        const firstLineInMatch = window[0];
+        const indentationMatch = firstLineInMatch.match(/^(\s*)/);
+        const indentation = indentationMatch ? indentationMatch[1] : '';
+        const newBlockWithIndent = replaceLines.map(
+          (line) => `${indentation}${line}`,
+        );
+        sourceLines.splice(i, searchLinesStripped.length, ...newBlockWithIndent);
+        i += replaceLines.length;
+      } else {
+        i++;
+      }
+    }
+
+    if (flexibleOccurrences > 0) {
+        let modifiedCode = sourceLines.join('');
+        if (hadTrailingNewline && !modifiedCode.endsWith('\n')) {
+            modifiedCode += '\n';
+        } else if (!hadTrailingNewline && modifiedCode.endsWith('\n')) {
+            modifiedCode = modifiedCode.replace(/\n$/, '');
+        }
+        return { modifiedCode, occurrences: flexibleOccurrences };
+    }
+
+    // No matches found by either method.
+    return { modifiedCode: fileContent, occurrences: 0 };
+  }
+
+  /**
    * Calculates the potential outcome of an edit operation.
    * @param params Parameters for the edit operation
    * @returns An object describing the potential edit outcome
@@ -185,6 +288,7 @@ Expectation for required parameters:
   ): Promise<CalculatedEdit> {
     const expectedReplacements = params.expected_replacements ?? 1;
     let currentContent: string | null = null;
+    let newContent = ''; // Initialize newContent
     let fileExists = false;
     let isNewFile = false;
     let finalNewString = params.new_string;
@@ -208,6 +312,12 @@ Expectation for required parameters:
     if (params.old_string === '' && !fileExists) {
       // Creating a new file
       isNewFile = true;
+      newContent = this._applyReplacement(
+        currentContent,
+        params.old_string,
+        params.new_string,
+        isNewFile,
+      );
     } else if (!fileExists) {
       // Trying to edit a nonexistent file (and old_string is not empty)
       error = {
@@ -215,42 +325,92 @@ Expectation for required parameters:
         raw: `File not found: ${params.file_path}`,
       };
     } else if (currentContent !== null) {
-      // Editing an existing file
-      const correctedEdit = await ensureCorrectEdit(
-        params.file_path,
-        currentContent,
-        params,
-        this.config.getGeminiClient(),
-        abortSignal,
-      );
-      finalOldString = correctedEdit.params.old_string;
-      finalNewString = correctedEdit.params.new_string;
-      occurrences = correctedEdit.occurrences;
+      // CHANGED: Added branching logic based on edit_mode.
+      if (this.edit_mode === 'fuzzy_search_and_replace') {
+        try {
+          const fileEditResponse = this.applyFileEdits(
+            currentContent,
+            params.old_string,
+            params.new_string,
+          );
 
-      if (params.old_string === '') {
-        // Error: Trying to create a file that already exists
-        error = {
-          display: `Failed to edit. Attempted to create a file that already exists.`,
-          raw: `File already exists, cannot create: ${params.file_path}`,
-        };
-      } else if (occurrences === 0) {
-        error = {
-          display: `Failed to edit, could not find the string to replace.`,
-          raw: `Failed to edit, 0 occurrences found for old_string in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
-        };
-      } else if (occurrences !== expectedReplacements) {
-        const occurrenceTerm =
-          expectedReplacements === 1 ? 'occurrence' : 'occurrences';
+          occurrences = fileEditResponse['occurrences'];
+          newContent = fileEditResponse['modifiedCode'];
+          if (occurrences === 0) {
+            error = {
+              display: `Failed to edit, could not find the string to replace using fuzzy search.`,
+              raw: `Fuzzy search failed: 0 occurrences found for old_string in ${params.file_path}.`,
+            };
+          } else if (occurrences !== expectedReplacements) {
+              const occurrenceTerm =
+              expectedReplacements === 1 ? 'occurrence' : 'occurrences';
+            error = {
+              display: `Failed to edit, expected ${expectedReplacements} ${occurrenceTerm} but fuzzy search found ${occurrences}.`,
+              raw: `Failed to edit, Expected ${expectedReplacements} ${occurrenceTerm} but fuzzy search found ${occurrences} for old_string in file: ${params.file_path}`,
+            };
+          } else if (newContent === currentContent) {
+              error = {
+                  display: `No changes to apply. The old_string and new_string are identical.`,
+                  raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}`,
+              };
+          }
+        } catch (e) {
+          const errorMessage = e instanceof Error ? e.message : String(e);
+          error = {
+            display: `Failed to edit, could not find the string to replace.`,
+            raw: `Fuzzy search failed: ${errorMessage}`,
+          };
+        }
+      } else {
+        // Existing logic for 'search_and_replace' and 'search_and_replace_corrector'
+        if (this.edit_mode == 'search_and_replace_corrector') {
+          const correctedEdit = await ensureCorrectEdit(
+            params.file_path,
+            currentContent,
+            params,
+            this.config.getGeminiClient(),
+            abortSignal,
+          );
+          finalOldString = correctedEdit.params.old_string;
+          finalNewString = correctedEdit.params.new_string;
+          occurrences = correctedEdit.occurrences;
+        } else {
+          finalOldString = params.old_string;
+          finalNewString = params.new_string;
+          occurrences = countOccurrences(currentContent, finalOldString);
+        }
 
-        error = {
-          display: `Failed to edit, expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences}.`,
-          raw: `Failed to edit, Expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences} for old_string in file: ${params.file_path}`,
-        };
-      } else if (finalOldString === finalNewString) {
-        error = {
-          display: `No changes to apply. The old_string and new_string are identical.`,
-          raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}`,
-        };
+        if (params.old_string === '') {
+          // Error: Trying to create a file that already exists
+          error = {
+            display: `Failed to edit. Attempted to create a file that already exists.`,
+            raw: `File already exists, cannot create: ${params.file_path}`,
+          };
+        } else if (occurrences === 0) {
+          error = {
+            display: `Failed to edit, could not find the string to replace.`,
+            raw: `Failed to edit, 0 occurrences found for old_string in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
+          };
+        } else if (occurrences !== expectedReplacements) {
+          const occurrenceTerm =
+            expectedReplacements === 1 ? 'occurrence' : 'occurrences';
+
+          error = {
+            display: `Failed to edit, expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences}.`,
+            raw: `Failed to edit, Expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences} for old_string in file: ${params.file_path}`,
+          };
+        } else if (finalOldString === finalNewString) {
+          error = {
+            display: `No changes to apply. The old_string and new_string are identical.`,
+            raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}`,
+          };
+        }
+        newContent = this._applyReplacement(
+          currentContent,
+          finalOldString,
+          finalNewString,
+          isNewFile,
+        );
       }
     } else {
       // Should not happen if fileExists and no exception was thrown, but defensively:
@@ -259,14 +419,12 @@ Expectation for required parameters:
         raw: `Failed to read content of existing file: ${params.file_path}`,
       };
     }
-
-    const newContent = this._applyReplacement(
-      currentContent,
-      finalOldString,
-      finalNewString,
-      isNewFile,
-    );
-
+    
+    // Fallback if newContent was not set (e.g., in an error case)
+    if ((newContent === '' || newContent === undefined) && currentContent) {
+      newContent = currentContent;
+    }
+    
     return {
       currentContent,
       newContent,
@@ -379,7 +537,7 @@ Expectation for required parameters:
         },
       };
     }
-    console.log("Executing edit tool")
+    console.log('Executing edit tool');
 
     let editData: CalculatedEdit;
     try {
