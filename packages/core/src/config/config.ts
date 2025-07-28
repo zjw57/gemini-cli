@@ -47,6 +47,7 @@ import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js'
 import { shouldAttemptBrowserLaunch } from '../utils/browser.js';
 import { MCPOAuthConfig } from '../mcp/oauth-provider.js';
 import { IdeClient } from '../ide/ide-client.js';
+import { ModelRouterService } from '../routing/modelRouterService.js';
 
 // Re-export OAuth config type
 export type { MCPOAuthConfig };
@@ -189,6 +190,7 @@ export interface ConfigParameters {
 export class Config {
   private toolRegistry!: ToolRegistry;
   private promptRegistry!: PromptRegistry;
+  private modelRouterService: ModelRouterService;
   private readonly sessionId: string;
   private contentGeneratorConfig!: ContentGeneratorConfig;
   private readonly embeddingModel: string;
@@ -301,6 +303,8 @@ export class Config {
     if (this.telemetrySettings.enabled) {
       initializeTelemetry(this);
     }
+
+    this.modelRouterService = new ModelRouterService(this);
 
     if (this.getUsageStatisticsEnabled()) {
       ClearcutLogger.getInstance(this)?.logStartSessionEvent(
@@ -485,6 +489,10 @@ export class Config {
 
   getTelemetryOutfile(): string | undefined {
     return this.telemetrySettings.outfile;
+  }
+
+  getModelRouterService(): ModelRouterService {
+    return this.modelRouterService;
   }
 
   getGeminiClient(): GeminiClient {

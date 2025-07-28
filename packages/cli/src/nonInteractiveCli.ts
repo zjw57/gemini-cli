@@ -11,15 +11,21 @@ import {
   ToolRegistry,
   shutdownTelemetry,
   isTelemetrySdkInitialized,
+  RoutingContext,
+  isFunctionResponse,
 } from '@google/gemini-cli-core';
 import {
   Content,
+  createUserContent,
   Part,
   FunctionCall,
   GenerateContentResponse,
+  PartListUnion,
 } from '@google/genai';
 
 import { parseAndFormatApiError } from './ui/utils/errorParsing.js';
+
+const NEXT_SPEAKER_REQUEST: PartListUnion = [{ text: 'Please continue.' }];
 
 function getResponseText(response: GenerateContentResponse): string | null {
   if (response.candidates && response.candidates.length > 0) {
@@ -78,9 +84,28 @@ export async function runNonInteractive(
       }
       const functionCalls: FunctionCall[] = [];
 
+      const request = currentMessages[0]?.parts || [];
+      const routingContext: RoutingContext = {
+        history: chat.getHistory(/*curated=*/ true),
+        request,
+        turnContext: {
+          turnType: isFunctionResponse(createUserContent(request))
+            ? 'tool_response'
+            : request === NEXT_SPEAKER_REQUEST
+              ? 'next_speaker_request'
+              : 'initial_prompt',
+          promptId: prompt_id,
+        },
+        signal: abortController.signal,
+      };
+
+      const router = config.getModelRouterService();
+      const decision = await router.route(routingContext, geminiClient);
+      config.setModel(decision.model);
+
       const responseStream = await chat.sendMessageStream(
         {
-          message: currentMessages[0]?.parts || [], // Ensure parts are always provided
+          message: request,
           config: {
             abortSignal: abortController.signal,
             tools: [
@@ -89,6 +114,7 @@ export async function runNonInteractive(
           },
         },
         prompt_id,
+        decision.model,
       );
 
       for await (const resp of responseStream) {
