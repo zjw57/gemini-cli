@@ -537,7 +537,6 @@ export class GeminiChat {
               // TODO: you are yielding twice i think
               // yield chunk;
               // continue;
-              // console.log("yielding thought", content.parts?.map((part) => part.text).join(''));
             }
             outputContent.push(content);
           }

@@ -89,7 +89,7 @@ export async function runNonInteractive(
       }
       const functionCalls: FunctionCall[] = [];
 
-      printContent(currentMessages);
+      console.dir(currentMessages, { depth: null });
       const responseStream = await chat.sendMessageStream(
         {
           message: currentMessages[0]?.parts || [], // Ensure parts are always provided
@@ -104,6 +104,7 @@ export async function runNonInteractive(
       );
 
       for await (const resp of responseStream) {
+        console.dir(resp, { depth: null });
         if (abortController.signal.aborted) {
           console.error('Operation cancelled.');
           return;
