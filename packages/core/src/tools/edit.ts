@@ -373,6 +373,10 @@ Expectation for required parameters:
       return {
         llmContent: `Error: Invalid parameters provided. Reason: ${validationError}`,
         returnDisplay: `Error: ${validationError}`,
+        error: {
+          message: validationError,
+          type: 'VALIDATION_ERROR',
+        },
       };
     }
 
@@ -384,6 +388,10 @@ Expectation for required parameters:
       return {
         llmContent: `Error preparing edit: ${errorMsg}`,
         returnDisplay: `Error preparing edit: ${errorMsg}`,
+        error: {
+          message: errorMsg,
+          type: 'EDIT_PREPARATION_ERROR',
+        },
       };
     }
 
@@ -391,6 +399,10 @@ Expectation for required parameters:
       return {
         llmContent: editData.error.raw,
         returnDisplay: `Error: ${editData.error.display}`,
+        error: {
+          message: editData.error.raw,
+          type: 'EDIT_CALCULATION_ERROR',
+        },
       };
     }
 
@@ -441,6 +453,10 @@ Expectation for required parameters:
       return {
         llmContent: `Error executing edit: ${errorMsg}`,
         returnDisplay: `Error writing file: ${errorMsg}`,
+        error: {
+          message: errorMsg,
+          type: 'FILE_WRITE_ERROR',
+        },
       };
     }
   }
