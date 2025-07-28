@@ -28,6 +28,7 @@ import { ReadFileTool } from './read-file.js';
 import { ModifiableTool, ModifyContext } from './modifiable-tool.js';
 import { isWithinRoot } from '../utils/fileUtils.js';
 import process from 'node:process';
+import { SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js';
 /**
  * Parameters for the Edit tool
  */
@@ -81,14 +82,8 @@ export class EditTool
     // calculate edit mode
     let edit_mode = 'search_and_replace';
     // CHANGED: Correctly assign to this.edit_mode instead of a local variable.
-    if (process.env.FUZZY_EDITOR !== undefined) {
-      edit_mode = 'fuzzy_search_and_replace';
-    } else if (process.env.SMART_EDITOR !== undefined) {
-      edit_mode = 'smart';
-    } else if (process.env.DIFF_EDITOR !== undefined) {
-      edit_mode = 'diff';
-    } else if (process.env.ENSURE_CORRECT_EDITOR) {
-      edit_mode = 'search_and_replace_corrector';
+    if (process.env.EDIT_MODE !== undefined && ['fuzzy_search_and_replace', 'smart', 'diff', 'search_and_replace_corrector'].includes(process.env.EDIT_MODE)) {
+      edit_mode = process.env.EDIT_MODE
     }
     super(
       EditTool.Name,
