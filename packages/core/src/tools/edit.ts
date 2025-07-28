@@ -379,6 +379,7 @@ Expectation for required parameters:
         },
       };
     }
+    console.log("Executing edit tool")
 
     let editData: CalculatedEdit;
     try {
