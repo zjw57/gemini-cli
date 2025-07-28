@@ -5,6 +5,7 @@
  */
 
 import {
+  createUserContent,
   EmbedContentParameters,
   GenerateContentConfig,
   PartListUnion,
@@ -32,6 +33,7 @@ import { GeminiChat } from './geminiChat.js';
 import { retryWithBackoff } from '../utils/retry.js';
 import { getErrorMessage } from '../utils/errors.js';
 import { isFunctionResponse } from '../utils/messageInspectors.js';
+import { RoutingContext } from '../routing/routingStrategy.js';
 import { tokenLimit } from './tokenLimits.js';
 import {
   AuthType,
@@ -50,6 +52,8 @@ import {
 } from '../telemetry/types.js';
 import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
 import { IdeContext, File } from '../ide/ideContext.js';
+
+const NEXT_SPEAKER_REQUEST: PartListUnion = [{ text: 'Please continue.' }];
 
 function isThinkingSupported(model: string) {
   if (model.startsWith('gemini-2.5')) return true;
@@ -490,7 +494,25 @@ export class GeminiClient {
       return turn;
     }
 
-    const resultStream = turn.run(request, signal);
+    const routingContext: RoutingContext = {
+      history: this.getChat().getHistory(/*curated=*/ true),
+      request,
+      turnContext: {
+        turnType: isFunctionResponse(createUserContent(request))
+          ? 'tool_response'
+          : request === NEXT_SPEAKER_REQUEST
+            ? 'next_speaker_request'
+            : 'initial_prompt',
+        promptId: prompt_id,
+      },
+      signal,
+    };
+
+    const router = this.config.getModelRouterService();
+    const decision = await router.route(routingContext, this);
+    this.config.setModel(decision.model);
+
+    const resultStream = turn.run(request, signal, decision.model);
     for await (const event of resultStream) {
       if (this.loopDetector.addAndCheck(event)) {
         yield { type: GeminiEventType.LoopDetected };
@@ -521,11 +543,10 @@ export class GeminiClient {
         ),
       );
       if (nextSpeakerCheck?.next_speaker === 'model') {
-        const nextRequest = [{ text: 'Please continue.' }];
         // This recursive call's events will be yielded out, but the final
         // turn object will be from the top-level call.
         yield* this.sendMessageStream(
-          nextRequest,
+          NEXT_SPEAKER_REQUEST,
           signal,
           prompt_id,
           boundedTurns - 1,
@@ -543,12 +564,14 @@ export class GeminiClient {
     model?: string,
     config: GenerateContentConfig = {},
   ): Promise<Record<string, unknown>> {
-    // Use current model from config instead of hardcoded Flash model
+    // We do not use routing for this as the primary clients are internal tools.
+    // We may revisit this in future refactors of the model calling mechanisms.
     const modelToUse =
       model || this.config.getModel() || DEFAULT_GEMINI_FLASH_MODEL;
     try {
       const userMemory = this.config.getUserMemory();
-      const systemInstruction = getCoreSystemPrompt(userMemory);
+      const systemInstruction =
+        config.systemInstruction || getCoreSystemPrompt(userMemory);
       const requestConfig = {
         abortSignal,
         ...this.generateContentConfig,
@@ -589,8 +612,7 @@ export class GeminiClient {
         );
         throw error;
       }
-
-      const prefix = '```json';
+            const prefix = '```json';
       const suffix = '```';
       if (text.startsWith(prefix) && text.endsWith(suffix)) {
         ClearcutLogger.getInstance(this.config)?.logMalformedJsonResponseEvent(
@@ -600,7 +622,6 @@ export class GeminiClient {
           .substring(prefix.length, text.length - suffix.length)
           .trim();
       }
-
       try {
         return JSON.parse(text);
       } catch (parseError) {
@@ -650,6 +671,8 @@ export class GeminiClient {
     abortSignal: AbortSignal,
     model?: string,
   ): Promise<GenerateContentResponse> {
+    // We do not use routing for this as the primary clients are internal tools.
+    // We may revisit this in future refactors of the model calling mechanisms.
     const modelToUse = model ?? this.config.getModel();
     const configToUse: GenerateContentConfig = {
       ...this.generateContentConfig,
@@ -862,7 +885,6 @@ export class GeminiClient {
           error,
         );
         if (accepted !== false && accepted !== null) {
-          this.config.setModel(fallbackModel);
           this.config.setFallbackMode(true);
           return fallbackModel;
         }

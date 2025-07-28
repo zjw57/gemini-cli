@@ -11,13 +11,46 @@ import {
   ToolRegistry,
   shutdownTelemetry,
   isTelemetrySdkInitialized,
+  RoutingContext,
+  isFunctionResponse,
   GeminiEventType,
   ToolErrorType,
   parseAndFormatApiError,
 } from '@google/gemini-cli-core';
-import { Content, Part, FunctionCall } from '@google/genai';
+import {
+  Content,
+  createUserContent,
+  Part,
+  FunctionCall,
+  GenerateContentResponse,
+  PartListUnion,
+} from '@google/genai';
 
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
+
+const NEXT_SPEAKER_REQUEST: PartListUnion = [{ text: 'Please continue.' }];
+
+function getResponseText(response: GenerateContentResponse): string | null {
+  if (response.candidates && response.candidates.length > 0) {
+    const candidate = response.candidates[0];
+    if (
+      candidate.content &&
+      candidate.content.parts &&
+      candidate.content.parts.length > 0
+    ) {
+      // We are running in headless mode so we don't need to return thoughts to STDOUT.
+      const thoughtPart = candidate.content.parts[0];
+      if (thoughtPart?.thought) {
+        return null;
+      }
+      return candidate.content.parts
+        .filter((part) => part.text)
+        .map((part) => part.text)
+        .join('');
+    }
+  }
+  return null;
+}
 
 export async function runNonInteractive(
   config: Config,
@@ -60,10 +93,37 @@ export async function runNonInteractive(
       }
       const functionCalls: FunctionCall[] = [];
 
-      const responseStream = geminiClient.sendMessageStream(
-        currentMessages[0]?.parts || [],
-        abortController.signal,
+      const request = currentMessages[0]?.parts || [];
+      const routingContext: RoutingContext = {
+        history: chat.getHistory(/*curated=*/ true),
+        request,
+        turnContext: {
+          turnType: isFunctionResponse(createUserContent(request))
+            ? 'tool_response'
+            : request === NEXT_SPEAKER_REQUEST
+              ? 'next_speaker_request'
+              : 'initial_prompt',
+          promptId: prompt_id,
+        },
+        signal: abortController.signal,
+      };
+
+      const router = config.getModelRouterService();
+      const decision = await router.route(routingContext, geminiClient);
+      config.setModel(decision.model);
+
+      const responseStream = await chat.sendMessageStream(
+        {
+          message: request,
+          config: {
+            abortSignal: abortController.signal,
+            tools: [
+              { functionDeclarations: toolRegistry.getFunctionDeclarations() },
+            ],
+          },
+        },
         prompt_id,
+        decision.model,
       );
 
       for await (const event of responseStream) {

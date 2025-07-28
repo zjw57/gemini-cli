@@ -20,7 +20,10 @@ import { retryWithBackoff } from '../utils/retry.js';
 import { isFunctionResponse } from '../utils/messageInspectors.js';
 import { ContentGenerator, AuthType } from './contentGenerator.js';
 import { Config } from '../config/config.js';
-import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
+import {
+  DEFAULT_GEMINI_FLASH_MODEL,
+  DEFAULT_GEMINI_FLASH_LITE_MODEL,
+} from '../config/models.js';
 import { hasCycleInSchema } from '../tools/tools.js';
 import { StructuredError } from './turn.js';
 
@@ -159,7 +162,6 @@ export class GeminiChat {
           error,
         );
         if (accepted !== false && accepted !== null) {
-          this.config.setModel(fallbackModel);
           this.config.setFallbackMode(true);
           return fallbackModel;
         }
@@ -206,11 +208,16 @@ export class GeminiChat {
     const userContent = createUserContent(params.message);
     const requestContents = this.getHistory(true).concat(userContent);
 
+    const model = this.config.getModel();
+
+    this._logApiRequest(requestContents, model, prompt_id);
+
+    const startTime = Date.now();
     let response: GenerateContentResponse;
 
     try {
       const apiCall = () => {
-        const modelToUse = this.config.getModel() || DEFAULT_GEMINI_FLASH_MODEL;
+        const modelToUse = model;
 
         // Prevent Flash model calls immediately after quota error
         if (
@@ -303,25 +310,28 @@ export class GeminiChat {
   async sendMessageStream(
     params: SendMessageParameters,
     prompt_id: string,
+    model?: string,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
+    let modelToUse = model ? model : this.config.getModel();
     await this.sendPromise;
     const userContent = createUserContent(params.message);
     const requestContents = this.getHistory(true).concat(userContent);
 
+    this._logApiRequest(requestContents, modelToUse, prompt_id);
+
+    const startTime = Date.now();
+
     try {
       const apiCall = () => {
-        const modelToUse = this.config.getModel();
-
         // Prevent Flash model calls immediately after quota error
         if (
           this.config.getQuotaErrorOccurred() &&
-          modelToUse === DEFAULT_GEMINI_FLASH_MODEL
+          model === DEFAULT_GEMINI_FLASH_MODEL
         ) {
           throw new Error(
             'Please submit a new query to continue with the Flash model.',
           );
         }
-
         return this.contentGenerator.generateContentStream(
           {
             model: modelToUse,
