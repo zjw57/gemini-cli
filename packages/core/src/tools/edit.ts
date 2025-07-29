@@ -457,21 +457,72 @@ Expectation for required parameters:
       let fileEditResponse = { modifiedCode: currentContent, occurrences: 0 };
       try {
         switch (this.edit_mode) {
-          case 'fuzzy_search_and_replace':
+          case 'all': {
+            const results: { [k: string]: boolean } = {};
+
+            const fuzzyResult = this.applyFuzzyFileEdits(
+              currentContent,
+              params.old_string,
+              params.new_string,
+            );
+            results['fuzzy_search_and_replace'] =
+              fuzzyResult.occurrences === expectedReplacements;
+
+            const modifiedFuzzyResult = this.applyFileEditsModified(
+              currentContent,
+              params.old_string,
+              params.new_string,
+            );
+            results['modified_fuzzy_search_and_replace'] =
+              modifiedFuzzyResult.occurrences === expectedReplacements;
+
+            const correctorResult = await this.searchAndReplaceCorrector(
+              params,
+              currentContent,
+              true,
+              isNewFile,
+              abortSignal,
+            );
+            results['search_and_replace_corrector'] =
+              correctorResult.occurrences === expectedReplacements;
+
+            const searchResult = await this.searchAndReplaceCorrector(
+              params,
+              currentContent,
+              false,
+              isNewFile,
+              abortSignal,
+            );
+            results['search_and_replace'] =
+              searchResult.occurrences === expectedReplacements;
+
+            const logOutput = {
+              oldString: params.old_string,
+              newString: params.new_string,
+              ...results,
+            };
+            console.log(JSON.stringify(logOutput));
+            // Fallback to the default corrector logic to continue execution
+            fileEditResponse = correctorResult;
+            break;
+          }
+          case 'fuzzy_search_and_replace': {
             fileEditResponse = this.applyFuzzyFileEdits(
               currentContent,
               params.old_string,
               params.new_string,
             );
             break;
-          case 'modified_fuzzy_search_and_replace':
+          }
+          case 'modified_fuzzy_search_and_replace': {
             fileEditResponse = this.applyFileEditsModified(
               currentContent,
               params.old_string,
               params.new_string,
             );
             break;
-          case 'search_and_replace_corrector':
+          }
+          case 'search_and_replace_corrector': {
             fileEditResponse = await this.searchAndReplaceCorrector(
               params,
               currentContent,
@@ -480,7 +531,8 @@ Expectation for required parameters:
               abortSignal,
             );
             break;
-          case 'search_and_replace':
+          }
+          case 'search_and_replace': {
             fileEditResponse = await this.searchAndReplaceCorrector(
               params,
               currentContent,
@@ -489,7 +541,8 @@ Expectation for required parameters:
               abortSignal,
             );
             break;
-          default:
+          }
+          default: {
             fileEditResponse = await this.searchAndReplaceCorrector(
               params,
               currentContent,
@@ -498,6 +551,7 @@ Expectation for required parameters:
               abortSignal,
             );
             break;
+          }
         }
         occurrences = fileEditResponse['occurrences'];
         newContent = fileEditResponse['modifiedCode'];
