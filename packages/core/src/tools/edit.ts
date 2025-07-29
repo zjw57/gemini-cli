@@ -88,6 +88,7 @@ export class EditTool
         'search_and_replace_corrector',
         'search_and_replace',
         'modified_fuzzy_search_and_replace',
+        'all',
       ].includes(process.env.EDIT_MODE)
     ) {
       edit_mode = process.env.EDIT_MODE;
