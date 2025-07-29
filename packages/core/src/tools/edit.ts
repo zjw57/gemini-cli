@@ -468,6 +468,10 @@ Expectation for required parameters:
             );
             results['fuzzy_search_and_replace'] =
               fuzzyResult.occurrences === expectedReplacements;
+            // defaulting
+            fileEditResponse = fuzzyResult;
+            if (results['fuzzy_search_and_replace'])
+              fileEditResponse = fuzzyResult;
 
             const modifiedFuzzyResult = this.applyFileEditsModified(
               currentContent,
@@ -476,6 +480,8 @@ Expectation for required parameters:
             );
             results['modified_fuzzy_search_and_replace'] =
               modifiedFuzzyResult.occurrences === expectedReplacements;
+            if (results['modified_fuzzy_search_and_replace'])
+              fileEditResponse = modifiedFuzzyResult;
 
             const correctorResult = await this.searchAndReplaceCorrector(
               params,
@@ -486,6 +492,8 @@ Expectation for required parameters:
             );
             results['search_and_replace_corrector'] =
               correctorResult.occurrences === expectedReplacements;
+            if (results['search_and_replace_corrector'])
+              fileEditResponse = correctorResult;
 
             const searchResult = await this.searchAndReplaceCorrector(
               params,
@@ -496,6 +504,7 @@ Expectation for required parameters:
             );
             results['search_and_replace'] =
               searchResult.occurrences === expectedReplacements;
+            if (results['search_and_replace']) fileEditResponse = searchResult;
 
             const logOutput = {
               oldString: params.old_string,
@@ -504,7 +513,7 @@ Expectation for required parameters:
             };
             console.log(JSON.stringify(logOutput));
             // Fallback to the default corrector logic to continue execution
-            fileEditResponse = correctorResult;
+            // fileEditResponse = correctorResult;
             break;
           }
           case 'fuzzy_search_and_replace': {
