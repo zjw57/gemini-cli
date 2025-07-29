@@ -258,13 +258,15 @@ export async function loadCliConfig(
       (v) => v === 'true' || v === '1',
     );
 
+  const ideMode = settings.ideMode ?? true;
+
   const ideModeFeature =
     (argv.ideModeFeature ?? settings.ideModeFeature ?? false) &&
     process.env.TERM_PROGRAM === 'vscode' &&
     !process.env.SANDBOX;
 
   let ideClient: IdeClient | undefined;
-  if (ideModeFeature) {
+  if (ideModeFeature && ideMode) {
     ideClient = new IdeClient();
   }
 
@@ -422,6 +424,7 @@ export async function loadCliConfig(
     blockedMcpServers,
     noBrowser: !!process.env.NO_BROWSER,
     summarizeToolOutput: settings.summarizeToolOutput,
+    ideMode,
     ideModeFeature,
     ideClient,
   });
