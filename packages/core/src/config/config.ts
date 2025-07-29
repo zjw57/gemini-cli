@@ -183,6 +183,7 @@ export interface ConfigParameters {
   noBrowser?: boolean;
   summarizeToolOutput?: Record<string, SummarizeToolOutputSettings>;
   ideModeFeature?: boolean;
+  ideMode?: boolean;
   ideClient?: IdeClient;
 }
 
@@ -226,7 +227,8 @@ export class Config {
   private readonly extensionContextFilePaths: string[];
   private readonly noBrowser: boolean;
   private readonly ideModeFeature: boolean;
-  private readonly ideClient: IdeClient | undefined;
+  private ideMode: boolean;
+  private ideClient: IdeClient | undefined;
   private inFallbackMode = false;
   private readonly maxSessionTurns: number;
   private readonly listExtensions: boolean;
@@ -292,6 +294,7 @@ export class Config {
     this.noBrowser = params.noBrowser ?? false;
     this.summarizeToolOutput = params.summarizeToolOutput;
     this.ideModeFeature = params.ideModeFeature ?? false;
+    this.ideMode = params.ideMode ?? true;
     this.ideClient = params.ideClient;
 
     if (params.contextFileName) {
@@ -584,6 +587,18 @@ export class Config {
 
   getIdeClient(): IdeClient | undefined {
     return this.ideClient;
+  }
+
+  getIdeMode(): boolean {
+    return this.ideMode;
+  }
+
+  setIdeMode(value: boolean): void {
+    this.ideMode = value;
+  }
+
+  setIdeClient(client: IdeClient | undefined): void {
+    this.ideClient = client;
   }
 
   async getGitService(): Promise<GitService> {

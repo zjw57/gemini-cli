@@ -814,4 +814,67 @@ describe('useSlashCommandProcessor', () => {
       expect(abortSpy).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('Command Refreshing', () => {
+    it('should reload commands when refreshCommands is called', async () => {
+      const initialCommand = createTestCommand({ name: 'initial' });
+      const refreshedCommand = createTestCommand({ name: 'refreshed' });
+
+      // Start with only the initial command.
+      mockBuiltinLoadCommands.mockResolvedValue([initialCommand]);
+
+      const { result } = renderHook(() =>
+        useSlashCommandProcessor(
+          mockConfig,
+          mockSettings,
+          mockAddItem,
+          mockClearItems,
+          mockLoadHistory,
+          vi.fn(), // refreshStatic
+          mockSetShowHelp,
+          vi.fn(), // onDebugMessage
+          vi.fn(), // openThemeDialog
+          mockOpenAuthDialog,
+          vi.fn(), // openEditorDialog
+          vi.fn(), // toggleCorgiMode
+          mockSetQuittingMessages,
+          vi.fn(), // openPrivacyNotice
+          vi.fn(), // toggleVimEnabled
+          vi.fn(), // setIsProcessing
+        ),
+      );
+
+      // Wait for initial load.
+      await waitFor(() => {
+        expect(result.current.slashCommands).toHaveLength(1);
+        expect(result.current.slashCommands[0]?.name).toBe('initial');
+      });
+
+      // Verify initial load happened.
+      expect(mockBuiltinLoadCommands).toHaveBeenCalledTimes(1);
+      expect(mockFileLoadCommands).toHaveBeenCalledTimes(1);
+      expect(mockMcpLoadCommands).toHaveBeenCalledTimes(1);
+
+      // Now, change the mock to return a different command on the next load.
+      mockBuiltinLoadCommands.mockResolvedValue([refreshedCommand]);
+
+      // Get the refresh function from the hook's context.
+      const { refreshCommands } = result.current.commandContext.ui;
+
+      await act(async () => {
+        refreshCommands();
+      });
+
+      // Wait for the commands to be updated after refresh.
+      await waitFor(() => {
+        expect(result.current.slashCommands).toHaveLength(1);
+        expect(result.current.slashCommands[0]?.name).toBe('refreshed');
+      });
+
+      // Verify that the loaders were called again.
+      expect(mockBuiltinLoadCommands).toHaveBeenCalledTimes(2);
+      expect(mockFileLoadCommands).toHaveBeenCalledTimes(2);
+      expect(mockMcpLoadCommands).toHaveBeenCalledTimes(2);
+    });
+  });
 });

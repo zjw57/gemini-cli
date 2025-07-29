@@ -154,4 +154,8 @@ export class IdeClient {
 
     await this.establishConnection(port);
   }
+
+  dispose() {
+    this.client?.close();
+  }
 }

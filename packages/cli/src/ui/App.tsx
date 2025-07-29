@@ -573,7 +573,12 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       if (Object.keys(mcpServers || {}).length > 0) {
         handleSlashCommand(newValue ? '/mcp desc' : '/mcp nodesc');
       }
-    } else if (key.ctrl && input === 'e' && ideContextState) {
+    } else if (
+      key.ctrl &&
+      input === 'e' &&
+      config.getIdeMode() &&
+      ideContextState
+    ) {
       setShowIDEContextDetail((prev) => !prev);
     } else if (key.ctrl && (input === 'c' || input === 'C')) {
       handleExit(ctrlCPressedOnce, setCtrlCPressedOnce, ctrlCTimerRef);
@@ -947,7 +952,9 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                     </Text>
                   ) : (
                     <ContextSummaryDisplay
-                      ideContext={ideContextState}
+                      ideContext={
+                        config.getIdeMode() ? ideContextState : undefined
+                      }
                       geminiMdFileCount={geminiMdFileCount}
                       contextFileNames={contextFileNames}
                       mcpServers={config.getMcpServers()}
@@ -967,7 +974,9 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                 </Box>
               </Box>
               {showIDEContextDetail && (
-                <IDEContextDetailDisplay ideContext={ideContextState} />
+                <IDEContextDetailDisplay
+                  ideContext={config.getIdeMode() ? ideContextState : undefined}
+                />
               )}
               {showErrorDetails && (
                 <OverflowProvider>

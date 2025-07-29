@@ -53,6 +53,10 @@ export const useSlashCommandProcessor = (
 ) => {
   const session = useSessionStats();
   const [commands, setCommands] = useState<readonly SlashCommand[]>([]);
+  const [commandEpoch, setCommandEpoch] = useState(0);
+  const refreshCommands = useCallback(() => {
+    setCommandEpoch((epoch) => epoch + 1);
+  }, []);
   const [shellConfirmationRequest, setShellConfirmationRequest] =
     useState<null | {
       commands: string[];
@@ -158,6 +162,7 @@ export const useSlashCommandProcessor = (
         setPendingItem: setPendingCompressionItem,
         toggleCorgiMode,
         toggleVimEnabled,
+        refreshCommands,
       },
       session: {
         stats: session.stats,
@@ -180,6 +185,7 @@ export const useSlashCommandProcessor = (
       toggleCorgiMode,
       toggleVimEnabled,
       sessionShellAllowlist,
+      refreshCommands,
     ],
   );
 
@@ -203,7 +209,7 @@ export const useSlashCommandProcessor = (
     return () => {
       controller.abort();
     };
-  }, [config]);
+  }, [config, commandEpoch]);
 
   const handleSlashCommand = useCallback(
     async (
