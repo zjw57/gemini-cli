@@ -100,7 +100,7 @@ export interface Settings {
   vimMode?: boolean;
 
   // Add other settings here.
-  ideMode?: boolean;
+  ideModeFeature?: boolean;
 
   // Setting for disabling auto-update.
   disableAutoUpdate?: boolean;

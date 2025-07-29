@@ -914,7 +914,7 @@ describe('loadCliConfig extensions', () => {
   });
 });
 
-describe('loadCliConfig ideMode', () => {
+describe('loadCliConfig ideModeFeature', () => {
   const originalArgv = process.argv;
   const originalEnv = { ...process.env };
 
@@ -939,81 +939,81 @@ describe('loadCliConfig ideMode', () => {
     const settings: Settings = {};
     const argv = await parseArguments();
     const config = await loadCliConfig(settings, [], 'test-session', argv);
-    expect(config.getIdeMode()).toBe(false);
+    expect(config.getIdeModeFeature()).toBe(false);
   });
 
-  it('should be false if --ide-mode is true but TERM_PROGRAM is not vscode', async () => {
-    process.argv = ['node', 'script.js', '--ide-mode'];
+  it('should be false if --ide-mode-feature is true but TERM_PROGRAM is not vscode', async () => {
+    process.argv = ['node', 'script.js', '--ide-mode-feature'];
     const settings: Settings = {};
     const argv = await parseArguments();
     const config = await loadCliConfig(settings, [], 'test-session', argv);
-    expect(config.getIdeMode()).toBe(false);
+    expect(config.getIdeModeFeature()).toBe(false);
   });
 
-  it('should be false if settings.ideMode is true but TERM_PROGRAM is not vscode', async () => {
+  it('should be false if settings.ideModeFeature is true but TERM_PROGRAM is not vscode', async () => {
     process.argv = ['node', 'script.js'];
     const argv = await parseArguments();
-    const settings: Settings = { ideMode: true };
+    const settings: Settings = { ideModeFeature: true };
     const config = await loadCliConfig(settings, [], 'test-session', argv);
-    expect(config.getIdeMode()).toBe(false);
+    expect(config.getIdeModeFeature()).toBe(false);
   });
 
-  it('should be true when --ide-mode is set and TERM_PROGRAM is vscode', async () => {
-    process.argv = ['node', 'script.js', '--ide-mode'];
+  it('should be true when --ide-mode-feature is set and TERM_PROGRAM is vscode', async () => {
+    process.argv = ['node', 'script.js', '--ide-mode-feature'];
     const argv = await parseArguments();
     process.env.TERM_PROGRAM = 'vscode';
     process.env.GEMINI_CLI_IDE_SERVER_PORT = '3000';
     const settings: Settings = {};
     const config = await loadCliConfig(settings, [], 'test-session', argv);
-    expect(config.getIdeMode()).toBe(true);
+    expect(config.getIdeModeFeature()).toBe(true);
   });
 
-  it('should be true when settings.ideMode is true and TERM_PROGRAM is vscode', async () => {
+  it('should be true when settings.ideModeFeature is true and TERM_PROGRAM is vscode', async () => {
     process.argv = ['node', 'script.js'];
     const argv = await parseArguments();
     process.env.TERM_PROGRAM = 'vscode';
     process.env.GEMINI_CLI_IDE_SERVER_PORT = '3000';
-    const settings: Settings = { ideMode: true };
+    const settings: Settings = { ideModeFeature: true };
     const config = await loadCliConfig(settings, [], 'test-session', argv);
-    expect(config.getIdeMode()).toBe(true);
+    expect(config.getIdeModeFeature()).toBe(true);
   });
 
-  it('should prioritize --ide-mode (true) over settings (false) when TERM_PROGRAM is vscode', async () => {
-    process.argv = ['node', 'script.js', '--ide-mode'];
+  it('should prioritize --ide-mode-feature (true) over settings (false) when TERM_PROGRAM is vscode', async () => {
+    process.argv = ['node', 'script.js', '--ide-mode-feature'];
     const argv = await parseArguments();
     process.env.TERM_PROGRAM = 'vscode';
     process.env.GEMINI_CLI_IDE_SERVER_PORT = '3000';
-    const settings: Settings = { ideMode: false };
+    const settings: Settings = { ideModeFeature: false };
     const config = await loadCliConfig(settings, [], 'test-session', argv);
-    expect(config.getIdeMode()).toBe(true);
+    expect(config.getIdeModeFeature()).toBe(true);
   });
 
-  it('should prioritize --no-ide-mode (false) over settings (true) even when TERM_PROGRAM is vscode', async () => {
-    process.argv = ['node', 'script.js', '--no-ide-mode'];
+  it('should prioritize --no-ide-mode-feature (false) over settings (true) even when TERM_PROGRAM is vscode', async () => {
+    process.argv = ['node', 'script.js', '--no-ide-mode-feature'];
     const argv = await parseArguments();
     process.env.TERM_PROGRAM = 'vscode';
-    const settings: Settings = { ideMode: true };
+    const settings: Settings = { ideModeFeature: true };
     const config = await loadCliConfig(settings, [], 'test-session', argv);
-    expect(config.getIdeMode()).toBe(false);
+    expect(config.getIdeModeFeature()).toBe(false);
   });
 
-  it('should be false when --ide-mode is true, TERM_PROGRAM is vscode, but SANDBOX is set', async () => {
-    process.argv = ['node', 'script.js', '--ide-mode'];
+  it('should be false when --ide-mode-feature is true, TERM_PROGRAM is vscode, but SANDBOX is set', async () => {
+    process.argv = ['node', 'script.js', '--ide-mode-feature'];
     const argv = await parseArguments();
     process.env.TERM_PROGRAM = 'vscode';
     process.env.SANDBOX = 'true';
     const settings: Settings = {};
     const config = await loadCliConfig(settings, [], 'test-session', argv);
-    expect(config.getIdeMode()).toBe(false);
+    expect(config.getIdeModeFeature()).toBe(false);
   });
 
-  it('should be false when settings.ideMode is true, TERM_PROGRAM is vscode, but SANDBOX is set', async () => {
+  it('should be false when settings.ideModeFeature is true, TERM_PROGRAM is vscode, but SANDBOX is set', async () => {
     process.argv = ['node', 'script.js'];
     const argv = await parseArguments();
     process.env.TERM_PROGRAM = 'vscode';
     process.env.SANDBOX = 'true';
-    const settings: Settings = { ideMode: true };
+    const settings: Settings = { ideModeFeature: true };
     const config = await loadCliConfig(settings, [], 'test-session', argv);
-    expect(config.getIdeMode()).toBe(false);
+    expect(config.getIdeModeFeature()).toBe(false);
   });
 });

@@ -35,7 +35,7 @@ function isVSCodeInstalled(): boolean {
 }
 
 export const ideCommand = (config: Config | null): SlashCommand | null => {
-  if (!config?.getIdeMode()) {
+  if (!config?.getIdeModeFeature()) {
     return null;
   }
 

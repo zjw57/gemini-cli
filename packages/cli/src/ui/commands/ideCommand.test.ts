@@ -43,7 +43,7 @@ describe('ideCommand', () => {
     } as unknown as CommandContext;
 
     mockConfig = {
-      getIdeMode: vi.fn(),
+      getIdeModeFeature: vi.fn(),
       getIdeClient: vi.fn(),
     } as unknown as Config;
 
@@ -56,14 +56,14 @@ describe('ideCommand', () => {
     vi.restoreAllMocks();
   });
 
-  it('should return null if ideMode is not enabled', () => {
-    vi.mocked(mockConfig.getIdeMode).mockReturnValue(false);
+  it('should return null if ideModeFeature is not enabled', () => {
+    vi.mocked(mockConfig.getIdeModeFeature).mockReturnValue(false);
     const command = ideCommand(mockConfig);
     expect(command).toBeNull();
   });
 
-  it('should return the ide command if ideMode is enabled', () => {
-    vi.mocked(mockConfig.getIdeMode).mockReturnValue(true);
+  it('should return the ide command if ideModeFeature is enabled', () => {
+    vi.mocked(mockConfig.getIdeModeFeature).mockReturnValue(true);
     const command = ideCommand(mockConfig);
     expect(command).not.toBeNull();
     expect(command?.name).toBe('ide');
@@ -75,7 +75,7 @@ describe('ideCommand', () => {
   describe('status subcommand', () => {
     const mockGetConnectionStatus = vi.fn();
     beforeEach(() => {
-      vi.mocked(mockConfig.getIdeMode).mockReturnValue(true);
+      vi.mocked(mockConfig.getIdeModeFeature).mockReturnValue(true);
       vi.mocked(mockConfig.getIdeClient).mockReturnValue({
         getConnectionStatus: mockGetConnectionStatus,
       } as ReturnType<Config['getIdeClient']>);
@@ -141,7 +141,7 @@ describe('ideCommand', () => {
 
   describe('install subcommand', () => {
     beforeEach(() => {
-      vi.mocked(mockConfig.getIdeMode).mockReturnValue(true);
+      vi.mocked(mockConfig.getIdeModeFeature).mockReturnValue(true);
       platformSpy.mockReturnValue('linux');
     });
 

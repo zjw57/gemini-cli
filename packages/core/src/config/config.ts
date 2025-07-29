@@ -182,7 +182,7 @@ export interface ConfigParameters {
   blockedMcpServers?: Array<{ name: string; extensionName: string }>;
   noBrowser?: boolean;
   summarizeToolOutput?: Record<string, SummarizeToolOutputSettings>;
-  ideMode?: boolean;
+  ideModeFeature?: boolean;
   ideClient?: IdeClient;
 }
 
@@ -225,7 +225,7 @@ export class Config {
   private readonly model: string;
   private readonly extensionContextFilePaths: string[];
   private readonly noBrowser: boolean;
-  private readonly ideMode: boolean;
+  private readonly ideModeFeature: boolean;
   private readonly ideClient: IdeClient | undefined;
   private inFallbackMode = false;
   private readonly maxSessionTurns: number;
@@ -291,7 +291,7 @@ export class Config {
     this._blockedMcpServers = params.blockedMcpServers ?? [];
     this.noBrowser = params.noBrowser ?? false;
     this.summarizeToolOutput = params.summarizeToolOutput;
-    this.ideMode = params.ideMode ?? false;
+    this.ideModeFeature = params.ideModeFeature ?? false;
     this.ideClient = params.ideClient;
 
     if (params.contextFileName) {
@@ -578,8 +578,8 @@ export class Config {
     return this.summarizeToolOutput;
   }
 
-  getIdeMode(): boolean {
-    return this.ideMode;
+  getIdeModeFeature(): boolean {
+    return this.ideModeFeature;
   }
 
   getIdeClient(): IdeClient | undefined {
