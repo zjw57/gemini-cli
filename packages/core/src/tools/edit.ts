@@ -470,8 +470,6 @@ Expectation for required parameters:
               fuzzyResult.occurrences === expectedReplacements;
             // defaulting
             fileEditResponse = fuzzyResult;
-            if (results['fuzzy_search_and_replace'])
-              fileEditResponse = fuzzyResult;
 
             const modifiedFuzzyResult = this.applyFileEditsModified(
               currentContent,
@@ -583,7 +581,7 @@ Expectation for required parameters:
             display: `Failed to edit, expected ${expectedReplacements} ${occurrenceTerm} but fuzzy search found ${occurrences}.`,
             raw: `Failed to edit, Expected ${expectedReplacements} ${occurrenceTerm} but fuzzy search found ${occurrences} for old_string in file: ${params.file_path}`,
           };
-        } else if (newContent === currentContent) {
+        } else if (params.old_string === params.new_string) {
           error = {
             display: `No changes to apply. The old_string and new_string are identical.`,
             raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}`,
