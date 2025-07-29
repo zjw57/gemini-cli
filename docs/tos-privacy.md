@@ -10,7 +10,7 @@ Your authentication method refers to the method you use to log into and access t
 
 | Authentication | Subscription | Eligible Accounts | Terms of Service |
 | :--- | :--- | :--- | :--- |
-| **Login with Google** | Free Tier (for individuals) | @gmail.com<br>@yourdomain.com (Workspace accounts | [Google Terms of Service](https://policies.google.com/terms?hl=en-US) |
+| **Login with Google** | Free Tier (for individuals) | @gmail.com<br>@yourdomain.com (Workspace accounts) | [Google Terms of Service](https://policies.google.com/terms?hl=en-US) |
 | | Standard or Enterprise (for business) | @gmail.com<br>@yourdomain.com (Workspace accounts) | [Google Cloud Platform Terms of Service](https://cloud.google.com/terms) |
 | **Use Gemini API Key** | Free Tier | @gmail.com<br>@yourdomain.com (Workspace accounts)  | [Gemini API Terms of Service (Free)](https://ai.google.dev/gemini-api/terms#unpaid-services) |
 | | Pay as you go | @gmail.com<br>@yourdomain.com (Workspace accounts)  | [Gemini API Terms of Service (Paid)](https://ai.google.dev/gemini-api/terms#paid-services) |
