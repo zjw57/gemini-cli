@@ -210,11 +210,11 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
       const commandToExecute = isWindows
         ? strippedCommand
         : (() => {
-            // wrap command to append subprocess pids (via pgrep) to temporary file
-            let command = strippedCommand.trim();
-            if (!command.endsWith('&')) command += ';';
-            return `{ ${command} }; __code=$?; pgrep -g 0 >${tempFilePath} 2>&1; exit $__code;`;
-          })();
+          // wrap command to append subprocess pids (via pgrep) to temporary file
+          let command = strippedCommand.trim();
+          if (!command.endsWith('&')) command += ';';
+          return `{ ${command} }; __code=$?; pgrep -g 0 >${tempFilePath} 2>&1; exit $__code;`;
+        })();
 
       const cwd = path.resolve(
         this.config.getTargetDir(),
@@ -329,8 +329,7 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
           `Error: ${finalError}`, // Use the cleaned error string.
           `Exit Code: ${result.exitCode ?? '(none)'}`,
           `Signal: ${result.signal ?? '(none)'}`,
-          `Background PIDs: ${
-            backgroundPIDs.length ? backgroundPIDs.join(', ') : '(none)'
+          `Background PIDs: ${backgroundPIDs.length ? backgroundPIDs.join(', ') : '(none)'
           }`,
           `Process Group PGID: ${result.pid ?? '(none)'}`,
         ].join('\n');
@@ -371,15 +370,15 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
 
         if (filePath) {
           return {
-            llmContent: `${content}\n\nFull output saved to ${filePath}`,
+            llmContent: `The tool output summary:\n${content}\n\nFull output saved to ${filePath}`, // if filePath is provided, content is the summary
             returnDisplay: returnDisplayMessage,
           };
         }
       }
-              return {
-          llmContent: llmContent,
-          returnDisplay: returnDisplayMessage,
-        };
+      return {
+        llmContent: llmContent,
+        returnDisplay: returnDisplayMessage,
+      };
     } finally {
       if (fs.existsSync(tempFilePath)) {
         fs.unlinkSync(tempFilePath);
