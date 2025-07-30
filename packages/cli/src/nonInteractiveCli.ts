@@ -97,13 +97,13 @@ export async function runNonInteractive(
           );
 
           if (toolResponse.error) {
-            const isToolNotFound = toolResponse.error.message.includes(
-              'not found in registry',
+            const isUnhandledException = toolResponse.error.message.startsWith(
+              'UNHANDLED_EXCEPTION',
             );
             console.error(
               `Error executing tool ${fc.name}: ${toolResponse.resultDisplay || toolResponse.error.message}`,
             );
-            if (!isToolNotFound) {
+            if (isUnhandledException) {
               process.exit(1);
             }
           }
