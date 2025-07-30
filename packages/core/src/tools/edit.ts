@@ -240,7 +240,7 @@ Expectation for required parameters:
         error = {
           display: `Failed to edit, could not find the string to replace.`,
           raw: `Failed to edit, 0 occurrences found for old_string in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
-          type: 'NO_OCCURENCE_FOUND',
+          type: 'NO_OCCURRENCE_FOUND',
         };
       } else if (occurrences !== expectedReplacements) {
         const occurrenceTerm =
@@ -249,7 +249,7 @@ Expectation for required parameters:
         error = {
           display: `Failed to edit, expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences}.`,
           raw: `Failed to edit, Expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences} for old_string in file: ${params.file_path}`,
-          type: 'EXPECTED_OCCURENCE_MISMATCH',
+          type: 'EXPECTED_OCCURRENCE_MISMATCH',
         };
       } else if (finalOldString === finalNewString) {
         error = {

@@ -652,7 +652,7 @@ describe('EditTool', () => {
       expect(result.error?.type).toBe('ATTEMPT_TO_CREATE_EXISTING_FILE');
     });
 
-    it('should return NO_OCCURENCE_FOUND error', async () => {
+    it('should return NO_OCCURRENCE_FOUND error', async () => {
       fs.writeFileSync(filePath, 'content', 'utf8');
       const params: EditToolParams = {
         file_path: filePath,
@@ -660,10 +660,10 @@ describe('EditTool', () => {
         new_string: 'new',
       };
       const result = await tool.execute(params, new AbortController().signal);
-      expect(result.error?.type).toBe('NO_OCCURENCE_FOUND');
+      expect(result.error?.type).toBe('NO_OCCURRENCE_FOUND');
     });
 
-    it('should return EXPECTED_OCCURENCE_MISMATCH error', async () => {
+    it('should return EXPECTED_OCCURRENCE_MISMATCH error', async () => {
       fs.writeFileSync(filePath, 'one one two', 'utf8');
       const params: EditToolParams = {
         file_path: filePath,
@@ -672,7 +672,7 @@ describe('EditTool', () => {
         expected_replacements: 3,
       };
       const result = await tool.execute(params, new AbortController().signal);
-      expect(result.error?.type).toBe('EXPECTED_OCCURENCE_MISMATCH');
+      expect(result.error?.type).toBe('EXPECTED_OCCURRENCE_MISMATCH');
     });
 
     it('should return NO_CHANGE error', async () => {
