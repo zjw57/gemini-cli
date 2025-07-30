@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import * as crypto from 'crypto';
 import { Config } from '../config/config.js';
 import {
   BaseTool,
@@ -31,6 +31,7 @@ import {
   isCommandAllowed,
   stripShellWrapper,
 } from '../utils/shell-utils.js';
+import { saveToolOutput } from '../utils/output_saver.js';
 
 export const OUTPUT_UPDATE_INTERVAL_MS = 1000;
 
@@ -353,22 +354,22 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
         }
       }
 
-      const summarizeConfig = this.config.getSummarizeToolOutputConfig();
-      if (summarizeConfig && summarizeConfig[this.name]) {
-        const summary = await summarizeToolOutput(
-          llmContent,
-          this.config.getGeminiClient(),
-          signal,
-          summarizeConfig[this.name].tokenBudget,
-        );
+      const { content, filePath } = await saveToolOutput(
+        llmContent,
+        this.config.getSessionId(),
+        this.config.getGeminiClient(),
+        signal,
+      );
+
+      if (filePath) {
         return {
-          llmContent: summary,
+          llmContent: `${content}\n\nFull output saved to ${filePath}`,
           returnDisplay: returnDisplayMessage,
         };
       }
 
       return {
-        llmContent,
+        llmContent: content,
         returnDisplay: returnDisplayMessage,
       };
     } finally {
