@@ -203,7 +203,7 @@ Expectation for required parameters:
     fileContent: string,
     oldString: string,
     newString: string,
-  ): { modifiedCode: string; occurrences: number } {
+  ): { modifiedCode: string; occurrences: number, oldString: string, newString: string  } {
     // Behavior preserved: Normalize line endings only for the input fileContent.
     const content = fileContent;
     const normalizedOld = oldString.replace(/\r\n/g, '\n');
@@ -216,7 +216,7 @@ Expectation for required parameters:
       const exactOccurrences = content.split(normalizedOld).length - 1;
       if (exactOccurrences > 0) {
         const modifiedCode = content.replaceAll(normalizedOld, normalizedNew);
-        return { modifiedCode, occurrences: exactOccurrences };
+        return { modifiedCode, occurrences: exactOccurrences, oldString: normalizedOld, newString: normalizedNew};
       }
     }
 
@@ -269,12 +269,12 @@ Expectation for required parameters:
     // If flexible matches were found, return the modified code and the correct count.
     if (occurrences > 0) {
       const modifiedCode = contentLines.join('\n');
-      return { modifiedCode, occurrences: occurrences };
+      return { modifiedCode, occurrences: occurrences, oldString: normalizedOld, newString: normalizedNew };
     }
 
     // If no matches of any kind were found, return the original content and 0.
     // This fixes the original function's bug of returning 1 even when no match was found.
-    return { modifiedCode: fileContent, occurrences: 0 };
+    return { modifiedCode: fileContent, occurrences: 0 , oldString: normalizedOld, newString: normalizedNew};
   }
 
   private async searchAndReplaceCorrector(
@@ -283,7 +283,7 @@ Expectation for required parameters:
     useCorrector: boolean,
     isNewFile: boolean,
     abortSignal: AbortSignal,
-  ): Promise<{ modifiedCode: string; occurrences: number }> {
+  ): Promise<{ modifiedCode: string; occurrences: number, oldString: string, newString: string }> {
     // Existing logic for 'search_and_replace' and 'search_and_replace_corrector'
     let newContent = ''; // Initialize newContent
     let finalNewString = params.new_string;
@@ -312,7 +312,7 @@ Expectation for required parameters:
       finalNewString,
       isNewFile,
     );
-    return { modifiedCode: newContent, occurrences: occurrences };
+    return { modifiedCode: newContent, occurrences: occurrences, oldString: finalOldString, newString: finalNewString };
   }
 
   /**
@@ -329,7 +329,7 @@ Expectation for required parameters:
     fileContent: string,
     oldString: string,
     newString: string,
-  ): { modifiedCode: string; occurrences: number } {
+  ): { modifiedCode: string; occurrences: number, oldString: string, newString: string } {
     const hadTrailingNewline = fileContent.endsWith('\n');
 
     // 1. Normalize line endings for consistent processing.
@@ -338,7 +338,7 @@ Expectation for required parameters:
     const normalizedReplace = newString.replace(/\r\n/g, '\n');
 
     if (normalizedSearch === '') {
-      return { modifiedCode: fileContent, occurrences: 0 };
+      return { modifiedCode: fileContent, occurrences: 0, oldString: normalizedSearch, newString: normalizedReplace };
     }
 
     // 2. First attempt: a simple, exact string replacement for ALL occurrences.
@@ -355,7 +355,7 @@ Expectation for required parameters:
       } else if (!hadTrailingNewline && modifiedCode.endsWith('\n')) {
         modifiedCode = modifiedCode.replace(/\n$/, '');
       }
-      return { modifiedCode, occurrences: exactOccurrences };
+      return { modifiedCode, occurrences: exactOccurrences , oldString: normalizedSearch, newString: normalizedReplace};
     }
 
     // 3. Flexible match: Compare line-by-line, ignoring leading/trailing whitespace.
@@ -401,11 +401,11 @@ Expectation for required parameters:
       } else if (!hadTrailingNewline && modifiedCode.endsWith('\n')) {
         modifiedCode = modifiedCode.replace(/\n$/, '');
       }
-      return { modifiedCode, occurrences: flexibleOccurrences };
+      return { modifiedCode, occurrences: flexibleOccurrences , oldString: normalizedSearch, newString: normalizedReplace};
     }
 
     // No matches found by either method.
-    return { modifiedCode: fileContent, occurrences: 0 };
+    return { modifiedCode: fileContent, occurrences: 0, oldString: normalizedSearch, newString: normalizedReplace};
   }
 
   /**
@@ -455,7 +455,7 @@ Expectation for required parameters:
         raw: `File not found: ${params.file_path}`,
       };
     } else if (currentContent !== null) {
-      let fileEditResponse = { modifiedCode: currentContent, occurrences: 0 };
+      let fileEditResponse = { modifiedCode: currentContent, occurrences: 0, oldString:params.old_string, newString:params.new_string};
       try {
         switch (this.edit_mode) {
           case 'all': {
@@ -581,7 +581,7 @@ Expectation for required parameters:
             display: `Failed to edit, expected ${expectedReplacements} ${occurrenceTerm} but fuzzy search found ${occurrences}.`,
             raw: `Failed to edit, Expected ${expectedReplacements} ${occurrenceTerm} but fuzzy search found ${occurrences} for old_string in file: ${params.file_path}`,
           };
-        } else if (params.old_string === params.new_string) {
+        } else if (fileEditResponse["oldString"] === fileEditResponse["newString"]) {
           error = {
             display: `No changes to apply. The old_string and new_string are identical.`,
             raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}`,
