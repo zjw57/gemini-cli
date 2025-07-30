@@ -49,19 +49,16 @@ export class IDEServer {
   private log: (message: string) => void;
   diffManager: DiffManager;
 
-  constructor(logger: vscode.OutputChannel, diffManager: DiffManager) {
-    this.logger = logger;
+  constructor(log: (message: string) => void, diffManager: DiffManager) {
+    this.log = log;
     this.diffManager = diffManager;
   }
-  broadcastNotification(notification: JSONRPCNotification) {
-    this.log(`Broadcasting notification: ${notification.method}`);
-    for (const transport of Object.values(this.transports)) {
-      transport.send(notification);
-    }
-  }
+
   async start(context: vscode.ExtensionContext) {
     this.context = context;
     const sessionsWithInitialNotification = new Set<string>();
+    const transports: { [sessionId: string]: StreamableHTTPServerTransport } =
+      {};
 
     const app = express();
     app.use(express.json());
@@ -78,6 +75,14 @@ export class IDEServer {
       }
     });
     context.subscriptions.push(onDidChangeSubscription);
+    const onDidChangeDiffSubscription = this.diffManager.onDidChange(
+      (notification) => {
+        for (const transport of Object.values(transports)) {
+          transport.send(notification);
+        }
+      },
+    );
+    context.subscriptions.push(onDidChangeDiffSubscription);
 
     app.post('/mcp', async (req: Request, res: Response) => {
       const sessionId = req.headers[MCP_SESSION_ID_HEADER] as
@@ -85,8 +90,8 @@ export class IDEServer {
         | undefined;
       let transport: StreamableHTTPServerTransport;
 
-      if (sessionId && this.transports[sessionId]) {
-        transport = this.transports[sessionId];
+      if (sessionId && transports[sessionId]) {
+        transport = transports[sessionId];
       } else if (!sessionId && isInitializeRequest(req.body)) {
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
@@ -111,7 +116,7 @@ export class IDEServer {
           if (transport.sessionId) {
             this.log(`Session closed: ${transport.sessionId}`);
             sessionsWithInitialNotification.delete(transport.sessionId);
-            delete this.transports[transport.sessionId];
+            delete transports[transport.sessionId];
           }
         };
         mcpServer.connect(transport);
@@ -160,7 +165,7 @@ export class IDEServer {
         return;
       }
 
-      const transport = this.transports[sessionId];
+      const transport = transports[sessionId];
       try {
         await transport.handleRequest(req, res);
       } catch (error) {

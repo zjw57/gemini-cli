@@ -36,19 +36,14 @@ function updateWorkspacePath(context: vscode.ExtensionContext) {
 
 export async function activate(context: vscode.ExtensionContext) {
   logger = vscode.window.createOutputChannel('Gemini CLI IDE Companion');
+  logger.show();
   log = createLogger(context, logger);
   log('Extension activated');
 
   updateWorkspacePath(context);
 
   const diffContentProvider = new DiffContentProvider();
-  const diffManager = new DiffManager(
-    logger,
-    diffContentProvider,
-    (notification) => {
-      ideServer.broadcastNotification(notification);
-    },
-  );
+  const diffManager = new DiffManager(logger, diffContentProvider);
 
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(
@@ -75,7 +70,7 @@ export async function activate(context: vscode.ExtensionContext) {
     ),
   );
 
-  ideServer = new IDEServer(logger, diffManager);
+  ideServer = new IDEServer(log, diffManager);
   try {
     await ideServer.start(context);
   } catch (err) {

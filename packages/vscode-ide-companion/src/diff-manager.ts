@@ -21,14 +21,14 @@ interface DiffInfo {
  * Manages the state and lifecycle of diff views within the IDE.
  */
 export class DiffManager {
+  private readonly onDidChangeEmitter =
+    new vscode.EventEmitter<JSONRPCNotification>();
+  readonly onDidChange = this.onDidChangeEmitter.event;
   private diffDocuments = new Map<string, DiffInfo>();
 
   constructor(
     private readonly logger: vscode.OutputChannel,
     private readonly diffContentProvider: DiffContentProvider,
-    private readonly broadcastNotification: (
-      notification: JSONRPCNotification,
-    ) => void,
   ) {}
 
   /**
@@ -119,7 +119,7 @@ export class DiffManager {
     await this.closeDiffEditor(rightDocUri);
     vscode.window.showInformationMessage('Changes applied and saved.');
 
-    this.broadcastNotification({
+    this.onDidChangeEmitter.fire({
       jsonrpc: '2.0',
       method: 'ide/diffAccepted',
       params: {
@@ -138,7 +138,7 @@ export class DiffManager {
     vscode.window.showInformationMessage('Changes canceled.');
 
     if (diffInfo) {
-      this.broadcastNotification({
+      this.onDidChangeEmitter.fire({
         jsonrpc: '2.0',
         method: 'ide/diffClosed',
         params: { filePath: diffInfo.originalFilePath },
@@ -154,7 +154,7 @@ export class DiffManager {
     if (this.diffDocuments.has(closedUriString)) {
       const diffInfo = this.diffDocuments.get(closedUriString);
       if (diffInfo) {
-        this.broadcastNotification({
+        this.onDidChangeEmitter.fire({
           jsonrpc: '2.0',
           method: 'ide/diffClosed',
           params: { filePath: diffInfo.originalFilePath },
