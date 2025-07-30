@@ -24,6 +24,7 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
     ...original,
     executeToolCall: vi.fn(),
     shutdownTelemetry: vi.fn(),
+    isTelemetrySdkInitialized: vi.fn().mockReturnValue(true),
   };
 });
 

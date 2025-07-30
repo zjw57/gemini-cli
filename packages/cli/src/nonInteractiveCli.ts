@@ -41,7 +41,7 @@ export async function runNonInteractive(
     while (true) {
       turnCount++;
       if (
-        config.getMaxSessionTurns() > 0 &&
+        config.getMaxSessionTurns() >= 0 &&
         turnCount > config.getMaxSessionTurns()
       ) {
         console.error(
