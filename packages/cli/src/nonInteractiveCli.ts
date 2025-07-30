@@ -125,16 +125,11 @@ export async function runNonInteractive(
             abortController.signal,
           );
 
-          if (toolResponse.error) {
-            const isUnhandledException = toolResponse.error.message.startsWith(
-              'UNHANDLED_EXCEPTION',
-            );
+          if (toolResponse.error && toolResponse.errorType === 'GENERIC_EXCEPTION') {
             console.error(
               `Error executing tool ${fc.name}: ${toolResponse.resultDisplay || toolResponse.error.message}`,
             );
-            if (isUnhandledException) {
-              process.exit(1);
-            }
+            process.exit(1);
           }
 
           if (toolResponse.responseParts) {
