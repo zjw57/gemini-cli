@@ -59,7 +59,6 @@ export interface CommandContext {
     /** Toggles a special display mode. */
     toggleCorgiMode: () => void;
     toggleVimEnabled: () => Promise<boolean>;
-    refreshCommands: () => void;
   };
   // Session-specific data
   session: {

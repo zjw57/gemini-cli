@@ -169,7 +169,6 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
       context.services.settings.setValue(SettingScope.User, 'ideMode', true);
       config.setIdeMode(true);
       config.setIdeClient(new IdeClient());
-      context.ui.refreshCommands();
     },
   };
 
@@ -182,7 +181,6 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
       config.setIdeMode(false);
       config.getIdeClient()?.dispose();
       config.setIdeClient(undefined);
-      context.ui.refreshCommands();
     },
   };
 
