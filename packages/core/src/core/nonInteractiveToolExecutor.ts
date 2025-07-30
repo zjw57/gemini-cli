@@ -107,9 +107,7 @@ export async function executeToolCall(
         toolResult.error === undefined ? undefined : toolResult.error.type,
     };
   } catch (e) {
-    const error = new Error(
-      `UNHANDLED_EXCEPTION: ${e instanceof Error ? e.message : String(e)}`,
-    );
+    const error = e instanceof Error ? e : new Error(String(e));
     const durationMs = Date.now() - startTime;
     logToolCall(config, {
       'event.name': 'tool_call',
