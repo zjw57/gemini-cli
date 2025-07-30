@@ -79,7 +79,11 @@ export async function executeToolCall(
       function_name: toolCallRequest.name,
       function_args: toolCallRequest.args,
       duration_ms: durationMs,
-      success: true,
+      success: toolResult.error === undefined,
+      error:
+        toolResult.error === undefined ? undefined : toolResult.error.message,
+      error_type:
+        toolResult.error === undefined ? undefined : toolResult.error.type,
       prompt_id: toolCallRequest.prompt_id,
     });
 
@@ -93,10 +97,15 @@ export async function executeToolCall(
       callId: toolCallRequest.callId,
       responseParts: response,
       resultDisplay: tool_display,
-      error: undefined,
+      error:
+        toolResult.error === undefined
+          ? undefined
+          : new Error(toolResult.error.message),
     };
   } catch (e) {
-    const error = e instanceof Error ? e : new Error(String(e));
+    const error = new Error(
+      `UNHANDLED_EXCEPTION: ${e instanceof Error ? e.message : String(e)}`,
+    );
     const durationMs = Date.now() - startTime;
     logToolCall(config, {
       'event.name': 'tool_call',
@@ -106,6 +115,7 @@ export async function executeToolCall(
       duration_ms: durationMs,
       success: false,
       error: error.message,
+      error_type: 'UNHANDLED_EXCEPTION',
       prompt_id: toolCallRequest.prompt_id,
     });
     return {
