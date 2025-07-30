@@ -160,15 +160,13 @@ describe('executeToolCall', () => {
 
     expect(response.callId).toBe('call3');
     expect(response.error).toBe(executionError);
-    expect(response.resultDisplay).toBe(
-      'UNHANDLED_EXCEPTION: Tool execution failed',
-    );
+    expect(response.resultDisplay).toBe('Tool execution failed');
     expect(response.responseParts).toEqual([
       {
         functionResponse: {
           name: 'testTool',
           id: 'call3',
-          response: { error: 'UNHANDLED_EXCEPTION: Tool execution failed' },
+          response: { error: 'Tool execution failed' },
         },
       },
     ]);
