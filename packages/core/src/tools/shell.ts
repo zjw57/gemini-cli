@@ -359,24 +359,27 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
         }
       }
 
-      const { content, filePath } = await saveToolOutput(
-        llmContent,
-        this.config.getSessionId(),
-        this.config.getGeminiClient(),
-        signal,
-      );
+      const summarizeConfig = this.config.getSummarizeToolOutputConfig();
+      if (summarizeConfig && summarizeConfig[this.name]) {
+        const { content, filePath } = await saveToolOutput(
+          llmContent,
+          this.config.getSessionId(),
+          this.config.getGeminiClient(),
+          signal,
+          summarizeConfig[this.name].tokenBudget,
+        );
 
-      if (filePath) {
-        return {
-          llmContent: `${content}\n\nFull output saved to ${filePath}`,
+        if (filePath) {
+          return {
+            llmContent: `${content}\n\nFull output saved to ${filePath}`,
+            returnDisplay: returnDisplayMessage,
+          };
+        }
+      }
+              return {
+          llmContent: llmContent,
           returnDisplay: returnDisplayMessage,
         };
-      }
-
-      return {
-        llmContent: content,
-        returnDisplay: returnDisplayMessage,
-      };
     } finally {
       if (fs.existsSync(tempFilePath)) {
         fs.unlinkSync(tempFilePath);
