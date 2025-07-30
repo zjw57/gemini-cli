@@ -775,20 +775,9 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
          * content is set it'll flush content to the terminal and move the area which it's "clearing"
          * down a notch. Without Static the area which gets erased and redrawn continuously grows.
          */}
-        <Static
-          key={staticKey}
-          items={[
-            <Box flexDirection="column" key="header">
-              {!settings.merged.hideBanner && (
-                <Header
-                  terminalWidth={terminalWidth}
-                  version={version}
-                  nightly={nightly}
-                />
-              )}
-              {!settings.merged.hideTips && <Tips config={config} />}
-            </Box>,
-            ...history.map((h) => (
+        {process.env.INK_SCREEN_READER === 'true' ? (
+          <Box flexDirection="column">
+            {history.map((h) => (
               <HistoryItemDisplay
                 terminalWidth={mainAreaWidth}
                 availableTerminalHeight={staticAreaMaxItemHeight}
@@ -797,11 +786,37 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                 isPending={false}
                 config={config}
               />
-            )),
-          ]}
-        >
-          {(item) => item}
-        </Static>
+            ))}
+          </Box>
+        ) : (
+          <Static
+            key={staticKey}
+            items={[
+              <Box flexDirection="column" key="header">
+                {!settings.merged.hideBanner && (
+                  <Header
+                    terminalWidth={terminalWidth}
+                    version={version}
+                    nightly={nightly}
+                  />
+                )}
+                {!settings.merged.hideTips && <Tips config={config} />}
+              </Box>,
+              ...history.map((h) => (
+                <HistoryItemDisplay
+                  terminalWidth={mainAreaWidth}
+                  availableTerminalHeight={staticAreaMaxItemHeight}
+                  key={h.id}
+                  item={h}
+                  isPending={false}
+                  config={config}
+                />
+              )),
+            ]}
+          >
+            {(item) => item}
+          </Static>
+        )}
         <OverflowProvider>
           <Box ref={pendingHistoryItemRef} flexDirection="column">
             {pendingHistoryItems.map((item, i) => (
