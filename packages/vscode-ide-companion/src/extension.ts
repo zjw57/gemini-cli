@@ -8,15 +8,38 @@ import * as vscode from 'vscode';
 import { IDEServer } from './ide-server';
 import { DiffContentProvider } from './diff-content-provider';
 import { DiffManager } from './diff-manager';
+import { createLogger } from './utils/logger';
+
+const IDE_WORKSPACE_PATH_ENV_VAR = 'GEMINI_CLI_IDE_WORKSPACE_PATH';
+export const DIFF_SCHEME = 'gemini-diff';
 
 let ideServer: IDEServer;
 let logger: vscode.OutputChannel;
-export const DIFF_SCHEME = 'gemini-diff';
+
+let log: (message: string) => void = () => {};
+
+function updateWorkspacePath(context: vscode.ExtensionContext) {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (workspaceFolders && workspaceFolders.length === 1) {
+    const workspaceFolder = workspaceFolders[0];
+    context.environmentVariableCollection.replace(
+      IDE_WORKSPACE_PATH_ENV_VAR,
+      workspaceFolder.uri.fsPath,
+    );
+  } else {
+    context.environmentVariableCollection.replace(
+      IDE_WORKSPACE_PATH_ENV_VAR,
+      '',
+    );
+  }
+}
 
 export async function activate(context: vscode.ExtensionContext) {
   logger = vscode.window.createOutputChannel('Gemini CLI IDE Companion');
-  logger.show();
-  logger.appendLine('Starting Gemini CLI IDE Companion server...');
+  log = createLogger(context, logger);
+  log('Extension activated');
+
+  updateWorkspacePath(context);
 
   const diffContentProvider = new DiffContentProvider();
   const diffManager = new DiffManager(
@@ -57,18 +80,34 @@ export async function activate(context: vscode.ExtensionContext) {
     await ideServer.start(context);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    logger.appendLine(`Failed to start IDE server: ${message}`);
+    log(`Failed to start IDE server: ${message}`);
   }
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      updateWorkspacePath(context);
+    }),
+    vscode.commands.registerCommand('gemini-cli.runGeminiCLI', () => {
+      const geminiCmd = 'gemini';
+      const terminal = vscode.window.createTerminal(`Gemini CLI`);
+      terminal.show();
+      terminal.sendText(geminiCmd);
+    }),
+  );
 }
 
-export function deactivate() {
-  if (ideServer) {
-    logger.appendLine('Deactivating Gemini CLI IDE Companion...');
-    return ideServer.stop().finally(() => {
+export async function deactivate(): Promise<void> {
+  log('Extension deactivated');
+  try {
+    if (ideServer) {
+      await ideServer.stop();
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    log(`Failed to stop IDE server during deactivation: ${message}`);
+  } finally {
+    if (logger) {
       logger.dispose();
-    });
-  }
-  if (logger) {
-    logger.dispose();
+    }
   }
 }
