@@ -96,14 +96,11 @@ export async function runNonInteractive(
             abortController.signal,
           );
 
-          if (
-            toolResponse.error &&
-            toolResponse.errorType === 'GENERIC_EXCEPTION'
-          ) {
+          if (toolResponse.error) {
             console.error(
               `Error executing tool ${fc.name}: ${toolResponse.resultDisplay || toolResponse.error.message}`,
             );
-            process.exit(1);
+            if (toolResponse.errorType === 'GENERIC_EXCEPTION') process.exit(1);
           }
 
           if (toolResponse.responseParts) {
