@@ -56,6 +56,7 @@ export async function executeToolCall(
       ],
       resultDisplay: error.message,
       error,
+      errorType: 'TOOL_NOT_REGISTERED',
     };
   }
 
@@ -101,11 +102,11 @@ export async function executeToolCall(
         toolResult.error === undefined
           ? undefined
           : new Error(toolResult.error.message),
+      errorType:
+        toolResult.error === undefined ? undefined : toolResult.error.type,
     };
   } catch (e) {
-    const error = new Error(
-      `UNHANDLED_EXCEPTION: ${e instanceof Error ? e.message : String(e)}`,
-    );
+    const error = e instanceof Error ? e : new Error(String(e));
     const durationMs = Date.now() - startTime;
     logToolCall(config, {
       'event.name': 'tool_call',
@@ -115,7 +116,7 @@ export async function executeToolCall(
       duration_ms: durationMs,
       success: false,
       error: error.message,
-      error_type: 'UNHANDLED_EXCEPTION',
+      error_type: 'GENERIC_EXCEPTION',
       prompt_id: toolCallRequest.prompt_id,
     });
     return {
@@ -131,6 +132,7 @@ export async function executeToolCall(
       ],
       resultDisplay: error.message,
       error,
+      errorType: 'GENERIC_EXCEPTION',
     };
   }
 }
