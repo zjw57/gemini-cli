@@ -11,6 +11,7 @@ import {
   ToolRegistry,
   shutdownTelemetry,
   isTelemetrySdkInitialized,
+  ToolErrorType,
 } from '@google/gemini-cli-core';
 import {
   Content,
@@ -129,7 +130,8 @@ export async function runNonInteractive(
             console.error(
               `Error executing tool ${fc.name}: ${toolResponse.resultDisplay || toolResponse.error.message}`,
             );
-            if (toolResponse.errorType === 'GENERIC_EXCEPTION') process.exit(1);
+            if (toolResponse.errorType === ToolErrorType.GENERIC_EXCEPTION)
+              process.exit(1);
           }
 
           if (toolResponse.responseParts) {

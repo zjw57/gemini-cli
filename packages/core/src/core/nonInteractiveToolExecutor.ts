@@ -8,6 +8,7 @@ import {
   logToolCall,
   ToolCallRequestInfo,
   ToolCallResponseInfo,
+  ToolErrorType,
   ToolRegistry,
   ToolResult,
 } from '../index.js';
@@ -56,7 +57,7 @@ export async function executeToolCall(
       ],
       resultDisplay: error.message,
       error,
-      errorType: 'TOOL_NOT_REGISTERED',
+      errorType: ToolErrorType.TOOL_NOT_REGISTERED,
     };
   }
 
@@ -116,7 +117,7 @@ export async function executeToolCall(
       duration_ms: durationMs,
       success: false,
       error: error.message,
-      error_type: 'GENERIC_EXCEPTION',
+      error_type: ToolErrorType.GENERIC_EXCEPTION,
       prompt_id: toolCallRequest.prompt_id,
     });
     return {
@@ -132,7 +133,7 @@ export async function executeToolCall(
       ],
       resultDisplay: error.message,
       error,
-      errorType: 'GENERIC_EXCEPTION',
+      errorType: ToolErrorType.GENERIC_EXCEPTION,
     };
   }
 }
