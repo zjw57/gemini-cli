@@ -162,6 +162,7 @@ describe('runNonInteractive', () => {
     };
     mockCoreExecuteToolCall.mockResolvedValue({
       error: new Error('Tool execution failed badly'),
+      errorType: ToolErrorType.UNHANDLED_EXCEPTION,
     });
     mockGeminiClient.sendMessageStream.mockReturnValue(
       createStreamFromEvents([toolCallEvent]),
