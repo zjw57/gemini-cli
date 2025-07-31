@@ -11,7 +11,7 @@ export enum ToolErrorType {
   // General Errors
   INVALID_TOOL_PARAMS = 'invalid_tool_params',
   UNKNOWN = 'unknown',
-  GENERIC_EXCEPTION = 'generic_exception',
+  UNHANDLED_EXCEPTION = 'unhandled_exception',
   TOOL_NOT_REGISTERED = 'tool_not_registered',
 
   // File System Errors

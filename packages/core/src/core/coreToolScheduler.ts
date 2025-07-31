@@ -504,7 +504,7 @@ export class CoreToolScheduler {
           createErrorResponse(
             reqInfo,
             error instanceof Error ? error : new Error(String(error)),
-            ToolErrorType.GENERIC_EXCEPTION,
+            ToolErrorType.UNHANDLED_EXCEPTION,
           ),
         );
       }
@@ -710,7 +710,7 @@ export class CoreToolScheduler {
                 executionError instanceof Error
                   ? executionError
                   : new Error(String(executionError)),
-                ToolErrorType.GENERIC_EXCEPTION,
+                ToolErrorType.UNHANDLED_EXCEPTION,
               ),
             );
           });
