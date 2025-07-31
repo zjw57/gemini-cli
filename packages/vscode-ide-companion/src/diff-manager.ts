@@ -89,6 +89,26 @@ export class DiffManager {
   }
 
   /**
+   * Closes an open diff view for a specific file.
+   */
+  async closeDiff(filePath: string) {
+    let uriToClose: vscode.Uri | undefined;
+    for (const [uriString, diffInfo] of this.diffDocuments.entries()) {
+      if (diffInfo.originalFilePath === filePath) {
+        uriToClose = vscode.Uri.parse(uriString);
+        break;
+      }
+    }
+
+    if (uriToClose) {
+      await this.closeDiffEditor(uriToClose);
+      vscode.window.showInformationMessage(`Diff for ${filePath} closed.`);
+    } else {
+      vscode.window.showWarningMessage(`No open diff found for ${filePath}.`);
+    }
+  }
+
+  /**
    * Called when a user accepts the changes in a diff view.
    */
   async acceptDiff(rightDocUri: vscode.Uri) {
