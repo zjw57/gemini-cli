@@ -8,6 +8,7 @@ import {
   Config,
   executeToolCall,
   ToolRegistry,
+  ToolErrorType,
   shutdownTelemetry,
   GeminiEventType,
   ServerGeminiStreamEvent,
