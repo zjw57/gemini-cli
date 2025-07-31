@@ -117,7 +117,7 @@ export async function executeToolCall(
       duration_ms: durationMs,
       success: false,
       error: error.message,
-      error_type: ToolErrorType.GENERIC_EXCEPTION,
+      error_type: ToolErrorType.UNHANDLED_EXCEPTION,
       prompt_id: toolCallRequest.prompt_id,
     });
     return {
@@ -133,7 +133,7 @@ export async function executeToolCall(
       ],
       resultDisplay: error.message,
       error,
-      errorType: ToolErrorType.GENERIC_EXCEPTION,
+      errorType: ToolErrorType.UNHANDLED_EXCEPTION,
     };
   }
 }
