@@ -225,7 +225,7 @@ export class Config {
   private readonly model: string;
   private readonly extensionContextFilePaths: string[];
   private readonly noBrowser: boolean;
-  private readonly ideMode: boolean;
+  readonly ideMode: boolean;
   private readonly ideClient: IdeClient | undefined;
   private inFallbackMode = false;
   private readonly maxSessionTurns: number;

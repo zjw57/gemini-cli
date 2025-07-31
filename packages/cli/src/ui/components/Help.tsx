@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { Config } from '@google/gemini-cli-core';
 import React from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
@@ -11,9 +12,10 @@ import { SlashCommand } from '../commands/types.js';
 
 interface Help {
   commands: readonly SlashCommand[];
+  config: Config;
 }
 
-export const Help: React.FC<Help> = ({ commands }) => (
+export const Help: React.FC<Help> = ({ commands, config }) => (
   <Box
     flexDirection="column"
     marginBottom={1}
@@ -127,12 +129,14 @@ export const Help: React.FC<Help> = ({ commands }) => (
       </Text>{' '}
       - Clear the screen
     </Text>
-    <Text color={Colors.Foreground}>
-      <Text bold color={Colors.AccentPurple}>
-        {process.platform === 'darwin' ? 'Ctrl+X / Meta+Enter' : 'Ctrl+X'}
-      </Text>{' '}
-      - Open input in external editor
-    </Text>
+    {!config.ideMode && (
+      <Text color={Colors.Foreground}>
+        <Text bold color={Colors.AccentPurple}>
+          {process.platform === 'darwin' ? 'Ctrl+X / Meta+Enter' : 'Ctrl+X'}
+        </Text>{' '}
+        - Open input in external editor
+      </Text>
+    )}
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
         Ctrl+Y

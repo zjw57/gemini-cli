@@ -33,6 +33,7 @@ export const ToolConfirmationMessage: React.FC<
   ToolConfirmationMessageProps
 > = ({
   confirmationDetails,
+  config,
   isFocused = true,
   availableTerminalHeight,
   terminalWidth,
@@ -114,12 +115,14 @@ export const ToolConfirmationMessage: React.FC<
         label: 'Yes, allow always',
         value: ToolConfirmationOutcome.ProceedAlways,
       },
-      {
+    );
+    if (!config?.getIdeMode()) {
+      options.push({
         label: 'Modify with external editor',
         value: ToolConfirmationOutcome.ModifyWithEditor,
-      },
-      { label: 'No (esc)', value: ToolConfirmationOutcome.Cancel },
-    );
+      });
+    }
+    options.push({ label: 'No (esc)', value: ToolConfirmationOutcome.Cancel });
     bodyContent = (
       <DiffRenderer
         diffContent={confirmationDetails.fileDiff}

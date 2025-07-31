@@ -56,7 +56,6 @@ export class BuiltinCommandLoader implements ICommandLoader {
       copyCommand,
       corgiCommand,
       docsCommand,
-      editorCommand,
       extensionsCommand,
       helpCommand,
       ideCommand(this.config),
@@ -71,6 +70,10 @@ export class BuiltinCommandLoader implements ICommandLoader {
       toolsCommand,
       vimCommand,
     ];
+
+    if (!this.config?.getIdeMode()) {
+      allDefinitions.push(editorCommand);
+    }
 
     return allDefinitions.filter((cmd): cmd is SlashCommand => cmd !== null);
   }

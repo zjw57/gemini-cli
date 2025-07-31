@@ -818,7 +818,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
           </Box>
         </OverflowProvider>
 
-        {showHelp && <Help commands={slashCommands} />}
+        {showHelp && <Help commands={slashCommands} config={config} />}
 
         <Box flexDirection="column" ref={mainControlsRef}>
           {/* Move UpdateNotification to render update notification above input area */}
