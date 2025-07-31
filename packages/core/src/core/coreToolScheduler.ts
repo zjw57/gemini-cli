@@ -19,6 +19,7 @@ import {
   logToolCall,
   ToolCallEvent,
   ToolConfirmationPayload,
+  ToolErrorType,
 } from '../index.js';
 import { Part, PartListUnion } from '@google/genai';
 import { getResponseTextFromParts } from '../utils/generateContentResponseUtilities.js';
@@ -201,7 +202,7 @@ export function convertToFunctionResponse(
 const createErrorResponse = (
   request: ToolCallRequestInfo,
   error: Error,
-  errorType: string | undefined,
+  errorType: ToolErrorType | undefined,
 ): ToolCallResponseInfo => ({
   callId: request.callId,
   error,
@@ -439,7 +440,7 @@ export class CoreToolScheduler {
             response: createErrorResponse(
               reqInfo,
               new Error(`Tool "${reqInfo.name}" not found in registry.`),
-              'TOOL_NOT_REGISTERED',
+              ToolErrorType.TOOL_NOT_REGISTERED,
             ),
             durationMs: 0,
           };
@@ -503,7 +504,7 @@ export class CoreToolScheduler {
           createErrorResponse(
             reqInfo,
             error instanceof Error ? error : new Error(String(error)),
-            'GENERIC_EXCEPTION',
+            ToolErrorType.GENERIC_EXCEPTION,
           ),
         );
       }
@@ -709,7 +710,7 @@ export class CoreToolScheduler {
                 executionError instanceof Error
                   ? executionError
                   : new Error(String(executionError)),
-                'GENERIC_EXCEPTION',
+                ToolErrorType.GENERIC_EXCEPTION,
               ),
             );
           });

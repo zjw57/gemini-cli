@@ -27,6 +27,7 @@ vi.mock('../utils/editor.js', () => ({
 import { describe, it, expect, beforeEach, afterEach, vi, Mock } from 'vitest';
 import { EditTool, EditToolParams } from './edit.js';
 import { FileDiff } from './tools.js';
+import { ToolErrorType } from './tool-error.js';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -642,7 +643,7 @@ describe('EditTool', () => {
         new_string: 'new',
       };
       const result = await tool.execute(params, new AbortController().signal);
-      expect(result.error?.type).toBe('FILE_NOT_FOUND');
+      expect(result.error?.type).toBe(ToolErrorType.FILE_NOT_FOUND);
     });
 
     it('should return ATTEMPT_TO_CREATE_EXISTING_FILE error', async () => {
@@ -653,7 +654,9 @@ describe('EditTool', () => {
         new_string: 'new content',
       };
       const result = await tool.execute(params, new AbortController().signal);
-      expect(result.error?.type).toBe('ATTEMPT_TO_CREATE_EXISTING_FILE');
+      expect(result.error?.type).toBe(
+        ToolErrorType.ATTEMPT_TO_CREATE_EXISTING_FILE,
+      );
     });
 
     it('should return NO_OCCURRENCE_FOUND error', async () => {
@@ -664,7 +667,7 @@ describe('EditTool', () => {
         new_string: 'new',
       };
       const result = await tool.execute(params, new AbortController().signal);
-      expect(result.error?.type).toBe('NO_OCCURRENCE_FOUND');
+      expect(result.error?.type).toBe(ToolErrorType.EDIT_NO_OCCURRENCE_FOUND);
     });
 
     it('should return EXPECTED_OCCURRENCE_MISMATCH error', async () => {
@@ -676,7 +679,9 @@ describe('EditTool', () => {
         expected_replacements: 3,
       };
       const result = await tool.execute(params, new AbortController().signal);
-      expect(result.error?.type).toBe('EXPECTED_OCCURRENCE_MISMATCH');
+      expect(result.error?.type).toBe(
+        ToolErrorType.EDIT_EXPECTED_OCCURRENCE_MISMATCH,
+      );
     });
 
     it('should return NO_CHANGE error', async () => {
@@ -687,7 +692,7 @@ describe('EditTool', () => {
         new_string: 'content',
       };
       const result = await tool.execute(params, new AbortController().signal);
-      expect(result.error?.type).toBe('NO_CHANGE');
+      expect(result.error?.type).toBe(ToolErrorType.EDIT_NO_CHANGE);
     });
 
     it('should return INVALID_PARAMETERS error for relative path', async () => {
@@ -697,7 +702,7 @@ describe('EditTool', () => {
         new_string: 'b',
       };
       const result = await tool.execute(params, new AbortController().signal);
-      expect(result.error?.type).toBe('INVALID_PARAMETERS');
+      expect(result.error?.type).toBe(ToolErrorType.INVALID_TOOL_PARAMS);
     });
 
     it('should return FILE_WRITE_FAILURE on write error', async () => {
@@ -711,7 +716,7 @@ describe('EditTool', () => {
         new_string: 'new content',
       };
       const result = await tool.execute(params, new AbortController().signal);
-      expect(result.error?.type).toBe('FILE_WRITE_FAILURE');
+      expect(result.error?.type).toBe(ToolErrorType.FILE_WRITE_FAILURE);
     });
   });
 

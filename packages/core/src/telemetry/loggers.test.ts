@@ -12,6 +12,7 @@ import {
   ErroredToolCall,
   GeminiClient,
   ToolConfirmationOutcome,
+  ToolErrorType,
   ToolRegistry,
 } from '../index.js';
 import { logs } from '@opentelemetry/api-logs';
@@ -707,7 +708,7 @@ describe('loggers', () => {
             name: 'test-error-type',
             message: 'test-error',
           },
-          errorType: 'test-error-type',
+          errorType: ToolErrorType.UNKNOWN,
         },
         durationMs: 100,
       };
@@ -734,8 +735,8 @@ describe('loggers', () => {
           success: false,
           error: 'test-error',
           'error.message': 'test-error',
-          error_type: 'test-error-type',
-          'error.type': 'test-error-type',
+          error_type: ToolErrorType.UNKNOWN,
+          'error.type': ToolErrorType.UNKNOWN,
           prompt_id: 'prompt-id-5',
         },
       });

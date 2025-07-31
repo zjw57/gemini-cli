@@ -5,6 +5,7 @@
  */
 
 import { FunctionDeclaration, PartListUnion, Schema } from '@google/genai';
+import { ToolErrorType } from './tool-error.js';
 
 /**
  * Interface representing the base Tool functionality
@@ -223,7 +224,7 @@ export interface ToolResult {
    */
   error?: {
     message: string; // raw error message
-    type?: string; // An optional machine-readable error type (e.g., 'FILE_NOT_FOUND').
+    type?: ToolErrorType; // An optional machine-readable error type (e.g., 'FILE_NOT_FOUND').
   };
 }
 
