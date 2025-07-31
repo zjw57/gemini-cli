@@ -85,6 +85,10 @@ export const ToolConfirmationMessage: React.FC<
       HEIGHT_OPTIONS;
     return Math.max(availableTerminalHeight - surroundingElementsHeight, 1);
   }
+  if (confirmationDetails.type === 'ide-handled') {
+    return undefined;
+  }
+
   if (confirmationDetails.type === 'edit') {
     if (confirmationDetails.isModifying) {
       return (

@@ -644,6 +644,12 @@ function toAcpToolCallConfirmation(
           ? null
           : confirmationDetails.prompt,
       };
+    case 'ide-handled':
+      return {
+        type: 'fetch',
+        urls: [],
+        description: '',
+      };
     default: {
       const unreachable: never = confirmationDetails;
       throw new Error(`Unexpected: ${unreachable}`);

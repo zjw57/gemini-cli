@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ideContext, IdeContextNotificationSchema } from '../ide/ideContext.js';
+import {
+  ideContext,
+  IdeContextNotificationSchema,
+  DiffAcceptedNotificationSchema,
+  DiffClosedNotificationSchema,
+} from '../ide/ideContext.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -24,6 +29,8 @@ export enum IDEConnectionStatus {
   Connecting = 'connecting',
 }
 
+type DiffUpdateStatus = 'accepted' | 'rejected';
+
 /**
  * Manages the connection to and interaction with the IDE server.
  */
@@ -32,6 +39,7 @@ export class IdeClient {
   private state: IDEConnectionState = {
     status: IDEConnectionStatus.Disconnected,
   };
+  private diffResponses = new Map<string, (result: DiffUpdateStatus) => void>();
 
   constructor() {
     this.init().catch((err) => {
@@ -95,6 +103,42 @@ export class IdeClient {
       },
     );
 
+    this.client.setNotificationHandler(
+      DiffAcceptedNotificationSchema,
+      (notification) => {
+        logger.debug('Received diffAccepted notification:', notification);
+        const { filePath } = notification.params;
+        const resolver = this.diffResponses.get(filePath);
+        if (resolver) {
+          logger.debug(
+            `Found resolver for ${filePath}, resolving with accepted`,
+          );
+          resolver('accepted');
+          this.diffResponses.delete(filePath);
+        } else {
+          logger.debug(`No resolver found for ${filePath}`);
+        }
+      },
+    );
+
+    this.client.setNotificationHandler(
+      DiffClosedNotificationSchema,
+      (notification) => {
+        logger.debug('Received diffClosed notification:', notification);
+        const { filePath } = notification.params;
+        const resolver = this.diffResponses.get(filePath);
+        if (resolver) {
+          logger.debug(
+            `Found resolver for ${filePath}, resolving with rejected`,
+          );
+          resolver('rejected');
+          this.diffResponses.delete(filePath);
+        } else {
+          logger.debug(`No resolver found for ${filePath}`);
+        }
+      },
+    );
+
     this.client.onerror = (_error) => {
       this.setState(IDEConnectionStatus.Disconnected, 'Client error.');
     };
@@ -153,5 +197,29 @@ export class IdeClient {
     }
 
     await this.establishConnection(port);
+  }
+
+  async openDiff(
+    filePath: string,
+    newContent?: string,
+  ): Promise<DiffUpdateStatus> {
+    logger.debug(`Opening diff for ${filePath}`);
+    return new Promise<DiffUpdateStatus>((resolve, reject) => {
+      this.diffResponses.set(filePath, resolve);
+      logger.debug(`Resolver stored for ${filePath}`);
+      this.client
+        ?.callTool({
+          name: `openDiff`,
+          arguments: {
+            filePath,
+            newContent,
+          },
+        })
+        .catch((err) => {
+          logger.debug(`callTool for ${filePath} failed:`, err);
+          this.diffResponses.delete(filePath);
+          reject(err);
+        });
+    });
   }
 }

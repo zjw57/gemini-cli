@@ -145,6 +145,11 @@ export class WriteFileTool
     params: WriteFileToolParams,
     abortSignal: AbortSignal,
   ): Promise<ToolCallConfirmationDetails | false> {
+    const ideClient = this.config.getIdeClient();
+    if (this.config.getIdeMode() && ideClient) {
+      return false;
+    }
+
     if (this.config.getApprovalMode() === ApprovalMode.AUTO_EDIT) {
       return false;
     }
@@ -207,6 +212,23 @@ export class WriteFileTool
         llmContent: `Error: Invalid parameters provided. Reason: ${validationError}`,
         returnDisplay: `Error: ${validationError}`,
       };
+    }
+
+    const ideClient = this.config.getIdeClient();
+    if (this.config.getIdeMode() && ideClient) {
+      const status = await ideClient.openDiff(params.file_path, params.content);
+      if (status === 'rejected') {
+        return {
+          llmContent: 'User rejected the file write operation in the IDE.',
+          returnDisplay: 'File write operation rejected by user.',
+        };
+      }
+      if (status === 'accepted') {
+        return {
+          llmContent: `Successfully wrote to file: ${params.file_path} via the IDE.`,
+          returnDisplay: `File write operation accepted by user in the IDE.`,
+        };
+      }
     }
 
     const correctedContentResult = await this._getCorrectedFileContent(

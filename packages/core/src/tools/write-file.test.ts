@@ -465,7 +465,11 @@ describe('WriteFileTool', () => {
         params,
         abortSignal,
       );
-      if (typeof confirmDetails === 'object' && confirmDetails.onConfirm) {
+      if (
+        typeof confirmDetails === 'object' &&
+        'onConfirm' in confirmDetails &&
+        confirmDetails.onConfirm
+      ) {
         await confirmDetails.onConfirm(ToolConfirmationOutcome.ProceedOnce);
       }
 
@@ -519,7 +523,11 @@ describe('WriteFileTool', () => {
         params,
         abortSignal,
       );
-      if (typeof confirmDetails === 'object' && confirmDetails.onConfirm) {
+      if (
+        typeof confirmDetails === 'object' &&
+        'onConfirm' in confirmDetails &&
+        confirmDetails.onConfirm
+      ) {
         await confirmDetails.onConfirm(ToolConfirmationOutcome.ProceedOnce);
       }
 
@@ -560,7 +568,11 @@ describe('WriteFileTool', () => {
         params,
         abortSignal,
       );
-      if (typeof confirmDetails === 'object' && confirmDetails.onConfirm) {
+      if (
+        typeof confirmDetails === 'object' &&
+        'onConfirm' in confirmDetails &&
+        confirmDetails.onConfirm
+      ) {
         await confirmDetails.onConfirm(ToolConfirmationOutcome.ProceedOnce);
       }
 
