@@ -32,6 +32,7 @@ import {
   recordFileOperationMetric,
   FileOperation,
 } from '../telemetry/metrics.js';
+import { IdeClient } from '../ide/ide-client.js';
 
 /**
  * Parameters for the WriteFile tool
@@ -68,6 +69,7 @@ export class WriteFileTool
   implements ModifiableTool<WriteFileToolParams>
 {
   static readonly Name: string = 'write_file';
+  private ideClient?: IdeClient;
 
   constructor(private readonly config: Config) {
     super(
@@ -93,6 +95,9 @@ export class WriteFileTool
         type: Type.OBJECT,
       },
     );
+    if (this.config.getIdeMode()) {
+      this.ideClient = new IdeClient();
+    }
   }
 
   validateToolParams(params: WriteFileToolParams): string | null {
@@ -181,6 +186,15 @@ export class WriteFileTool
       DEFAULT_DIFF_OPTIONS,
     );
 
+    if (this.config.getIdeMode()) {
+      return this._handleIdeDiffConfirmation(
+        params,
+        correctedContent,
+        originalContent,
+        fileDiff,
+      );
+    }
+
     const confirmationDetails: ToolEditConfirmationDetails = {
       type: 'edit',
       title: `Confirm Write: ${shortenPath(relativePath)}`,
@@ -192,6 +206,40 @@ export class WriteFileTool
         if (outcome === ToolConfirmationOutcome.ProceedAlways) {
           this.config.setApprovalMode(ApprovalMode.AUTO_EDIT);
         }
+      },
+    };
+    return confirmationDetails;
+  }
+
+  private async _handleIdeDiffConfirmation(
+    params: WriteFileToolParams,
+    newContent: string,
+    originalContent: string,
+    fileDiff: string,
+  ): Promise<ToolCallConfirmationDetails | false> {
+    if (!this.ideClient) {
+      return false;
+    }
+
+    await this.ideClient.openDiff(params.file_path, newContent);
+
+    const relativePath = makeRelative(
+      params.file_path,
+      this.config.getTargetDir(),
+    );
+
+    const confirmationDetails: ToolEditConfirmationDetails = {
+      type: 'edit',
+      title: `Confirm Write: ${shortenPath(relativePath)}`,
+      fileName: path.basename(params.file_path),
+      fileDiff,
+      originalContent,
+      newContent,
+      onConfirm: async (outcome: ToolConfirmationOutcome) => {
+        if (outcome === ToolConfirmationOutcome.ProceedAlways) {
+          this.config.setApprovalMode(ApprovalMode.AUTO_EDIT);
+        }
+        await this.ideClient?.closeDiff(params.file_path);
       },
     };
     return confirmationDetails;

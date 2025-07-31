@@ -24,6 +24,8 @@ export enum IDEConnectionStatus {
   Connecting = 'connecting',
 }
 
+type DiffUpdateStatus = 'accepted' | 'rejected';
+
 /**
  * Manages the connection to and interaction with the IDE server.
  */
@@ -32,6 +34,7 @@ export class IdeClient {
   private state: IDEConnectionState = {
     status: IDEConnectionStatus.Disconnected,
   };
+  private diffResponses = new Map<string, (result: DiffUpdateStatus) => void>();
 
   constructor() {
     this.init().catch((err) => {
@@ -153,5 +156,38 @@ export class IdeClient {
     }
 
     await this.establishConnection(port);
+  }
+
+  async openDiff(filePath: string, newContent?: string): Promise<void> {
+    logger.debug(`Opening diff for ${filePath}`);
+    await this.client
+      ?.callTool({
+        name: `openDiff`,
+        arguments: {
+          filePath,
+          newContent,
+        },
+      })
+      .catch((err) => {
+        logger.debug(`callTool for ${filePath} failed:`, err);
+        this.diffResponses.delete(filePath);
+      });
+    return;
+  }
+
+  async closeDiff(filePath: string): Promise<void> {
+    logger.debug(`Opening diff for ${filePath}`);
+    await this.client
+      ?.callTool({
+        name: `closeDiff`,
+        arguments: {
+          filePath,
+        },
+      })
+      .catch((err) => {
+        logger.debug(`callTool for ${filePath} failed:`, err);
+        this.diffResponses.delete(filePath);
+      });
+    return;
   }
 }

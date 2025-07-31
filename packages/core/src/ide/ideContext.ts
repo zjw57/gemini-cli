@@ -40,6 +40,20 @@ export const IdeContextNotificationSchema = z.object({
   params: IdeContextSchema,
 });
 
+export const DiffAcceptedNotificationSchema = z.object({
+  method: z.literal('ide/diffAccepted'),
+  params: z.object({
+    filePath: z.string(),
+    content: z.string(),
+  }),
+});
+
+export const DiffClosedNotificationSchema = z.object({
+  method: z.literal('ide/diffClosed'),
+  params: z.object({
+    filePath: z.string(),
+  }),
+});
 type IdeContextSubscriber = (ideContext: IdeContext | undefined) => void;
 
 /**
