@@ -254,7 +254,7 @@ export class WriteTodosTool extends BaseTool<WriteTodosToolParams, ToolResult> {
 
     return {
       llmContent,
-      returnDisplay: 'Todo list updated.',
+      returnDisplay: llmContent,
     };
   }
 }
