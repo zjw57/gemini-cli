@@ -18,11 +18,6 @@ export interface SaveToolOutputResult {
   filePath?: string;
 }
 
-function logAndPrint(message: string) {
-  console.log(message);
-  process.stdout.write(message + '\n');
-}
-
 export async function saveToolOutput(
   output: string,
   sessionId: string,
@@ -30,11 +25,11 @@ export async function saveToolOutput(
   signal: AbortSignal,
   tokenBudget?: number,
 ): Promise<SaveToolOutputResult> {
-  logAndPrint('Checking if tool output should be saved...');
+  console.log('Checking if tool output should be saved...');
   if (output.length > TOOL_OUTPUT_THRESHOLD) {
     const fileName = `${sessionId}_tool_call_${crypto.randomUUID()}.log`;
     const filePath = path.join(os.homedir(), fileName);
-    logAndPrint(`Saving tool output to ${filePath}`);
+    console.log(`Saving tool output to ${filePath}`);
     fs.writeFileSync(filePath, output);
 
     const summary = await summarizeToolOutput(
@@ -43,12 +38,6 @@ export async function saveToolOutput(
       signal,
       tokenBudget,
     );
-
-    // temporarily save the summary to a file fo debugging
-    const summaryFileName = fileName.replace('.log', '.txt');
-    const summaryFilePath = path.join(os.homedir(), summaryFileName);
-    logAndPrint(`Saving tool output summary to ${summaryFilePath}`);
-    fs.writeFileSync(summaryFilePath, summary);
 
     return {
       content: summary,
