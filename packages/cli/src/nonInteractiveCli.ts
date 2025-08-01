@@ -16,6 +16,42 @@ import {
 import { Content, Part, FunctionCall } from '@google/genai';
 
 import { parseAndFormatApiError } from './ui/utils/errorParsing.js';
+import { ToolCallResponseInfo } from '@google/gemini-cli-core';
+
+const DEBUG = process.env.GEMINI_DEBUG === 'true';
+
+
+function logToolCallRequest(
+  config: Config,
+  requestInfo: ToolCallRequestInfo,
+) {
+  process.stdout.write(
+    `Tool call request: [${requestInfo.callId}] ${requestInfo.name} => ${JSON.stringify(requestInfo.args)}\n`,
+  );
+}
+
+function logToolCallResult(
+  config: Config,
+  requestInfo: ToolCallRequestInfo,
+  toolResponse: ToolCallResponseInfo,
+) {
+  const status = toolResponse.error ? 'ERROR' : 'OK';
+  if (toolResponse.error) {
+    process.stdout.write(
+      `Tool call status: ${status} ${requestInfo.name} => ${toolResponse.error.message}\n`,
+    );
+  } else {
+    if (toolResponse.resultDisplay) {
+      process.stdout.write(
+        `Tool call status: ${status} ${requestInfo.name} => ${toolResponse.resultDisplay}\n`,
+      );
+    } else {
+      process.stdout.write(
+        `Tool call status: ${status} ${requestInfo.name}\n`,
+      );
+    }
+  }
+}
 
 export async function runNonInteractive(
   config: Config,
@@ -23,6 +59,7 @@ export async function runNonInteractive(
   prompt_id: string,
 ): Promise<void> {
   await config.initialize();
+  process.stdout.write(`User: ${input}\n`);
   // Handle EPIPE errors when the output is piped to a command that closes early.
   process.stdout.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EPIPE') {
@@ -67,6 +104,7 @@ export async function runNonInteractive(
           process.stdout.write(event.value);
         } else if (event.type === GeminiEventType.ToolCallRequest) {
           const toolCallRequest = event.value;
+          logToolCallRequest(config, toolCallRequest);
           const fc: FunctionCall = {
             name: toolCallRequest.name,
             args: toolCallRequest.args,
@@ -95,6 +133,8 @@ export async function runNonInteractive(
             toolRegistry,
             abortController.signal,
           );
+
+          logToolCallResult(config, requestInfo, toolResponse);
 
           if (toolResponse.error) {
             const isToolNotFound = toolResponse.error.message.includes(
