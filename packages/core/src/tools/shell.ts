@@ -210,11 +210,11 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
       const commandToExecute = isWindows
         ? strippedCommand
         : (() => {
-          // wrap command to append subprocess pids (via pgrep) to temporary file
-          let command = strippedCommand.trim();
-          if (!command.endsWith('&')) command += ';';
-          return `{ ${command} }; __code=$?; pgrep -g 0 >${tempFilePath} 2>&1; exit $__code;`;
-        })();
+            // wrap command to append subprocess pids (via pgrep) to temporary file
+            let command = strippedCommand.trim();
+            if (!command.endsWith('&')) command += ';';
+            return `{ ${command} }; __code=$?; pgrep -g 0 >${tempFilePath} 2>&1; exit $__code;`;
+          })();
 
       const cwd = path.resolve(
         this.config.getTargetDir(),
@@ -329,7 +329,8 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
           `Error: ${finalError}`, // Use the cleaned error string.
           `Exit Code: ${result.exitCode ?? '(none)'}`,
           `Signal: ${result.signal ?? '(none)'}`,
-          `Background PIDs: ${backgroundPIDs.length ? backgroundPIDs.join(', ') : '(none)'
+          `Background PIDs: ${
+            backgroundPIDs.length ? backgroundPIDs.join(', ') : '(none)'
           }`,
           `Process Group PGID: ${result.pid ?? '(none)'}`,
         ].join('\n');
