@@ -44,7 +44,8 @@ export async function saveToolOutput(
       tokenBudget,
     );
 
-    const summaryFileName = fileName.replace('.log', '.summary');
+    // temporarily save the summary to a file fo debugging
+    const summaryFileName = fileName.replace('.log', '.txt');
     const summaryFilePath = path.join(os.homedir(), summaryFileName);
     logAndPrint(`Saving tool output summary to ${summaryFilePath}`);
     fs.writeFileSync(summaryFilePath, summary);
