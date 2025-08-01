@@ -20,13 +20,22 @@ import { ToolCallResponseInfo } from '@google/gemini-cli-core';
 
 const DEBUG = process.env.GEMINI_DEBUG === 'true';
 
+function logModelResponse(response: Content) {
+  response.parts?.map((part) => {
+    if (part.thought) {
+      process.stdout.write('Gemini Thoughts 💭: ' + part.text + '\n');
+    } else {
+      process.stdout.write('Gemini 🤖: ' + part.text + '\n');
+    }
+  });
+}
 
 function logToolCallRequest(
   config: Config,
   requestInfo: ToolCallRequestInfo,
 ) {
   process.stdout.write(
-    `Tool call request: [${requestInfo.callId}] ${requestInfo.name} => ${JSON.stringify(requestInfo.args)}\n`,
+    `Tool call request:🔨 [${requestInfo.name}] => ${JSON.stringify(requestInfo.args)}\n`,
   );
 }
 
@@ -38,16 +47,16 @@ function logToolCallResult(
   const status = toolResponse.error ? 'ERROR' : 'OK';
   if (toolResponse.error) {
     process.stdout.write(
-      `Tool call status: ${status} ${requestInfo.name} => ${toolResponse.error.message}\n`,
+      `Tool call status:❌ ${status} ${requestInfo.name} => ${toolResponse.error.message}\n`,
     );
   } else {
     if (toolResponse.resultDisplay) {
       process.stdout.write(
-        `Tool call status: ${status} ${requestInfo.name} => ${toolResponse.resultDisplay}\n`,
+        `Tool call status:✅ ${status} ${requestInfo.name} => ${toolResponse.resultDisplay}\n`,
       );
     } else {
       process.stdout.write(
-        `Tool call status: ${status} ${requestInfo.name}\n`,
+        `Tool call status:✅ ${status} ${requestInfo.name}\n`,
       );
     }
   }
@@ -59,7 +68,6 @@ export async function runNonInteractive(
   prompt_id: string,
 ): Promise<void> {
   await config.initialize();
-  process.stdout.write(`User: ${input}\n`);
   // Handle EPIPE errors when the output is piped to a command that closes early.
   process.stdout.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EPIPE') {
@@ -73,6 +81,7 @@ export async function runNonInteractive(
 
   const abortController = new AbortController();
   let currentMessages: Content[] = [{ role: 'user', parts: [{ text: input }] }];
+  process.stdout.write(`User 🖥️: ${input}\n`);
   let turnCount = 0;
   try {
     while (true) {
@@ -101,6 +110,7 @@ export async function runNonInteractive(
         }
 
         if (event.type === GeminiEventType.Content) {
+          logModelResponse(JSON.parse(event.value));
           process.stdout.write(event.value);
         } else if (event.type === GeminiEventType.ToolCallRequest) {
           const toolCallRequest = event.value;
