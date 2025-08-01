@@ -32,17 +32,15 @@ import { GeminiClient } from '../core/client.js';
 /**
  * Defines the available strategies for the edit tool.
  */
-export enum EditMode {
+export enum ReplaceStrategy {
   /** Strict, exact string replacement. */
   EXACT = 'exact',
   /** Uses the AI-powered corrector to find the best match. This is the default. */
   CORRECTOR = 'corrector',
   /** A flexible, line-by-line match that ignores whitespace. */
   FUZZY = 'fuzzy',
-  /** A modified version of the fuzzy match with different indentation handling. */
-  MODIFIED_FUZZY = 'modified_fuzzy',
-  /** Tries all strategies from strictest to most lenient, stopping at the first success. */
-  ALL = 'all',
+  /** Tries a sequence of strategies, stopping at the first success. */
+  COMPOSITE = 'composite',
 }
 
 /**
@@ -86,28 +84,31 @@ interface CalculatedEdit {
 
 // --- Edit Strategy Implementation ---
 
-interface EditStrategyContext {
+interface ReplaceStrategyContext {
   params: EditToolParams;
   currentContent: string;
   geminiClient: GeminiClient;
   abortSignal: AbortSignal;
 }
 
-interface EditStrategyResult {
+interface ReplaceStrategyResult {
   newContent: string;
   occurrences: number;
   finalOldString: string;
   finalNewString: string;
+  mode: ReplaceStrategy;
 }
 
-interface EditStrategy {
-  readonly mode: EditMode;
-  performEdit(context: EditStrategyContext): Promise<EditStrategyResult>;
+interface ReplaceStrategyImpl {
+  readonly mode: ReplaceStrategy;
+  performEdit(context: ReplaceStrategyContext): Promise<ReplaceStrategyResult>;
 }
 
-class ExactStrategy implements EditStrategy {
-  readonly mode = EditMode.EXACT;
-  async performEdit(context: EditStrategyContext): Promise<EditStrategyResult> {
+class ExactStrategy implements ReplaceStrategyImpl {
+  readonly mode = ReplaceStrategy.EXACT;
+  async performEdit(
+    context: ReplaceStrategyContext,
+  ): Promise<ReplaceStrategyResult> {
     const { currentContent, params } = context;
     const finalOldString = params.old_string.replace(/\r\n/g, '\n');
     const finalNewString = params.new_string.replace(/\r\n/g, '\n');
@@ -116,13 +117,21 @@ class ExactStrategy implements EditStrategy {
       finalOldString,
       finalNewString,
     );
-    return { newContent, occurrences, finalOldString, finalNewString };
+    return {
+      newContent,
+      occurrences,
+      finalOldString,
+      finalNewString,
+      mode: this.mode,
+    };
   }
 }
 
-class CorrectorStrategy implements EditStrategy {
-  readonly mode = EditMode.CORRECTOR;
-  async performEdit(context: EditStrategyContext): Promise<EditStrategyResult> {
+class CorrectorStrategy implements ReplaceStrategyImpl {
+  readonly mode = ReplaceStrategy.CORRECTOR;
+  async performEdit(
+    context: ReplaceStrategyContext,
+  ): Promise<ReplaceStrategyResult> {
     const { currentContent, params, geminiClient, abortSignal } = context;
     const correctedEdit = await ensureCorrectEdit(
       params.file_path,
@@ -139,13 +148,21 @@ class CorrectorStrategy implements EditStrategy {
       finalOldString,
       finalNewString,
     );
-    return { newContent, occurrences, finalOldString, finalNewString };
+    return {
+      newContent,
+      occurrences,
+      finalOldString,
+      finalNewString,
+      mode: this.mode,
+    };
   }
 }
 
-class FuzzyStrategy implements EditStrategy {
-  readonly mode = EditMode.FUZZY;
-  async performEdit(context: EditStrategyContext): Promise<EditStrategyResult> {
+class FuzzyStrategy implements ReplaceStrategyImpl {
+  readonly mode = ReplaceStrategy.FUZZY;
+  async performEdit(
+    context: ReplaceStrategyContext,
+  ): Promise<ReplaceStrategyResult> {
     const { currentContent, params } = context;
     const { old_string, new_string } = params;
     const hadTrailingNewline = currentContent.endsWith('\n');
@@ -160,6 +177,7 @@ class FuzzyStrategy implements EditStrategy {
         occurrences: 0,
         finalOldString: normalizedSearch,
         finalNewString: normalizedReplace,
+        mode: this.mode,
       };
     }
 
@@ -179,6 +197,7 @@ class FuzzyStrategy implements EditStrategy {
         occurrences: exactOccurrences,
         finalOldString: normalizedSearch,
         finalNewString: normalizedReplace,
+        mode: this.mode,
       };
     }
 
@@ -228,6 +247,7 @@ class FuzzyStrategy implements EditStrategy {
         occurrences: flexibleOccurrences,
         finalOldString: normalizedSearch,
         finalNewString: normalizedReplace,
+        mode: this.mode,
       };
     }
 
@@ -236,81 +256,7 @@ class FuzzyStrategy implements EditStrategy {
       occurrences: 0,
       finalOldString: normalizedSearch,
       finalNewString: normalizedReplace,
-    };
-  }
-}
-
-class ModifiedFuzzyStrategy implements EditStrategy {
-  readonly mode = EditMode.MODIFIED_FUZZY;
-  async performEdit(context: EditStrategyContext): Promise<EditStrategyResult> {
-    const { currentContent, params } = context;
-    const { old_string, new_string } = params;
-
-    const content = currentContent;
-    const normalizedOld = old_string.replace(/\r\n/g, '\n');
-    const normalizedNew = new_string.replace(/\r\n/g, '\n');
-
-    if (normalizedOld !== '') {
-      const exactOccurrences = content.split(normalizedOld).length - 1;
-      if (exactOccurrences > 0) {
-        const newContent = content.replaceAll(normalizedOld, normalizedNew);
-        return {
-          newContent,
-          occurrences: exactOccurrences,
-          finalOldString: normalizedOld,
-          finalNewString: normalizedNew,
-        };
-      }
-    }
-
-    const oldLines = normalizedOld.split('\n');
-    const contentLines = content.split('\n');
-    let occurrences = 0;
-
-    for (let i = 0; i <= contentLines.length - oldLines.length; i++) {
-      const potentialMatch = contentLines.slice(i, i + oldLines.length);
-      const isMatch = oldLines.every(
-        (oldLine, j) => oldLine.trim() === potentialMatch[j].trim(),
-      );
-
-      if (isMatch) {
-        occurrences++;
-        const originalIndent = contentLines[i].match(/^\s*/)?.[0] || '';
-        const newLines = normalizedNew.split('\n').map((line, j) => {
-          if (j === 0) return originalIndent + line.trimStart();
-          const oldIndent = oldLines[j]?.match(/^\s*/)?.[0] || '';
-          const newIndent = line.match(/^\s*/)?.[0] || '';
-          if (oldIndent && newIndent) {
-            const relativeIndent = newIndent.length - oldIndent.length;
-            return (
-              originalIndent +
-              ' '.repeat(Math.max(0, relativeIndent)) +
-              line.trimStart()
-            );
-          }
-          return line;
-        });
-
-        contentLines.splice(i, oldLines.length, ...newLines);
-        i += newLines.length - 1;
-      }
-    }
-
-    if (occurrences > 0) {
-      const newContent = contentLines.join('\n');
-      return {
-        newContent,
-        occurrences,
-        finalOldString: normalizedOld,
-        finalNewString: normalizedNew,
-      };
-    }
-
-    return {
-      newContent: currentContent,
-      occurrences: 0,
-      finalOldString: normalizedOld,
-      finalNewString: normalizedNew,
+      mode: this.mode,
     };
   }
 }
@@ -320,57 +266,63 @@ interface ValidationContext {
   expectedReplacements: number;
   finalOldString: string;
   finalNewString: string;
-  mode: EditMode;
+  mode: ReplaceStrategy;
   filePath: string;
 }
 
 function validateEditResult(
-  context: ValidationContext,
+  context: Omit<ValidationContext, 'mode'>,
 ): CalculatedEdit['error'] | undefined {
   const {
     occurrences,
     expectedReplacements,
     finalOldString,
     finalNewString,
-    mode,
     filePath,
   } = context;
 
   if (occurrences === 0) {
     return {
-      display: `Failed to edit, could not find the string to replace using mode '${mode}'.`,
-      raw: `Failed to edit, 0 occurrences found for old_string in ${filePath} with mode '${mode}'. No edits made.`,
+      display: `Failed to edit, could not find the string to replace.`,
+      raw: `Failed to edit, 0 occurrences found for old_string in ${filePath}. No edits made.`,
       type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
     };
   }
   if (occurrences !== expectedReplacements) {
     const term = expectedReplacements === 1 ? 'occurrence' : 'occurrences';
     return {
-      display: `Failed to edit, expected ${expectedReplacements} ${term} but found ${occurrences} using mode '${mode}'.`,
-      raw: `Expected ${expectedReplacements} ${term} but found ${occurrences} for old_string in ${filePath} with mode '${mode}'.`,
+      display: `Failed to edit, expected ${expectedReplacements} ${term} but found ${occurrences}.`,
+      raw: `Expected ${expectedReplacements} ${term} but found ${occurrences} for old_string in ${filePath}.`,
       type: ToolErrorType.EDIT_EXPECTED_OCCURRENCE_MISMATCH,
     };
   }
   if (finalOldString === finalNewString) {
     return {
       display: `No changes to apply. The old_string and new_string are identical.`,
-      raw: `No changes to apply. The old_string and new_string are identical in file: ${filePath}`,
+      raw: `No changes to apply. The old_string and new_string are identical in file: ${filePath}.`,
       type: ToolErrorType.EDIT_NO_CHANGE,
     };
   }
   return undefined;
 }
 
-class AllStrategy implements EditStrategy {
-  readonly mode = EditMode.ALL;
-  private strategies: EditStrategy[] = [
-    new ExactStrategy(),
-    new CorrectorStrategy(),
-    new ModifiedFuzzyStrategy(),
-    new FuzzyStrategy(),
-  ];
+class CompositeStrategy implements ReplaceStrategyImpl {
+  readonly mode = ReplaceStrategy.COMPOSITE;
+  private strategies: ReplaceStrategyImpl[];
 
-  async performEdit(context: EditStrategyContext): Promise<EditStrategyResult> {
+  constructor(
+    strategies: ReplaceStrategyImpl[] = [
+      new ExactStrategy(),
+      new CorrectorStrategy(),
+      new FuzzyStrategy(),
+    ],
+  ) {
+    this.strategies = strategies;
+  }
+
+  async performEdit(
+    context: ReplaceStrategyContext,
+  ): Promise<ReplaceStrategyResult> {
     const { params } = context;
     const expectedReplacements = params.expected_replacements ?? 1;
 
@@ -380,7 +332,6 @@ class AllStrategy implements EditStrategy {
         const validationError = validateEditResult({
           ...result,
           expectedReplacements,
-          mode: strategy.mode,
           filePath: params.file_path,
         });
 
@@ -398,16 +349,16 @@ class AllStrategy implements EditStrategy {
       occurrences: 0,
       finalOldString: params.old_string,
       finalNewString: params.new_string,
+      mode: this.mode,
     };
   }
 }
 
-const editStrategies: Record<EditMode, EditStrategy> = {
-  [EditMode.EXACT]: new ExactStrategy(),
-  [EditMode.CORRECTOR]: new CorrectorStrategy(),
-  [EditMode.FUZZY]: new FuzzyStrategy(),
-  [EditMode.MODIFIED_FUZZY]: new ModifiedFuzzyStrategy(),
-  [EditMode.ALL]: new AllStrategy(),
+const editStrategies: Record<ReplaceStrategy, ReplaceStrategyImpl> = {
+  [ReplaceStrategy.EXACT]: new ExactStrategy(),
+  [ReplaceStrategy.CORRECTOR]: new CorrectorStrategy(),
+  [ReplaceStrategy.FUZZY]: new FuzzyStrategy(),
+  [ReplaceStrategy.COMPOSITE]: new CompositeStrategy(),
 };
 
 /**
@@ -529,7 +480,6 @@ Expectation for required parameters:
     abortSignal: AbortSignal,
   ): Promise<CalculatedEdit> {
     const expectedReplacements = params.expected_replacements ?? 1;
-    const mode = EditMode.CORRECTOR;
     let currentContent: string | null = null;
     let fileExists = false;
     let isNewFile = false;
@@ -593,8 +543,8 @@ Expectation for required parameters:
     }
 
     // Editing an existing file
-    const strategy = editStrategies[mode];
-    const strategyContext: EditStrategyContext = {
+    const strategy = editStrategies[this.config.getReplaceStrategy()];
+    const strategyContext: ReplaceStrategyContext = {
       params,
       currentContent: currentContent!,
       geminiClient: this.config.getGeminiClient(),
@@ -606,7 +556,6 @@ Expectation for required parameters:
     const validationError = validateEditResult({
       ...result,
       expectedReplacements,
-      mode: strategy.mode,
       filePath: params.file_path,
     });
 
