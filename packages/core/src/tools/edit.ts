@@ -39,6 +39,9 @@ export enum ReplaceStrategy {
   CORRECTOR = 'corrector',
   /** A flexible, line-by-line match that ignores whitespace. */
   FUZZY = 'fuzzy',
+
+  FUZZY_V2 = 'fuzzy_v2',
+
   /** Tries a sequence of strategies, stopping at the first success. */
   COMPOSITE = 'composite',
 }
@@ -153,6 +156,123 @@ class CorrectorStrategy implements ReplaceStrategyImpl {
       occurrences,
       finalOldString,
       finalNewString,
+      mode: this.mode,
+    };
+  }
+}
+
+class FuzzyStrategyV2 implements ReplaceStrategyImpl {
+  readonly mode = ReplaceStrategy.FUZZY_V2;
+  async performEdit(
+    context: ReplaceStrategyContext,
+  ): Promise<ReplaceStrategyResult> {
+    const { currentContent, params } = context;
+    const { old_string, new_string } = params;
+    const hadTrailingNewline = currentContent.endsWith('\n');
+
+    const normalizedCode = currentContent;
+    const normalizedSearch = old_string.replace(/\r\n/g, '\n');
+    const normalizedReplace = new_string.replace(/\r\n/g, '\n');
+
+    if (normalizedSearch === '') {
+      return {
+        newContent: currentContent,
+        occurrences: 0,
+        finalOldString: normalizedSearch,
+        finalNewString: normalizedReplace,
+        mode: this.mode,
+      };
+    }
+
+    const exactOccurrences = normalizedCode.split(normalizedSearch).length - 1;
+    if (exactOccurrences > 0) {
+      let modifiedCode = normalizedCode.replaceAll(
+        normalizedSearch,
+        normalizedReplace,
+      );
+      if (hadTrailingNewline && !modifiedCode.endsWith('\n')) {
+        modifiedCode += '\n';
+      } else if (!hadTrailingNewline && modifiedCode.endsWith('\n')) {
+        modifiedCode = modifiedCode.replace(/\n$/, '');
+      }
+      return {
+        newContent: modifiedCode,
+        occurrences: exactOccurrences,
+        finalOldString: normalizedSearch,
+        finalNewString: normalizedReplace,
+        mode: this.mode,
+      };
+    }
+
+    const sourceLines = normalizedCode.match(/.*(?:\n|$)/g)?.slice(0, -1) ?? [];
+    const searchLinesStripped = normalizedSearch
+      .split('\n')
+      .map((line) => line.trim());
+    const searchLines = normalizedSearch.split('\n'); // testing more robust indentation
+    const replaceLines = normalizedReplace.split('\n');
+
+    let flexibleOccurrences = 0;
+    let i = 0;
+    while (i <= sourceLines.length - searchLinesStripped.length) {
+      const window = sourceLines.slice(i, i + searchLinesStripped.length);
+      const windowStripped = window.map((line) => line.trim());
+      const isMatch = windowStripped.every(
+        (line, index) => line === searchLinesStripped[index],
+      );
+
+      if (isMatch) {
+        flexibleOccurrences++;
+        const originalIndent = window[0].match(/^\s*/)?.[0] || '';
+
+        const newBlockWithIndent = replaceLines.map((line, index) => {
+          if (index === 0) {
+            return originalIndent + line.trimStart();
+          }
+          const oldLineIndent = searchLines[index]?.match(/^\s*/)?.[0] || '';
+          const newLineIndent = line.match(/^\s*/)?.[0] || '';
+
+          if (oldLineIndent && newLineIndent) {
+            const relativeIndentLength =
+              newLineIndent.length - oldLineIndent.length;
+            const relativeIndent = ' '.repeat(
+              Math.max(0, relativeIndentLength),
+            );
+            return originalIndent + relativeIndent + line.trimStart();
+          }
+          return originalIndent + line;
+        });
+        sourceLines.splice(
+          i,
+          searchLinesStripped.length,
+          ...newBlockWithIndent,
+        );
+        i += replaceLines.length;
+      } else {
+        i++;
+      }
+    }
+
+    if (flexibleOccurrences > 0) {
+      let modifiedCode = sourceLines.join('');
+      if (hadTrailingNewline && !modifiedCode.endsWith('\n')) {
+        modifiedCode += '\n';
+      } else if (!hadTrailingNewline && modifiedCode.endsWith('\n')) {
+        modifiedCode = modifiedCode.replace(/\n$/, '');
+      }
+      return {
+        newContent: modifiedCode,
+        occurrences: flexibleOccurrences,
+        finalOldString: normalizedSearch,
+        finalNewString: normalizedReplace,
+        mode: this.mode,
+      };
+    }
+
+    return {
+      newContent: currentContent,
+      occurrences: 0,
+      finalOldString: normalizedSearch,
+      finalNewString: normalizedReplace,
       mode: this.mode,
     };
   }
@@ -313,8 +433,8 @@ class CompositeStrategy implements ReplaceStrategyImpl {
   constructor(
     strategies: ReplaceStrategyImpl[] = [
       new ExactStrategy(),
-      new CorrectorStrategy(),
       new FuzzyStrategy(),
+      new CorrectorStrategy(),
     ],
   ) {
     this.strategies = strategies;
@@ -358,6 +478,7 @@ const editStrategies: Record<ReplaceStrategy, ReplaceStrategyImpl> = {
   [ReplaceStrategy.EXACT]: new ExactStrategy(),
   [ReplaceStrategy.CORRECTOR]: new CorrectorStrategy(),
   [ReplaceStrategy.FUZZY]: new FuzzyStrategy(),
+  [ReplaceStrategy.FUZZY_V2]: new FuzzyStrategyV2(),
   [ReplaceStrategy.COMPOSITE]: new CompositeStrategy(),
 };
 
@@ -414,6 +535,7 @@ Expectation for required parameters:
         type: Type.OBJECT,
       },
     );
+    console.log(`Replace strategy : ${this.config.getReplaceStrategy()}`);
   }
 
   /**
@@ -529,6 +651,12 @@ Expectation for required parameters:
         display: `Failed to edit. Attempted to create a file that already exists.`,
         raw: `File already exists, cannot create: ${params.file_path}`,
         type: ToolErrorType.ATTEMPT_TO_CREATE_EXISTING_FILE,
+      };
+    } else if (params.old_string === params.new_string) {
+      error = {
+        display: `No changes to apply. The old_string and new_string are identical.`,
+        raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}.`,
+        type: ToolErrorType.EDIT_NO_CHANGE,
       };
     }
 
