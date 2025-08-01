@@ -109,6 +109,7 @@ export interface Settings {
   disableAutoUpdate?: boolean;
 
   memoryDiscoveryMaxDirs?: number;
+  launchTarget?: 'terminal' | 'electron';
 }
 
 export interface SettingsError {

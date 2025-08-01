@@ -232,6 +232,26 @@ export async function main() {
   const shouldBeInteractive =
     !!argv.promptInteractive || (process.stdin.isTTY && input?.length === 0);
 
+  if (argv.startGui || argv._[0] === 'gui') {
+    const child = spawn('npm', ['run', 'dev'], {
+      cwd: 'packages/electron-app',
+      detached: true,
+      stdio: 'inherit',
+    });
+    child.unref();
+    process.exit(0);
+  }
+
+  if (settings.merged.launchTarget === 'electron' && !argv.launchElectron) {
+    const child = spawn('npm', ['run', 'dev'], {
+      cwd: 'packages/electron-app',
+      detached: true,
+      stdio: 'inherit',
+    });
+    child.unref();
+    process.exit(0);
+  }
+
   // Render UI, passing necessary config values. Check that there is no command line question.
   if (shouldBeInteractive) {
     const version = await getCliVersion();

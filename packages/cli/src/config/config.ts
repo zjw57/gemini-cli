@@ -63,6 +63,9 @@ export interface CliArgs {
   ideModeFeature: boolean | undefined;
   proxy: string | undefined;
   includeDirectories: string[] | undefined;
+  launchElectron: boolean | undefined;
+  startGui: boolean | undefined;
+  _: (string | number)[];
 }
 
 export async function parseArguments(): Promise<CliArgs> {
@@ -210,6 +213,16 @@ export async function parseArguments(): Promise<CliArgs> {
         // Handle comma-separated values
         dirs.flatMap((dir) => dir.split(',').map((d) => d.trim())),
     })
+    .option('launch-electron', {
+      type: 'boolean',
+      description: 'Launch the Electron app.',
+      hidden: true,
+    })
+    .option('start-gui', {
+      type: 'boolean',
+      description: 'Launch the Electron GUI app.',
+    })
+    .command('gui', 'Launch the Electron GUI app.')
     .version(await getCliVersion()) // This will enable the --version flag based on package.json
     .alias('v', 'version')
     .help()

@@ -115,7 +115,13 @@ export default tseslint.config(
       'import/no-internal-modules': [
         'error',
         {
-          allow: ['react-dom/test-utils', 'memfs/lib/volume.js', 'yargs/**'],
+          allow: [
+            'react-dom/test-utils',
+            'memfs/lib/volume.js',
+            'yargs/**',
+            'react-dom/client',
+            '@xterm/xterm/css/xterm.css',
+          ],
         },
       ],
       'import/no-relative-packages': 'error',
