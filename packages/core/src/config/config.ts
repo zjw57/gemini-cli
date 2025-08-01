@@ -47,6 +47,7 @@ import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js'
 import { shouldAttemptBrowserLaunch } from '../utils/browser.js';
 import { MCPOAuthConfig } from '../mcp/oauth-provider.js';
 import { IdeClient } from '../ide/ide-client.js';
+import { WriteTodosTool } from '../tools/write-todos.js';
 
 // Re-export OAuth config type
 export type { MCPOAuthConfig };
@@ -641,6 +642,7 @@ export class Config {
     registerCoreTool(ShellTool, this);
     registerCoreTool(MemoryTool);
     registerCoreTool(WebSearchTool, this);
+    registerCoreTool(WriteTodosTool, this);
 
     await registry.discoverAllTools();
     return registry;

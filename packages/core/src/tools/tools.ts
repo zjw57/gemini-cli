@@ -297,6 +297,7 @@ export enum Icon {
   Pencil = 'pencil',
   Regex = 'regex',
   Terminal = 'terminal',
+  Checklist = 'checklist',
 }
 
 export interface ToolLocation {
