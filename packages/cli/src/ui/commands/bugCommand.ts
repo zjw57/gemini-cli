@@ -17,27 +17,6 @@ import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
 import { formatMemoryUsage } from '../utils/formatters.js';
 import { getCliVersion } from '../../utils/version.js';
 
-const BOX_WIDTH = 120;
-
-function drawBox(content: string): string {
-  const lines = content.split('\n');
-  const top = '╭' + '─'.repeat(BOX_WIDTH - 2) + '╮';
-  const bottom = '╰' + '─'.repeat(BOX_WIDTH - 2) + '╯';
-
-  const middle = lines
-    .map((line) => {
-      // Truncate long lines
-      const truncatedLine =
-        line.length > BOX_WIDTH - 4
-          ? line.slice(0, BOX_WIDTH - 7) + '...'
-          : line;
-      return '│ ' + truncatedLine.padEnd(BOX_WIDTH - 4, ' ') + ' │';
-    })
-    .join('\n');
-
-  return [top, middle, bottom].join('\n');
-}
-
 export const bugCommand: SlashCommand = {
   name: 'bug',
   description: 'submit a bug report',
@@ -86,18 +65,20 @@ export const bugCommand: SlashCommand = {
               .map((tool) => {
                 let output = `Tool Call: ${tool.name}, Status: ${
                   tool.status
-                }\nDescription: ${tool.description || 'N/A'}`;
+                }, Description: ${tool.description || 'N/A'}`;
                 if (tool.resultDisplay) {
                   if (
                     typeof tool.resultDisplay === 'object' &&
                     'fileDiff' in tool.resultDisplay
                   ) {
-                    output += `\nOutput:\n${tool.resultDisplay.fileDiff}`;
+                    output += `
+Tool Response: ${tool.resultDisplay.fileDiff}`;
                   } else if (typeof tool.resultDisplay === 'string') {
-                    output += `\nOutput:\n${tool.resultDisplay}`;
+                    output += `
+Tool Response: ${tool.resultDisplay}`;
                   }
                 }
-                return drawBox(output);
+                return output;
               })
               .join('\n');
             break;
@@ -128,7 +109,7 @@ export const bugCommand: SlashCommand = {
       '',
       '**Last Gemini CLI Response**',
       '```',
-      lastCliResponse,
+      lastCliResponse || 'N/A',
       '```',
     ].join('\n');
 
@@ -149,10 +130,86 @@ export const bugCommand: SlashCommand = {
       bugReportUrl = bugCommandSettings.urlTemplate;
     }
 
-    bugReportUrl = bugReportUrl
+    let url = bugReportUrl
       .replace('{title}', encodeURIComponent(bugDescription))
       .replace('{info}', encodeURIComponent(info))
       .replace('{problem}', encodeURIComponent(problem));
+
+    let wasTruncated = false;
+    while (url.length > 8000 && subsequentItems.length > 0) {
+      wasTruncated = true;
+      subsequentItems.shift();
+      const truncatedCliResponses = subsequentItems
+        .reduce((acc, item) => {
+          let responseText = '';
+          switch (item.type) {
+            case 'gemini':
+            case 'gemini_content':
+              responseText = `✦ ${stripAnsi(item.text)}`;
+              break;
+            case 'tool_group':
+              responseText = item.tools
+                .map((tool) => {
+                  let output = `Tool Call: ${tool.name}, Status: ${
+                    tool.status
+                  }, Description: ${tool.description || 'N/A'}`;
+                  if (tool.resultDisplay) {
+                    if (
+                      typeof tool.resultDisplay === 'object' &&
+                      'fileDiff' in tool.resultDisplay
+                    ) {
+                      output += `\nTool Response: ${tool.resultDisplay.fileDiff}`;
+                    } else if (typeof tool.resultDisplay === 'string') {
+                      output += `\nTool Response: ${tool.resultDisplay}`;
+                    }
+                  }
+                  return output;
+                })
+                .join('\n');
+              break;
+            case 'error':
+              responseText = `✕ ${stripAnsi(item.text)}`;
+              break;
+            case 'info':
+              if (item.text.startsWith('To submit your bug report')) {
+                return acc;
+              }
+              responseText = `ℹ ${stripAnsi(item.text)}`;
+              break;
+            default:
+              return acc;
+          }
+          acc.push(responseText);
+          return acc;
+        }, [] as string[])
+        .join('\n\n---\n\n');
+      const truncatedLastCliResponse = truncatedCliResponses.length
+        ? truncatedCliResponses
+        : '... truncated response due to character limit ...';
+
+      const problemText =
+        truncatedCliResponses.length > 0 && wasTruncated
+          ? `... truncated response due to character limit ...\n${truncatedLastCliResponse}`
+          : truncatedLastCliResponse;
+
+      const truncatedProblem = [
+        '**Last User Prompt**',
+        '```',
+        lastUserPrompt?.text || 'N/A',
+        '```',
+        '',
+        '**Last Gemini CLI Response**',
+        '```',
+        problemText,
+        '```',
+      ].join('\n');
+      url = bugReportUrl
+        .replace('{title}', encodeURIComponent(bugDescription))
+        .replace('{info}', encodeURIComponent(info))
+        .replace('{problem}', encodeURIComponent(truncatedProblem));
+    }
+
+    bugReportUrl = url;
 
     context.ui.addItem(
       {

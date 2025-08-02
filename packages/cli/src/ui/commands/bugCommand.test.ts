@@ -13,27 +13,6 @@ import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
 import { formatMemoryUsage } from '../utils/formatters.js';
 import { HistoryItem, ToolCallStatus } from '../types.js';
 
-const BOX_WIDTH = 120;
-
-function drawBox(content: string): string {
-  const lines = content.split('\n');
-  const top = '╭' + '─'.repeat(BOX_WIDTH - 2) + '╮';
-  const bottom = '╰' + '─'.repeat(BOX_WIDTH - 2) + '╯';
-
-  const middle = lines
-    .map((line) => {
-      // Truncate long lines
-      const truncatedLine =
-        line.length > BOX_WIDTH - 4
-          ? line.slice(0, BOX_WIDTH - 7) + '...'
-          : line;
-      return '│ ' + truncatedLine.padEnd(BOX_WIDTH - 4, ' ') + ' │';
-    })
-    .join('\n');
-
-  return [top, middle, bottom].join('\n');
-}
-
 // Mock dependencies
 vi.mock('open');
 vi.mock('../../utils/version.js');
@@ -250,9 +229,7 @@ Second line of response.`;
       '```',
       [
         `✦ Okay, which files?`,
-        drawBox(
-          `Tool Call: list_files, Status: ${ToolCallStatus.Success}\nDescription: N/A`,
-        ),
+        `Tool Call: list_files, Status: Success, Description: N/A`,
         `✦ I have listed the files.`,
       ].join('\n\n---\n\n'),
       '```',
@@ -266,5 +243,60 @@ Second line of response.`;
       .replace('{problem}', encodeURIComponent(expectedProblem));
 
     expect(open).toHaveBeenCalledWith(expectedUrl);
+  });
+
+  it('should truncate the URL and add a message if it exceeds 8000 characters', async () => {
+    const longText = 'a'.repeat(8000);
+    const mockContext = createMockCommandContext({
+      services: {
+        config: {
+          getModel: () => 'gemini-pro',
+          getBugCommand: () => undefined,
+        },
+      },
+      ui: {
+        history: [
+          { type: 'user', text: 'show me my files', id: 1 },
+          { type: 'gemini', text: longText, id: 2 },
+          { type: 'gemini', text: 'some more text', id: 3 },
+          { type: 'user', text: '/bug A long bug', id: 4 },
+        ] as HistoryItem[],
+      },
+    });
+
+    if (!bugCommand.action) throw new Error('Action is not defined');
+    await bugCommand.action(mockContext, 'A long bug');
+
+    const expectedInfo = `
+* **CLI Version:** 0.1.0
+* **Git Commit:** ${GIT_COMMIT_INFO}
+* **Operating System:** test-platform v20.0.0
+* **Sandbox Environment:** test
+* **Model Version:** gemini-pro
+* **Memory Usage:** 100 MB
+`;
+
+    const expectedProblem = [
+      '**Last User Prompt**',
+      '```',
+      'show me my files',
+      '```',
+      '',
+      '**Last Gemini CLI Response**',
+      '```',
+      `... truncated response due to character limit ...
+✦ some more text`,
+      '```',
+    ].join('\n');
+
+    let expectedUrl =
+      'https://github.com/google-gemini/gemini-cli/issues/new?template=bug_report.yml&title={title}&info={info}&problem={problem}';
+    expectedUrl = expectedUrl
+      .replace('{title}', encodeURIComponent('A long bug'))
+      .replace('{info}', encodeURIComponent(expectedInfo))
+      .replace('{problem}', encodeURIComponent(expectedProblem));
+
+    expect(open).toHaveBeenCalledWith(expectedUrl);
+    expect(expectedUrl.length).toBeLessThan(8000);
   });
 });
