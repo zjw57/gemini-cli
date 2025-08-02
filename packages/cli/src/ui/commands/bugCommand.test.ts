@@ -13,9 +13,31 @@ import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
 import { formatMemoryUsage } from '../utils/formatters.js';
 import { HistoryItem, ToolCallStatus } from '../types.js';
 
+const BOX_WIDTH = 120;
+
+function drawBox(content: string): string {
+  const lines = content.split('\n');
+  const top = '╭' + '─'.repeat(BOX_WIDTH - 2) + '╮';
+  const bottom = '╰' + '─'.repeat(BOX_WIDTH - 2) + '╯';
+
+  const middle = lines
+    .map((line) => {
+      // Truncate long lines
+      const truncatedLine =
+        line.length > BOX_WIDTH - 4
+          ? line.slice(0, BOX_WIDTH - 7) + '...'
+          : line;
+      return '│ ' + truncatedLine.padEnd(BOX_WIDTH - 4, ' ') + ' │';
+    })
+    .join('\n');
+
+  return [top, middle, bottom].join('\n');
+}
+
 // Mock dependencies
 vi.mock('open');
 vi.mock('../../utils/version.js');
+
 vi.mock('../utils/formatters.js');
 vi.mock('node:process', () => ({
   default: {
@@ -160,7 +182,7 @@ Second line of response.`;
       '',
       '**Last Gemini CLI Response**',
       '```',
-      multiLineResponse,
+      `✦ ${multiLineResponse}`,
       '```',
     ].join('\n');
 
@@ -227,9 +249,11 @@ Second line of response.`;
       '**Last Gemini CLI Response**',
       '```',
       [
-        'Okay, which files?',
-        `Tool Call: list_files, Status: ${ToolCallStatus.Success}`,
-        'I have listed the files.',
+        `✦ Okay, which files?`,
+        drawBox(
+          `Tool Call: list_files, Status: ${ToolCallStatus.Success}\nDescription: N/A`,
+        ),
+        `✦ I have listed the files.`,
       ].join('\n\n---\n\n'),
       '```',
     ].join('\n');

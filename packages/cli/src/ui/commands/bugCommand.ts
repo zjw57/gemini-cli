@@ -17,6 +17,27 @@ import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
 import { formatMemoryUsage } from '../utils/formatters.js';
 import { getCliVersion } from '../../utils/version.js';
 
+const BOX_WIDTH = 120;
+
+function drawBox(content: string): string {
+  const lines = content.split('\n');
+  const top = '╭' + '─'.repeat(BOX_WIDTH - 2) + '╮';
+  const bottom = '╰' + '─'.repeat(BOX_WIDTH - 2) + '╯';
+
+  const middle = lines
+    .map((line) => {
+      // Truncate long lines
+      const truncatedLine =
+        line.length > BOX_WIDTH - 4
+          ? line.slice(0, BOX_WIDTH - 7) + '...'
+          : line;
+      return '│ ' + truncatedLine.padEnd(BOX_WIDTH - 4, ' ') + ' │';
+    })
+    .join('\n');
+
+  return [top, middle, bottom].join('\n');
+}
+
 export const bugCommand: SlashCommand = {
   name: 'bug',
   description: 'submit a bug report',
@@ -58,16 +79,27 @@ export const bugCommand: SlashCommand = {
         switch (item.type) {
           case 'gemini':
           case 'gemini_content':
-            responseText = stripAnsi(item.text);
+            responseText = `✦ ${stripAnsi(item.text)}`;
             break;
           case 'tool_group':
-            responseText = stripAnsi(
-              item.tools
-                .map(
-                  (tool) => `Tool Call: ${tool.name}, Status: ${tool.status}`,
-                )
-                .join('\n'),
-            );
+            responseText = item.tools
+              .map((tool) => {
+                let output = `Tool Call: ${tool.name}, Status: ${
+                  tool.status
+                }\nDescription: ${tool.description || 'N/A'}`;
+                if (tool.resultDisplay) {
+                  if (
+                    typeof tool.resultDisplay === 'object' &&
+                    'fileDiff' in tool.resultDisplay
+                  ) {
+                    output += `\nOutput:\n${tool.resultDisplay.fileDiff}`;
+                  } else if (typeof tool.resultDisplay === 'string') {
+                    output += `\nOutput:\n${tool.resultDisplay}`;
+                  }
+                }
+                return drawBox(output);
+              })
+              .join('\n');
             break;
           case 'error':
             responseText = `✕ ${stripAnsi(item.text)}`;
