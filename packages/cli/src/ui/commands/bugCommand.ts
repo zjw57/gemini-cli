@@ -70,13 +70,13 @@ export const bugCommand: SlashCommand = {
             );
             break;
           case 'error':
-            responseText = `Error: ${stripAnsi(item.text)}`;
+            responseText = `✕ ${stripAnsi(item.text)}`;
             break;
           case 'info':
             if (item.text.startsWith('To submit your bug report')) {
               return acc;
             }
-            responseText = `Info: ${stripAnsi(item.text)}`;
+            responseText = `ℹ ${stripAnsi(item.text)}`;
             break;
           default:
             return acc;
