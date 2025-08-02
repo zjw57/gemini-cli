@@ -6,6 +6,7 @@
 
 import open from 'open';
 import process from 'node:process';
+import stripAnsi from 'strip-ansi';
 import {
   type CommandContext,
   type SlashCommand,
@@ -51,35 +52,41 @@ export const bugCommand: SlashCommand = {
         ? context.ui.history
         : context.ui.history.slice(lastUserPromptIndex + 1);
 
-    const geminiResponses = subsequentItems
-      .filter(
-        (item) =>
-          item.type === 'gemini' ||
-          item.type === 'gemini_content' ||
-          item.type === 'tool_group' ||
-          item.type === 'error' ||
-          item.type === 'info',
-      )
-      .map((item) => {
+    const cliResponses = subsequentItems
+      .reduce((acc, item) => {
+        let responseText = '';
         switch (item.type) {
           case 'gemini':
           case 'gemini_content':
-            return item.text;
+            responseText = stripAnsi(item.text);
+            break;
           case 'tool_group':
-            return item.tools
-              .map((tool) => `Tool Call: ${tool.name}, Status: ${tool.status}`)
-              .join('\n');
+            responseText = stripAnsi(
+              item.tools
+                .map(
+                  (tool) => `Tool Call: ${tool.name}, Status: ${tool.status}`,
+                )
+                .join('\n'),
+            );
+            break;
           case 'error':
-            return `Error: ${item.text}`;
+            responseText = `Error: ${stripAnsi(item.text)}`;
+            break;
           case 'info':
-            return `Info: ${item.text}`;
+            if (item.text.startsWith('To submit your bug report')) {
+              return acc;
+            }
+            responseText = `Info: ${stripAnsi(item.text)}`;
+            break;
           default:
-            return '';
+            return acc;
         }
-      })
+        acc.push(responseText);
+        return acc;
+      }, [] as string[])
       .join('\n\n---\n\n');
 
-    const lastGeminiResponse = geminiResponses.length ? geminiResponses : 'N/A';
+    const lastCliResponse = cliResponses.length ? cliResponses : 'N/A';
 
     const problem = [
       '**Last User Prompt**',
@@ -89,7 +96,7 @@ export const bugCommand: SlashCommand = {
       '',
       '**Last Gemini CLI Response**',
       '```',
-      lastGeminiResponse,
+      lastCliResponse,
       '```',
     ].join('\n');
 
