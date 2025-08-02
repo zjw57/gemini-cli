@@ -656,7 +656,7 @@ Expectation for required parameters:
       error = {
         display: `No changes to apply. The old_string and new_string are identical.`,
         raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}.`,
-        type: ToolErrorType.EDIT_NO_CHANGE,
+        type: ToolErrorType.EDIT_PARAMS_THE_SAME,
       };
     }
 
