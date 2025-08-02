@@ -671,7 +671,15 @@ Expectation for required parameters:
     }
 
     // Editing an existing file
-    const strategy = editStrategies[this.config.getReplaceStrategy()];
+    let editStrategy = this.config.getReplaceStrategy()
+    // check if editStrategy is of type ReplaceStrategy
+    if (!(editStrategy in editStrategies)) {
+      console.warn(
+        `Invalid edit strategy: ${editStrategy}. Defaulting to ${editStrategy}.`,
+      );
+      editStrategy = ReplaceStrategy.CORRECTOR;
+    }
+    const strategy = editStrategies[editStrategy];
     const strategyContext: ReplaceStrategyContext = {
       params,
       currentContent: currentContent!,
