@@ -671,7 +671,7 @@ Expectation for required parameters:
     }
 
     // Editing an existing file
-    let editStrategy = this.config.getReplaceStrategy()
+    let editStrategy = this.config.getReplaceStrategy();
     // check if editStrategy is of type ReplaceStrategy
     if (!(editStrategy in editStrategies)) {
       console.warn(
