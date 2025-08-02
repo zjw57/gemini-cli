@@ -231,7 +231,7 @@ Second line of response.`;
         `✦ Okay, which files?`,
         `Tool Call: list_files, Status: Success, Description: N/A`,
         `✦ I have listed the files.`,
-      ].join('\n\n---\n\n'),
+      ].join('\n---\n'),
       '```',
     ].join('\n');
 

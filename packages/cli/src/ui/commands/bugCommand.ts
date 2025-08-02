@@ -12,10 +12,61 @@ import {
   type SlashCommand,
   CommandKind,
 } from './types.js';
-import { MessageType } from '../types.js';
+import { HistoryItem, MessageType } from '../types.js';
 import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
 import { formatMemoryUsage } from '../utils/formatters.js';
 import { getCliVersion } from '../../utils/version.js';
+
+function formatCliResponses(items: HistoryItem[]): string {
+  return items
+    .reduce((acc, item) => {
+      let responseText = '';
+      switch (item.type) {
+        case 'gemini':
+        case 'gemini_content':
+          responseText = `✦ ${stripAnsi(item.text)}`;
+          break;
+        case 'tool_group':
+          responseText = item.tools
+            .map((tool) => {
+              let output = `Tool Call: ${tool.name}, Status: ${
+                tool.status
+              }, Description: ${tool.description || 'N/A'}`;
+              if (
+                tool.resultDisplay &&
+                typeof tool.resultDisplay === 'object' &&
+                'fileDiff' in tool.resultDisplay &&
+                tool.resultDisplay.fileDiff
+              ) {
+                output += `\nTool Response: ${tool.resultDisplay.fileDiff}`;
+              } else if (
+                tool.resultDisplay &&
+                typeof tool.resultDisplay === 'string' &&
+                tool.resultDisplay
+              ) {
+                output += `\nTool Response: ${tool.resultDisplay}`;
+              }
+              return output;
+            })
+            .join('\n');
+          break;
+        case 'error':
+          responseText = `✕ ${stripAnsi(item.text)}`;
+          break;
+        case 'info':
+          if (item.text.startsWith('To submit your bug report')) {
+            return acc;
+          }
+          responseText = `ℹ ${stripAnsi(item.text)}`;
+          break;
+        default:
+          return acc;
+      }
+      acc.push(responseText);
+      return acc;
+    }, [] as string[])
+    .join('\n---\n');
+}
 
 export const bugCommand: SlashCommand = {
   name: 'bug',
@@ -38,66 +89,21 @@ export const bugCommand: SlashCommand = {
     const cliVersion = await getCliVersion();
     const memoryUsage = formatMemoryUsage(process.memoryUsage().rss);
 
-    const userPrompts = context.ui.history.filter(
+    const lastUserPromptIndex = context.ui.history.findLastIndex(
       (item) => item.type === 'user' && !item.text.startsWith('/bug'),
     );
-    const lastUserPrompt = userPrompts.pop();
 
-    const lastUserPromptIndex = lastUserPrompt
-      ? context.ui.history.lastIndexOf(lastUserPrompt)
-      : -1;
+    const lastUserPrompt =
+      lastUserPromptIndex === -1
+        ? undefined
+        : context.ui.history[lastUserPromptIndex];
 
     const subsequentItems =
       lastUserPromptIndex === -1
         ? context.ui.history
         : context.ui.history.slice(lastUserPromptIndex + 1);
 
-    const cliResponses = subsequentItems
-      .reduce((acc, item) => {
-        let responseText = '';
-        switch (item.type) {
-          case 'gemini':
-          case 'gemini_content':
-            responseText = `✦ ${stripAnsi(item.text)}`;
-            break;
-          case 'tool_group':
-            responseText = item.tools
-              .map((tool) => {
-                let output = `Tool Call: ${tool.name}, Status: ${
-                  tool.status
-                }, Description: ${tool.description || 'N/A'}`;
-                if (tool.resultDisplay) {
-                  if (
-                    typeof tool.resultDisplay === 'object' &&
-                    'fileDiff' in tool.resultDisplay
-                  ) {
-                    output += `
-Tool Response: ${tool.resultDisplay.fileDiff}`;
-                  } else if (typeof tool.resultDisplay === 'string') {
-                    output += `
-Tool Response: ${tool.resultDisplay}`;
-                  }
-                }
-                return output;
-              })
-              .join('\n');
-            break;
-          case 'error':
-            responseText = `✕ ${stripAnsi(item.text)}`;
-            break;
-          case 'info':
-            if (item.text.startsWith('To submit your bug report')) {
-              return acc;
-            }
-            responseText = `ℹ ${stripAnsi(item.text)}`;
-            break;
-          default:
-            return acc;
-        }
-        acc.push(responseText);
-        return acc;
-      }, [] as string[])
-      .join('\n\n---\n\n');
+    const cliResponses = formatCliResponses(subsequentItems);
 
     const lastCliResponse = cliResponses.length ? cliResponses : 'N/A';
 
@@ -139,50 +145,7 @@ Tool Response: ${tool.resultDisplay}`;
     while (url.length > 8000 && subsequentItems.length > 0) {
       wasTruncated = true;
       subsequentItems.shift();
-      const truncatedCliResponses = subsequentItems
-        .reduce((acc, item) => {
-          let responseText = '';
-          switch (item.type) {
-            case 'gemini':
-            case 'gemini_content':
-              responseText = `✦ ${stripAnsi(item.text)}`;
-              break;
-            case 'tool_group':
-              responseText = item.tools
-                .map((tool) => {
-                  let output = `Tool Call: ${tool.name}, Status: ${
-                    tool.status
-                  }, Description: ${tool.description || 'N/A'}`;
-                  if (tool.resultDisplay) {
-                    if (
-                      typeof tool.resultDisplay === 'object' &&
-                      'fileDiff' in tool.resultDisplay
-                    ) {
-                      output += `\nTool Response: ${tool.resultDisplay.fileDiff}`;
-                    } else if (typeof tool.resultDisplay === 'string') {
-                      output += `\nTool Response: ${tool.resultDisplay}`;
-                    }
-                  }
-                  return output;
-                })
-                .join('\n');
-              break;
-            case 'error':
-              responseText = `✕ ${stripAnsi(item.text)}`;
-              break;
-            case 'info':
-              if (item.text.startsWith('To submit your bug report')) {
-                return acc;
-              }
-              responseText = `ℹ ${stripAnsi(item.text)}`;
-              break;
-            default:
-              return acc;
-          }
-          acc.push(responseText);
-          return acc;
-        }, [] as string[])
-        .join('\n\n---\n\n');
+      const truncatedCliResponses = formatCliResponses(subsequentItems);
       const truncatedLastCliResponse = truncatedCliResponses.length
         ? truncatedCliResponses
         : '... truncated response due to character limit ...';
