@@ -56,7 +56,9 @@ export const bugCommand: SlashCommand = {
         (item) =>
           item.type === 'gemini' ||
           item.type === 'gemini_content' ||
-          item.type === 'tool_group',
+          item.type === 'tool_group' ||
+          item.type === 'error' ||
+          item.type === 'info',
       )
       .map((item) => {
         switch (item.type) {
@@ -67,6 +69,10 @@ export const bugCommand: SlashCommand = {
             return item.tools
               .map((tool) => `Tool Call: ${tool.name}, Status: ${tool.status}`)
               .join('\n');
+          case 'error':
+            return `Error: ${item.text}`;
+          case 'info':
+            return `Info: ${item.text}`;
           default:
             return '';
         }
@@ -81,7 +87,7 @@ export const bugCommand: SlashCommand = {
       lastUserPrompt?.text || 'N/A',
       '```',
       '',
-      '**Last Gemini Response**',
+      '**Last Gemini CLI Response**',
       '```',
       lastGeminiResponse,
       '```',
