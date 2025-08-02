@@ -37,6 +37,56 @@ export const bugCommand: SlashCommand = {
     const cliVersion = await getCliVersion();
     const memoryUsage = formatMemoryUsage(process.memoryUsage().rss);
 
+    const userPrompts = context.ui.history.filter(
+      (item) => item.type === 'user' && !item.text.startsWith('/bug'),
+    );
+    const lastUserPrompt = userPrompts.pop();
+
+    const lastUserPromptIndex = lastUserPrompt
+      ? context.ui.history.lastIndexOf(lastUserPrompt)
+      : -1;
+
+    const subsequentItems =
+      lastUserPromptIndex === -1
+        ? context.ui.history
+        : context.ui.history.slice(lastUserPromptIndex + 1);
+
+    const geminiResponses = subsequentItems
+      .filter(
+        (item) =>
+          item.type === 'gemini' ||
+          item.type === 'gemini_content' ||
+          item.type === 'tool_group',
+      )
+      .map((item) => {
+        switch (item.type) {
+          case 'gemini':
+          case 'gemini_content':
+            return item.text;
+          case 'tool_group':
+            return item.tools
+              .map((tool) => `Tool Call: ${tool.name}, Status: ${tool.status}`)
+              .join('\n');
+          default:
+            return '';
+        }
+      })
+      .join('\n\n---\n\n');
+
+    const lastGeminiResponse = geminiResponses.length ? geminiResponses : 'N/A';
+
+    const problem = [
+      '**Last User Prompt**',
+      '```',
+      lastUserPrompt?.text || 'N/A',
+      '```',
+      '',
+      '**Last Gemini Response**',
+      '```',
+      lastGeminiResponse,
+      '```',
+    ].join('\n');
+
     const info = `
 * **CLI Version:** ${cliVersion}
 * **Git Commit:** ${GIT_COMMIT_INFO}
@@ -47,7 +97,7 @@ export const bugCommand: SlashCommand = {
 `;
 
     let bugReportUrl =
-      'https://github.com/google-gemini/gemini-cli/issues/new?template=bug_report.yml&title={title}&info={info}';
+      'https://github.com/google-gemini/gemini-cli/issues/new?template=bug_report.yml&title={title}&info={info}&problem={problem}';
 
     const bugCommandSettings = config?.getBugCommand();
     if (bugCommandSettings?.urlTemplate) {
@@ -56,7 +106,8 @@ export const bugCommand: SlashCommand = {
 
     bugReportUrl = bugReportUrl
       .replace('{title}', encodeURIComponent(bugDescription))
-      .replace('{info}', encodeURIComponent(info));
+      .replace('{info}', encodeURIComponent(info))
+      .replace('{problem}', encodeURIComponent(problem));
 
     context.ui.addItem(
       {
