@@ -693,7 +693,7 @@ describe('EditTool', () => {
         new_string: 'content',
       };
       const result = await tool.execute(params, new AbortController().signal);
-      expect(result.error?.type).toBe(ToolErrorType.EDIT_NO_CHANGE);
+      expect(result.error?.type).toBe(ToolErrorType.EDIT_PARAMS_THE_SAME);
     });
 
     it('should return INVALID_PARAMETERS error for relative path', async () => {
