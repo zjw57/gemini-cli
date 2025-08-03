@@ -652,12 +652,6 @@ Expectation for required parameters:
         raw: `File already exists, cannot create: ${params.file_path}`,
         type: ToolErrorType.ATTEMPT_TO_CREATE_EXISTING_FILE,
       };
-    } else if (params.old_string === params.new_string) {
-      error = {
-        display: `No changes to apply. The old_string and new_string are identical.`,
-        raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}.`,
-        type: ToolErrorType.EDIT_PARAMS_THE_SAME,
-      };
     }
 
     if (error) {
