@@ -543,7 +543,7 @@ class TestAllStrategy implements ReplaceStrategyImpl {
       }
     }
 
-    console.log(JSON.stringify({ test_all_results: allResults }));
+    console.log('\n' + JSON.stringify({ test_all_results: allResults }, null, 0) + '\n');
 
     if (correctorResultToReturn) {
       return correctorResultToReturn;
