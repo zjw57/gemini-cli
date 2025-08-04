@@ -72,7 +72,7 @@ export class DiffManager {
 
     this.addDiffDocument(rightDocUri, {
       originalFilePath: filePath,
-      newContent: newContent,
+      newContent,
       rightDocUri,
     });
 
