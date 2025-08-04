@@ -6,8 +6,7 @@
 
 import * as vscode from 'vscode';
 import { IDEServer } from './ide-server.js';
-import { DiffContentProvider } from './diff-content-provider.js';
-import { DiffManager } from './diff-manager.js';
+import { DiffContentProvider, DiffManager } from './diff-manager.js';
 import { createLogger } from './utils/logger.js';
 
 const IDE_WORKSPACE_PATH_ENV_VAR = 'GEMINI_CLI_IDE_WORKSPACE_PATH';

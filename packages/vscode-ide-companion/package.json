@@ -39,17 +39,13 @@
     "commands": [
       {
         "command": "gemini.diff.accept",
-        "title": "Accept",
+        "title": "Gemini CLI: Accept Current Diff",
         "icon": "$(check)"
       },
       {
         "command": "gemini.diff.cancel",
         "title": "Cancel",
         "icon": "$(close)"
-      },
-      {
-        "command": "gemini.diff.save",
-        "title": "Save"
       },
       {
         "command": "gemini-cli.runGeminiCLI",
@@ -61,6 +57,16 @@
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "gemini.diff.accept",
+          "when": "gemini.diff.isVisible"
+        },
+        {
+          "command": "gemini.diff.cancel",
+          "when": "gemini.diff.isVisible"
+        }
+      ],
       "editor/title": [
         {
           "command": "gemini.diff.accept",
