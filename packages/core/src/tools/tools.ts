@@ -277,7 +277,13 @@ export type ToolCallConfirmationDetails =
   | ToolEditConfirmationDetails
   | ToolExecuteConfirmationDetails
   | ToolMcpConfirmationDetails
-  | ToolInfoConfirmationDetails;
+  | ToolInfoConfirmationDetails
+  | ToolIdeConfirmationResult;
+
+export interface ToolIdeConfirmationResult {
+  type: 'ide_confirmation_result';
+  outcome: 'accepted' | 'rejected';
+}
 
 export enum ToolConfirmationOutcome {
   ProceedOnce = 'proceed_once',

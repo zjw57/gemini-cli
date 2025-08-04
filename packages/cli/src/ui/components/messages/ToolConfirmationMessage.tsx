@@ -38,6 +38,9 @@ export const ToolConfirmationMessage: React.FC<
   availableTerminalHeight,
   terminalWidth,
 }) => {
+  if (confirmationDetails.type === 'ide_confirmation_result') {
+    return null;
+  }
   const { onConfirm } = confirmationDetails;
   const childWidth = terminalWidth - 2; // 2 for padding
 

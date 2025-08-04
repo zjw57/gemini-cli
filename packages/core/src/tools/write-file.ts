@@ -187,12 +187,20 @@ export class WriteFileTool
     );
 
     if (this.config.getIdeMode()) {
-      return this._handleIdeDiffConfirmation(
+      const ideConfirmation = await this._handleIdeDiffConfirmation(
         params,
         correctedContent,
         originalContent,
         fileDiff,
       );
+      if (ideConfirmation && ideConfirmation.type === 'ide_confirmation_result') {
+        if (ideConfirmation.outcome === 'accepted') {
+          return false; // Proceed with execution
+        } else {
+          return ideConfirmation; // Propagate rejection
+        }
+      }
+      return ideConfirmation;
     }
 
     const confirmationDetails: ToolEditConfirmationDetails = {
@@ -221,7 +229,19 @@ export class WriteFileTool
       return false;
     }
 
-    await this.ideClient.openDiff(params.file_path, newContent);
+    this.ideClient.openDiff(params.file_path, newContent);
+    const status = await this.ideClient.waitForDiffUpdate(params.file_path);
+    if (status === 'rejected') {
+      this.ideClient.closeDiff(params.file_path);
+      return { type: 'ide_confirmation_result', outcome: 'rejected' };
+    }
+
+    // If the diff is accepted, we can proceed with the write.
+    if (status === 'accepted') {
+      this.ideClient.closeDiff(params.file_path);
+      // We can return a special value to indicate that the write should proceed.
+      return { type: 'ide_confirmation_result', outcome: 'accepted' };
+    }
 
     const relativePath = makeRelative(
       params.file_path,
@@ -239,7 +259,7 @@ export class WriteFileTool
         if (outcome === ToolConfirmationOutcome.ProceedAlways) {
           this.config.setApprovalMode(ApprovalMode.AUTO_EDIT);
         }
-        await this.ideClient?.closeDiff(params.file_path);
+        this.ideClient?.closeDiff(params.file_path);
       },
     };
     return confirmationDetails;
@@ -453,3 +473,4 @@ export class WriteFileTool
     };
   }
 }
+console.log('hello world');

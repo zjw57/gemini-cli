@@ -263,6 +263,9 @@ class GeminiAgent implements Agent {
         locations: tool.toolLocations(args),
       });
 
+      if (confirmationDetails.type === 'ide_confirmation_result') {
+        throw new Error('IDE confirmation should be handled by the IDE');
+      }
       await confirmationDetails.onConfirm(toToolCallOutcome(result.outcome));
       switch (result.outcome) {
         case 'reject':
@@ -644,6 +647,8 @@ function toAcpToolCallConfirmation(
           ? null
           : confirmationDetails.prompt,
       };
+    case 'ide_confirmation_result':
+      throw new Error('IDE confirmation should be handled by the IDE');
     default: {
       const unreachable: never = confirmationDetails;
       throw new Error(`Unexpected: ${unreachable}`);

@@ -468,6 +468,19 @@ export class CoreToolScheduler {
           );
 
           if (confirmationDetails) {
+            if (confirmationDetails.type === 'ide_confirmation_result') {
+              if (confirmationDetails.outcome === 'rejected') {
+                this.setStatusInternal(
+                  reqInfo.callId,
+                  'cancelled',
+                  'User rejected the changes in the IDE.',
+                );
+              } else {
+                this.setStatusInternal(reqInfo.callId, 'scheduled');
+              }
+              return;
+            }
+
             const originalOnConfirm = confirmationDetails.onConfirm;
             const wrappedConfirmationDetails: ToolCallConfirmationDetails = {
               ...confirmationDetails,

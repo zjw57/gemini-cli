@@ -7,6 +7,7 @@
 import { ideContext, IdeContextNotificationSchema } from '../ide/ideContext.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { DiffUpdateNotificationSchema } from './diff-update-notification.js';
 
 const logger = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -24,7 +25,7 @@ export enum IDEConnectionStatus {
   Connecting = 'connecting',
 }
 
-type DiffUpdateStatus = 'accepted' | 'rejected';
+export type DiffUpdateStatus = 'accepted' | 'rejected';
 
 /**
  * Manages the connection to and interaction with the IDE server.
@@ -98,6 +99,18 @@ export class IdeClient {
       },
     );
 
+    this.client.setNotificationHandler(
+      DiffUpdateNotificationSchema,
+      (notification) => {
+        const { filePath, status } = notification.params;
+        const resolver = this.diffResponses.get(filePath);
+        if (resolver) {
+          resolver(status);
+          this.diffResponses.delete(filePath);
+        }
+      },
+    );
+
     this.client.onerror = (_error) => {
       this.setState(IDEConnectionStatus.Disconnected, 'Client error.');
     };
@@ -158,9 +171,9 @@ export class IdeClient {
     await this.establishConnection(port);
   }
 
-  async openDiff(filePath: string, newContent?: string): Promise<void> {
+  openDiff(filePath: string, newContent?: string) {
     logger.debug(`Opening diff for ${filePath}`);
-    await this.client
+    this.client
       ?.callTool({
         name: `openDiff`,
         arguments: {
@@ -172,12 +185,11 @@ export class IdeClient {
         logger.debug(`callTool for ${filePath} failed:`, err);
         this.diffResponses.delete(filePath);
       });
-    return;
   }
 
-  async closeDiff(filePath: string): Promise<void> {
-    logger.debug(`Opening diff for ${filePath}`);
-    await this.client
+  closeDiff(filePath: string) {
+    logger.debug(`Closing diff for ${filePath}`);
+    this.client
       ?.callTool({
         name: `closeDiff`,
         arguments: {
@@ -188,6 +200,11 @@ export class IdeClient {
         logger.debug(`callTool for ${filePath} failed:`, err);
         this.diffResponses.delete(filePath);
       });
-    return;
+  }
+
+  waitForDiffUpdate(filePath: string): Promise<DiffUpdateStatus> {
+    return new Promise((resolve) => {
+      this.diffResponses.set(filePath, resolve);
+    });
   }
 }
