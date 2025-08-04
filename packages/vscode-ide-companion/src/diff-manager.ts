@@ -129,18 +129,18 @@ export class DiffManager {
     const rightDoc = await vscode.workspace.openTextDocument(rightDocUri);
     const modifiedContent = rightDoc.getText();
 
-    const workspaceEdit = new vscode.WorkspaceEdit();
-    const fileUri = vscode.Uri.file(diffInfo.originalFilePath);
-    const doc = await vscode.workspace.openTextDocument(fileUri);
-    const lastLine = doc.lineAt(doc.lineCount - 1);
-    const fullRange = new vscode.Range(
-      new vscode.Position(0, 0),
-      lastLine.range.end,
-    );
-    workspaceEdit.replace(fileUri, fullRange, modifiedContent);
-    await vscode.workspace.applyEdit(workspaceEdit);
+    // const workspaceEdit = new vscode.WorkspaceEdit();
+    // const fileUri = vscode.Uri.file(diffInfo.originalFilePath);
+    // const doc = await vscode.workspace.openTextDocument(fileUri);
+    // const lastLine = doc.lineAt(doc.lineCount - 1);
+    // const fullRange = new vscode.Range(
+    //   new vscode.Position(0, 0),
+    //   lastLine.range.end,
+    // );
+    // workspaceEdit.replace(fileUri, fullRange, modifiedContent);
+    // await vscode.workspace.applyEdit(workspaceEdit);
 
-    await doc.save();
+    // await doc.save();
 
     await this.closeDiffEditor(rightDocUri);
     vscode.window.showInformationMessage('Changes applied and saved.');
