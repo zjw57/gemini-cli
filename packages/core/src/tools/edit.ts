@@ -486,7 +486,6 @@ class TestAllStrategy implements ReplaceStrategyImpl {
       new ExactStrategy(),
       new FuzzyStrategy(),
       new FuzzyStrategyV2(),
-      new CompositeStrategy(),
       new CorrectorStrategy(),
     ],
   ) {
