@@ -73,7 +73,7 @@ export class IdeClient {
     this.state = { status, details };
 
     if (status === IDEConnectionStatus.Disconnected) {
-      logger.debug('IDE integration is disconnected. ', details);
+      logger.debug('IDE integration disconnected:', details);
       ideContext.clearIdeContext();
     }
   }
@@ -83,7 +83,7 @@ export class IdeClient {
     if (!port) {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        'Gemini CLI Companion extension not found. Install via /ide install and restart the CLI in a fresh terminal window.',
+        `IDE companion extension for ${this.currentIdeDisplayName} isn't running. Please ensure the extension is installed and enabled. You can run '/ide install' to install it.`,
       );
       return undefined;
     }
@@ -92,17 +92,24 @@ export class IdeClient {
 
   private validateWorkspacePath(): boolean {
     const ideWorkspacePath = process.env['GEMINI_CLI_IDE_WORKSPACE_PATH'];
-    if (!ideWorkspacePath) {
+    if (ideWorkspacePath === undefined) {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        'IDE integration requires a single workspace folder to be open in the IDE. Please ensure one folder is open and try again.',
+        `IDE companion extension for ${this.currentIdeDisplayName} isn't running. Please ensure the extension is installed and enabled. You can run '/ide install' to install it.`,
+      );
+      return false;
+    }
+    if (ideWorkspacePath === '') {
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        `To use this feature, please open a single workspace folder in ${this.currentIdeDisplayName} and try again.`,
       );
       return false;
     }
     if (ideWorkspacePath !== process.cwd()) {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        `Gemini CLI is running in a different directory (${process.cwd()}) from the IDE's open workspace (${ideWorkspacePath}). Please run Gemini CLI in the same directory.`,
+        `Directory mismatch: Gemini CLI is running in a different location than the open workspace in ${this.currentIdeDisplayName}. Please run the CLI from the same directory as your project's root folder.`,
       );
       return false;
     }
@@ -122,11 +129,17 @@ export class IdeClient {
     );
 
     this.client.onerror = (_error) => {
-      this.setState(IDEConnectionStatus.Disconnected, 'Client error.');
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        `IDE connection error: The connection was lost unexpectedly. Please try reconnecting with '/ide enable'`,
+      );
     };
 
     this.client.onclose = () => {
-      this.setState(IDEConnectionStatus.Disconnected, 'Connection closed.');
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        `IDE connection error: The connection was lost unexpectedly. Please try reconnecting with '/ide enable'`,
+      );
     };
   }
 
@@ -142,20 +155,17 @@ export class IdeClient {
         // TODO(#3487): use the CLI version here.
         version: '1.0.0',
       });
-
       transport = new StreamableHTTPClientTransport(
         new URL(`http://localhost:${port}/mcp`),
       );
-
-      this.registerClientHandlers();
-
       await this.client.connect(transport);
 
       this.setState(IDEConnectionStatus.Connected);
-    } catch (error) {
+      this.registerClientHandlers();
+    } catch (_error) {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        `Failed to connect to IDE server: ${error}`,
+        `Failed to connect to IDE companion extension for ${this.getDetectedIdeDisplayName()}. Please ensure the extension is running and refresh your terminal window.`,
       );
       if (transport) {
         try {
@@ -172,10 +182,7 @@ export class IdeClient {
       return;
     }
     if (!this.currentIde) {
-      this.setState(
-        IDEConnectionStatus.Disconnected,
-        'Not running in a supported IDE, skipping connection.',
-      );
+      this.setState(IDEConnectionStatus.Disconnected);
       return;
     }
 
