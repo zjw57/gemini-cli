@@ -32,6 +32,7 @@ import {
   ApiResponseEvent,
 } from '../telemetry/types.js';
 import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
+import { getCoreSystemPrompt } from './prompts.js';
 
 /**
  * Returns true if the response is valid, false otherwise.
@@ -137,6 +138,32 @@ export class GeminiChat {
     validateHistory(history);
   }
 
+  /**
+   * Helper to generate the configuration including the dynamic system instruction.
+   */
+  private _getRequestConfig(
+    paramsConfig: GenerateContentConfig | undefined,
+    model: string,
+  ): GenerateContentConfig {
+    // If paramsConfig provides a systemInstruction (e.g., for compression override), prioritize it.
+    if (paramsConfig?.systemInstruction) {
+      return {
+        ...this.generationConfig,
+        ...paramsConfig,
+      };
+    }
+
+    const userMemory = this.config.getUserMemory();
+    // Generate system instruction dynamically based on the model being used for this request
+    const systemInstruction = getCoreSystemPrompt(userMemory, model);
+
+    return {
+      ...this.generationConfig,
+      ...paramsConfig,
+      systemInstruction,
+    };
+  }
+
   private _getRequestTextFromContents(contents: Content[]): string {
     return JSON.stringify(contents);
   }
@@ -158,11 +185,12 @@ export class GeminiChat {
     prompt_id: string,
     usageMetadata?: GenerateContentResponseUsageMetadata,
     responseText?: string,
+    model?: string,
   ): Promise<void> {
     logApiResponse(
       this.config,
       new ApiResponseEvent(
-        this.config.getModel(),
+        model || this.config.getModel(),
         durationMs,
         prompt_id,
         this.config.getContentGeneratorConfig()?.authType,
@@ -176,6 +204,7 @@ export class GeminiChat {
     durationMs: number,
     error: unknown,
     prompt_id: string,
+    model?: string,
   ): void {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorType = error instanceof Error ? error.name : 'unknown';
@@ -183,7 +212,7 @@ export class GeminiChat {
     logApiError(
       this.config,
       new ApiErrorEvent(
-        this.config.getModel(),
+        model || this.config.getModel(),
         errorMessage,
         durationMs,
         prompt_id,
@@ -263,6 +292,7 @@ export class GeminiChat {
   async sendMessage(
     params: SendMessageParameters,
     prompt_id: string,
+    overrideModel?: string,
   ): Promise<GenerateContentResponse> {
     await this.sendPromise;
     const userContent = createUserContent(params.message);
@@ -275,7 +305,8 @@ export class GeminiChat {
 
     try {
       const apiCall = () => {
-        const modelToUse = this.config.getModel() || DEFAULT_GEMINI_FLASH_MODEL;
+        const modelToUse =
+          overrideModel || this.config.getModel() || DEFAULT_GEMINI_FLASH_MODEL;
 
         // Prevent Flash model calls immediately after quota error
         if (
@@ -287,10 +318,11 @@ export class GeminiChat {
           );
         }
 
+        const requestConfig = this._getRequestConfig(params.config, modelToUse);
         return this.contentGenerator.generateContent({
           model: modelToUse,
           contents: requestContents,
-          config: { ...this.generationConfig, ...params.config },
+          config: requestConfig,
         });
       };
 
@@ -302,16 +334,23 @@ export class GeminiChat {
           }
           return false;
         },
-        onPersistent429: async (authType?: string, error?: unknown) =>
-          await this.handleFlashFallback(authType, error),
+        onPersistent429: async (authType?: string, error?: unknown) => {
+          if (overrideModel) {
+            return null;
+          }
+          return await this.handleFlashFallback(authType, error);
+        },
         authType: this.config.getContentGeneratorConfig()?.authType,
       });
+
+      const actualModelUsed = overrideModel || this.config.getModel();
       const durationMs = Date.now() - startTime;
       await this._logApiResponse(
         durationMs,
         prompt_id,
         response.usageMetadata,
         JSON.stringify(response),
+        actualModelUsed,
       );
 
       this.sendPromise = (async () => {
@@ -372,6 +411,7 @@ export class GeminiChat {
   async sendMessageStream(
     params: SendMessageParameters,
     prompt_id: string,
+    overrideModel?: string,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
     await this.sendPromise;
     const userContent = createUserContent(params.message);
@@ -382,7 +422,7 @@ export class GeminiChat {
 
     try {
       const apiCall = () => {
-        const modelToUse = this.config.getModel();
+        const modelToUse = overrideModel || this.config.getModel();
 
         // Prevent Flash model calls immediately after quota error
         if (
@@ -394,10 +434,12 @@ export class GeminiChat {
           );
         }
 
+        const requestConfig = this._getRequestConfig(params.config, modelToUse);
+
         return this.contentGenerator.generateContentStream({
           model: modelToUse,
           contents: requestContents,
-          config: { ...this.generationConfig, ...params.config },
+          config: requestConfig,
         });
       };
 
@@ -414,8 +456,12 @@ export class GeminiChat {
           }
           return false; // Don't retry other errors by default
         },
-        onPersistent429: async (authType?: string, error?: unknown) =>
-          await this.handleFlashFallback(authType, error),
+        onPersistent429: async (authType?: string, error?: unknown) => {
+          if (overrideModel) {
+            return null;
+          }
+          return await this.handleFlashFallback(authType, error);
+        },
         authType: this.config.getContentGeneratorConfig()?.authType,
       });
 
@@ -426,11 +472,15 @@ export class GeminiChat {
         .then(() => undefined)
         .catch(() => undefined);
 
+      // Determine the actual model used after potential fallbacks (only relevant if overrideModel was null).
+      const actualModelUsed = overrideModel || this.config.getModel();
+
       const result = this.processStreamResponse(
         streamResponse,
         userContent,
         startTime,
         prompt_id,
+        actualModelUsed,
       );
       return result;
     } catch (error) {
@@ -512,6 +562,7 @@ export class GeminiChat {
     inputContent: Content,
     startTime: number,
     prompt_id: string,
+    modelUsed: string,
   ) {
     const outputContent: Content[] = [];
     const chunks: GenerateContentResponse[] = [];
@@ -535,7 +586,7 @@ export class GeminiChat {
     } catch (error) {
       errorOccurred = true;
       const durationMs = Date.now() - startTime;
-      this._logApiError(durationMs, error, prompt_id);
+      this._logApiError(durationMs, error, prompt_id, modelUsed);
       throw error;
     }
 
@@ -552,6 +603,7 @@ export class GeminiChat {
         prompt_id,
         this.getFinalUsageMetadata(chunks),
         JSON.stringify(chunks),
+        modelUsed,
       );
     }
     this.recordHistory(inputContent, outputContent);

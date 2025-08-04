@@ -50,6 +50,14 @@ import {
 } from '../telemetry/types.js';
 import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
 
+const GEMINI_UPGRADE_REQUEST = '__GEMINI_UPGRADE_REQUEST__';
+
+interface ProbeResult {
+  upgrade: boolean;
+  events: ServerGeminiStreamEvent[];
+  turn: Turn;
+}
+
 function isThinkingSupported(model: string) {
   if (model.startsWith('gemini-2.5')) return true;
   return false;
@@ -112,6 +120,8 @@ export class GeminiClient {
   private readonly loopDetector: LoopDetectionService;
   private lastPromptId?: string;
 
+  private currentSequenceModel: string | null = null;
+
   constructor(private config: Config) {
     if (config.getProxy()) {
       setGlobalDispatcher(new ProxyAgent(config.getProxy() as string));
@@ -119,6 +129,7 @@ export class GeminiClient {
 
     this.embeddingModel = config.getEmbeddingModel();
     this.loopDetector = new LoopDetectionService(config);
+    this.lastPromptId = this.config.getSessionId();
   }
 
   async initialize(contentGeneratorConfig: ContentGeneratorConfig) {
@@ -306,8 +317,6 @@ export class GeminiClient {
       ...(extraHistory ?? []),
     ];
     try {
-      const userMemory = this.config.getUserMemory();
-      const systemInstruction = getCoreSystemPrompt(userMemory);
       const generateContentConfigWithThinking = isThinkingSupported(
         this.config.getModel(),
       )
@@ -322,7 +331,6 @@ export class GeminiClient {
         this.config,
         this.getContentGenerator(),
         {
-          systemInstruction,
           ...generateContentConfigWithThinking,
           tools,
         },
@@ -346,10 +354,13 @@ export class GeminiClient {
     turns: number = this.MAX_TURNS,
     originalModel?: string,
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
+    // Handle Sequence Change (New User Request)
     if (this.lastPromptId !== prompt_id) {
       this.loopDetector.reset(prompt_id);
       this.lastPromptId = prompt_id;
+      this.currentSequenceModel = null;
     }
+
     this.sessionTurnCount++;
     if (
       this.config.getMaxSessionTurns() > 0 &&
@@ -364,8 +375,8 @@ export class GeminiClient {
       return new Turn(this.getChat(), prompt_id);
     }
 
-    // Track the original model from the first call to detect model switching
-    const initialModel = originalModel || this.config.getModel();
+    // Track the original *configured* model to detect quota fallbacks later.
+    const initialConfigModel = originalModel || this.config.getModel();
 
     const compressed = await this.tryCompressChat(prompt_id);
 
@@ -419,6 +430,65 @@ export class GeminiClient {
       }
     }
 
+    // Only run the probe if:
+    // 1. A model hasn't been decided for this sequence yet (currentSequenceModel === null).
+    // 2. The configured model is not already Flash.
+    const shouldRunProbe =
+      this.currentSequenceModel === null &&
+      this.config.getModel() !== DEFAULT_GEMINI_FLASH_MODEL;
+
+    if (shouldRunProbe) {
+      // Snapshot history before the probe modifies it.
+      const originalHistory = this.getChat().getHistory();
+
+      // Run probe using Flash model. This temporarily modifies the history in GeminiChat.
+      const probeResult = await this.runProbe(request, signal, prompt_id);
+
+      console.log(`Upgrade Result: ${probeResult.upgrade}`);
+      if (probeResult.upgrade) {
+        // Upgrade needed. Restore history and fall through to the main execution loop below.
+        this.getChat().setHistory(originalHistory);
+        // Lock the upgraded model (the configured one) for this sequence.
+        this.currentSequenceModel = this.config.getModel();
+        // Fall through to the main execution loop below.
+      } else {
+        // No upgrade needed. Lock Flash for this sequence.
+        this.currentSequenceModel = DEFAULT_GEMINI_FLASH_MODEL;
+
+        const turn = probeResult.turn;
+
+        // Commit the turn (history update from probe is valid) and run loop detection.
+        const loopDetected = await this.loopDetector.turnStarted(signal);
+        if (loopDetected) {
+          yield { type: GeminiEventType.LoopDetected };
+          return turn;
+        }
+
+        for (const event of probeResult.events) {
+          // Apply loop detection to the buffered events
+          if (this.loopDetector.addAndCheck(event)) {
+            yield { type: GeminiEventType.LoopDetected };
+            return turn;
+          }
+          yield event;
+        }
+
+        // Perform post-processing. The recursion will use the locked model.
+        return yield* this.handleTurnCompletion(
+          turn,
+          signal,
+          prompt_id,
+          boundedTurns,
+          initialConfigModel,
+        );
+      }
+    }
+
+    // Runs if: (1) Probe skipped (model already locked OR initially Flash), or (2) Upgrade requested.
+    if (this.currentSequenceModel === null) {
+      this.currentSequenceModel = this.config.getModel();
+    }
+
     const turn = new Turn(this.getChat(), prompt_id);
 
     const loopDetected = await this.loopDetector.turnStarted(signal);
@@ -427,7 +497,9 @@ export class GeminiClient {
       return turn;
     }
 
-    const resultStream = turn.run(request, signal);
+    // Run the turn, overriding with the model locked for this sequence.
+    // This ensures stickiness for tool responses and continuations.
+    const resultStream = turn.run(request, signal, this.currentSequenceModel);
     for await (const event of resultStream) {
       if (this.loopDetector.addAndCheck(event)) {
         yield { type: GeminiEventType.LoopDetected };
@@ -435,42 +507,14 @@ export class GeminiClient {
       }
       yield event;
     }
-    if (!turn.pendingToolCalls.length && signal && !signal.aborted) {
-      // Check if model was switched during the call (likely due to quota error)
-      const currentModel = this.config.getModel();
-      if (currentModel !== initialModel) {
-        // Model was switched (likely due to quota error fallback)
-        // Don't continue with recursive call to prevent unwanted Flash execution
-        return turn;
-      }
 
-      const nextSpeakerCheck = await checkNextSpeaker(
-        this.getChat(),
-        this,
-        signal,
-      );
-      logNextSpeakerCheck(
-        this.config,
-        new NextSpeakerCheckEvent(
-          prompt_id,
-          turn.finishReason?.toString() || '',
-          nextSpeakerCheck?.next_speaker || '',
-        ),
-      );
-      if (nextSpeakerCheck?.next_speaker === 'model') {
-        const nextRequest = [{ text: 'Please continue.' }];
-        // This recursive call's events will be yielded out, but the final
-        // turn object will be from the top-level call.
-        yield* this.sendMessageStream(
-          nextRequest,
-          signal,
-          prompt_id,
-          boundedTurns - 1,
-          initialModel,
-        );
-      }
-    }
-    return turn;
+    return yield* this.handleTurnCompletion(
+      turn,
+      signal,
+      prompt_id,
+      boundedTurns,
+      initialConfigModel,
+    );
   }
 
   async generateJson(
@@ -802,5 +846,99 @@ export class GeminiClient {
     }
 
     return null;
+  }
+
+  /**
+   * Helper method to run the initial probe request using the Flash model.
+   * Buffers the response and checks for the upgrade string.
+   * Note: This method allows the chat history to be updated by the Turn internally.
+   */
+  private async runProbe(
+    request: PartListUnion,
+    signal: AbortSignal,
+    prompt_id: string,
+  ): Promise<ProbeResult> {
+    const chat = this.getChat();
+    const turn = new Turn(chat, prompt_id);
+    const events: ServerGeminiStreamEvent[] = [];
+    let fullText = '';
+
+    // Run the turn using the Flash model specifically via override.
+    const resultStream = turn.run(request, signal, DEFAULT_GEMINI_FLASH_MODEL);
+
+    // Iterate and buffer the stream.
+    for await (const event of resultStream) {
+      events.push(event);
+
+      if (event.type === GeminiEventType.Content) {
+        fullText += event.value;
+      }
+
+      // Handle early termination during the probe (Error or Cancellation).
+      if (
+        event.type === GeminiEventType.Error ||
+        event.type === GeminiEventType.UserCancelled
+      ) {
+        // If probe fails or is cancelled, we treat it as "no upgrade" and return the events.
+        // The history update performed by the Turn/Chat is accepted as the final result.
+        return { upgrade: false, events, turn };
+      }
+    }
+
+    // Check if the response indicates an upgrade request.
+    if (fullText.trim() === GEMINI_UPGRADE_REQUEST) {
+      return { upgrade: true, events: [], turn }; // Discard events if upgrading
+    }
+
+    // No upgrade needed.
+    return { upgrade: false, events, turn };
+  }
+
+  /**
+   * Helper method for post-processing a completed turn (Next Speaker Check and Recursion).
+   */
+  private async *handleTurnCompletion(
+    turn: Turn,
+    signal: AbortSignal,
+    prompt_id: string,
+    boundedTurns: number,
+    initialConfigModel: string,
+  ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
+    if (!turn.pendingToolCalls.length && signal && !signal.aborted) {
+      // Check if model was switched in the configuration (e.g., quota fallback prompt).
+      const currentConfigModel = this.config.getModel();
+
+      if (currentConfigModel !== initialConfigModel) {
+        // Model config was switched (likely due to quota error fallback)
+        return turn;
+      }
+
+      const nextSpeakerCheck = await checkNextSpeaker(
+        this.getChat(),
+        this,
+        signal,
+      );
+      logNextSpeakerCheck(
+        this.config,
+        new NextSpeakerCheckEvent(
+          prompt_id,
+          turn.finishReason?.toString() || '',
+          nextSpeakerCheck?.next_speaker || '',
+        ),
+      );
+      if (nextSpeakerCheck?.next_speaker === 'model') {
+        const nextRequest = [{ text: 'Please continue.' }];
+        // This recursive call's events will be yielded out.
+        // We pass isInitialTurn=false to prevent re-probing.
+        yield* this.sendMessageStream(
+          nextRequest,
+          signal,
+          prompt_id,
+          boundedTurns - 1,
+          initialConfigModel,
+        );
+      }
+    }
+    return turn;
   }
 }

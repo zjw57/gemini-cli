@@ -19,7 +19,10 @@ import process from 'node:process';
 import { isGitRepository } from '../utils/gitUtils.js';
 import { MemoryTool, GEMINI_CONFIG_DIR } from '../tools/memoryTool.js';
 
-export function getCoreSystemPrompt(userMemory?: string): string {
+export function getCoreSystemPrompt(
+  userMemory?: string,
+  model?: string,
+): string {
   // if GEMINI_SYSTEM_MD is set (and not 0|false), override system prompt from file
   // default path is .gemini/system.md but can be modified via custom path in GEMINI_SYSTEM_MD
   let systemMdEnabled = false;
@@ -291,6 +294,22 @@ Your core function is efficient and safe assistance. Balance extreme conciseness
     userMemory && userMemory.trim().length > 0
       ? `\n\n---\n\n${userMemory.trim()}`
       : '';
+
+  const upgradePrompt = `
+# Model Routing Instruction (STRICT)
+You are currently running on a faster, less capable model. Before proceeding, you MUST assess the complexity of the user's request.
+
+If the request is simple and you can handle it effectively, proceed as normal according to the main instructions below.
+
+If the request is too complex, requires deep reasoning, extensive coding, or handling large amounts of data, you MUST request an upgrade.
+
+To request an upgrade, your response MUST consist ONLY of the following signal string and absolutely nothing else (no explanation, no thought process):
+__GEMINI_UPGRADE_REQUEST__
+`;
+
+  if (model && model.toLowerCase().includes('flash')) {
+    return `${upgradePrompt.trim()}\n\n${basePrompt}${memorySuffix}`;
+  }
 
   return `${basePrompt}${memorySuffix}`;
 }
