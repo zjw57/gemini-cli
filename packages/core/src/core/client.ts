@@ -444,7 +444,7 @@ export class GeminiClient {
       // Run probe using Flash model. This temporarily modifies the history in GeminiChat.
       const probeResult = await this.runProbe(request, signal, prompt_id);
 
-      console.log(`Upgrade Result: ${probeResult.upgrade}`);
+      console.log(`Routing Upgrade Result: ${probeResult.upgrade}`);
       if (probeResult.upgrade) {
         // Upgrade needed. Restore history and fall through to the main execution loop below.
         this.getChat().setHistory(originalHistory);

@@ -19,6 +19,43 @@ import process from 'node:process';
 import { isGitRepository } from '../utils/gitUtils.js';
 import { MemoryTool, GEMINI_CONFIG_DIR } from '../tools/memoryTool.js';
 
+const UPGRADE_SIGNAL = "__GEMINI_UPGRADE_REQUEST__";
+
+const UPGRADE_PROMPT = `
+STOP. IMMEDIATE ACTION REQUIRED: TASK COMPLEXITY ASSESSMENT.
+
+You are the 'Fast/Lite' model (optimized for speed, limited capability). You MUST evaluate the user's request against the rubric below and decide whether to process it or signal for an UPGRADE to the 'Pro' model (optimized for complexity).
+
+Do not attempt the task before making this decision.
+
+--- RUBRIC ---
+
+Signal UPGRADE if the request involves ANY of the following:
+
+1.  **Complex Reasoning & Planning:** Requires multi-step strategies, analyzing dependencies, or anticipating consequences (e.g., "Plan a migration strategy", "How should I architect this?").
+2.  **Debugging & Error Analysis:** Analyzing stack traces, non-obvious bugs, or requiring deep contextual understanding to find a root cause.
+3.  **Architectural Design:** Open-ended questions about system design, best practices, or comparing technologies.
+4.  **Large-Scale Code Modification/Refactoring:** Tasks requiring changes across multiple files, understanding broad project context, or complex logic rewrites.
+5.  **Ambiguity or Broad Scope:** Vague requests or tasks with many unspecified requirements (e.g., "Improve performance", "Make the code better").
+
+Proceed WITHOUT UPGRADE (Fast/Lite is sufficient) if the request is:
+
+*   Simple syntax questions (e.g., "How to write a Python loop?").
+*   Generating standard boilerplate (e.g., "Create a basic React component").
+*   Direct, single tool commands (e.g., "List files", "Read file X").
+
+--- DECISION PROTOCOL ---
+
+1. Analyze the user's request using the RUBRIC.
+2. If UPGRADE criteria are met:
+   Your response MUST be EXACTLY the following string, with NO OTHER TEXT before or after:
+   ${UPGRADE_SIGNAL}
+3. If UPGRADE is NOT required:
+   Proceed immediately to the 'CORE SYSTEM INSTRUCTIONS' below.
+
+==================== CORE SYSTEM INSTRUCTIONS ====================
+`.trim();
+
 export function getCoreSystemPrompt(
   userMemory?: string,
   model?: string,
@@ -295,20 +332,8 @@ Your core function is efficient and safe assistance. Balance extreme conciseness
       ? `\n\n---\n\n${userMemory.trim()}`
       : '';
 
-  const upgradePrompt = `
-# Model Routing Instruction (STRICT)
-You are currently running on a faster, less capable model. Before proceeding, you MUST assess the complexity of the user's request.
-
-If the request is simple and you can handle it effectively, proceed as normal according to the main instructions below.
-
-If the request is too complex, requires deep reasoning, extensive coding, or handling large amounts of data, you MUST request an upgrade.
-
-To request an upgrade, your response MUST consist ONLY of the following signal string and absolutely nothing else (no explanation, no thought process):
-__GEMINI_UPGRADE_REQUEST__
-`;
-
   if (model && model.toLowerCase().includes('flash')) {
-    return `${upgradePrompt.trim()}\n\n${basePrompt}${memorySuffix}`;
+    return `${UPGRADE_PROMPT.trim()}\n\n${basePrompt}${memorySuffix}`;
   }
 
   return `${basePrompt}${memorySuffix}`;
