@@ -8,7 +8,7 @@
       "type": "node",
       "request": "launch",
       "name": "Launch CLI",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "/Users/minooei/.nvm/versions/node/v20.14.0/bin/npm",
       "runtimeArgs": ["run", "start"],
       "skipFiles": ["<node_internals>/**"],
       "cwd": "${workspaceFolder}",
