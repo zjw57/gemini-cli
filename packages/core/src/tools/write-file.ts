@@ -27,7 +27,7 @@ import {
 } from '../utils/editCorrector.js';
 import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
 import { ModifiableTool, ModifyContext } from './modifiable-tool.js';
-import { getSpecificMimeType, isWithinRoot } from '../utils/fileUtils.js';
+import { getSpecificMimeType } from '../utils/fileUtils.js';
 import {
   recordFileOperationMetric,
   FileOperation,
@@ -106,9 +106,11 @@ export class WriteFileTool
       const message = `File path must be absolute: ${filePath}`;
       return message;
     }
-    if (!isWithinRoot(filePath, this.config.getTargetDir())) {
-      const message = `File path must be within the root directory (${this.config.getTargetDir()}): ${filePath}`;
-      return message;
+
+    const workspaceContext = this.config.getWorkspaceContext();
+    if (!workspaceContext.isPathWithinWorkspace(filePath)) {
+      const directories = workspaceContext.getDirectories();
+      return `File path must be within one of the workspace directories: ${directories.join(', ')}`;
     }
 
     try {
@@ -132,8 +134,8 @@ export class WriteFileTool
   }
 
   getDescription(params: WriteFileToolParams): string {
-    if (!params.file_path || !params.content) {
-      return `Model did not provide valid parameters for write file tool`;
+    if (!params.file_path) {
+      return `Model did not provide valid parameters for write file tool, missing or empty "file_path"`;
     }
     const relativePath = makeRelative(
       params.file_path,

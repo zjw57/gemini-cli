@@ -5,10 +5,9 @@
  */
 
 import * as vscode from 'vscode';
-import { IDEServer } from './ide-server';
-import { DiffContentProvider } from './diff-content-provider';
-import { DiffManager } from './diff-manager';
-import { createLogger } from './utils/logger';
+import { IDEServer } from './ide-server.js';
+import { DiffContentProvider, DiffManager } from './diff-manager.js';
+import { createLogger } from './utils/logger.js';
 
 const IDE_WORKSPACE_PATH_ENV_VAR = 'GEMINI_CLI_IDE_WORKSPACE_PATH';
 export const DIFF_SCHEME = 'gemini-diff';
@@ -45,6 +44,11 @@ export async function activate(context: vscode.ExtensionContext) {
   const diffManager = new DiffManager(logger, diffContentProvider);
 
   context.subscriptions.push(
+    vscode.workspace.onDidCloseTextDocument((doc) => {
+      if (doc.uri.scheme === DIFF_SCHEME) {
+        diffManager.cancelDiff(doc.uri);
+      }
+    }),
     vscode.workspace.registerTextDocumentContentProvider(
       DIFF_SCHEME,
       diffContentProvider,
@@ -86,6 +90,13 @@ export async function activate(context: vscode.ExtensionContext) {
       const terminal = vscode.window.createTerminal(`Gemini CLI`);
       terminal.show();
       terminal.sendText(geminiCmd);
+    }),
+    vscode.commands.registerCommand('gemini-cli.showNotices', async () => {
+      const noticePath = vscode.Uri.joinPath(
+        context.extensionUri,
+        'NOTICES.txt',
+      );
+      await vscode.window.showTextDocument(noticePath);
     }),
   );
 }

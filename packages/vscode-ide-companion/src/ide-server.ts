@@ -15,7 +15,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { Server as HTTPServer } from 'node:http';
 import { z } from 'zod';
-import { DiffManager } from './diff-manager';
+import { DiffManager } from './diff-manager.js';
 import { OpenFilesManager } from './open-files-manager.js';
 
 const MCP_SESSION_ID_HEADER = 'mcp-session-id';
@@ -76,7 +76,7 @@ export class IDEServer {
     });
     context.subscriptions.push(onDidChangeSubscription);
     const onDidChangeDiffSubscription = this.diffManager.onDidChange(
-      (notification) => {
+      (notification: JSONRPCNotification) => {
         for (const transport of Object.values(transports)) {
           transport.send(notification);
         }
@@ -238,6 +238,7 @@ const createMcpServer = (diffManager: DiffManager) => {
         '(IDE Tool) Open a diff view to create or modify a file. Returns a notification once the diff has been accepted or rejcted.',
       inputSchema: z.object({
         filePath: z.string(),
+        // TODO(chrstn): determine if this should be required or not.
         newContent: z.string().optional(),
       }).shape,
     },

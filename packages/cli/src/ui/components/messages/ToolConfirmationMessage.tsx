@@ -131,7 +131,10 @@ export const ToolConfirmationMessage: React.FC<
         label: 'Modify with external editor',
         value: ToolConfirmationOutcome.ModifyWithEditor,
       },
-      { label: 'No (esc)', value: ToolConfirmationOutcome.Cancel },
+      {
+        label: 'No, suggest changes (esc)',
+        value: ToolConfirmationOutcome.Cancel,
+      },
     );
     bodyContent = (
       <DiffRenderer
@@ -155,9 +158,11 @@ export const ToolConfirmationMessage: React.FC<
         label: `Yes, allow always ...`,
         value: ToolConfirmationOutcome.ProceedAlways,
       },
+      {
+        label: 'No, suggest changes (esc)',
+        value: ToolConfirmationOutcome.Cancel,
+      },
     );
-
-    options.push({ label: 'No (esc)', value: ToolConfirmationOutcome.Cancel });
 
     let bodyContentHeight = availableBodyContentHeight();
     if (bodyContentHeight !== undefined) {
@@ -193,7 +198,10 @@ export const ToolConfirmationMessage: React.FC<
         label: 'Yes, allow always',
         value: ToolConfirmationOutcome.ProceedAlways,
       },
-      { label: 'No (esc)', value: ToolConfirmationOutcome.Cancel },
+      {
+        label: 'No, suggest changes (esc)',
+        value: ToolConfirmationOutcome.Cancel,
+      },
     );
 
     bodyContent = (
@@ -234,7 +242,10 @@ export const ToolConfirmationMessage: React.FC<
         label: `Yes, always allow all tools from server "${mcpProps.serverName}"`,
         value: ToolConfirmationOutcome.ProceedAlwaysServer,
       },
-      { label: 'No (esc)', value: ToolConfirmationOutcome.Cancel },
+      {
+        label: 'No, suggest changes (esc)',
+        value: ToolConfirmationOutcome.Cancel,
+      },
     );
   }
 

@@ -6,9 +6,34 @@
 
 import * as vscode from 'vscode';
 import * as path from 'node:path';
-import { DiffContentProvider } from './diff-content-provider';
-import { DIFF_SCHEME } from './extension';
+import { DIFF_SCHEME } from './extension.js';
 import { type JSONRPCNotification } from '@modelcontextprotocol/sdk/types.js';
+
+export class DiffContentProvider implements vscode.TextDocumentContentProvider {
+  private content = new Map<string, string>();
+  private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
+
+  get onDidChange(): vscode.Event<vscode.Uri> {
+    return this.onDidChangeEmitter.event;
+  }
+
+  provideTextDocumentContent(uri: vscode.Uri): string {
+    return this.content.get(uri.toString()) ?? '';
+  }
+
+  setContent(uri: vscode.Uri, content: string): void {
+    this.content.set(uri.toString(), content);
+    this.onDidChangeEmitter.fire(uri);
+  }
+
+  deleteContent(uri: vscode.Uri): void {
+    this.content.delete(uri.toString());
+  }
+
+  getContent(uri: vscode.Uri): string | undefined {
+    return this.content.get(uri.toString());
+  }
+}
 
 // Information about a diff view that is currently open.
 interface DiffInfo {
@@ -33,65 +58,56 @@ export class DiffManager {
 
   /**
    * Creates and shows a new diff view.
-   *
-   * This is typically called by a tool from the MCP server.
    */
   async showDiff(filePath: string, newContent: string) {
     const fileUri = vscode.Uri.file(filePath);
 
-    let fileExists = true;
+    const rightDocUri = vscode.Uri.from({
+      scheme: DIFF_SCHEME,
+      path: filePath,
+      // cache busting
+      query: `rand=${Math.random()}`,
+    });
+    this.diffContentProvider.setContent(rightDocUri, newContent);
+
+    this.addDiffDocument(rightDocUri, {
+      originalFilePath: filePath,
+      newContent,
+      rightDocUri,
+    });
+
+    const diffTitle = `${path.basename(filePath)} ↔ Modified`;
+    await vscode.commands.executeCommand(
+      'setContext',
+      'gemini.diff.isVisible',
+      true,
+    );
+
+    let leftDocUri;
     try {
       await vscode.workspace.fs.stat(fileUri);
+      leftDocUri = fileUri;
     } catch {
-      fileExists = false;
-    }
-
-    if (fileExists) {
-      const modifiedContent = newContent ?? '';
-      const rightDocUri = vscode.Uri.from({
-        scheme: DIFF_SCHEME,
+      // We need to provide an empty document to diff against.
+      // Using the 'untitled' scheme is one way to do this.
+      leftDocUri = vscode.Uri.from({
+        scheme: 'untitled',
         path: filePath,
-        query: `rand=${Math.random()}`,
       });
-      this.diffContentProvider.setContent(rightDocUri, modifiedContent);
-
-      this.addDiffDocument(rightDocUri, {
-        originalFilePath: filePath,
-        newContent: modifiedContent,
-        rightDocUri,
-      });
-
-      const diffTitle = `${path.basename(filePath)} ↔ Modified`;
-      await vscode.commands.executeCommand(
-        'setContext',
-        'gemini.diff.isVisible',
-        true,
-      );
-      await vscode.commands.executeCommand(
-        'vscode.diff',
-        fileUri,
-        rightDocUri,
-        diffTitle,
-        {
-          preview: false,
-        },
-      );
-      await vscode.commands.executeCommand(
-        'workbench.action.files.setActiveEditorWriteableInSession',
-      );
-    } else {
-      // If the file doesn't exist, we create it and show it directly
-      // instead of showing a diff.
-      const workspaceEdit = new vscode.WorkspaceEdit();
-      workspaceEdit.createFile(fileUri, { ignoreIfExists: true });
-      workspaceEdit.insert(
-        fileUri,
-        new vscode.Position(0, 0),
-        newContent ?? '',
-      );
-      await vscode.workspace.applyEdit(workspaceEdit);
-      await vscode.window.showTextDocument(fileUri);
     }
+
+    await vscode.commands.executeCommand(
+      'vscode.diff',
+      leftDocUri,
+      rightDocUri,
+      diffTitle,
+      {
+        preview: false,
+      },
+    );
+    await vscode.commands.executeCommand(
+      'workbench.action.files.setActiveEditorWriteableInSession',
+    );
   }
 
   /**
@@ -107,7 +123,17 @@ export class DiffManager {
     }
 
     if (uriToClose) {
+      const rightDoc = await vscode.workspace.openTextDocument(uriToClose);
+      const modifiedContent = rightDoc.getText();
       await this.closeDiffEditor(uriToClose);
+      this.onDidChangeEmitter.fire({
+        jsonrpc: '2.0',
+        method: 'ide/diffClosed',
+        params: {
+          filePath,
+          content: modifiedContent,
+        },
+      });
       vscode.window.showInformationMessage(`Diff for ${filePath} closed.`);
     } else {
       vscode.window.showWarningMessage(`No open diff found for ${filePath}.`);
@@ -115,7 +141,7 @@ export class DiffManager {
   }
 
   /**
-   * Called when a user accepts the changes in a diff view.
+   * User accepts the changes in a diff view. Does not apply changes.
    */
   async acceptDiff(rightDocUri: vscode.Uri) {
     const diffInfo = this.diffDocuments.get(rightDocUri.toString());
@@ -128,22 +154,7 @@ export class DiffManager {
 
     const rightDoc = await vscode.workspace.openTextDocument(rightDocUri);
     const modifiedContent = rightDoc.getText();
-
-    // const workspaceEdit = new vscode.WorkspaceEdit();
-    // const fileUri = vscode.Uri.file(diffInfo.originalFilePath);
-    // const doc = await vscode.workspace.openTextDocument(fileUri);
-    // const lastLine = doc.lineAt(doc.lineCount - 1);
-    // const fullRange = new vscode.Range(
-    //   new vscode.Position(0, 0),
-    //   lastLine.range.end,
-    // );
-    // workspaceEdit.replace(fileUri, fullRange, modifiedContent);
-    // await vscode.workspace.applyEdit(workspaceEdit);
-
-    // await doc.save();
-
     await this.closeDiffEditor(rightDocUri);
-    vscode.window.showInformationMessage('Changes applied and saved.');
 
     this.onDidChangeEmitter.fire({
       jsonrpc: '2.0',
@@ -160,64 +171,27 @@ export class DiffManager {
    */
   async cancelDiff(rightDocUri: vscode.Uri) {
     const diffInfo = this.diffDocuments.get(rightDocUri.toString());
+    if (!diffInfo) {
+      this.logger.appendLine(
+        `No diff info found for ${rightDocUri.toString()}`,
+      );
+      // Even if we don't have diff info, we should still close the editor.
+      await this.closeDiffEditor(rightDocUri);
+      return;
+    }
+
+    const rightDoc = await vscode.workspace.openTextDocument(rightDocUri);
+    const modifiedContent = rightDoc.getText();
     await this.closeDiffEditor(rightDocUri);
-    vscode.window.showInformationMessage('Changes canceled.');
 
-    if (diffInfo) {
-      this.onDidChangeEmitter.fire({
-        jsonrpc: '2.0',
-        method: 'ide/diffClosed',
-        params: { filePath: diffInfo.originalFilePath },
-      });
-    }
-  }
-
-  /**
-   * Called when the text document for a diff view is closed.
-   */
-  onDidCloseTextDocument(document: vscode.TextDocument) {
-    const closedUriString = document.uri.toString();
-    if (this.diffDocuments.has(closedUriString)) {
-      const diffInfo = this.diffDocuments.get(closedUriString);
-      if (diffInfo) {
-        this.onDidChangeEmitter.fire({
-          jsonrpc: '2.0',
-          method: 'ide/diffClosed',
-          params: { 
-            filePath: diffInfo.originalFilePath, 
-            newContent: document.getText(),
-          },
-        });
-        this.diffDocuments.delete(closedUriString);
-        this.diffContentProvider.deleteContent(document.uri);
-        vscode.commands.executeCommand(
-          'setContext',
-          'gemini.diff.isVisible',
-          false,
-        );
-        vscode.window.showInformationMessage('Diff view closed.');
-      }
-    }
-  }
-
-  /**
-   * Called when the text document for a diff view is changed.
-   */
-  onDidChangeTextDocument(e: vscode.TextDocumentChangeEvent) {
-    const changedUriString = e.document.uri.toString();
-    if (this.diffDocuments.has(changedUriString)) {
-      const diffInfo = this.diffDocuments.get(changedUriString);
-      if (diffInfo) {
-        this.onDidChangeEmitter.fire({
-          jsonrpc: '2.0',
-          method: 'ide/diffModified',
-          params: {
-            filePath: diffInfo.originalFilePath,
-            newContent: e.document.getText(),
-          },
-        });
-      }
-    }
+    this.onDidChangeEmitter.fire({
+      jsonrpc: '2.0',
+      method: 'ide/diffClosed',
+      params: {
+        filePath: diffInfo.originalFilePath,
+        content: modifiedContent,
+      },
+    });
   }
 
   private addDiffDocument(uri: vscode.Uri, diffInfo: DiffInfo) {
