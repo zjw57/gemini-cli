@@ -72,6 +72,12 @@ export class DiffManager {
         fileUri,
         rightDocUri,
         diffTitle,
+        {
+          preview: false,
+        },
+      );
+      await vscode.commands.executeCommand(
+        'workbench.action.files.setActiveEditorWriteableInSession',
       );
     } else {
       // If the file doesn't exist, we create it and show it directly
@@ -85,6 +91,26 @@ export class DiffManager {
       );
       await vscode.workspace.applyEdit(workspaceEdit);
       await vscode.window.showTextDocument(fileUri);
+    }
+  }
+
+  /**
+   * Closes an open diff view for a specific file.
+   */
+  async closeDiff(filePath: string) {
+    let uriToClose: vscode.Uri | undefined;
+    for (const [uriString, diffInfo] of this.diffDocuments.entries()) {
+      if (diffInfo.originalFilePath === filePath) {
+        uriToClose = vscode.Uri.parse(uriString);
+        break;
+      }
+    }
+
+    if (uriToClose) {
+      await this.closeDiffEditor(uriToClose);
+      vscode.window.showInformationMessage(`Diff for ${filePath} closed.`);
+    } else {
+      vscode.window.showWarningMessage(`No open diff found for ${filePath}.`);
     }
   }
 
@@ -157,7 +183,10 @@ export class DiffManager {
         this.onDidChangeEmitter.fire({
           jsonrpc: '2.0',
           method: 'ide/diffClosed',
-          params: { filePath: diffInfo.originalFilePath },
+          params: { 
+            filePath: diffInfo.originalFilePath, 
+            newContent: document.getText(),
+          },
         });
         this.diffDocuments.delete(closedUriString);
         this.diffContentProvider.deleteContent(document.uri);
@@ -167,6 +196,26 @@ export class DiffManager {
           false,
         );
         vscode.window.showInformationMessage('Diff view closed.');
+      }
+    }
+  }
+
+  /**
+   * Called when the text document for a diff view is changed.
+   */
+  onDidChangeTextDocument(e: vscode.TextDocumentChangeEvent) {
+    const changedUriString = e.document.uri.toString();
+    if (this.diffDocuments.has(changedUriString)) {
+      const diffInfo = this.diffDocuments.get(changedUriString);
+      if (diffInfo) {
+        this.onDidChangeEmitter.fire({
+          jsonrpc: '2.0',
+          method: 'ide/diffModified',
+          params: {
+            filePath: diffInfo.originalFilePath,
+            newContent: e.document.getText(),
+          },
+        });
       }
     }
   }
