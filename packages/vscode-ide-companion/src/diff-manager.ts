@@ -49,6 +49,7 @@ export class DiffManager {
       const rightDocUri = vscode.Uri.from({
         scheme: DIFF_SCHEME,
         path: filePath,
+        // cache busting
         query: `rand=${Math.random()}`,
       });
       this.diffContentProvider.setContent(rightDocUri, modifiedContent);
