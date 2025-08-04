@@ -111,7 +111,7 @@ export async function runNonInteractive(
 
         if (event.type === GeminiEventType.Content) {
           logModelResponse(JSON.parse(event.value));
-          process.stdout.write(event.value);
+          // process.stdout.write(event.value);
         } else if (event.type === GeminiEventType.ToolCallRequest) {
           const toolCallRequest = event.value;
           logToolCallRequest(config, toolCallRequest);
