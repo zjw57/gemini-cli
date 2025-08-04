@@ -145,11 +145,6 @@ export class WriteFileTool
     params: WriteFileToolParams,
     abortSignal: AbortSignal,
   ): Promise<ToolCallConfirmationDetails | false> {
-    const ideClient = this.config.getIdeClient();
-    if (this.config.getIdeMode() && ideClient) {
-      return false;
-    }
-
     if (this.config.getApprovalMode() === ApprovalMode.AUTO_EDIT) {
       return false;
     }
