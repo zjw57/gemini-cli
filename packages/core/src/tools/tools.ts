@@ -241,6 +241,7 @@ export interface ToolEditConfirmationDetails {
   originalContent: string | null;
   newContent: string;
   isModifying?: boolean;
+  ideConfirmation?: Promise<'accepted' | 'rejected'>;
 }
 
 export interface ToolConfirmationPayload {

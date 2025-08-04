@@ -222,4 +222,19 @@ export class IdeClient {
         });
     });
   }
+
+  closeDiff(filePath: string) {
+    logger.debug(`Closing diff for ${filePath}`);
+    this.client
+      ?.callTool({
+        name: `closeDiff`,
+        arguments: {
+          filePath,
+        },
+      })
+      .catch((err) => {
+        logger.debug(`callTool for ${filePath} failed:`, err);
+        this.diffResponses.delete(filePath);
+      });
+  }
 }

@@ -103,10 +103,12 @@ export class WriteFileTool
 
     const filePath = params.file_path;
     if (!path.isAbsolute(filePath)) {
-      return `File path must be absolute: ${filePath}`;
+      const message = `File path must be absolute: ${filePath}`;
+      return message;
     }
     if (!isWithinRoot(filePath, this.config.getTargetDir())) {
-      return `File path must be within the root directory (${this.config.getTargetDir()}): ${filePath}`;
+      const message = `File path must be within the root directory (${this.config.getTargetDir()}): ${filePath}`;
+      return message;
     }
 
     try {
@@ -115,13 +117,15 @@ export class WriteFileTool
       if (fs.existsSync(filePath)) {
         const stats = fs.lstatSync(filePath);
         if (stats.isDirectory()) {
-          return `Path is a directory, not a file: ${filePath}`;
+          const message = `Path is a directory, not a file: ${filePath}`;
+          return message;
         }
       }
     } catch (statError: unknown) {
       // If fs.existsSync is true but lstatSync fails (e.g., permissions, race condition where file is deleted)
       // this indicates an issue with accessing the path that should be reported.
-      return `Error accessing path properties for validation: ${filePath}. Reason: ${statError instanceof Error ? statError.message : String(statError)}`;
+      const message = `Error accessing path properties for validation: ${filePath}. Reason: ${statError instanceof Error ? statError.message : String(statError)}`;
+      return message;
     }
 
     return null;
@@ -181,6 +185,12 @@ export class WriteFileTool
       DEFAULT_DIFF_OPTIONS,
     );
 
+    const ideClient = this.config.getIdeClient();
+    const ideConfirmation =
+      this.config.getIdeMode() && ideClient
+        ? ideClient.openDiff(params.file_path, correctedContent)
+        : undefined;
+
     const confirmationDetails: ToolEditConfirmationDetails = {
       type: 'edit',
       title: `Confirm Write: ${shortenPath(relativePath)}`,
@@ -193,6 +203,7 @@ export class WriteFileTool
           this.config.setApprovalMode(ApprovalMode.AUTO_EDIT);
         }
       },
+      ideConfirmation,
     };
     return confirmationDetails;
   }
@@ -207,23 +218,6 @@ export class WriteFileTool
         llmContent: `Error: Invalid parameters provided. Reason: ${validationError}`,
         returnDisplay: `Error: ${validationError}`,
       };
-    }
-
-    const ideClient = this.config.getIdeClient();
-    if (this.config.getIdeMode() && ideClient) {
-      const status = await ideClient.openDiff(params.file_path, params.content);
-      if (status === 'rejected') {
-        return {
-          llmContent: 'User rejected the file write operation in the IDE.',
-          returnDisplay: 'File write operation rejected by user.',
-        };
-      }
-      if (status === 'accepted') {
-        return {
-          llmContent: `Successfully wrote to file: ${params.file_path} via the IDE.`,
-          returnDisplay: `File write operation accepted by user in the IDE.`,
-        };
-      }
     }
 
     const correctedContentResult = await this._getCorrectedFileContent(

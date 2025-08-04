@@ -33,6 +33,7 @@ export const ToolConfirmationMessage: React.FC<
   ToolConfirmationMessageProps
 > = ({
   confirmationDetails,
+  config,
   isFocused = true,
   availableTerminalHeight,
   terminalWidth,
@@ -40,14 +41,22 @@ export const ToolConfirmationMessage: React.FC<
   const { onConfirm } = confirmationDetails;
   const childWidth = terminalWidth - 2; // 2 for padding
 
+  const handleConfirm = (outcome: ToolConfirmationOutcome) => {
+    if (confirmationDetails.type === 'edit') {
+      config?.getIdeClient()?.closeDiff(confirmationDetails?.fileName);
+      console.log("HERE");
+    }
+    onConfirm(outcome);
+  };
+
   useInput((_, key) => {
     if (!isFocused) return;
     if (key.escape) {
-      onConfirm(ToolConfirmationOutcome.Cancel);
+      handleConfirm(ToolConfirmationOutcome.Cancel);
     }
   });
 
-  const handleSelect = (item: ToolConfirmationOutcome) => onConfirm(item);
+  const handleSelect = (item: ToolConfirmationOutcome) => handleConfirm(item);
 
   let bodyContent: React.ReactNode | null = null; // Removed contextDisplay here
   let question: string;
@@ -253,3 +262,4 @@ export const ToolConfirmationMessage: React.FC<
     </Box>
   );
 };
+hello world

@@ -54,6 +54,8 @@ const mockConfigInternal = {
   getApprovalMode: vi.fn(() => ApprovalMode.DEFAULT),
   setApprovalMode: vi.fn(),
   getGeminiClient: vi.fn(), // Initialize as a plain mock function
+  getIdeClient: vi.fn(),
+  getIdeMode: vi.fn(() => false),
   getApiKey: () => 'test-key',
   getModel: () => 'test-model',
   getSandbox: () => false,
@@ -102,6 +104,14 @@ describe('WriteFileTool', () => {
     mockConfigInternal.getGeminiClient.mockReturnValue(
       mockGeminiClientInstance,
     );
+    mockConfigInternal.getIdeClient.mockReturnValue({
+      openDiff: vi.fn(),
+      closeDiff: vi.fn(),
+      getIdeContext: vi.fn(),
+      subscribeToIdeContext: vi.fn(),
+      isCodeTrackerEnabled: vi.fn(),
+      getTrackedCode: vi.fn(),
+    });
 
     tool = new WriteFileTool(mockConfig);
 
