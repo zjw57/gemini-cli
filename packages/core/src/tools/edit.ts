@@ -485,6 +485,7 @@ class TestAllStrategy implements ReplaceStrategyImpl {
     strategies: ReplaceStrategyImpl[] = [
       new ExactStrategy(),
       new FuzzyStrategy(),
+      new FuzzyStrategyV2(),
       new CompositeStrategy(),
       new CorrectorStrategy(),
     ],
@@ -543,7 +544,9 @@ class TestAllStrategy implements ReplaceStrategyImpl {
       }
     }
 
-    console.log('\n' + JSON.stringify({ test_all_results: allResults }, null, 0) + '\n');
+    console.log(
+      '\n' + JSON.stringify({ test_all_results: allResults }, null, 0) + '\n',
+    );
 
     if (correctorResultToReturn) {
       return correctorResultToReturn;
