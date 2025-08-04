@@ -267,11 +267,7 @@ const createMcpServer = (diffManager: DiffManager) => {
         filePath: z.string(),
       }).shape,
     },
-    async ({
-      filePath,
-    }: {
-      filePath: string;
-    }) => {
+    async ({ filePath }: { filePath: string }) => {
       await diffManager.closeDiff(filePath);
       return {
         content: [
