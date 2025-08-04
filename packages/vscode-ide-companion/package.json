@@ -48,6 +48,10 @@
         "icon": "$(close)"
       },
       {
+        "command": "gemini.diff.save",
+        "title": "Save"
+      },
+      {
         "command": "gemini-cli.runGeminiCLI",
         "title": "Gemini CLI: Run"
       },
@@ -69,7 +73,19 @@
           "group": "navigation"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "gemini.diff.accept",
+        "key": "ctrl+s",
+        "when": "gemini.diff.isVisible"
+      },
+      {
+        "command": "gemini.diff.accept",
+        "key": "cmd+s",
+        "when": "gemini.diff.isVisible"
+      }
+    ]
   },
   "main": "./dist/extension.cjs",
   "type": "module",
