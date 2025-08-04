@@ -43,8 +43,7 @@ export const ToolConfirmationMessage: React.FC<
 
   const handleConfirm = (outcome: ToolConfirmationOutcome) => {
     if (confirmationDetails.type === 'edit') {
-      config?.getIdeClient()?.closeDiff(confirmationDetails?.fileName);
-      console.log("HERE");
+      config?.getIdeClient()?.closeDiff(confirmationDetails?.filePath);
     }
     onConfirm(outcome);
   };

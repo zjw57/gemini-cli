@@ -6,6 +6,7 @@
 
 import { FunctionDeclaration, PartListUnion, Schema } from '@google/genai';
 import { ToolErrorType } from './tool-error.js';
+import { DiffUpdateResult } from '../ide/ide-client.js';
 
 /**
  * Interface representing the base Tool functionality
@@ -246,11 +247,12 @@ export interface ToolEditConfirmationDetails {
     payload?: ToolConfirmationPayload,
   ) => Promise<void>;
   fileName: string;
+  filePath: string;
   fileDiff: string;
   originalContent: string | null;
   newContent: string;
   isModifying?: boolean;
-  ideConfirmation?: Promise<'accepted' | 'rejected'>;
+  ideConfirmation?: Promise<DiffUpdateResult>;
 }
 
 export interface ToolConfirmationPayload {
@@ -322,3 +324,4 @@ export interface ToolLocation {
   // Which line (if known)
   line?: number;
 }
+hello world

@@ -9,9 +9,12 @@ import {
   DetectedIde,
   getIdeDisplayName,
 } from '../ide/detect-ide.js';
-import { ideContext, IdeContextNotificationSchema,   DiffAcceptedNotificationSchema,
+import {
+  ideContext,
+  IdeContextNotificationSchema,
+  DiffAcceptedNotificationSchema,
   DiffClosedNotificationSchema,
- } from '../ide/ideContext.js';
+} from '../ide/ideContext.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -31,7 +34,15 @@ export enum IDEConnectionStatus {
   Connecting = 'connecting',
 }
 
-type DiffUpdateStatus = 'accepted' | 'rejected';
+export type DiffUpdateResult =
+  | {
+      status: 'accepted';
+      content: string;
+    }
+  | {
+      status: 'rejected';
+      content: undefined;
+    };
 
 /**
  * Manages the connection to and interaction with the IDE server.
@@ -41,10 +52,11 @@ export class IdeClient {
   private state: IDEConnectionState = {
     status: IDEConnectionStatus.Disconnected,
   };
-  private diffResponses = new Map<string, (result: DiffUpdateStatus) => void>();
+  // private diffResponses = new Map<string, (result: DiffUpdateStatus) => void>();
   private static instance: IdeClient;
   private readonly currentIde: DetectedIde | undefined;
   private readonly currentIdeDisplayName: string | undefined;
+  private diffResponses = new Map<string, (result: DiffUpdateResult) => void>();
 
   constructor(ideMode: boolean) {
     this.currentIde = detectIde();
@@ -130,13 +142,13 @@ export class IdeClient {
       DiffAcceptedNotificationSchema,
       (notification) => {
         logger.debug('Received diffAccepted notification:', notification);
-        const { filePath } = notification.params;
+        const { filePath, content } = notification.params;
         const resolver = this.diffResponses.get(filePath);
         if (resolver) {
           logger.debug(
             `Found resolver for ${filePath}, resolving with accepted`,
           );
-          resolver('accepted');
+          resolver({ status: 'accepted', content });
           this.diffResponses.delete(filePath);
         } else {
           logger.debug(`No resolver found for ${filePath}`);
@@ -154,7 +166,7 @@ export class IdeClient {
           logger.debug(
             `Found resolver for ${filePath}, resolving with rejected`,
           );
-          resolver('rejected');
+          resolver({ status: 'rejected', content: undefined });
           this.diffResponses.delete(filePath);
         } else {
           logger.debug(`No resolver found for ${filePath}`);
@@ -237,9 +249,9 @@ export class IdeClient {
   async openDiff(
     filePath: string,
     newContent?: string,
-  ): Promise<DiffUpdateStatus> {
+  ): Promise<DiffUpdateResult> {
     logger.debug(`Opening diff for ${filePath}`);
-    return new Promise<DiffUpdateStatus>((resolve, reject) => {
+    return new Promise<DiffUpdateResult>((resolve, reject) => {
       this.diffResponses.set(filePath, resolve);
       logger.debug(`Resolver stored for ${filePath}`);
       this.client

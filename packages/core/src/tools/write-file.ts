@@ -197,12 +197,20 @@ export class WriteFileTool
       type: 'edit',
       title: `Confirm Write: ${shortenPath(relativePath)}`,
       fileName,
+      filePath: params.file_path,
       fileDiff,
       originalContent,
       newContent: correctedContent,
       onConfirm: async (outcome: ToolConfirmationOutcome) => {
         if (outcome === ToolConfirmationOutcome.ProceedAlways) {
           this.config.setApprovalMode(ApprovalMode.AUTO_EDIT);
+        }
+
+        if (ideConfirmation) {
+          const result = await ideConfirmation;
+          if (result.status === 'accepted') {
+            params.content = result.content;
+          }
         }
       },
       ideConfirmation,

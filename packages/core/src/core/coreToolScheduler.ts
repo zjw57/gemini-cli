@@ -479,7 +479,7 @@ export class CoreToolScheduler {
               confirmationDetails.ideConfirmation
             ) {
               confirmationDetails.ideConfirmation.then((resolution) => {
-                if (resolution === 'accepted') {
+                if (resolution.status === 'accepted') {
                   this.handleConfirmationResponse(
                     reqInfo.callId,
                     confirmationDetails.onConfirm,
