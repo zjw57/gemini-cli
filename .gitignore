@@ -15,7 +15,7 @@ bower_components
 # Editors
 .idea
 *.iml
-.vscode/
+.vscode/launch.json
 
 # OS metadata
 .DS_Store
