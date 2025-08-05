@@ -264,7 +264,6 @@ export class IdeClient {
         })
         .catch((err) => {
           logger.debug(`callTool for ${filePath} failed:`, err);
-          this.diffResponses.delete(filePath);
           reject(err);
         });
     });
@@ -289,7 +288,6 @@ export class IdeClient {
       return content;
     } catch (err) {
       logger.debug(`callTool for ${filePath} failed:`, err);
-      this.diffResponses.delete(filePath);
     }
     return;
   }

@@ -236,7 +236,6 @@ export interface FileDiff {
   fileName: string;
   originalContent: string | null;
   newContent: string;
-  isModifying?: boolean;
 }
 
 export interface ToolEditConfirmationDetails {
@@ -286,17 +285,11 @@ export interface ToolInfoConfirmationDetails {
   urls?: string[];
 }
 
-export interface ToolIdeHandledConfirmationDetails {
-  type: 'ide-handled';
-  onConfirm: (outcome: ToolConfirmationOutcome) => Promise<void>;
-}
-
 export type ToolCallConfirmationDetails =
   | ToolEditConfirmationDetails
   | ToolExecuteConfirmationDetails
   | ToolMcpConfirmationDetails
-  | ToolInfoConfirmationDetails
-  | ToolIdeHandledConfirmationDetails;
+  | ToolInfoConfirmationDetails;
 
 export enum ToolConfirmationOutcome {
   ProceedOnce = 'proceed_once',
