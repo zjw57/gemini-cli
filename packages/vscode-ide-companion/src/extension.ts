@@ -7,6 +7,7 @@
 import * as vscode from 'vscode';
 import { IDEServer } from './ide-server.js';
 import { DiffContentProvider, DiffManager } from './diff-manager.js';
+import { CommandManager } from './command-manager.js';
 import { createLogger } from './utils/logger.js';
 
 const IDE_WORKSPACE_PATH_ENV_VAR = 'GEMINI_CLI_IDE_WORKSPACE_PATH';
@@ -42,6 +43,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const diffContentProvider = new DiffContentProvider();
   const diffManager = new DiffManager(logger, diffContentProvider);
+  const commandManager = new CommandManager(logger);
 
   context.subscriptions.push(
     vscode.workspace.onDidCloseTextDocument((doc) => {
@@ -73,7 +75,7 @@ export async function activate(context: vscode.ExtensionContext) {
     ),
   );
 
-  ideServer = new IDEServer(log, diffManager);
+  ideServer = new IDEServer(log, diffManager, commandManager);
   try {
     await ideServer.start(context);
   } catch (err) {

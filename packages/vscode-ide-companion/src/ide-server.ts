@@ -16,6 +16,7 @@ import {
 import { Server as HTTPServer } from 'node:http';
 import { z } from 'zod';
 import { DiffManager } from './diff-manager.js';
+import { CommandManager } from './command-manager.js';
 import { OpenFilesManager } from './open-files-manager.js';
 
 const MCP_SESSION_ID_HEADER = 'mcp-session-id';
@@ -48,10 +49,16 @@ export class IDEServer {
   private context: vscode.ExtensionContext | undefined;
   private log: (message: string) => void;
   diffManager: DiffManager;
+  commandManager: CommandManager;
 
-  constructor(log: (message: string) => void, diffManager: DiffManager) {
+  constructor(
+    log: (message: string) => void,
+    diffManager: DiffManager,
+    commandManager: CommandManager,
+  ) {
     this.log = log;
     this.diffManager = diffManager;
+    this.commandManager = commandManager;
   }
 
   async start(context: vscode.ExtensionContext) {
@@ -62,7 +69,7 @@ export class IDEServer {
 
     const app = express();
     app.use(express.json());
-    const mcpServer = createMcpServer(this.diffManager);
+    const mcpServer = createMcpServer(this.diffManager, this.commandManager);
 
     const openFilesManager = new OpenFilesManager(context);
     const onDidChangeSubscription = openFilesManager.onDidChange(() => {
@@ -83,6 +90,14 @@ export class IDEServer {
       },
     );
     context.subscriptions.push(onDidChangeDiffSubscription);
+    const onDidChangeCommandSubscription = this.commandManager.onDidChange(
+      (notification: JSONRPCNotification) => {
+        for (const transport of Object.values(transports)) {
+          transport.send(notification);
+        }
+      },
+    );
+    context.subscriptions.push(onDidChangeCommandSubscription);
 
     app.post('/mcp', async (req: Request, res: Response) => {
       const sessionId = req.headers[MCP_SESSION_ID_HEADER] as
@@ -223,7 +238,10 @@ export class IDEServer {
   }
 }
 
-const createMcpServer = (diffManager: DiffManager) => {
+const createMcpServer = (
+  diffManager: DiffManager,
+  commandManager: CommandManager,
+) => {
   const server = new McpServer(
     {
       name: 'gemini-cli-companion-mcp-server',
@@ -275,6 +293,34 @@ const createMcpServer = (diffManager: DiffManager) => {
           {
             type: 'text',
             text: `Closed diff for ${filePath}`,
+          },
+        ],
+      };
+    },
+  );
+  server.registerTool(
+    'runCommand',
+    {
+      description:
+        '(IDE Tool) Runs a command in the integrated terminal. The output of the command can be written to a file and will be sent back as a notification.',
+      inputSchema: z.object({
+        command: z.string(),
+        outputFile: z.string().optional(),
+      }).shape,
+    },
+    async ({
+      command,
+      outputFile,
+    }: {
+      command: string;
+      outputFile?: string;
+    }) => {
+      await commandManager.runCommand(command, outputFile);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Running command: ${command}`,
           },
         ],
       };
