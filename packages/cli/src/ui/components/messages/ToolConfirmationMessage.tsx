@@ -43,7 +43,15 @@ export const ToolConfirmationMessage: React.FC<
 
   const handleConfirm = (outcome: ToolConfirmationOutcome) => {
     if (confirmationDetails.type === 'edit') {
-      config?.getIdeClient()?.closeDiff(confirmationDetails?.filePath);
+      const ideClient = config?.getIdeClient();
+      if (ideClient) {
+        const cliOutcome =
+          outcome === ToolConfirmationOutcome.Cancel ? 'rejected' : 'accepted';
+        ideClient.resolveDiffFromCli(
+          confirmationDetails.filePath,
+          cliOutcome,
+        );
+      }
     }
     onConfirm(outcome);
   };

@@ -37,7 +37,7 @@ export enum IDEConnectionStatus {
 export type DiffUpdateResult =
   | {
       status: 'accepted';
-      content: string;
+      content?: string;
     }
   | {
       status: 'rejected';
@@ -283,6 +283,21 @@ export class IdeClient {
         logger.debug(`callTool for ${filePath} failed:`, err);
         this.diffResponses.delete(filePath);
       });
+  }
+
+  resolveDiffFromCli(filePath: string, outcome: 'accepted' | 'rejected') {
+    logger.debug(`Resolving diff for ${filePath} from CLI with ${outcome}`);
+    const resolver = this.diffResponses.get(filePath);
+    if (resolver) {
+      if (outcome === 'accepted') {
+        resolver({ status: 'accepted', content: undefined });
+      } else {
+        resolver({ status: 'rejected', content: undefined });
+      }
+      this.diffResponses.delete(filePath);
+    }
+    // Always tell the IDE to close the diff window.
+    this.closeDiff(filePath);
   }
   dispose() {
     this.client?.close();
