@@ -6,7 +6,7 @@
 
 import { FunctionDeclaration, PartListUnion, Schema } from '@google/genai';
 import { ToolErrorType } from './tool-error.js';
-import { DiffUpdateResult } from '../ide/ide-client.js';
+import { DiffUpdateResult } from '../ide/ideContext.js';
 
 /**
  * Interface representing the base Tool functionality

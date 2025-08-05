@@ -41,7 +41,7 @@ export const IdeContextNotificationSchema = z.object({
   params: IdeContextSchema,
 });
 
-export const DiffAcceptedNotificationSchema = z.object({
+export const IdeDiffAcceptedNotificationSchema = z.object({
   jsonrpc: z.literal('2.0'),
   method: z.literal('ide/diffAccepted'),
   params: z.object({
@@ -50,7 +50,7 @@ export const DiffAcceptedNotificationSchema = z.object({
   }),
 });
 
-export const DiffClosedNotificationSchema = z.object({
+export const IdeDiffClosedNotificationSchema = z.object({
   jsonrpc: z.literal('2.0'),
   method: z.literal('ide/diffClosed'),
   params: z.object({
@@ -58,6 +58,21 @@ export const DiffClosedNotificationSchema = z.object({
     content: z.string().optional(),
   }),
 });
+
+export const CloseDiffResponseSchema = z.object({
+  content: z.string().optional(),
+});
+
+export type DiffUpdateResult =
+  | {
+      status: 'accepted';
+      content?: string;
+    }
+  | {
+      status: 'rejected';
+      content: undefined;
+    };
+
 type IdeContextSubscriber = (ideContext: IdeContext | undefined) => void;
 
 /**
