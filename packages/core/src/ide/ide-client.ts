@@ -83,7 +83,7 @@ export class IdeClient {
     if (!port) {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        `IDE companion extension for ${this.currentIdeDisplayName} isn't running. Please ensure the extension is installed and enabled. You can run '/ide install' to install it.`,
+        `Failed to connect to IDE companion extension for ${this.getDetectedIdeDisplayName}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
       );
       return undefined;
     }
@@ -95,7 +95,7 @@ export class IdeClient {
     if (ideWorkspacePath === undefined) {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        `IDE companion extension for ${this.currentIdeDisplayName} isn't running. Please ensure the extension is installed and enabled. You can run '/ide install' to install it.`,
+        `Failed to connect to IDE companion extension for ${this.getDetectedIdeDisplayName}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
       );
       return false;
     }
@@ -165,7 +165,7 @@ export class IdeClient {
     } catch (_error) {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        `Failed to connect to IDE companion extension for ${this.getDetectedIdeDisplayName()}. Please ensure the extension is running and refresh your terminal window.`,
+        `Failed to connect to IDE companion extension for ${this.getDetectedIdeDisplayName}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
       );
       if (transport) {
         try {
