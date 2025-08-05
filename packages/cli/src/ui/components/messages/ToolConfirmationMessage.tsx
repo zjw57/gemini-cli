@@ -126,15 +126,19 @@ export const ToolConfirmationMessage: React.FC<
         label: 'Yes, allow always',
         value: ToolConfirmationOutcome.ProceedAlways,
       },
-      {
+    );
+
+    if (!config?.getIdeMode()) {
+      options.push({
         label: 'Modify with external editor',
         value: ToolConfirmationOutcome.ModifyWithEditor,
-      },
-      {
-        label: 'No, suggest changes (esc)',
-        value: ToolConfirmationOutcome.Cancel,
-      },
-    );
+      });
+    }
+
+    options.push({
+      label: 'No, suggest changes (esc)',
+      value: ToolConfirmationOutcome.Cancel,
+    });
     bodyContent = (
       <DiffRenderer
         diffContent={confirmationDetails.fileDiff}
