@@ -83,6 +83,7 @@ interface MockServerConfig {
   getProjectRoot: Mock<() => string | undefined>;
   getAllGeminiMdFilenames: Mock<() => string[]>;
   getGeminiClient: Mock<() => GeminiClient | undefined>;
+  getIdeClient: Mock<() => { getCurrentIde: () => undefined }>;
   getUserTier: Mock<() => Promise<string | undefined>>;
 }
 
