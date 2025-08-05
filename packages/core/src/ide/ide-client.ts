@@ -12,8 +12,10 @@ import {
 import {
   ideContext,
   IdeContextNotificationSchema,
-  DiffAcceptedNotificationSchema,
-  DiffClosedNotificationSchema,
+  IdeDiffAcceptedNotificationSchema,
+  IdeDiffClosedNotificationSchema,
+  CloseDiffResponseSchema,
+  DiffUpdateResult,
 } from '../ide/ideContext.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -34,16 +36,6 @@ export enum IDEConnectionStatus {
   Connecting = 'connecting',
 }
 
-export type DiffUpdateResult =
-  | {
-      status: 'accepted';
-      content: string;
-    }
-  | {
-      status: 'rejected';
-      content: undefined;
-    };
-
 /**
  * Manages the connection to and interaction with the IDE server.
  */
@@ -52,7 +44,6 @@ export class IdeClient {
   private state: IDEConnectionState = {
     status: IDEConnectionStatus.Disconnected,
   };
-  // private diffResponses = new Map<string, (result: DiffUpdateStatus) => void>();
   private static instance: IdeClient;
   private readonly currentIde: DetectedIde | undefined;
   private readonly currentIdeDisplayName: string | undefined;
@@ -139,15 +130,11 @@ export class IdeClient {
     );
 
     this.client.setNotificationHandler(
-      DiffAcceptedNotificationSchema,
+      IdeDiffAcceptedNotificationSchema,
       (notification) => {
-        logger.debug('Received diffAccepted notification:', notification);
         const { filePath, content } = notification.params;
         const resolver = this.diffResponses.get(filePath);
         if (resolver) {
-          logger.debug(
-            `Found resolver for ${filePath}, resolving with accepted`,
-          );
           resolver({ status: 'accepted', content });
           this.diffResponses.delete(filePath);
         } else {
@@ -157,15 +144,11 @@ export class IdeClient {
     );
 
     this.client.setNotificationHandler(
-      DiffClosedNotificationSchema,
+      IdeDiffClosedNotificationSchema,
       (notification) => {
-        logger.debug('Received diffClosed notification:', notification);
         const { filePath } = notification.params;
         const resolver = this.diffResponses.get(filePath);
         if (resolver) {
-          logger.debug(
-            `Found resolver for ${filePath}, resolving with rejected`,
-          );
           resolver({ status: 'rejected', content: undefined });
           this.diffResponses.delete(filePath);
         } else {
@@ -264,26 +247,54 @@ export class IdeClient {
         })
         .catch((err) => {
           logger.debug(`callTool for ${filePath} failed:`, err);
-          this.diffResponses.delete(filePath);
           reject(err);
         });
     });
   }
 
-  closeDiff(filePath: string) {
+  async closeDiff(filePath: string): Promise<string | undefined> {
     logger.debug(`Closing diff for ${filePath}`);
-    this.client
-      ?.callTool({
+    try {
+      const result = await this.client?.callTool({
         name: `closeDiff`,
         arguments: {
           filePath,
         },
-      })
-      .catch((err) => {
-        logger.debug(`callTool for ${filePath} failed:`, err);
-        this.diffResponses.delete(filePath);
       });
+      const textContent =
+        result?.content &&
+        Array.isArray(result.content) &&
+        result.content.length > 0 &&
+        result.content[0].type === 'text'
+          ? result.content[0].text
+          : undefined;
+
+      if (textContent) {
+        const parsed = CloseDiffResponseSchema.parse(JSON.parse(textContent));
+        return parsed.content;
+      }
+    } catch (err) {
+      logger.debug(`callTool for ${filePath} failed:`, err);
+    }
+    return;
   }
+
+  // Closes the diff. Instead of waiting for a notification,
+  // manually resolves the diff resolver as the desired outcome.
+  async resolveDiffFromCli(filePath: string, outcome: 'accepted' | 'rejected') {
+    logger.debug(`Resolving diff for ${filePath} from CLI with ${outcome}`);
+    const content = await this.closeDiff(filePath);
+    const resolver = this.diffResponses.get(filePath);
+    if (resolver) {
+      if (outcome === 'accepted') {
+        resolver({ status: 'accepted', content });
+      } else {
+        resolver({ status: 'rejected', content: undefined });
+      }
+      this.diffResponses.delete(filePath);
+    }
+  }
+
   dispose() {
     this.client?.close();
   }

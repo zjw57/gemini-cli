@@ -219,7 +219,7 @@ export class MemoryTool
     const confirmationDetails: ToolEditConfirmationDetails = {
       type: 'edit',
       title: `Confirm Memory Save: ${tildeifyPath(memoryFilePath)}`,
-      fileName,
+      fileName: memoryFilePath,
       filePath: memoryFilePath,
       fileDiff,
       originalContent: currentContent,

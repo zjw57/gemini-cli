@@ -32,6 +32,7 @@ import {
   recordFileOperationMetric,
   FileOperation,
 } from '../telemetry/metrics.js';
+import { IDEConnectionStatus } from '../ide/ide-client.js';
 
 /**
  * Parameters for the WriteFile tool
@@ -103,8 +104,7 @@ export class WriteFileTool
 
     const filePath = params.file_path;
     if (!path.isAbsolute(filePath)) {
-      const message = `File path must be absolute: ${filePath}`;
-      return message;
+      return `File path must be absolute: ${filePath}`;
     }
 
     const workspaceContext = this.config.getWorkspaceContext();
@@ -119,15 +119,13 @@ export class WriteFileTool
       if (fs.existsSync(filePath)) {
         const stats = fs.lstatSync(filePath);
         if (stats.isDirectory()) {
-          const message = `Path is a directory, not a file: ${filePath}`;
-          return message;
+          return `Path is a directory, not a file: ${filePath}`;
         }
       }
     } catch (statError: unknown) {
       // If fs.existsSync is true but lstatSync fails (e.g., permissions, race condition where file is deleted)
       // this indicates an issue with accessing the path that should be reported.
-      const message = `Error accessing path properties for validation: ${filePath}. Reason: ${statError instanceof Error ? statError.message : String(statError)}`;
-      return message;
+      return `Error accessing path properties for validation: ${filePath}. Reason: ${statError instanceof Error ? statError.message : String(statError)}`;
     }
 
     return null;
@@ -189,7 +187,9 @@ export class WriteFileTool
 
     const ideClient = this.config.getIdeClient();
     const ideConfirmation =
-      this.config.getIdeMode() && ideClient
+      this.config.getIdeModeFeature() &&
+      this.config.getIdeMode() &&
+      ideClient.getConnectionStatus().status === IDEConnectionStatus.Connected
         ? ideClient.openDiff(params.file_path, correctedContent)
         : undefined;
 
@@ -208,7 +208,7 @@ export class WriteFileTool
 
         if (ideConfirmation) {
           const result = await ideConfirmation;
-          if (result.status === 'accepted') {
+          if (result.status === 'accepted' && result.content) {
             params.content = result.content;
           }
         }

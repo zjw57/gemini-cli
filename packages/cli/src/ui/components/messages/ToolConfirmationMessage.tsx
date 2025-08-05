@@ -41,9 +41,17 @@ export const ToolConfirmationMessage: React.FC<
   const { onConfirm } = confirmationDetails;
   const childWidth = terminalWidth - 2; // 2 for padding
 
-  const handleConfirm = (outcome: ToolConfirmationOutcome) => {
+  const handleConfirm = async (outcome: ToolConfirmationOutcome) => {
     if (confirmationDetails.type === 'edit') {
-      config?.getIdeClient()?.closeDiff(confirmationDetails?.filePath);
+      const ideClient = config?.getIdeClient();
+      if (config?.getIdeMode() && config?.getIdeModeFeature()) {
+        const cliOutcome =
+          outcome === ToolConfirmationOutcome.Cancel ? 'rejected' : 'accepted';
+        await ideClient?.resolveDiffFromCli(
+          confirmationDetails.filePath,
+          cliOutcome,
+        );
+      }
     }
     onConfirm(outcome);
   };
@@ -93,9 +101,6 @@ export const ToolConfirmationMessage: React.FC<
       HEIGHT_OPTIONS;
     return Math.max(availableTerminalHeight - surroundingElementsHeight, 1);
   }
-  if (confirmationDetails.type === 'ide-handled') {
-    return undefined;
-  }
 
   if (confirmationDetails.type === 'edit') {
     if (confirmationDetails.isModifying) {
@@ -126,15 +131,25 @@ export const ToolConfirmationMessage: React.FC<
         label: 'Yes, allow always',
         value: ToolConfirmationOutcome.ProceedAlways,
       },
-      {
+    );
+    if (config?.getIdeMode() && config?.getIdeModeFeature()) {
+      options.push({
+        label: 'No',
+        value: ToolConfirmationOutcome.Cancel,
+      });
+    } else {
+      // TODO(chrstnb): support edit tool in IDE mode.
+
+      options.push({
         label: 'Modify with external editor',
         value: ToolConfirmationOutcome.ModifyWithEditor,
-      },
-      {
+      });
+      options.push({
         label: 'No, suggest changes (esc)',
         value: ToolConfirmationOutcome.Cancel,
-      },
-    );
+      });
+    }
+
     bodyContent = (
       <DiffRenderer
         diffContent={confirmationDetails.fileDiff}
