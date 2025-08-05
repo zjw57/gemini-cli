@@ -494,6 +494,7 @@ describe('Hierarchical Memory Loading (config.ts) - Placeholder Suite', () => {
         '/path/to/ext3/context1.md',
         '/path/to/ext3/context2.md',
       ],
+      'tree',
       {
         respectGitIgnore: false,
         respectGeminiIgnore: true,
@@ -913,6 +914,68 @@ describe('loadCliConfig extensions', () => {
       argv,
     );
     expect(config.getExtensionContextFilePaths()).toEqual(['/path/to/ext1.md']);
+  });
+});
+
+describe('loadCliConfig model selection', () => {
+  it('selects a model from settings.json if provided', async () => {
+    process.argv = ['node', 'script.js'];
+    const argv = await parseArguments();
+    const config = await loadCliConfig(
+      {
+        model: 'gemini-9001-ultra',
+      },
+      [],
+      'test-session',
+      argv,
+    );
+
+    expect(config.getModel()).toBe('gemini-9001-ultra');
+  });
+
+  it('uses the default gemini model if nothing is set', async () => {
+    process.argv = ['node', 'script.js']; // No model set.
+    const argv = await parseArguments();
+    const config = await loadCliConfig(
+      {
+        // No model set.
+      },
+      [],
+      'test-session',
+      argv,
+    );
+
+    expect(config.getModel()).toBe('gemini-2.5-pro');
+  });
+
+  it('always prefers model from argvs', async () => {
+    process.argv = ['node', 'script.js', '--model', 'gemini-8675309-ultra'];
+    const argv = await parseArguments();
+    const config = await loadCliConfig(
+      {
+        model: 'gemini-9001-ultra',
+      },
+      [],
+      'test-session',
+      argv,
+    );
+
+    expect(config.getModel()).toBe('gemini-8675309-ultra');
+  });
+
+  it('selects the model from argvs if provided', async () => {
+    process.argv = ['node', 'script.js', '--model', 'gemini-8675309-ultra'];
+    const argv = await parseArguments();
+    const config = await loadCliConfig(
+      {
+        // No model provided via settings.
+      },
+      [],
+      'test-session',
+      argv,
+    );
+
+    expect(config.getModel()).toBe('gemini-8675309-ultra');
   });
 });
 
