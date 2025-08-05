@@ -208,8 +208,7 @@ export class WriteFileTool
 
         if (ideConfirmation) {
           const result = await ideConfirmation;
-          // Only update content if diff was accepted in IDE and returned content
-          if (result.status === 'accepted' && result.content !== undefined) {
+          if (result.status === 'accepted' && result.content) {
             params.content = result.content;
           }
         }

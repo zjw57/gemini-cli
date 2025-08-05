@@ -270,35 +270,44 @@ export class IdeClient {
     });
   }
 
-  closeDiff(filePath: string) {
+  async closeDiff(filePath: string): Promise<string | undefined> {
     logger.debug(`Closing diff for ${filePath}`);
-    this.client
-      ?.callTool({
+    try {
+      const result = await this.client?.callTool({
         name: `closeDiff`,
         arguments: {
           filePath,
         },
-      })
-      .catch((err) => {
-        logger.debug(`callTool for ${filePath} failed:`, err);
-        this.diffResponses.delete(filePath);
       });
+      const content =
+        result?.content &&
+        Array.isArray(result.content) &&
+        result.content.length > 0 &&
+        result.content[0].type === 'text'
+          ? result.content[0].text
+          : undefined;
+      return content;
+    } catch (err) {
+      logger.debug(`callTool for ${filePath} failed:`, err);
+      this.diffResponses.delete(filePath);
+    }
+    return;
   }
 
-  resolveDiffFromCli(filePath: string, outcome: 'accepted' | 'rejected') {
+  async resolveDiffFromCli(filePath: string, outcome: 'accepted' | 'rejected') {
     logger.debug(`Resolving diff for ${filePath} from CLI with ${outcome}`);
+    const content = await this.closeDiff(filePath);
     const resolver = this.diffResponses.get(filePath);
     if (resolver) {
       if (outcome === 'accepted') {
-        resolver({ status: 'accepted', content: undefined });
+        resolver({ status: 'accepted', content });
       } else {
         resolver({ status: 'rejected', content: undefined });
       }
       this.diffResponses.delete(filePath);
     }
-    // Always tell the IDE to close the diff window.
-    this.closeDiff(filePath);
   }
+
   dispose() {
     this.client?.close();
   }

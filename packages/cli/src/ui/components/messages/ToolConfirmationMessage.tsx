@@ -41,13 +41,13 @@ export const ToolConfirmationMessage: React.FC<
   const { onConfirm } = confirmationDetails;
   const childWidth = terminalWidth - 2; // 2 for padding
 
-  const handleConfirm = (outcome: ToolConfirmationOutcome) => {
+  const handleConfirm = async (outcome: ToolConfirmationOutcome) => {
     if (confirmationDetails.type === 'edit') {
       const ideClient = config?.getIdeClient();
       if (ideClient) {
         const cliOutcome =
           outcome === ToolConfirmationOutcome.Cancel ? 'rejected' : 'accepted';
-        ideClient.resolveDiffFromCli(
+        await ideClient.resolveDiffFromCli(
           confirmationDetails.filePath,
           cliOutcome,
         );

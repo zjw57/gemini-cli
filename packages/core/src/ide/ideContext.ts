@@ -36,11 +36,13 @@ export type IdeContext = z.infer<typeof IdeContextSchema>;
  * Zod schema for validating the 'ide/contextUpdate' notification from the IDE.
  */
 export const IdeContextNotificationSchema = z.object({
+  jsonrpc: z.literal('2.0'),
   method: z.literal('ide/contextUpdate'),
   params: IdeContextSchema,
 });
 
 export const DiffAcceptedNotificationSchema = z.object({
+  jsonrpc: z.literal('2.0'),
   method: z.literal('ide/diffAccepted'),
   params: z.object({
     filePath: z.string(),
@@ -49,9 +51,11 @@ export const DiffAcceptedNotificationSchema = z.object({
 });
 
 export const DiffClosedNotificationSchema = z.object({
+  jsonrpc: z.literal('2.0'),
   method: z.literal('ide/diffClosed'),
   params: z.object({
     filePath: z.string(),
+    content: z.string().optional(),
   }),
 });
 type IdeContextSubscriber = (ideContext: IdeContext | undefined) => void;
