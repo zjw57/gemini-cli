@@ -36,6 +36,7 @@ function updateWorkspacePath(context: vscode.ExtensionContext) {
 
 export async function activate(context: vscode.ExtensionContext) {
   logger = vscode.window.createOutputChannel('Gemini CLI IDE Companion');
+  logger.show();
   log = createLogger(context, logger);
   log('Extension activated');
 

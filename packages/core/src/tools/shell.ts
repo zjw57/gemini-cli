@@ -31,6 +31,7 @@ import {
   isCommandAllowed,
   stripShellWrapper,
 } from '../utils/shell-utils.js';
+import { IDEConnectionStatus } from '../ide/ide-client.js';
 
 export const OUTPUT_UPDATE_INTERVAL_MS = 1000;
 
@@ -38,6 +39,7 @@ export interface ShellToolParams {
   command: string;
   description?: string;
   directory?: string;
+  outputFile?: string;
 }
 
 export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
@@ -48,7 +50,7 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
     super(
       ShellTool.Name,
       'Shell',
-      `This tool executes a given shell command as \`bash -c <command>\`. Command can start background processes using \`&\`. Command is executed as a subprocess that leads its own process group. Command process group can be terminated as \`kill -- -PGID\` or signaled as \`kill -s SIGNAL -- -PGID\`.
+      `This tool executes a given shell command as 'bash -c <command>'. Command can start background processes using '&'. Command is executed as a subprocess that leads its own process group. Command process group can be terminated as 'kill -- -PGID' or signaled as 'kill -s SIGNAL -- -PGID'.
 
       The following information is returned:
 
@@ -78,6 +80,11 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
             type: Type.STRING,
             description:
               '(OPTIONAL) Directory to run the command in, if not the project root directory. Must be relative to the project root directory and must already exist.',
+          },
+          outputFile: {
+            type: Type.STRING,
+            description:
+              '(OPTIONAL) File to write the output of the command to. If not provided, the output will be returned in the response.',
           },
         },
         required: ['command'],
@@ -179,6 +186,40 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
     signal: AbortSignal,
     updateOutput?: (output: string) => void,
   ): Promise<ToolResult> {
+    const ideClient = this.config.getIdeClient();
+    if (
+      this.config.getIdeMode() &&
+      ideClient.getConnectionStatus().status === IDEConnectionStatus.Connected
+    ) {
+      const result = await ideClient.runCommand(
+        params.command,
+        params.outputFile,
+      );
+
+      if (params.outputFile) {
+        try {
+          const output = fs.readFileSync(params.outputFile, 'utf-8');
+          return {
+            llmContent: `Command output: ${output}`,
+            returnDisplay: output,
+          };
+        } catch (error) {
+          const errorMsg = `Error reading output file: ${
+            error instanceof Error ? error.message : String(error)
+          }`;
+          return {
+            llmContent: errorMsg,
+            returnDisplay: errorMsg,
+          };
+        }
+      }
+
+      return {
+        llmContent: `Command output: ${result.stdout}`,
+        returnDisplay: result.stdout,
+      };
+    }
+
     const strippedCommand = stripShellWrapper(params.command);
     const validationError = this.validateToolParams({
       ...params,

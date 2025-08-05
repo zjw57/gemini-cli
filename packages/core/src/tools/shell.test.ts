@@ -56,6 +56,11 @@ describe('ShellTool', () => {
       getSummarizeToolOutputConfig: vi.fn().mockReturnValue(undefined),
       getWorkspaceContext: () => createMockWorkspaceContext('.'),
       getGeminiClient: vi.fn(),
+      getIdeMode: vi.fn().mockReturnValue(false),
+      getIdeClient: vi.fn().mockReturnValue({
+        getConnectionStatus: vi.fn().mockReturnValue({ status: 'connected' }),
+        runCommand: vi.fn().mockResolvedValue({ stdout: 'mock stdout' }),
+      }),
     } as unknown as Config;
 
     shellTool = new ShellTool(mockConfig);

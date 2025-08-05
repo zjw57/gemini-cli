@@ -6,7 +6,10 @@
 
 import * as vscode from 'vscode';
 import { IdeContextNotificationSchema } from '@google/gemini-cli-core';
-import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import {
+  isInitializeRequest,
+  type JSONRPCNotification,
+} from '@modelcontextprotocol/sdk/types.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express, { type Request, type Response } from 'express';

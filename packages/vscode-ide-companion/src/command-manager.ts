@@ -31,9 +31,12 @@ export class CommandManager {
   private findExistingTerminal(): vscode.Terminal | undefined {
     return vscode.window.terminals.find((t) => t.name === this.terminalName);
   }
-
   async runCommand(command: string, outputFile?: string) {
-    const existingTerminal = this.findExistingTerminal();
+    // First, find and dispose of any existing terminal with the same name,
+    // regardless of whether it's in the panel or editor area.
+    const existingTerminal = vscode.window.terminals.find(
+      (t) => t.name === this.terminalName,
+    );
     if (existingTerminal) {
       existingTerminal.dispose();
     }
@@ -53,17 +56,26 @@ export class CommandManager {
       },
     };
 
-    const terminal = vscode.window.createTerminal({
+    // --- KEY CHANGE IS HERE ---
+    // Define options to open the terminal in a split view in the editor area.
+    const terminalOptions: vscode.ExtensionTerminalOptions = {
       name: this.terminalName,
       pty,
-    });
+      location: {
+        viewColumn: vscode.ViewColumn.Beside, // This forces a split view
+        preserveFocus: false,
+      },
+    };
+    // --- END OF KEY CHANGE ---
+
+    const terminal = vscode.window.createTerminal(terminalOptions);
     terminal.show();
   }
 
   private runProcess(
     command: string,
     writeEmitter: vscode.EventEmitter<string>,
-    outputFile?: string
+    outputFile?: string,
   ) {
     const [executable, ...args] = command.split(' ');
     const process = spawn(executable, args, {
@@ -73,7 +85,7 @@ export class CommandManager {
     const terminal = vscode.window.activeTerminal;
     if (!terminal) {
       this.logger.appendLine(
-        `Failed to get active terminal for command: ${command}`
+        `Failed to get active terminal for command: ${command}`,
       );
       return;
     }
@@ -85,7 +97,7 @@ export class CommandManager {
       process,
     });
 
-    const destinations: ((data: string) => void)[] = [
+    const destinations: Array<(data: string) => void> = [
       (data) => writeEmitter.fire(data.replace(/\n/g, '\r\n')),
       (data) => this.handleOutput(command, data),
     ];
@@ -94,7 +106,7 @@ export class CommandManager {
       destinations.push((data: string) => {
         vscode.workspace.fs.writeFile(
           vscode.Uri.file(outputFile),
-          Buffer.from(data)
+          Buffer.from(data),
         );
       });
     }

@@ -279,6 +279,33 @@ export class IdeClient {
     return;
   }
 
+  async runCommand(
+    command: string,
+    outputFile?: string,
+  ): Promise<{ stdout: string }> {
+    logger.debug(`Running command: ${command}`);
+    try {
+      const result = await this.client?.callTool({
+        name: `runCommand`,
+        arguments: {
+          command,
+          outputFile,
+        },
+      });
+      const textContent =
+        result?.content &&
+        Array.isArray(result.content) &&
+        result.content.length > 0 &&
+        result.content[0].type === 'text'
+          ? result.content[0].text
+          : '';
+      return { stdout: textContent };
+    } catch (err) {
+      logger.debug(`callTool for runCommand failed:`, err);
+      return { stdout: '' };
+    }
+  }
+
   // Closes the diff. Instead of waiting for a notification,
   // manually resolves the diff resolver as the desired outcome.
   async resolveDiffFromCli(filePath: string, outcome: 'accepted' | 'rejected') {
