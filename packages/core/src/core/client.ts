@@ -23,7 +23,11 @@ import {
 } from './turn.js';
 import { Config } from '../config/config.js';
 import { UserTierId } from '../code_assist/types.js';
-import { getCoreSystemPrompt, getCompressionPrompt, ESCALATION_SIGNAL } from './prompts.js';
+import {
+  getCoreSystemPrompt,
+  getCompressionPrompt,
+  ESCALATION_SIGNAL,
+} from './prompts.js';
 import { ReadManyFilesTool } from '../tools/read-many-files.js';
 import { getResponseText } from '../utils/generateContentResponseUtilities.js';
 import { checkNextSpeaker } from '../utils/nextSpeakerChecker.js';
@@ -40,7 +44,10 @@ import {
   createContentGenerator,
 } from './contentGenerator.js';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
-import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
+import {
+  DEFAULT_GEMINI_FLASH_MODEL,
+  DEFAULT_GEMINI_FLASH_LITE_MODEL,
+} from '../config/models.js';
 import { LoopDetectionService } from '../services/loopDetectionService.js';
 import { ideContext } from '../ide/ideContext.js';
 import { logNextSpeakerCheck } from '../telemetry/loggers.js';
@@ -450,7 +457,7 @@ export class GeminiClient {
         // Fall through to the main execution loop below.
       } else {
         // No upgrade needed. Lock Flash for this sequence.
-        this.currentSequenceModel = DEFAULT_GEMINI_FLASH_MODEL;
+        this.currentSequenceModel = DEFAULT_GEMINI_FLASH_LITE_MODEL;
 
         const turn = probeResult.turn;
 
@@ -861,7 +868,11 @@ export class GeminiClient {
     let fullText = '';
 
     // Run the turn using the Flash model specifically via override.
-    const resultStream = turn.run(request, signal, DEFAULT_GEMINI_FLASH_MODEL);
+    const resultStream = turn.run(
+      request,
+      signal,
+      DEFAULT_GEMINI_FLASH_LITE_MODEL,
+    );
 
     // Iterate and buffer the stream.
     for await (const event of resultStream) {
@@ -883,7 +894,7 @@ export class GeminiClient {
     }
 
     // Check if the response indicates an upgrade request.
-    if (fullText.trim() === ESCALATION_SIGNAL) {
+    if (fullText.trim().includes(ESCALATION_SIGNAL)) {
       return { upgrade: true, events: [], turn }; // Discard events if upgrading
     }
 
