@@ -23,7 +23,7 @@ import {
 } from './turn.js';
 import { Config } from '../config/config.js';
 import { UserTierId } from '../code_assist/types.js';
-import { getCoreSystemPrompt, getCompressionPrompt } from './prompts.js';
+import { getCoreSystemPrompt, getCompressionPrompt, ESCALATION_SIGNAL } from './prompts.js';
 import { ReadManyFilesTool } from '../tools/read-many-files.js';
 import { getResponseText } from '../utils/generateContentResponseUtilities.js';
 import { checkNextSpeaker } from '../utils/nextSpeakerChecker.js';
@@ -49,8 +49,6 @@ import {
   NextSpeakerCheckEvent,
 } from '../telemetry/types.js';
 import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
-
-const GEMINI_UPGRADE_REQUEST = '__GEMINI_UPGRADE_REQUEST__';
 
 interface ProbeResult {
   upgrade: boolean;
@@ -444,7 +442,6 @@ export class GeminiClient {
       // Run probe using Flash model. This temporarily modifies the history in GeminiChat.
       const probeResult = await this.runProbe(request, signal, prompt_id);
 
-      console.log(`Routing Upgrade Result: ${probeResult.upgrade}`);
       if (probeResult.upgrade) {
         // Upgrade needed. Restore history and fall through to the main execution loop below.
         this.getChat().setHistory(originalHistory);
@@ -886,7 +883,7 @@ export class GeminiClient {
     }
 
     // Check if the response indicates an upgrade request.
-    if (fullText.trim() === GEMINI_UPGRADE_REQUEST) {
+    if (fullText.trim() === ESCALATION_SIGNAL) {
       return { upgrade: true, events: [], turn }; // Discard events if upgrading
     }
 

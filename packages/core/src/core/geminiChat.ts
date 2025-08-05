@@ -436,6 +436,7 @@ export class GeminiChat {
 
         const requestConfig = this._getRequestConfig(params.config, modelToUse);
 
+        console.log(`\n--- MODEL IN USE ---\nMODEL: ${modelToUse}\n\n`);
         return this.contentGenerator.generateContentStream({
           model: modelToUse,
           contents: requestContents,
