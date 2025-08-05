@@ -21,25 +21,6 @@ import { ToolCallResponseInfo } from '@google/gemini-cli-core';
 
 const DEBUG = process.env.GEMINI_DEBUG === 'true';
 
-function logModelResponse(response: Content) {
-  response.parts?.map((part) => {
-    if (part.thought) {
-      process.stdout.write('Gemini Thoughts 💭: ' + part.text + '\n');
-    } else {
-      process.stdout.write('Gemini 🤖: ' + part.text + '\n');
-    }
-  });
-}
-
-function logToolCallRequest(
-  config: Config,
-  requestInfo: ToolCallRequestInfo,
-) {
-  process.stdout.write(
-    `Tool call request:🔨 [${requestInfo.name}] => ${JSON.stringify(requestInfo.args)}\n`,
-  );
-}
-
 function logToolCallResult(
   config: Config,
   requestInfo: ToolCallRequestInfo,
@@ -48,16 +29,16 @@ function logToolCallResult(
   const status = toolResponse.error ? 'ERROR' : 'OK';
   if (toolResponse.error) {
     process.stdout.write(
-      `Tool call status:❌ ${status} ${requestInfo.name} => ${toolResponse.error.message}\n`,
+      `\nTool call status:❌ ${status} ${requestInfo.name} => ${toolResponse.error.message}\n`,
     );
   } else {
     if (toolResponse.resultDisplay) {
       process.stdout.write(
-        `Tool call status:✅ ${status} ${requestInfo.name} => ${toolResponse.resultDisplay}\n`,
+        `\nTool call status:✅ ${status} ${requestInfo.name} => ${toolResponse.resultDisplay}\n`,
       );
     } else {
       process.stdout.write(
-        `Tool call status:✅ ${status} ${requestInfo.name}\n`,
+        `\nTool call status:✅ ${status} ${requestInfo.name}\n`,
       );
     }
   }
@@ -104,6 +85,9 @@ export async function runNonInteractive(
         prompt_id,
       );
 
+      let thoughts = "";
+      let response = "";
+      let toolCalls = []; 
       for await (const event of responseStream) {
         if (abortController.signal.aborted) {
           console.error('Operation cancelled.');
@@ -111,18 +95,26 @@ export async function runNonInteractive(
         }
 
         if (event.type === GeminiEventType.Content) {
-          logModelResponse(JSON.parse(event.value));
-          // process.stdout.write(event.value);
+          response += event.value;
+        } else if (event.type === GeminiEventType.Thought) {
+          thoughts += event.value.description;
         } else if (event.type === GeminiEventType.ToolCallRequest) {
           const toolCallRequest = event.value;
-          logToolCallRequest(config, toolCallRequest);
           const fc: FunctionCall = {
             name: toolCallRequest.name,
             args: toolCallRequest.args,
             id: toolCallRequest.callId,
           };
           functionCalls.push(fc);
+          toolCalls.push(toolCallRequest);
         }
+      }
+      process.stdout.write(`\nGemini 🤖: ${response}\n`);
+      process.stdout.write(`\nThought 💭: ${thoughts}\n`);
+      for (const toolCall of toolCalls) {
+        process.stdout.write(
+          `\nTool call request:🔨 [${toolCall.name}] => ${JSON.stringify(toolCall.args)}\n`,
+        );
       }
 
       if (functionCalls.length > 0) {

@@ -101,9 +101,7 @@ describe('runNonInteractive', () => {
       expect.any(AbortSignal),
       'prompt-id-1',
     );
-    expect(processStdoutSpy).toHaveBeenCalledWith('Hello');
-    expect(processStdoutSpy).toHaveBeenCalledWith(' World');
-    expect(processStdoutSpy).toHaveBeenCalledWith('\n');
+    expect(processStdoutSpy).toHaveBeenCalledWith('Gemini 🤖: Hello World\n');
     expect(mockShutdownTelemetry).toHaveBeenCalled();
   });
 
@@ -145,8 +143,7 @@ describe('runNonInteractive', () => {
       expect.any(AbortSignal),
       'prompt-id-2',
     );
-    expect(processStdoutSpy).toHaveBeenCalledWith('Final answer');
-    expect(processStdoutSpy).toHaveBeenCalledWith('\n');
+    expect(processStdoutSpy).toHaveBeenCalledWith('Gemini 🤖: Final answer\n');
   });
 
   it('should handle error during tool execution', async () => {
@@ -230,7 +227,7 @@ describe('runNonInteractive', () => {
     expect(processExitSpy).not.toHaveBeenCalled();
     expect(mockGeminiClient.sendMessageStream).toHaveBeenCalledTimes(2);
     expect(processStdoutSpy).toHaveBeenCalledWith(
-      "Sorry, I can't find that tool.",
+      "Gemini 🤖: Sorry, I can't find that tool.\n",
     );
   });
 
