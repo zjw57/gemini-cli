@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { promises as fs, mkdirSync, existsSync } from 'fs';
+import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as Diff from 'diff';
 import {
@@ -35,7 +35,6 @@ interface CalculatedEdit {
   currentContent: string | null;
   newContent: string;
   error?: { display: string; raw: string; type: ToolErrorType };
-  isNewFile: boolean;
 }
 
 export class UdiffEditor extends BaseTool<UdiffEditorParams, ToolResult> {
@@ -45,7 +44,18 @@ export class UdiffEditor extends BaseTool<UdiffEditorParams, ToolResult> {
     super(
       UdiffEditor.Name,
       'Udiff Editor',
-      'Applies a unified diff to a file. The "udiff" edit format is based on the widely used unified diff format.',
+      // MODIFIED: More instructive description for the agent.
+      `Applies a unified diff patch to a single, **existing** file.
+
+This tool is designed to be flexible. It will first attempt a standard patch application. If that fails, it will fall back to a more lenient search-and-replace strategy based on the diff content. This helps correct for common LLM errors like omitting comments or blank lines from the diff.
+
+**CRITICAL:**
+- This tool CANNOT create new files. Use \`write_file\` for that purpose.
+- **Always read the file content immediately before using this tool** to ensure the diff is not stale.
+
+**Best Practices for Agents:**
+- Provide diffs for complete, logical blocks (like entire functions or classes) rather than small, surgical line changes. This increases the chance of a successful match.
+- If a patch fails, re-read the file, generate a new diff, and try again.`,
       Icon.Pencil,
       {
         properties: {
@@ -55,7 +65,8 @@ export class UdiffEditor extends BaseTool<UdiffEditorParams, ToolResult> {
             type: Type.STRING,
           },
           udiff_content: {
-            description: 'The unified diff content to apply to the file.',
+            description:
+              'The unified diff content to apply to the file. The tool will intelligently try to apply this, even if it has minor imperfections.',
             type: Type.STRING,
           },
         },
@@ -88,12 +99,78 @@ export class UdiffEditor extends BaseTool<UdiffEditorParams, ToolResult> {
     return [{ path: params.file_path }];
   }
 
+  // NEW: Helper to parse a hunk into search/replace blocks.
+  /**
+   * Parses a single diff hunk into an "original" block to search for and a
+   * "new" block to replace it with. This ignores line numbers and focuses
+   * only on the content, making it flexible.
+   * @param hunk The hunk object from the 'diff' library.
+   * @returns An object with original and new string blocks.
+   */
+  private parseHunkToSearchAndReplace(hunk: Diff.Hunk): {
+    original: string;
+    updated: string;
+  } {
+    const originalLines: string[] = [];
+    const updatedLines: string[] = [];
+
+    for (const line of hunk.lines) {
+      const content = line.substring(1);
+      if (line.startsWith('-')) {
+        originalLines.push(content);
+      } else if (line.startsWith('+')) {
+        updatedLines.push(content);
+      } else if (line.startsWith(' ')) {
+        originalLines.push(content);
+        updatedLines.push(content);
+      }
+      // Ignore lines like '\ No newline at end of file'
+    }
+
+    return {
+      original: originalLines.join('\n'),
+      updated: updatedLines.join('\n'),
+    };
+  }
+
+  // NEW: Flexible patch application logic.
+  /**
+   * Applies a single patch with multiple strategies, from strictest to most lenient.
+   * @param content The current content to be patched.
+   * @param patch A single parsed patch containing hunks.
+   * @returns The patched content as a string, or `false` if all strategies fail.
+   */
+  private applyPatchFlexibly(
+    content: string,
+    patch: Diff.ParsedDiff,
+  ): string | false {
+    // Strategy 1: Standard 'diff' library application with fuzz factor.
+    const strictResult = Diff.applyPatch(content, patch, { fuzzFactor: 2 });
+    if (strictResult !== false) {
+      return strictResult;
+    }
+
+    // Strategy 2: Fallback to search-and-replace for each hunk.
+    // This is effective when the LLM forgets context lines (comments, etc.).
+    if (patch.hunks.length === 1) {
+      const hunk = patch.hunks[0];
+      const { original, updated } = this.parseHunkToSearchAndReplace(hunk);
+
+      // Ensure the original block is not empty and exists in the content
+      if (original && content.includes(original)) {
+        return content.replace(original, updated);
+      }
+    }
+
+    // All strategies failed.
+    return false;
+  }
+
   private async calculateEdit(
     params: UdiffEditorParams,
   ): Promise<CalculatedEdit> {
     let currentContent: string | null = null;
     let fileExists = false;
-    let isNewFile = false;
 
     try {
       currentContent = await fs.readFile(params.file_path, 'utf8');
@@ -101,38 +178,71 @@ export class UdiffEditor extends BaseTool<UdiffEditorParams, ToolResult> {
     } catch (err: unknown) {
       if (isNodeError(err) && err.code === 'ENOENT') {
         fileExists = false;
-        currentContent = ''; // Treat non-existent file as empty
+        currentContent = '';
       } else {
         throw err;
       }
     }
 
     if (!fileExists) {
-      isNewFile = true;
-    }
-
-    const newContent = Diff.applyPatch(currentContent, params.udiff_content);
-
-    if (newContent === false) {
       return {
         currentContent,
         newContent: '',
         error: {
-          display: `The provided udiff could not be applied to the file.`,
-          raw: `The provided udiff could not be applied to the file: ${params.file_path}`,
-          type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
+          display: `File not found: ${params.file_path}. This tool cannot create new files.`,
+          raw: `File not found: ${params.file_path}`,
+          type: ToolErrorType.FILE_NOT_FOUND,
         },
-        isNewFile,
       };
+    }
+
+    let udiffContent = params.udiff_content;
+    if (!udiffContent.endsWith('\n')) {
+      udiffContent += '\n';
+    }
+
+    const patches = Diff.parsePatch(udiffContent);
+    if (!patches || patches.length === 0) {
+      return {
+        currentContent,
+        newContent: '',
+        error: {
+          display: `The provided udiff is invalid or empty.`,
+          raw: `The provided udiff is invalid or empty for file: ${params.file_path}`,
+          type: ToolErrorType.INVALID_TOOL_PARAMS,
+        },
+      };
+    }
+
+    // MODIFIED: Apply patches sequentially using the new flexible method.
+    let cumulativeContent: string = currentContent;
+    for (const [index, patch] of patches.entries()) {
+      // The diff library often creates patches with empty hunks for file-level headers. Skip them.
+      if (patch.hunks.length === 0) continue;
+
+      const result = this.applyPatchFlexibly(cumulativeContent, patch);
+
+      if (result === false) {
+        return {
+          currentContent,
+          newContent: '',
+          error: {
+            display: `Failed to apply the patch. The content to be changed in hunk #${index + 1} was not found in the file.`,
+            raw: `The udiff could not be applied to ${params.file_path}. Failed at hunk #${index + 1}. The content might be stale or the diff malformed.`,
+            type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
+          },
+        };
+      }
+      cumulativeContent = result;
     }
 
     return {
       currentContent,
-      newContent,
-      isNewFile,
+      newContent: cumulativeContent,
     };
   }
 
+  // Unchanged methods below...
   async shouldConfirmExecute(
     params: UdiffEditorParams,
     _abortSignal: AbortSignal,
@@ -238,34 +348,26 @@ export class UdiffEditor extends BaseTool<UdiffEditorParams, ToolResult> {
     }
 
     try {
-      this.ensureParentDirectoriesExist(params.file_path);
       await fs.writeFile(params.file_path, editData.newContent, 'utf8');
 
-      let displayResult: ToolResultDisplay;
-      if (editData.isNewFile) {
-        displayResult = `Created ${shortenPath(makeRelative(params.file_path, this.config.getTargetDir()))}`;
-      } else {
-        const fileName = path.basename(params.file_path);
-        const fileDiff = Diff.createPatch(
-          fileName,
-          editData.currentContent ?? '',
-          editData.newContent,
-          'Current',
-          'Proposed',
-          DEFAULT_DIFF_OPTIONS,
-        );
-        displayResult = {
-          fileDiff,
-          fileName,
-          originalContent: editData.currentContent,
-          newContent: editData.newContent,
-        };
-      }
+      const fileName = path.basename(params.file_path);
+      const fileDiff = Diff.createPatch(
+        fileName,
+        editData.currentContent ?? '',
+        editData.newContent,
+        'Current',
+        'Proposed',
+        DEFAULT_DIFF_OPTIONS,
+      );
+      const displayResult: ToolResultDisplay = {
+        fileDiff,
+        fileName,
+        originalContent: editData.currentContent,
+        newContent: editData.newContent,
+      };
 
       const llmSuccessMessageParts = [
-        editData.isNewFile
-          ? `Created new file: ${params.file_path} with provided content.`
-          : `Successfully modified file: ${params.file_path} by applying the udiff.`,
+        `Successfully modified file: ${params.file_path} by applying the udiff.`,
       ];
       if (params.modified_by_user) {
         llmSuccessMessageParts.push(`User modified the udiff.`);
@@ -285,17 +387,6 @@ export class UdiffEditor extends BaseTool<UdiffEditorParams, ToolResult> {
           type: ToolErrorType.FILE_WRITE_FAILURE,
         },
       };
-    }
-  }
-
-  private ensureParentDirectoriesExist(filePath: string): void {
-    const dirName = path.dirname(filePath);
-    try {
-      if (!existsSync(dirName)) {
-        mkdirSync(dirName, { recursive: true });
-      }
-    } catch (_e) {
-      // ignore
     }
   }
 }
