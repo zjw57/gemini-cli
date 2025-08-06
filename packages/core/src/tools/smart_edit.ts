@@ -647,7 +647,7 @@ A good instruction should concisely answer:
       params.file_path,
       this.config.getTargetDir(),
     );
-    return `Apply instructions "${params.instruction}" with old string as "${params.old_string}" and new string as "${params.new_string}" to ${shortenPath(
+    return `Apply instructions "${params.instruction}" to ${shortenPath(
       relativePath,
     )}`;
   }
