@@ -55,7 +55,164 @@ export class RemoveAddLinesEditor extends BaseTool<
     super(
       RemoveAddLinesEditor.Name,
       'Remove/Add Lines Editor',
-      'Applies a series of line-based edits to a file.',
+      `Modifies or creates a file using a precise list of line-based edit operations. This tool is powerful but requires absolute precision with line numbers.
+
+### CRITICAL RULES FOR USAGE
+1.  **ALWAYS read the file content immediately before using this tool.** The file can change, and using stale line numbers will corrupt the file or cause the edit to fail.
+2.  **PREFER simple, atomic edits.** For multiple distinct changes, it is safer to call this tool multiple times with fresh reads of the file.
+3.  **LINE NUMBERS ARE 1-BASED.** The first line of the file is line 1.
+
+---
+
+### Operations and Examples
+
+#### ✏️ To REPLACE Content
+Set 'linesToDelete' to the number of lines you are replacing and provide the new lines in 'contentToAdd'.
+
+*Example 1: Replacing a single line.*
+*File content before:*
+\`\`\`
+Line 1
+Line 2 to be replaced
+Line 3
+\`\`\`
+*Tool parameters:*
+\`\`\`json
+{
+  "file_path": "/path/to/file.txt",
+  "edits": [
+    {
+      "startLine": 2,
+      "linesToDelete": 1,
+      "contentToAdd": ["This is the new line."]
+    }
+  ]
+}
+\`\`\`
+
+*Example 2: Replacing a placeholder comment with a multi-line code block.*
+*File content before:*
+\`\`\`python
+def complex_function():
+    # TODO: Implement the logic here
+    pass
+\`\`\`
+*Tool parameters:*
+\`\`\`json
+{
+  "file_path": "/path/to/code.py",
+  "edits": [
+    {
+      "startLine": 2,
+      "linesToDelete": 2,
+      "contentToAdd": [
+        "    result = 0",
+        "    for i in range(10):",
+        "        result += i",
+        "    return result"
+      ]
+    }
+  ]
+}
+\`\`\`
+*File content after:*
+\`\`\`python
+def complex_function():
+    result = 0
+    for i in range(10):
+        result += i
+    return result
+\`\`\`
+
+---
+
+#### ➕ To INSERT Content
+Set 'linesToDelete' to 0. The new content will be inserted *before* the 'startLine'.
+
+*Example 1: Inserting a single line.*
+*File content before:*
+\`\`\`
+Line 1
+Line 2
+\`\`\`
+*Tool parameters:*
+\`\`\`json
+{
+  "file_path": "/path/to/file.txt",
+  "edits": [
+    {
+      "startLine": 2,
+      "linesToDelete": 0,
+      "contentToAdd": ["A new line was inserted here."]
+    }
+  ]
+}
+\`\`\`
+
+*Example 2: Inserting a multi-line docstring into a function.*
+*File content before:*
+\`\`\`python
+def my_function(arg1, arg2):
+    return arg1 + arg2
+\`\`\`
+*Tool parameters:*
+\`\`\`json
+{
+  "file_path": "/path/to/code.py",
+  "edits": [
+    {
+      "startLine": 2,
+      "linesToDelete": 0,
+      "contentToAdd": [
+        "    \"\"\"This function adds two numbers.",
+        "",
+        "    Args:",
+        "        arg1: The first number.",
+        "        arg2: The second number.",
+        "    \"\"\""
+      ]
+    }
+  ]
+}
+\`\`\`
+*File content after:*
+\`\`\`python
+def my_function(arg1, arg2):
+    """This function adds two numbers.
+
+    Args:
+        arg1: The first number.
+        arg2: The second number.
+    """
+    return arg1 + arg2
+\`\`\`
+
+---
+
+#### To DELETE Content
+Set 'contentToAdd' to an empty array ([]).
+
+*Example: To delete line 2.*
+*File content before:*
+\`\`\`
+Line 1
+This line will be deleted.
+Line 3
+\`\`\`
+*Tool parameters:*
+\`\`\`json
+{
+  "file_path": "/path/to/file.txt",
+  "edits": [
+    {
+      "startLine": 2,
+      "linesToDelete": 1,
+      "contentToAdd": []
+    }
+  ]
+}
+\`\`\`
+`,
       Icon.Pencil,
       {
         properties: {
@@ -121,93 +278,85 @@ export class RemoveAddLinesEditor extends BaseTool<
     return [{ path: params.file_path }];
   }
 
-  private async calculateEdit(
-    params: RemoveAddLinesEditorParams,
-  ): Promise<CalculatedEdit> {
-    let currentContent: string | null = null;
-    let fileExists = false;
-    let isNewFile = false;
+private async calculateEdit(
+  params: RemoveAddLinesEditorParams,
+): Promise<CalculatedEdit> {
+  let currentContent: string;
+  let fileExists = false;
+  let isNewFile = false;
 
-    try {
-      currentContent = await fs.readFile(params.file_path, 'utf8');
-      fileExists = true;
-    } catch (err: unknown) {
-      if (isNodeError(err) && err.code === 'ENOENT') {
-        fileExists = false;
-      } else {
-        throw err;
-      }
-    }
-
-    if (!fileExists && params.edits.length === 0) {
+  try {
+    // Attempt to read the file
+    currentContent = await fs.readFile(params.file_path, 'utf8');
+    fileExists = true;
+  } catch (err: unknown) {
+    if (isNodeError(err) && err.code === 'ENOENT') {
+      // If the file doesn't exist, treat it as a new, empty file.
+      // This allows the tool to create and populate a file in one step.
+      fileExists = false;
       isNewFile = true;
       currentContent = '';
-    } else if (!fileExists) {
+    } else {
+      // For any other error (e.g., permissions), re-throw it.
+      throw err;
+    }
+  }
+
+  // Preserve the original file's trailing newline status
+  const hadTrailingNewline = fileExists && currentContent.endsWith('\n');
+  const lines = currentContent.replace(/\r\n/g, '\n').split('\n');
+
+  // Sort edits from the bottom of the file to the top to avoid
+  // shifting line numbers for subsequent edits.
+  const sortedEdits = [...params.edits].sort(
+    (a, b) => b.startLine - a.startLine,
+  );
+
+  for (const edit of sortedEdits) {
+    const { startLine, linesToDelete, contentToAdd } = edit;
+    const isPureInsertion = linesToDelete === 0;
+
+    // For a pure insertion, it's valid to insert after the last line.
+    const maxLine = isPureInsertion ? lines.length + 1 : lines.length;
+
+    if (startLine < 1 || startLine > maxLine) {
       return {
-        currentContent: null,
+        currentContent: currentContent,
         newContent: '',
         error: {
-          display: `File not found. Cannot apply edit.`,
-          raw: `File not found: ${params.file_path}`,
-          type: ToolErrorType.FILE_NOT_FOUND,
+          display: `Invalid startLine: ${startLine}. Must be between 1 and ${maxLine}.`,
+          raw: `Invalid startLine: ${startLine}. Must be between 1 and ${maxLine} for this operation.`,
+          type: ToolErrorType.INVALID_TOOL_PARAMS,
         },
-        isNewFile: false,
+        isNewFile,
       };
     }
 
-    const originalContent = currentContent || '';
-    const hadTrailingNewline = originalContent.endsWith('\n');
-    const lines = originalContent.replace(/\r\n/g, '\n').split('\n');
+    // Flatten contentToAdd to gracefully handle malformed nested arrays from the LLM.
+    const flattenedContent = (contentToAdd || []).flat(Infinity);
 
-    const sortedEdits = [...params.edits].sort(
-      (a, b) => b.startLine - a.startLine,
-    );
-
-    for (const edit of sortedEdits) {
-      const { startLine, linesToDelete, contentToAdd } = edit;
-      const isPureInsertion = linesToDelete === 0;
-      const maxLine = isPureInsertion ? lines.length + 1 : lines.length;
-
-      if (startLine < 1 || startLine > maxLine) {
-        return {
-          currentContent,
-          newContent: '',
-          error: {
-            display: `Invalid startLine: ${startLine}. Must be between 1 and ${maxLine} for this operation.`,
-            raw: `Invalid startLine: ${startLine}. Must be between 1 and ${maxLine} for this operation.`,
-            type: ToolErrorType.INVALID_TOOL_PARAMS,
-          },
-          isNewFile,
-        };
-      }
-
-      lines.splice(startLine - 1, linesToDelete, ...contentToAdd);
-    }
-
-    let finalContent = lines.join('\n');
-
-    const hasTrailingNewline = finalContent.endsWith('\n');
-    if (hadTrailingNewline && !hasTrailingNewline) {
-      finalContent += '\n';
-    } else if (
-      !hadTrailingNewline &&
-      hasTrailingNewline &&
-      finalContent.length > 0
-    ) {
-      if (
-        finalContent.length > 1 ||
-        (finalContent.length === 1 && finalContent !== '\n')
-      ) {
-        finalContent = finalContent.slice(0, -1);
-      }
-    }
-
-    return {
-      currentContent,
-      newContent: finalContent,
-      isNewFile,
-    };
+    // Apply the edit using splice. startLine is 1-based, so subtract 1 for the index.
+    lines.splice(startLine - 1, linesToDelete, ...flattenedContent);
   }
+
+  let finalContent = lines.join('\n');
+
+  // After all edits, ensure the trailing newline status matches the original file's.
+  if (hadTrailingNewline && !finalContent.endsWith('\n')) {
+    finalContent += '\n';
+  } else if (!hadTrailingNewline && finalContent.endsWith('\n')) {
+    // Only strip the newline if the file isn't just a single newline character.
+    if (finalContent.length > 1) {
+      finalContent = finalContent.slice(0, -1);
+    }
+  }
+
+  return {
+    currentContent: currentContent,
+    newContent: finalContent,
+    isNewFile,
+  };
+}
 
   async shouldConfirmExecute(
     params: RemoveAddLinesEditorParams,

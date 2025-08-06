@@ -26,4 +26,5 @@ export enum ToolErrorType {
   EDIT_NO_OCCURRENCE_FOUND = 'edit_no_occurrence_found',
   EDIT_EXPECTED_OCCURRENCE_MISMATCH = 'edit_expected_occurrence_mismatch',
   EDIT_NO_CHANGE = 'edit_no_change',
+  EDIT_AMBIGUOUS_MATCH = 'edit_ambiguous_match',
 }
