@@ -59,7 +59,6 @@ export class RemoveAddLinesEditor extends BaseTool<
 
 ### CRITICAL RULES FOR USAGE
 1.  **ALWAYS read the file content immediately before using this tool.** The file can change, and using stale line numbers will corrupt the file or cause the edit to fail.
-2.  **PREFER simple, atomic edits.** For multiple distinct changes, it is safer to call this tool multiple times with fresh reads of the file.
 3.  **LINE NUMBERS ARE 1-BASED.** The first line of the file is line 1.
 
 ---
