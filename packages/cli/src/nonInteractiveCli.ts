@@ -7,6 +7,7 @@
 import {
   Config,
   ToolCallRequestInfo,
+  ToolCallResponseInfo,
   executeToolCall,
   ToolRegistry,
   shutdownTelemetry,
@@ -17,9 +18,6 @@ import {
 import { Content, Part, FunctionCall } from '@google/genai';
 
 import { parseAndFormatApiError } from './ui/utils/errorParsing.js';
-import { ToolCallResponseInfo } from '@google/gemini-cli-core';
-
-const DEBUG = process.env.GEMINI_DEBUG === 'true';
 
 function logToolCallResult(
   config: Config,
@@ -37,9 +35,7 @@ function logToolCallResult(
         `\nTool call status:✅ ${status} ${requestInfo.name} => ${toolResponse.resultDisplay}\n`,
       );
     } else {
-      process.stdout.write(
-        `\nTool call status:✅ ${status} ${requestInfo.name}\n`,
-      );
+      process.stdout.write(`Tool call status:✅ ${status} ${requestInfo.name}`);
     }
   }
 }
@@ -85,9 +81,9 @@ export async function runNonInteractive(
         prompt_id,
       );
 
-      let thoughts = "";
-      let response = "";
-      let toolCalls = []; 
+      let thoughts = '';
+      let response = '';
+      const toolCalls = [];
       for await (const event of responseStream) {
         if (abortController.signal.aborted) {
           console.error('Operation cancelled.');
