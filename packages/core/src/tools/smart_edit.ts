@@ -27,10 +27,7 @@ import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
 import { ReadFileTool } from './read-file.js';
 import { ModifiableTool, ModifyContext } from './modifiable-tool.js';
 import { GeminiClient } from '../core/client.js';
-import {
-  DEFAULT_GEMINI_FLASH_MODEL,
-  DEFAULT_GEMINI_MODEL,
-} from '../config/models.js';
+import { DEFAULT_GEMINI_MODEL } from '../config/models.js';
 
 export enum ReplaceStrategy {
   FUZZY = 'fuzzy',
@@ -261,15 +258,6 @@ class FuzzyStrategy implements ReplaceStrategyImpl {
   }
 }
 
-interface ValidationContext {
-  occurrences: number;
-  expectedReplacements: number;
-  finalOldString: string;
-  finalNewString: string;
-  mode: ReplaceStrategy;
-  filePath: string;
-}
-
 interface CalculatedEdit {
   currentContent: string | null;
   newContent: string;
@@ -303,6 +291,7 @@ export class SmartEditTool
       4.  \`instruction\` is the detailed instruction of what needs to be changed. It is important to Make it specific and detailed so developers or large language models can understand what needs to be changed and perform the changes on their own if necessary. 
       5. NEVER escape \`old_string\` or \`new_string\`, that would break the exact literal text requirement.
       **Important:** If ANY of the above are not satisfied, the tool will fail. CRITICAL for \`old_string\`: Must uniquely identify the single instance to change. Include at least 3 lines of context BEFORE and AFTER the target text, matching whitespace and indentation precisely. If this string matches multiple locations, or does not match exactly, the tool will fail.
+      6. Prefer to break down complex and long changes into multiple smaller atomic calls to this tool. Always check the content of the file after changes or not finding a string to match.
       **Multiple replacements:** If there are multiple and ambiguous occurences of the \`old_string\` in the file, the tool will also fail.`,
       Icon.Pencil,
       {
@@ -709,13 +698,15 @@ A good instruction should concisely answer:
       fs.writeFileSync(params.file_path, editData.newContent, 'utf8');
 
       let displayResult: ToolResultDisplay;
+      let fileDiff: string;
+      fileDiff = '';
       if (editData.isNewFile) {
         displayResult = `Created ${shortenPath(
           makeRelative(params.file_path, this.config.getTargetDir()),
         )}`;
       } else {
         const fileName = path.basename(params.file_path);
-        const fileDiff = Diff.createPatch(
+        fileDiff = Diff.createPatch(
           fileName,
           editData.currentContent ?? '',
           editData.newContent,
@@ -734,7 +725,7 @@ A good instruction should concisely answer:
       const llmSuccessMessageParts = [
         editData.isNewFile
           ? `Created new file: ${params.file_path} with provided content.`
-          : `Successfully modified file: ${params.file_path}.`,
+          : `Successfully modified file: ${params.file_path}. File Diff \n\`\`\`${fileDiff}\`\`\`\n `,
       ];
       if (params.modified_by_user) {
         llmSuccessMessageParts.push(

@@ -311,7 +311,7 @@ Line 3
 
       if (zeroBasedStartLine < lastLineProcessed) {
         return {
-          currentContent: currentContent,
+          currentContent,
           newContent: '',
           error: {
             display: 'Edits must not overlap.',
@@ -324,7 +324,7 @@ Line 3
 
       if (zeroBasedStartLine > originalLines.length) {
         return {
-          currentContent: currentContent,
+          currentContent,
           newContent: '',
           error: {
             display: `Invalid startLine: ${startLine}. File only has ${originalLines.length} lines.`,
@@ -358,7 +358,7 @@ Line 3
     }
 
     return {
-      currentContent: currentContent,
+      currentContent,
       newContent: finalContent,
       isNewFile,
     };
