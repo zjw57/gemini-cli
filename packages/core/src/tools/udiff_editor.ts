@@ -44,7 +44,6 @@ export class UdiffEditor extends BaseTool<UdiffEditorParams, ToolResult> {
     super(
       UdiffEditor.Name,
       'Udiff Editor',
-      // MODIFIED: More instructive description for the agent.
       `Applies a unified diff patch to a single, **existing** file.
 
 This tool is designed to be flexible. It will first attempt a standard patch application. If that fails, it will fall back to a more lenient search-and-replace strategy based on the diff content. This helps correct for common LLM errors like omitting comments or blank lines from the diff.
@@ -53,7 +52,7 @@ This tool is designed to be flexible. It will first attempt a standard patch app
 - This tool CANNOT create new files. Use \`write_file\` for that purpose.
 - **Always read the file content immediately before using this tool** to ensure the diff is not stale.
 
-**Best Practices for Agents:**
+**Best Practices:**
 - Provide diffs for complete, logical blocks (like entire functions or classes) rather than small, surgical line changes. This increases the chance of a successful match.
 - If a patch fails, re-read the file, generate a new diff, and try again.`,
       Icon.Pencil,
@@ -214,7 +213,6 @@ This tool is designed to be flexible. It will first attempt a standard patch app
       };
     }
 
-    // MODIFIED: Apply patches sequentially using the new flexible method.
     let cumulativeContent: string = currentContent;
     for (const [index, patch] of patches.entries()) {
       // The diff library often creates patches with empty hunks for file-level headers. Skip them.
