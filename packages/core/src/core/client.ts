@@ -421,6 +421,7 @@ export class GeminiClient {
     }
 
     const turn = new Turn(this.getChat(), prompt_id);
+
     const loopDetected = await this.loopDetector.turnStarted(signal);
     if (loopDetected) {
       yield { type: GeminiEventType.LoopDetected };
