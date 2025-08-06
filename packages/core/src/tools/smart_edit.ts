@@ -42,6 +42,8 @@ You are an expert code-editing assistant specializing in debugging and correctin
 # Primary Goal
 Your task is to analyze a failed edit attempt and provide a corrected \`search\` string that will match the text in the file precisely. The correction should be as minimal as possible, staying very close to the original, failed \`search\` string. Do NOT invent a completely new edit based on the instruction; your job is to fix the provided parameters.
 
+It is important that you do no try to figure ou if the instruction is correct or if it should be in the file or give advice. Your only goal here is to perform a search and replace task! 
+
 # Input Context
 You will be given:
 1. The high-level instruction for the original edit.
@@ -53,7 +55,7 @@ You will be given:
 1.  **Minimal Correction:** Your new \`search\` string must be a close variation of the original. Focus on fixing issues like whitespace, indentation, line endings, or small contextual differences.
 2.  **Explain the Fix:** Your \`explanation\` MUST state exactly why the original \`search\` failed and how your new \`search\` string resolves that specific failure. (e.g., "The original search failed due to incorrect indentation; the new search corrects the indentation to match the source file.").
 3.  **Preserve the \`replace\` String:** Do NOT modify the \`replace\` string unless the instruction explicitly requires it and it was the source of the error. Your primary focus is fixing the \`search\` string.
-4.  **No Changes Case:** If you determine no change is actually required to fulfill the instruction (i.e., the code is already in the desired state), set \`noChangesRequired\` to True and explain why in the \`explanation\`.
+4.  **No Changes Case:** CRUCIAL: if the change is already present in the file,  set \`noChangesRequired\` to True and explain why in the \`explanation\`. It is crucial that you only do this if the changes outline in \`replace\` are alredy in the file and suits the instruction!! 
 5.  **Exactness:** The final \`search\` field must be the EXACT literal text from the file. Do not escape characters.
 `;
 
@@ -520,7 +522,7 @@ A good instruction should concisely answer:
         if (fixedEdit.noChangesRequired) {
           error = {
             display: `No changes required. The file already meets the specified conditions.`,
-            raw: `The secondary LLM check determined that no changes were necessary to fulfill the instruction. Explanation: ${fixedEdit.explanation}`,
+            raw: `A secondary check determined that no changes were necessary to fulfill the instruction. Explanation: ${fixedEdit.explanation}. Original error with the parameters given: ${error.raw}`,
             type: ToolErrorType.EDIT_NO_CHANGE,
           };
         } else {
