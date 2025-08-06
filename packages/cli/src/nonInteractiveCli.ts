@@ -105,8 +105,12 @@ export async function runNonInteractive(
           toolCalls.push(toolCallRequest);
         }
       }
-      process.stdout.write(`\nGemini 🤖: ${response}\n`);
-      process.stdout.write(`\nThought 💭: ${thoughts}\n`);
+      if (thoughts) {
+        process.stdout.write(`\nThought 💭: ${thoughts}\n`);
+      }
+      if (response) {
+        process.stdout.write(`\nGemini 🤖: ${response}\n`);
+      }
       for (const toolCall of toolCalls) {
         process.stdout.write(
           `\nTool call request:🔨 [${toolCall.name}] => ${JSON.stringify(toolCall.args)}\n`,
