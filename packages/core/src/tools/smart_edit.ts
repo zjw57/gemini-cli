@@ -24,30 +24,52 @@ import { makeRelative, shortenPath } from '../utils/paths.js';
 import { isNodeError } from '../utils/errors.js';
 import { Config, ApprovalMode } from '../config/config.js';
 import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
+import { ReadFileTool } from './read-file.js';
 import { ModifiableTool, ModifyContext } from './modifiable-tool.js';
 import { GeminiClient } from '../core/client.js';
 import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 
-const EDIT_SYS_PROMPT = `
-You are a precise code editing assistant that performs search and replace operations on code snippets. Your task is to identify the exact text that needs to be changed and provide the replacement text.
+export enum ReplaceStrategy {
+  FUZZY = 'fuzzy',
+}
 
-You are given the code to be edited and an instruction for what needs to be done. You are to respond with a list of search/replace edits.
+const EDIT_SYS_PROMPT = `
+You are a precise code editing assistant that performs search and replace operations on code snippets. 
+Previous attempts of changing the code with another search and replace assistant failed.
+Your task is to identify the exact text that needs to be changed and provide the replacement text.
+You are to respond with \`search\` and \`replace\` edits and \`explanation\` for the changes.
+If no changes are necessary, make \`search\` and \`replace\` the same and \`noChangesRequired\` equal to True. 
 
 # Rules
-1. Exact Matching: The search field must contain the EXACT text as it appears in the given code, including whitespace, indentation, and line breaks.
+1. Exact Matching: The \`search\` field must contain the EXACT text as it appears in the given code, including whitespace, indentation, and line breaks.
 2. Minimal Changes: Make only the changes necessary to fulfill the instruction.
 3. Preserve Formatting: Maintain existing code style, indentation, and formatting unless specifically asked to change it.
-4. One Edit Per Logical Change: Split complex changes into multiple edit objects if they affect different parts of the file.
-5. Context Awareness: Consider the surrounding code context to ensure changes don't break functionality.
-6. No Duplicates: If the same text appears multiple times, specify which occurrence(s) to change in the explanation.
-7. No overlaps: Ensure the edits do not overlap.
+4. Context Awareness: Consider the surrounding code context to ensure changes don't break functionality.
+5. No Duplicates: If the same text appears multiple times, specify which occurrence to change by making it unique and specific.
+6. NEVER escape \`search\` or \`replace\`, that would break the exact literal text requirement.
 `;
 
 const EDIT_USER_PROMPT = `
 # Instruction
 {instruction}
-# Code
-{code}
+
+# Search and replace already tried
+Old string  (what was initially intended to be found):
+\`\`\`
+{old_string}
+\`\`\`
+
+New string (what was intended to replace old_string):
+\`\`\`
+{new_string}
+\`\`\`
+
+Error encountered: {error}
+
+# Current content of the file:
+\`\`\`
+{current_content}
+\`\`\`
 `;
 
 /**
@@ -58,6 +80,16 @@ export interface SmartEditToolParams {
    * The absolute path to the file to modify
    */
   file_path: string;
+
+  /**
+   * The text to replace
+   */
+  old_string: string;
+
+  /**
+   * The text to replace it with
+   */
+  new_string: string;
 
   /**
    * The instruction for what needs to be done.
@@ -73,11 +105,8 @@ export interface SmartEditToolParams {
 interface SearchReplaceEdit {
   search: string;
   replace: string;
+  noChangesRequired: boolean,
   explanation: string;
-}
-
-interface MultiSearchReplaceEdit {
-  edits: SearchReplaceEdit[];
 }
 
 const SearchReplaceEditSchema = {
@@ -85,25 +114,187 @@ const SearchReplaceEditSchema = {
   properties: {
     search: { type: Type.STRING },
     replace: { type: Type.STRING },
+    noChangesRequired: {type: Type.BOOLEAN},
     explanation: { type: Type.STRING },
   },
   required: ['search', 'replace', 'explanation'],
 };
 
-const MultiSearchReplaceEditSchema = {
-  type: Type.OBJECT,
-  properties: {
-    edits: {
-      type: Type.ARRAY,
-      items: SearchReplaceEditSchema,
-    },
-  },
-  required: ['edits'],
-};
+
+
+
+interface ReplaceStrategyContext {
+  params: SmartEditToolParams;
+  currentContent: string;
+  abortSignal: AbortSignal;
+}
+
+interface ReplaceStrategyResult {
+  newContent: string;
+  occurrences: number;
+  finalOldString: string;
+  finalNewString: string;
+  mode: ReplaceStrategy;
+}
+
+interface ReplaceStrategyImpl {
+  readonly mode: ReplaceStrategy;
+  performEdit(context: ReplaceStrategyContext): Promise<ReplaceStrategyResult>;
+}
+
+class FuzzyStrategy implements ReplaceStrategyImpl {
+  readonly mode = ReplaceStrategy.FUZZY;
+  async performEdit(
+    context: ReplaceStrategyContext,
+  ): Promise<ReplaceStrategyResult> {
+    const { currentContent, params } = context;
+    const { old_string, new_string } = params;
+    const hadTrailingNewline = currentContent.endsWith('\n');
+
+    const normalizedCode = currentContent;
+    const normalizedSearch = old_string.replace(/\r\n/g, '\n');
+    const normalizedReplace = new_string.replace(/\r\n/g, '\n');
+
+    if (normalizedSearch === '') {
+      return {
+        newContent: currentContent,
+        occurrences: 0,
+        finalOldString: normalizedSearch,
+        finalNewString: normalizedReplace,
+        mode: this.mode,
+      };
+    }
+
+    const exactOccurrences = normalizedCode.split(normalizedSearch).length - 1;
+    if (exactOccurrences > 0) {
+      let modifiedCode = normalizedCode.replaceAll(
+        normalizedSearch,
+        normalizedReplace,
+      );
+      if (hadTrailingNewline && !modifiedCode.endsWith('\n')) {
+        modifiedCode += '\n';
+      } else if (!hadTrailingNewline && modifiedCode.endsWith('\n')) {
+        modifiedCode = modifiedCode.replace(/\n$/, '');
+      }
+      return {
+        newContent: modifiedCode,
+        occurrences: exactOccurrences,
+        finalOldString: normalizedSearch,
+        finalNewString: normalizedReplace,
+        mode: this.mode,
+      };
+    }
+
+    const sourceLines = normalizedCode.match(/.*(?:\n|$)/g)?.slice(0, -1) ?? [];
+    const searchLinesStripped = normalizedSearch
+      .split('\n')
+      .map((line) => line.trim());
+    const replaceLines = normalizedReplace.split('\n');
+
+    let flexibleOccurrences = 0;
+    let i = 0;
+    while (i <= sourceLines.length - searchLinesStripped.length) {
+      const window = sourceLines.slice(i, i + searchLinesStripped.length);
+      const windowStripped = window.map((line) => line.trim());
+      const isMatch = windowStripped.every(
+        (line, index) => line === searchLinesStripped[index],
+      );
+
+      if (isMatch) {
+        flexibleOccurrences++;
+        const firstLineInMatch = window[0];
+        const indentationMatch = firstLineInMatch.match(/^(\s*)/);
+        const indentation = indentationMatch ? indentationMatch[1] : '';
+        const newBlockWithIndent = replaceLines.map(
+          (line) => `${indentation}${line}`,
+        );
+        sourceLines.splice(
+          i,
+          searchLinesStripped.length,
+          ...newBlockWithIndent,
+        );
+        i += replaceLines.length;
+      } else {
+        i++;
+      }
+    }
+
+    if (flexibleOccurrences > 0) {
+      let modifiedCode = sourceLines.join('');
+      if (hadTrailingNewline && !modifiedCode.endsWith('\n')) {
+        modifiedCode += '\n';
+      } else if (!hadTrailingNewline && modifiedCode.endsWith('\n')) {
+        modifiedCode = modifiedCode.replace(/\n$/, '');
+      }
+      return {
+        newContent: modifiedCode,
+        occurrences: flexibleOccurrences,
+        finalOldString: normalizedSearch,
+        finalNewString: normalizedReplace,
+        mode: this.mode,
+      };
+    }
+
+    return {
+      newContent: currentContent,
+      occurrences: 0,
+      finalOldString: normalizedSearch,
+      finalNewString: normalizedReplace,
+      mode: this.mode,
+    };
+  }
+}
+
+interface ValidationContext {
+  occurrences: number;
+  expectedReplacements: number;
+  finalOldString: string;
+  finalNewString: string;
+  mode: ReplaceStrategy;
+  filePath: string;
+}
+
+function validateEditResult(
+  context: Omit<ValidationContext, 'mode'>,
+): CalculatedEdit['error'] | undefined {
+  const {
+    occurrences,
+    expectedReplacements,
+    finalOldString,
+    finalNewString,
+    filePath,
+  } = context;
+
+  if (occurrences === 0) {
+    return {
+      display: `Failed to edit, could not find the string to replace.`,
+      raw: `Failed to edit, 0 occurrences found for old_string in ${filePath}. No edits made.`,
+      type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
+    };
+  }
+  if (occurrences !== expectedReplacements) {
+    const term = expectedReplacements === 1 ? 'occurrence' : 'occurrences';
+    return {
+      display: `Failed to edit, expected ${expectedReplacements} ${term} but found ${occurrences}.`,
+      raw: `Expected ${expectedReplacements} ${term} but found ${occurrences} for old_string in ${filePath}.`,
+      type: ToolErrorType.EDIT_EXPECTED_OCCURRENCE_MISMATCH,
+    };
+  }
+  if (finalOldString === finalNewString) {
+    return {
+      display: `No changes to apply. The old_string and new_string are identical.`,
+      raw: `No changes to apply. The old_string and new_string are identical in file: ${filePath}.`,
+      type: ToolErrorType.EDIT_NO_CHANGE,
+    };
+  }
+  return undefined;
+}
+
 
 interface CalculatedEdit {
   currentContent: string | null;
   newContent: string;
+  occurrences: number;
   error?: { display: string; raw: string; type: ToolErrorType };
   isNewFile: boolean;
 }
@@ -122,7 +313,18 @@ export class SmartEditTool
     super(
       SmartEditTool.Name,
       'Smart Edit',
-      `Performs a series of search and replace edits to a file based on an instruction.`,
+      `Replaces text within a file. Replaces a single occurrence. This tool requires providing significant context around the change to ensure precise targeting. Always use the ${ReadFileTool.Name} tool to examine the file's current content before attempting a text replacement.
+      
+      The user has the ability to modify the \`new_string\` content. If modified, this will be stated in the response.
+      
+      Expectation for required parameters:
+      1. \`file_path\` MUST be an absolute path; otherwise an error will be thrown.
+      2. \`old_string\` MUST be the exact literal text to replace (including all whitespace, indentation, newlines, and surrounding code etc.).
+      3. \`new_string\` MUST be the exact literal text to replace \`old_string\` with (also including all whitespace, indentation, newlines, and surrounding code etc.). Ensure the resulting code is correct and idiomatic and that \`old_string\` and \`new_string\` are different.
+      4.  \`instruction\` is the detailed instruction of what needs to be changed. It is important to Make it specific and detailed so developers or large language models can understand what needs to be changed and perform the changes on their own if necessary. 
+      5. NEVER escape \`old_string\` or \`new_string\`, that would break the exact literal text requirement.
+      **Important:** If ANY of the above are not satisfied, the tool will fail. CRITICAL for \`old_string\`: Must uniquely identify the single instance to change. Include at least 3 lines of context BEFORE and AFTER the target text, matching whitespace and indentation precisely. If this string matches multiple locations, or does not match exactly, the tool will fail.
+      **Multiple replacements:** If there are multiple and ambiguous occurences of the \`old_string\` in the file, the tool will also fail.`,
       Icon.Pencil,
       {
         properties: {
@@ -132,11 +334,21 @@ export class SmartEditTool
             type: Type.STRING,
           },
           instruction: {
-            description: 'The instruction for what needs to be done.',
+            description: 'The detailed instruction for what needs to be done.',
+            type: Type.STRING,
+          },
+          old_string: {
+            description:
+              'The exact literal text to replace, preferably unescaped. Include at least 3 lines of context BEFORE and AFTER the target text, matching whitespace and indentation precisely. If this string is not the exact literal text (i.e. you escaped it) or does not match exactly, the tool will fail.',
+            type: Type.STRING,
+          },
+          new_string: {
+            description:
+              'The exact literal text to replace `old_string` with, preferably unescaped. Provide the EXACT text. Ensure the resulting code is correct and idiomatic.',
             type: Type.STRING,
           },
         },
-        required: ['file_path', 'instruction'],
+        required: ['file_path', 'instruction', 'old_string', 'new_string'],
         type: Type.OBJECT,
       },
     );
@@ -177,16 +389,23 @@ export class SmartEditTool
     return [{ path: params.file_path }];
   }
 
-  private async _getEdits(
-    code: string,
+
+
+
+  private async fixLLMEdit(
     instruction: string,
+    old_string: string,
+    new_string: string, 
+    error: string,
+    current_content: string,
     geminiClient: GeminiClient,
     abortSignal: AbortSignal,
-  ): Promise<MultiSearchReplaceEdit> {
+
+  ): Promise<SearchReplaceEdit> {
     const userPrompt = EDIT_USER_PROMPT.replace(
       '{instruction}',
       instruction,
-    ).replace('{code}', code);
+    ).replace('{old_string}', old_string).replace('{new_string}', new_string).replace('{error}', error).replace('{current_content}', current_content);
 
     const contents: Content[] = [
       { role: 'user', parts: [{ text: `${EDIT_SYS_PROMPT}\n${userPrompt}` }] },
@@ -194,132 +413,148 @@ export class SmartEditTool
 
     const result = (await geminiClient.generateJson(
       contents,
-      MultiSearchReplaceEditSchema,
+      SearchReplaceEditSchema,
       abortSignal,
       DEFAULT_GEMINI_FLASH_MODEL,
-    )) as unknown as MultiSearchReplaceEdit;
+    )) as unknown as SearchReplaceEdit;
 
     return result;
   }
 
-  private _applyEdits(
-    code: string,
-    edits: SearchReplaceEdit[],
-  ): {
-    newContent: string;
-    error?: { display: string; raw: string; type: ToolErrorType };
-  } {
-    const appliedEdits: Array<{ start: number; end: number; replace: string }> =
-      [];
-    for (const edit of edits) {
-      const start = code.indexOf(edit.search);
-
-      if (start === -1) {
-        const error = {
-          display: `Could not find code for search string: '${edit.search}'`,
-          raw: `Could not find code for search string: '${edit.search}'`,
-          type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
-        };
-        return { newContent: code, error };
-      }
-
-      const end = start + edit.search.length;
-      appliedEdits.push({ start, end, replace: edit.replace });
+  private _applyReplacement(
+    currentContent: string | null,
+    oldString: string,
+    newString: string,
+    isNewFile: boolean,
+  ): string {
+    if (isNewFile) {
+      return newString;
     }
-
-    appliedEdits.sort((a, b) => a.start - b.start);
-
-    for (let i = 0; i < appliedEdits.length - 1; i++) {
-      const currentEdit = appliedEdits[i];
-      const nextEdit = appliedEdits[i + 1];
-      if (currentEdit.end > nextEdit.start) {
-        const error = {
-          display: 'Generated edits have overlaps and cannot be applied.',
-          raw: `Generated edits have overlaps and cannot be applied. Edit 1 ends at ${currentEdit.end}. Edit 2 starts at ${nextEdit.start}.`,
-          type: ToolErrorType.EDIT_APPLICATION_FAILURE,
-        };
-        return { newContent: code, error };
-      }
+    if (currentContent === null) {
+      // Should not happen if not a new file, but defensively return empty or newString if oldString is also empty
+      return oldString === '' ? newString : '';
     }
-
-    appliedEdits.sort((a, b) => b.start - a.start);
-
-    let editedCode = code;
-    for (const edit of appliedEdits) {
-      editedCode =
-        editedCode.substring(0, edit.start) +
-        edit.replace +
-        editedCode.substring(edit.end);
+    // If oldString is empty and it's not a new file, do not modify the content.
+    if (oldString === '' && !isNewFile) {
+      return currentContent;
     }
-
-    return { newContent: editedCode };
+    return currentContent.replaceAll(oldString, newString);
   }
 
-  /**
-   * Calculates the potential outcome of an edit operation.
-   * @param params Parameters for the edit operation
-   * @returns An object describing the potential edit outcome
-   * @throws File system errors if reading the file fails unexpectedly (e.g., permissions)
-   */
-  private async calculateEdit(
-    params: SmartEditToolParams,
-    abortSignal: AbortSignal,
-  ): Promise<CalculatedEdit> {
-    let currentContent: string | null = null;
-    const isNewFile = false; // TODO: maybe remove it
-
-    try {
-      currentContent = fs.readFileSync(params.file_path, 'utf8');
-      currentContent = currentContent.replace(/\r\n/g, '\n');
-    } catch (err: unknown) {
-      if (!isNodeError(err) || err.code !== 'ENOENT') {
-        throw err;
+   /**
+     * Calculates the potential outcome of an edit operation.
+     * @param params Parameters for the edit operation
+     * @returns An object describing the potential edit outcome
+     * @throws File system errors if reading the file fails unexpectedly (e.g., permissions)
+     */
+    private async calculateEdit(
+      params: SmartEditToolParams,
+      abortSignal: AbortSignal,
+    ): Promise<CalculatedEdit> {
+      const expectedReplacements = 1;
+      let currentContent: string | null = null;
+      let fileExists = false;
+      let isNewFile = false;
+      let finalNewString = params.new_string;
+      let finalOldString = params.old_string;
+      let occurrences = 0;
+      let error:
+        | { display: string; raw: string; type: ToolErrorType }
+        | undefined = undefined;
+  
+      try {
+        currentContent = fs.readFileSync(params.file_path, 'utf8');
+        // Normalize line endings to LF for consistent processing.
+        currentContent = currentContent.replace(/\r\n/g, '\n');
+        fileExists = true;
+      } catch (err: unknown) {
+        if (!isNodeError(err) || err.code !== 'ENOENT') {
+          // Rethrow unexpected FS errors (permissions, etc.)
+          throw err;
+        }
+        fileExists = false;
       }
-    }
-
-    if (currentContent === null) {
-      return {
-        currentContent,
-        newContent: '',
-        error: {
-          display: `File not found. Cannot apply edit.`,
+  
+      if (params.old_string === '' && !fileExists) {
+        // Creating a new file
+        isNewFile = true;
+      } else if (!fileExists) {
+        // Trying to edit a nonexistent file (and old_string is not empty)
+        error = {
+          display: `File not found. Cannot apply edit. Use an empty old_string to create a new file.`,
           raw: `File not found: ${params.file_path}`,
           type: ToolErrorType.FILE_NOT_FOUND,
-        },
+        };
+      } else if (currentContent !== null) {
+        const replaceStrategy = new FuzzyStrategy()
+        const strategyResult = await replaceStrategy.performEdit({
+          params,
+          currentContent,
+          abortSignal,
+        });
+
+        finalOldString = strategyResult.finalOldString
+        finalNewString = strategyResult.finalOldString
+        occurrences = strategyResult.occurrences;
+  
+        error = getErrorReplaceResult(params,occurrences, expectedReplacements, finalOldString, finalNewString);
+
+        if(error !== undefined) {
+          const fixedEdit = await this.fixLLMEdit(
+            params.instruction,
+            finalOldString,
+            finalNewString,
+            error.raw,
+            currentContent,
+            this.config.getGeminiClient(),
+            abortSignal,
+          );
+          if(!fixedEdit.noChangesRequired) {
+            const strategyResult = await replaceStrategy.performEdit(
+              {
+                params: {
+                  ...params,
+                  old_string: fixedEdit.search,
+                  new_string: fixedEdit.replace,
+                },
+                currentContent,
+                abortSignal,
+              },
+            );
+            const errorFixed = getErrorReplaceResult(params, strategyResult.occurrences, expectedReplacements, strategyResult.finalOldString, strategyResult.finalNewString);
+            if (errorFixed === undefined) {
+              // we fixed 
+              finalOldString = strategyResult.finalOldString
+              finalNewString = strategyResult.finalOldString
+              occurrences = strategyResult.occurrences;
+              error = undefined;
+            }
+          }
+        }
+      } else {
+        // Should not happen if fileExists and no exception was thrown, but defensively:
+        error = {
+          display: `Failed to read content of file.`,
+          raw: `Failed to read content of existing file: ${params.file_path}`,
+          type: ToolErrorType.READ_CONTENT_FAILURE,
+        };
+      }
+  
+      const newContent = this._applyReplacement(
+        currentContent,
+        finalOldString,
+        finalNewString,
         isNewFile,
-      };
-    }
-
-    const geminiClient = this.config.getGeminiClient();
-    const edits = await this._getEdits(
-      currentContent,
-      params.instruction,
-      geminiClient,
-      abortSignal,
-    );
-
-    if (!edits || !edits.edits || edits.edits.length === 0) {
+      );
+  
       return {
         currentContent,
-        newContent: currentContent,
-        error: {
-          display: 'No edits were generated by the model.',
-          raw: 'No edits were generated by the model.',
-          type: ToolErrorType.EDIT_NO_CHANGE,
-        },
+        newContent,
+        occurrences,
+        error,
         isNewFile,
       };
     }
-
-    const { newContent, error } = this._applyEdits(currentContent, edits.edits);
-
-    return {
-      currentContent,
-      newContent,
-      error,
-      isNewFile,
-    };
-  }
 
   /**
    * Handles the confirmation prompt for the Edit tool in the CLI.
@@ -542,3 +777,38 @@ export class SmartEditTool
     };
   }
 }
+function getErrorReplaceResult(params: SmartEditToolParams, occurrences: number, expectedReplacements: number, finalOldString: string, finalNewString: string) {
+  let error:
+        | { display: string; raw: string; type: ToolErrorType }
+        | undefined = undefined;
+  if (params.old_string === '') {
+    // Error: Trying to create a file that already exists
+    error = {
+      display: `Failed to edit. Attempted to create a file that already exists.`,
+      raw: `File already exists, cannot create: ${params.file_path}`,
+      type: ToolErrorType.ATTEMPT_TO_CREATE_EXISTING_FILE,
+    };
+  } else if (occurrences === 0) {
+    error = {
+      display: `Failed to edit, could not find the string to replace.`,
+      raw: `Failed to edit, 0 occurrences found for old_string in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
+      type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
+    };
+  } else if (occurrences !== expectedReplacements) {
+    const occurrenceTerm = expectedReplacements === 1 ? 'occurrence' : 'occurrences';
+
+    error = {
+      display: `Failed to edit, expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences}.`,
+      raw: `Failed to edit, Expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences} for old_string in file: ${params.file_path}`,
+      type: ToolErrorType.EDIT_EXPECTED_OCCURRENCE_MISMATCH,
+    };
+  } else if (finalOldString === finalNewString) {
+    error = {
+      display: `No changes to apply. The old_string and new_string are identical.`,
+      raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}`,
+      type: ToolErrorType.EDIT_NO_CHANGE,
+    };
+  }
+  return error;
+}
+
