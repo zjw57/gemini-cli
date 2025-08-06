@@ -8,6 +8,7 @@ import {
   Config,
   executeToolCall,
   ToolRegistry,
+  ToolErrorType,
   shutdownTelemetry,
   GeminiEventType,
   ServerGeminiStreamEvent,
@@ -69,6 +70,7 @@ describe('runNonInteractive', () => {
       getIdeMode: vi.fn().mockReturnValue(false),
       getFullContext: vi.fn().mockReturnValue(false),
       getContentGeneratorConfig: vi.fn().mockReturnValue({}),
+      getDebugMode: vi.fn().mockReturnValue(false),
     } as unknown as Config;
   });
 
@@ -100,9 +102,9 @@ describe('runNonInteractive', () => {
       expect.any(AbortSignal),
       'prompt-id-1',
     );
-    expect(processStdoutSpy).toHaveBeenCalledWith('Hello');
-    expect(processStdoutSpy).toHaveBeenCalledWith(' World');
-    expect(processStdoutSpy).toHaveBeenCalledWith('\n');
+    expect(processStdoutSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Hello World'),
+    );
     expect(mockShutdownTelemetry).toHaveBeenCalled();
   });
 
@@ -144,8 +146,9 @@ describe('runNonInteractive', () => {
       expect.any(AbortSignal),
       'prompt-id-2',
     );
-    expect(processStdoutSpy).toHaveBeenCalledWith('Final answer');
-    expect(processStdoutSpy).toHaveBeenCalledWith('\n');
+    expect(processStdoutSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Final answer'),
+    );
   });
 
   it('should handle error during tool execution', async () => {
@@ -161,6 +164,7 @@ describe('runNonInteractive', () => {
     };
     mockCoreExecuteToolCall.mockResolvedValue({
       error: new Error('Tool execution failed badly'),
+      errorType: ToolErrorType.UNHANDLED_EXCEPTION,
     });
     mockGeminiClient.sendMessageStream.mockReturnValue(
       createStreamFromEvents([toolCallEvent]),
@@ -228,7 +232,7 @@ describe('runNonInteractive', () => {
     expect(processExitSpy).not.toHaveBeenCalled();
     expect(mockGeminiClient.sendMessageStream).toHaveBeenCalledTimes(2);
     expect(processStdoutSpy).toHaveBeenCalledWith(
-      "Sorry, I can't find that tool.",
+      expect.stringContaining("Sorry, I can't find that tool."),
     );
   });
 

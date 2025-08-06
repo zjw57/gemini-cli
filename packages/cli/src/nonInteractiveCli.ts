@@ -7,37 +7,72 @@
 import {
   Config,
   ToolCallRequestInfo,
+  ToolCallResponseInfo,
   executeToolCall,
   ToolRegistry,
   shutdownTelemetry,
   isTelemetrySdkInitialized,
   GeminiEventType,
+  ToolErrorType,
 } from '@google/gemini-cli-core';
 import { Content, Part, FunctionCall } from '@google/genai';
 
 import { parseAndFormatApiError } from './ui/utils/errorParsing.js';
+import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
+
+function logToolCallResult(
+  config: Config,
+  requestInfo: ToolCallRequestInfo,
+  toolResponse: ToolCallResponseInfo,
+) {
+  const status = toolResponse.error ? 'ERROR' : 'OK';
+  if (toolResponse.error) {
+    process.stdout.write(
+      `\nTool call status:❌ ${status} ${requestInfo.name} => ${toolResponse.error.message}\n`,
+    );
+  } else {
+    if (toolResponse.resultDisplay) {
+      process.stdout.write(
+        `\nTool call status:✅ ${status} ${requestInfo.name} => ${toolResponse.resultDisplay}\n`,
+      );
+    } else {
+      process.stdout.write(
+        `\nTool call status:✅ ${status} ${requestInfo.name}\n`,
+      );
+    }
+  }
+}
 
 export async function runNonInteractive(
   config: Config,
   input: string,
   prompt_id: string,
 ): Promise<void> {
-  await config.initialize();
-  // Handle EPIPE errors when the output is piped to a command that closes early.
-  process.stdout.on('error', (err: NodeJS.ErrnoException) => {
-    if (err.code === 'EPIPE') {
-      // Exit gracefully if the pipe is closed.
-      process.exit(0);
-    }
+  const consolePatcher = new ConsolePatcher({
+    stderr: true,
+    debugMode: config.getDebugMode(),
   });
 
-  const geminiClient = config.getGeminiClient();
-  const toolRegistry: ToolRegistry = await config.getToolRegistry();
-
-  const abortController = new AbortController();
-  let currentMessages: Content[] = [{ role: 'user', parts: [{ text: input }] }];
-  let turnCount = 0;
   try {
+    await config.initialize();
+    consolePatcher.patch();
+    // Handle EPIPE errors when the output is piped to a command that closes early.
+    process.stdout.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EPIPE') {
+        // Exit gracefully if the pipe is closed.
+        process.exit(0);
+      }
+    });
+
+    const geminiClient = config.getGeminiClient();
+    const toolRegistry: ToolRegistry = await config.getToolRegistry();
+
+    const abortController = new AbortController();
+    let currentMessages: Content[] = [
+      { role: 'user', parts: [{ text: input }] },
+    ];
+    process.stdout.write(`User 🖥️: ${input}\n`);
+    let turnCount = 0;
     while (true) {
       turnCount++;
       if (
@@ -57,6 +92,9 @@ export async function runNonInteractive(
         prompt_id,
       );
 
+      let thoughts = '';
+      let response = '';
+      const toolCalls = [];
       for await (const event of responseStream) {
         if (abortController.signal.aborted) {
           console.error('Operation cancelled.');
@@ -64,7 +102,9 @@ export async function runNonInteractive(
         }
 
         if (event.type === GeminiEventType.Content) {
-          process.stdout.write(event.value);
+          response += event.value;
+        } else if (event.type === GeminiEventType.Thought) {
+          thoughts += event.value.description;
         } else if (event.type === GeminiEventType.ToolCallRequest) {
           const toolCallRequest = event.value;
           const fc: FunctionCall = {
@@ -73,7 +113,19 @@ export async function runNonInteractive(
             id: toolCallRequest.callId,
           };
           functionCalls.push(fc);
+          toolCalls.push(toolCallRequest);
         }
+      }
+      if (thoughts) {
+        process.stdout.write(`\nThought 💭: ${thoughts}\n`);
+      }
+      if (response) {
+        process.stdout.write(`\nGemini 🤖: ${response}\n`);
+      }
+      for (const toolCall of toolCalls) {
+        process.stdout.write(
+          `\nTool call request:🔨 [${toolCall.name}] => ${JSON.stringify(toolCall.args)}\n`,
+        );
       }
 
       if (functionCalls.length > 0) {
@@ -96,16 +148,14 @@ export async function runNonInteractive(
             abortController.signal,
           );
 
+          logToolCallResult(config, requestInfo, toolResponse);
+
           if (toolResponse.error) {
-            const isToolNotFound = toolResponse.error.message.includes(
-              'not found in registry',
-            );
             console.error(
               `Error executing tool ${fc.name}: ${toolResponse.resultDisplay || toolResponse.error.message}`,
             );
-            if (!isToolNotFound) {
+            if (toolResponse.errorType === ToolErrorType.UNHANDLED_EXCEPTION)
               process.exit(1);
-            }
           }
 
           if (toolResponse.responseParts) {
@@ -136,6 +186,7 @@ export async function runNonInteractive(
     );
     process.exit(1);
   } finally {
+    consolePatcher.cleanup();
     if (isTelemetrySdkInitialized()) {
       await shutdownTelemetry();
     }
