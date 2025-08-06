@@ -286,66 +286,68 @@ private async calculateEdit(
   let isNewFile = false;
 
   try {
-    // Attempt to read the file
     currentContent = await fs.readFile(params.file_path, 'utf8');
     fileExists = true;
   } catch (err: unknown) {
     if (isNodeError(err) && err.code === 'ENOENT') {
-      // If the file doesn't exist, treat it as a new, empty file.
-      // This allows the tool to create and populate a file in one step.
       fileExists = false;
       isNewFile = true;
       currentContent = '';
     } else {
-      // For any other error (e.g., permissions), re-throw it.
       throw err;
     }
   }
 
-  // Preserve the original file's trailing newline status
   const hadTrailingNewline = fileExists && currentContent.endsWith('\n');
-  const lines = currentContent.replace(/\r\n/g, '\n').split('\n');
+  const originalLines = currentContent.replace(/\r\n/g, '\n').split('\n');
+  const newLines: string[] = [];
 
-  // Sort edits from the bottom of the file to the top to avoid
-  // shifting line numbers for subsequent edits.
-  const sortedEdits = [...params.edits].sort(
-    (a, b) => b.startLine - a.startLine,
-  );
+  const sortedEdits = [...params.edits].sort((a, b) => a.startLine - b.startLine);
+
+  let lastLineProcessed = 0;
 
   for (const edit of sortedEdits) {
     const { startLine, linesToDelete, contentToAdd } = edit;
-    const isPureInsertion = linesToDelete === 0;
+    const zeroBasedStartLine = startLine - 1;
 
-    // For a pure insertion, it's valid to insert after the last line.
-    const maxLine = isPureInsertion ? lines.length + 1 : lines.length;
-
-    if (startLine < 1 || startLine > maxLine) {
+    if (zeroBasedStartLine < lastLineProcessed) {
       return {
         currentContent: currentContent,
         newContent: '',
         error: {
-          display: `Invalid startLine: ${startLine}. Must be between 1 and ${maxLine}.`,
-          raw: `Invalid startLine: ${startLine}. Must be between 1 and ${maxLine} for this operation.`,
+          display: 'Edits must not overlap.',
+          raw: `Overlapping edits detected. Edit at line ${startLine} conflicts with a previous edit.`, 
           type: ToolErrorType.INVALID_TOOL_PARAMS,
         },
         isNewFile,
       };
     }
 
-    // Flatten contentToAdd to gracefully handle malformed nested arrays from the LLM.
-    const flattenedContent = (contentToAdd || []).flat(Infinity);
+    if (zeroBasedStartLine > originalLines.length) {
+      return {
+        currentContent: currentContent,
+        newContent: '',
+        error: {
+          display: `Invalid startLine: ${startLine}. File only has ${originalLines.length} lines.`, 
+          raw: `Invalid startLine: ${startLine}. File only has ${originalLines.length} lines.`, 
+          type: ToolErrorType.INVALID_TOOL_PARAMS,
+        },
+        isNewFile,
+      };
+    }
 
-    // Apply the edit using splice. startLine is 1-based, so subtract 1 for the index.
-    lines.splice(startLine - 1, linesToDelete, ...flattenedContent);
+    newLines.push(...originalLines.slice(lastLineProcessed, zeroBasedStartLine));
+    const flattenedContent = (contentToAdd || []).flat(Infinity);
+    newLines.push(...flattenedContent);
+    lastLineProcessed = Math.min(zeroBasedStartLine + linesToDelete, originalLines.length);
   }
 
-  let finalContent = lines.join('\n');
+  newLines.push(...originalLines.slice(lastLineProcessed));
+  let finalContent = newLines.join('\n');
 
-  // After all edits, ensure the trailing newline status matches the original file's.
   if (hadTrailingNewline && !finalContent.endsWith('\n')) {
     finalContent += '\n';
   } else if (!hadTrailingNewline && finalContent.endsWith('\n')) {
-    // Only strip the newline if the file isn't just a single newline character.
     if (finalContent.length > 1) {
       finalContent = finalContent.slice(0, -1);
     }
