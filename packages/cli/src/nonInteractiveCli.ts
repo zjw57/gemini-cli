@@ -35,7 +35,7 @@ function logToolCallResult(
         `\nTool call status:✅ ${status} ${requestInfo.name} => ${toolResponse.resultDisplay}\n`,
       );
     } else {
-      process.stdout.write(`Tool call status:✅ ${status} ${requestInfo.name}`);
+      process.stdout.write(`\nTool call status:✅ ${status} ${requestInfo.name}\n`);
     }
   }
 }
