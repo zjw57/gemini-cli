@@ -34,42 +34,51 @@ export enum ReplaceStrategy {
 }
 
 const EDIT_SYS_PROMPT = `
-You are a precise code editing assistant that performs search and replace operations on code snippets. 
-Previous attempts of changing the code with another search and replace assistant failed.
-Your task is to identify the exact text that needs to be changed and provide the replacement text.
-You are to respond with \`search\` and \`replace\` edits and \`explanation\` for the changes.
-If no changes are necessary, make \`search\` and \`replace\` the same and \`noChangesRequired\` equal to True. 
+You are an expert code-editing assistant specializing in debugging and correcting failed search-and-replace operations.
 
-# Rules
-1. Exact Matching: The \`search\` field must contain the EXACT text as it appears in the given code, including whitespace, indentation, and line breaks.
-2. Minimal Changes: Make only the changes necessary to fulfill the instruction.
-3. Preserve Formatting: Maintain existing code style, indentation, and formatting unless specifically asked to change it.
-4. Context Awareness: Consider the surrounding code context to ensure changes don't break functionality.
-5. No Duplicates: If the same text appears multiple times, specify which occurrence to change by making it unique and specific.
-6. NEVER escape \`search\` or \`replace\`, that would break the exact literal text requirement.
+# Primary Goal
+Your task is to analyze a failed edit attempt and provide a corrected \`search\` string that will match the text in the file precisely. The correction should be as minimal as possible, staying very close to the original, failed \`search\` string. Do NOT invent a completely new edit based on the instruction; your job is to fix the provided parameters.
+
+# Input Context
+You will be given:
+1. The high-level instruction for the original edit.
+2. The exact \`search\` and \`replace\` strings that failed.
+3. The error message that was produced.
+4. The full content of the source file.
+
+# Rules for Correction
+1.  **Minimal Correction:** Your new \`search\` string must be a close variation of the original. Focus on fixing issues like whitespace, indentation, line endings, or small contextual differences.
+2.  **Explain the Fix:** Your \`explanation\` MUST state exactly why the original \`search\` failed and how your new \`search\` string resolves that specific failure. (e.g., "The original search failed due to incorrect indentation; the new search corrects the indentation to match the source file.").
+3.  **Preserve the \`replace\` String:** Do NOT modify the \`replace\` string unless the instruction explicitly requires it and it was the source of the error. Your primary focus is fixing the \`search\` string.
+4.  **No Changes Case:** If you determine no change is actually required to fulfill the instruction (i.e., the code is already in the desired state), set \`noChangesRequired\` to True and explain why in the \`explanation\`.
+5.  **Exactness:** The final \`search\` field must be the EXACT literal text from the file. Do not escape characters.
 `;
 
 const EDIT_USER_PROMPT = `
-# Instruction
+# Goal of the Original Edit
 {instruction}
 
-# Search and replace already tried
-Old string  (what was initially intended to be found):
+# Failed Attempt Details
+- **Original \`search\` parameter (failed):**
 \`\`\`
 {old_string}
 \`\`\`
-
-New string (what was intended to replace old_string):
+- **Original \`replace\` parameter:**
 \`\`\`
 {new_string}
 \`\`\`
+- **Error Encountered:**
+\`\`\`
+{error}
+\`\`\`
 
-Error encountered: {error}
-
-# Current content of the file:
+# Full File Content
 \`\`\`
 {current_content}
 \`\`\`
+
+# Your Task
+Based on the error and the file content, provide a corrected \`search\` string that will succeed. Remember to keep your correction minimal and explain the precise reason for the failure in your \`explanation\`.
 `;
 
 /**
@@ -144,6 +153,11 @@ interface ReplaceStrategyImpl {
 
 class FuzzyStrategy implements ReplaceStrategyImpl {
   readonly mode = ReplaceStrategy.FUZZY;
+  /**
+   * Performs a fuzzy search and replace operation.
+   * @param context The context for the replace operation.
+   * @returns The result of the replace operation.
+   */
   async performEdit(
     context: ReplaceStrategyContext,
   ): Promise<ReplaceStrategyResult> {
@@ -254,42 +268,6 @@ interface ValidationContext {
   filePath: string;
 }
 
-function validateEditResult(
-  context: Omit<ValidationContext, 'mode'>,
-): CalculatedEdit['error'] | undefined {
-  const {
-    occurrences,
-    expectedReplacements,
-    finalOldString,
-    finalNewString,
-    filePath,
-  } = context;
-
-  if (occurrences === 0) {
-    return {
-      display: `Failed to edit, could not find the string to replace.`,
-      raw: `Failed to edit, 0 occurrences found for old_string in ${filePath}. No edits made.`,
-      type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
-    };
-  }
-  if (occurrences !== expectedReplacements) {
-    const term = expectedReplacements === 1 ? 'occurrence' : 'occurrences';
-    return {
-      display: `Failed to edit, expected ${expectedReplacements} ${term} but found ${occurrences}.`,
-      raw: `Expected ${expectedReplacements} ${term} but found ${occurrences} for old_string in ${filePath}.`,
-      type: ToolErrorType.EDIT_EXPECTED_OCCURRENCE_MISMATCH,
-    };
-  }
-  if (finalOldString === finalNewString) {
-    return {
-      display: `No changes to apply. The old_string and new_string are identical.`,
-      raw: `No changes to apply. The old_string and new_string are identical in file: ${filePath}.`,
-      type: ToolErrorType.EDIT_NO_CHANGE,
-    };
-  }
-  return undefined;
-}
-
 
 interface CalculatedEdit {
   currentContent: string | null;
@@ -334,7 +312,21 @@ export class SmartEditTool
             type: Type.STRING,
           },
           instruction: {
-            description: 'The detailed instruction for what needs to be done.',
+            description: `A clear, semantic instruction for the code change, acting as a high-quality prompt for an expert LLM assistant. It must be self-contained and explain the goal of the change.
+
+A good instruction should concisely answer:
+1.  WHY is the change needed? (e.g., "To fix a bug where users can be null...")
+2.  WHERE should the change happen? (e.g., "...in the 'renderUserProfile' function...")
+3.  WHAT is the high-level change? (e.g., "...add a null check for the 'user' object...")
+4.  WHAT is the desired outcome? (e.g., "...so that it displays a loading spinner instead of crashing.")
+
+**GOOD Example:** "In the 'calculateTotal' function, correct the sales tax calculation by updating the 'taxRate' constant from 0.05 to 0.075 to reflect the new regional tax laws."
+
+**BAD Examples:**
+- "Change the text." (Too vague)
+- "Fix the bug." (Doesn't explain the bug or the fix)
+- "Replace the line with this new line." (Brittle, just repeats the other parameters)
+`,
             type: Type.STRING,
           },
           old_string: {
@@ -392,6 +384,17 @@ export class SmartEditTool
 
 
 
+  /**
+   * Attempts to fix a failed edit by using an LLM to generate a new search and replace pair.
+   * @param instruction The instruction for what needs to be done.
+   * @param old_string The original string to be replaced.
+   * @param new_string The original replacement string.
+   * @param error The error that occurred during the initial edit.
+   * @param current_content The current content of the file.
+   * @param geminiClient The Gemini client to use for the LLM call.
+   * @param abortSignal An abort signal to cancel the operation.
+   * @returns A new search and replace pair.
+   */
   private async fixLLMEdit(
     instruction: string,
     old_string: string,
@@ -421,6 +424,14 @@ export class SmartEditTool
     return result;
   }
 
+  /**
+   * Applies the replacement to the content.
+   * @param currentContent The current content of the file.
+   * @param oldString The string to be replaced.
+   * @param newString The string to replace with.
+   * @param isNewFile Whether the file is new.
+   * @returns The new content.
+   */
   private _applyReplacement(
     currentContent: string | null,
     oldString: string,
@@ -431,10 +442,8 @@ export class SmartEditTool
       return newString;
     }
     if (currentContent === null) {
-      // Should not happen if not a new file, but defensively return empty or newString if oldString is also empty
       return oldString === '' ? newString : '';
     }
-    // If oldString is empty and it's not a new file, do not modify the content.
     if (oldString === '' && !isNewFile) {
       return currentContent;
     }
@@ -469,17 +478,14 @@ export class SmartEditTool
         fileExists = true;
       } catch (err: unknown) {
         if (!isNodeError(err) || err.code !== 'ENOENT') {
-          // Rethrow unexpected FS errors (permissions, etc.)
           throw err;
         }
         fileExists = false;
       }
   
       if (params.old_string === '' && !fileExists) {
-        // Creating a new file
         isNewFile = true;
       } else if (!fileExists) {
-        // Trying to edit a nonexistent file (and old_string is not empty)
         error = {
           display: `File not found. Cannot apply edit. Use an empty old_string to create a new file.`,
           raw: `File not found: ${params.file_path}`,
@@ -494,7 +500,7 @@ export class SmartEditTool
         });
 
         finalOldString = strategyResult.finalOldString
-        finalNewString = strategyResult.finalOldString
+        finalNewString = strategyResult.finalNewString
         occurrences = strategyResult.occurrences;
   
         error = getErrorReplaceResult(params,occurrences, expectedReplacements, finalOldString, finalNewString);
@@ -509,7 +515,13 @@ export class SmartEditTool
             this.config.getGeminiClient(),
             abortSignal,
           );
-          if(!fixedEdit.noChangesRequired) {
+          if (fixedEdit.noChangesRequired) {
+            error = {
+              display: `No changes required. The file already meets the specified conditions.`,
+              raw: `The secondary LLM check determined that no changes were necessary to fulfill the instruction. Explanation: ${fixedEdit.explanation}`,
+              type: ToolErrorType.EDIT_NO_CHANGE,
+            };
+          } else {
             const strategyResult = await replaceStrategy.performEdit(
               {
                 params: {
@@ -525,14 +537,13 @@ export class SmartEditTool
             if (errorFixed === undefined) {
               // we fixed 
               finalOldString = strategyResult.finalOldString
-              finalNewString = strategyResult.finalOldString
+              finalNewString = strategyResult.finalNewString
               occurrences = strategyResult.occurrences;
               error = undefined;
             }
           }
         }
       } else {
-        // Should not happen if fileExists and no exception was thrown, but defensively:
         error = {
           display: `Failed to read content of file.`,
           raw: `Failed to read content of existing file: ${params.file_path}`,
@@ -577,7 +588,7 @@ export class SmartEditTool
 
     let editData: CalculatedEdit;
     try {
-      this.editCache = null; // Clear previous cache
+      this.editCache = null;
       editData = await this.calculateEdit(params, abortSignal);
       this.editCache = editData;
     } catch (error) {
@@ -628,7 +639,7 @@ export class SmartEditTool
       params.file_path,
       this.config.getTargetDir(),
     );
-    return `Apply instruction "${params.instruction}" to ${shortenPath(
+    return `Apply instructions "${params.instruction}" with old string as "${params.old_string}" and new string as "${params.new_string}" to ${shortenPath(
       relativePath,
     )}`;
   }
@@ -657,7 +668,7 @@ export class SmartEditTool
     let editData: CalculatedEdit;
     if (this.editCache) {
       editData = this.editCache;
-      this.editCache = null; // Clear the cache after use
+      this.editCache = null; 
     } else {
       try {
         editData = await this.calculateEdit(params, signal);
@@ -689,24 +700,33 @@ export class SmartEditTool
       this.ensureParentDirectoriesExist(params.file_path);
       fs.writeFileSync(params.file_path, editData.newContent, 'utf8');
 
-      const fileName = path.basename(params.file_path);
-      const fileDiff = Diff.createPatch(
-        fileName,
-        editData.currentContent ?? '',
-        editData.newContent,
-        'Current',
-        'Proposed',
-        DEFAULT_DIFF_OPTIONS,
-      );
-      const displayResult: ToolResultDisplay = {
-        fileDiff,
-        fileName,
-        originalContent: editData.currentContent,
-        newContent: editData.newContent,
-      };
+      let displayResult: ToolResultDisplay;
+      if (editData.isNewFile) {
+        displayResult = `Created ${shortenPath(
+          makeRelative(params.file_path, this.config.getTargetDir()),
+        )}`;
+      } else {
+        const fileName = path.basename(params.file_path);
+        const fileDiff = Diff.createPatch(
+          fileName,
+          editData.currentContent ?? '',
+          editData.newContent,
+          'Current',
+          'Proposed',
+          DEFAULT_DIFF_OPTIONS,
+        );
+        displayResult = {
+          fileDiff,
+          fileName,
+          originalContent: editData.currentContent,
+          newContent: editData.newContent,
+        };
+      }
 
       const llmSuccessMessageParts = [
-        `Successfully modified file: ${params.file_path}.`,
+        editData.isNewFile
+          ? `Created new file: ${params.file_path} with provided content.`
+          : `Successfully modified file: ${params.file_path}.`,
       ];
       if (params.modified_by_user) {
         llmSuccessMessageParts.push(
@@ -769,20 +789,26 @@ export class SmartEditTool
         originalParams: SmartEditToolParams,
       ): SmartEditToolParams => ({
         ...originalParams,
-        // This is tricky because we can't just set the instruction.
-        // For now, we'll just mark it as modified.
         instruction: `User provided content directly:\n${modifiedProposedContent}`,
         modified_by_user: true,
       }),
     };
   }
 }
+/**
+ * Gets the error result for a replace operation.
+ * @param params The parameters for the smart edit tool.
+ * @param occurrences The number of occurrences of the old string.
+ * @param expectedReplacements The expected number of replacements.
+ * @param finalOldString The final old string used for replacement.
+ * @param finalNewString The final new string used for replacement.
+ * @returns An error object if there is an error, otherwise undefined.
+ */
 function getErrorReplaceResult(params: SmartEditToolParams, occurrences: number, expectedReplacements: number, finalOldString: string, finalNewString: string) {
   let error:
         | { display: string; raw: string; type: ToolErrorType }
         | undefined = undefined;
   if (params.old_string === '') {
-    // Error: Trying to create a file that already exists
     error = {
       display: `Failed to edit. Attempted to create a file that already exists.`,
       raw: `File already exists, cannot create: ${params.file_path}`,
@@ -791,7 +817,7 @@ function getErrorReplaceResult(params: SmartEditToolParams, occurrences: number,
   } else if (occurrences === 0) {
     error = {
       display: `Failed to edit, could not find the string to replace.`,
-      raw: `Failed to edit, 0 occurrences found for old_string in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
+      raw: `Failed to edit, 0 occurrences found for old_string (${finalOldString}). Original old_string was (${params.old_string}) in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
       type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
     };
   } else if (occurrences !== expectedReplacements) {

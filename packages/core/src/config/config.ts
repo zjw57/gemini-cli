@@ -18,6 +18,7 @@ import { ReadFileTool } from '../tools/read-file.js';
 import { GrepTool } from '../tools/grep.js';
 import { GlobTool } from '../tools/glob.js';
 import { EditTool } from '../tools/edit.js';
+import { SmartEditTool } from '../tools/smart_edit.js';
 import { RemoveAddLinesEditor } from '../tools/remove_add_lines_editor.js';
 import { UdiffEditor } from '../tools/udiff_editor.js';
 import { ShellTool } from '../tools/shell.js';
@@ -696,6 +697,7 @@ export class Config {
     registerCoreTool(GrepTool, this);
     registerCoreTool(GlobTool, this);
     registerCoreTool(EditTool, this);
+    registerCoreTool(SmartEditTool, this);
     registerCoreTool(RemoveAddLinesEditor, this);
     registerCoreTool(UdiffEditor, this);
     registerCoreTool(WriteFileTool, this);
