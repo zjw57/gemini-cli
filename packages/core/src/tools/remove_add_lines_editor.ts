@@ -163,12 +163,10 @@ def my_function(arg1, arg2):
       "startLine": 2,
       "linesToDelete": 0,
       "contentToAdd": [
-        "    \"\"\"This function adds two numbers.",
-        "",
-        "    Args:",
+    "Args:",
         "        arg1: The first number.",
         "        arg2: The second number.",
-        "    \"\"\""
+        "    """
       ]
     }
   ]
