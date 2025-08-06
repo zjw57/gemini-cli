@@ -27,7 +27,10 @@ import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
 import { ReadFileTool } from './read-file.js';
 import { ModifiableTool, ModifyContext } from './modifiable-tool.js';
 import { GeminiClient } from '../core/client.js';
-import { DEFAULT_GEMINI_FLASH_MODEL, DEFAULT_GEMINI_MODEL } from '../config/models.js';
+import {
+  DEFAULT_GEMINI_FLASH_MODEL,
+  DEFAULT_GEMINI_MODEL,
+} from '../config/models.js';
 
 export enum ReplaceStrategy {
   FUZZY = 'fuzzy',
@@ -114,7 +117,7 @@ export interface SmartEditToolParams {
 interface SearchReplaceEdit {
   search: string;
   replace: string;
-  noChangesRequired: boolean,
+  noChangesRequired: boolean;
   explanation: string;
 }
 
@@ -123,14 +126,11 @@ const SearchReplaceEditSchema = {
   properties: {
     search: { type: Type.STRING },
     replace: { type: Type.STRING },
-    noChangesRequired: {type: Type.BOOLEAN},
+    noChangesRequired: { type: Type.BOOLEAN },
     explanation: { type: Type.STRING },
   },
   required: ['search', 'replace', 'explanation'],
 };
-
-
-
 
 interface ReplaceStrategyContext {
   params: SmartEditToolParams;
@@ -268,7 +268,6 @@ interface ValidationContext {
   filePath: string;
 }
 
-
 interface CalculatedEdit {
   currentContent: string | null;
   newContent: string;
@@ -381,9 +380,6 @@ A good instruction should concisely answer:
     return [{ path: params.file_path }];
   }
 
-
-
-
   /**
    * Attempts to fix a failed edit by using an LLM to generate a new search and replace pair.
    * @param instruction The instruction for what needs to be done.
@@ -398,17 +394,17 @@ A good instruction should concisely answer:
   private async fixLLMEdit(
     instruction: string,
     old_string: string,
-    new_string: string, 
+    new_string: string,
     error: string,
     current_content: string,
     geminiClient: GeminiClient,
     abortSignal: AbortSignal,
-
   ): Promise<SearchReplaceEdit> {
-    const userPrompt = EDIT_USER_PROMPT.replace(
-      '{instruction}',
-      instruction,
-    ).replace('{old_string}', old_string).replace('{new_string}', new_string).replace('{error}', error).replace('{current_content}', current_content);
+    const userPrompt = EDIT_USER_PROMPT.replace('{instruction}', instruction)
+      .replace('{old_string}', old_string)
+      .replace('{new_string}', new_string)
+      .replace('{error}', error)
+      .replace('{current_content}', current_content);
 
     const contents: Content[] = [
       { role: 'user', parts: [{ text: `${EDIT_SYS_PROMPT}\n${userPrompt}` }] },
@@ -450,122 +446,132 @@ A good instruction should concisely answer:
     return currentContent.replaceAll(oldString, newString);
   }
 
-   /**
-     * Calculates the potential outcome of an edit operation.
-     * @param params Parameters for the edit operation
-     * @returns An object describing the potential edit outcome
-     * @throws File system errors if reading the file fails unexpectedly (e.g., permissions)
-     */
-    private async calculateEdit(
-      params: SmartEditToolParams,
-      abortSignal: AbortSignal,
-    ): Promise<CalculatedEdit> {
-      const expectedReplacements = 1;
-      let currentContent: string | null = null;
-      let fileExists = false;
-      let isNewFile = false;
-      let finalNewString = params.new_string;
-      let finalOldString = params.old_string;
-      let occurrences = 0;
-      let error:
-        | { display: string; raw: string; type: ToolErrorType }
-        | undefined = undefined;
-  
-      try {
-        currentContent = fs.readFileSync(params.file_path, 'utf8');
-        // Normalize line endings to LF for consistent processing.
-        currentContent = currentContent.replace(/\r\n/g, '\n');
-        fileExists = true;
-      } catch (err: unknown) {
-        if (!isNodeError(err) || err.code !== 'ENOENT') {
-          throw err;
-        }
-        fileExists = false;
-      }
-  
-      if (params.old_string === '' && !fileExists) {
-        isNewFile = true;
-      } else if (!fileExists) {
-        error = {
-          display: `File not found. Cannot apply edit. Use an empty old_string to create a new file.`,
-          raw: `File not found: ${params.file_path}`,
-          type: ToolErrorType.FILE_NOT_FOUND,
-        };
-      } else if (currentContent !== null) {
-        const replaceStrategy = new FuzzyStrategy()
-        const strategyResult = await replaceStrategy.performEdit({
-          params,
-          currentContent,
-          abortSignal,
-        });
+  /**
+   * Calculates the potential outcome of an edit operation.
+   * @param params Parameters for the edit operation
+   * @returns An object describing the potential edit outcome
+   * @throws File system errors if reading the file fails unexpectedly (e.g., permissions)
+   */
+  private async calculateEdit(
+    params: SmartEditToolParams,
+    abortSignal: AbortSignal,
+  ): Promise<CalculatedEdit> {
+    const expectedReplacements = 1;
+    let currentContent: string | null = null;
+    let fileExists = false;
+    let isNewFile = false;
+    let finalNewString = params.new_string;
+    let finalOldString = params.old_string;
+    let occurrences = 0;
+    let error:
+      | { display: string; raw: string; type: ToolErrorType }
+      | undefined = undefined;
 
-        finalOldString = strategyResult.finalOldString
-        finalNewString = strategyResult.finalNewString
-        occurrences = strategyResult.occurrences;
-  
-        error = getErrorReplaceResult(params,occurrences, expectedReplacements, finalOldString, finalNewString);
-
-        if(error !== undefined) {
-          const fixedEdit = await this.fixLLMEdit(
-            params.instruction,
-            finalOldString,
-            finalNewString,
-            error.raw,
-            currentContent,
-            this.config.getGeminiClient(),
-            abortSignal,
-          );
-          if (fixedEdit.noChangesRequired) {
-            error = {
-              display: `No changes required. The file already meets the specified conditions.`,
-              raw: `The secondary LLM check determined that no changes were necessary to fulfill the instruction. Explanation: ${fixedEdit.explanation}`,
-              type: ToolErrorType.EDIT_NO_CHANGE,
-            };
-          } else {
-            const strategyResult = await replaceStrategy.performEdit(
-              {
-                params: {
-                  ...params,
-                  old_string: fixedEdit.search,
-                  new_string: fixedEdit.replace,
-                },
-                currentContent,
-                abortSignal,
-              },
-            );
-            const errorFixed = getErrorReplaceResult(params, strategyResult.occurrences, expectedReplacements, strategyResult.finalOldString, strategyResult.finalNewString);
-            if (errorFixed === undefined) {
-              // we fixed 
-              finalOldString = strategyResult.finalOldString
-              finalNewString = strategyResult.finalNewString
-              occurrences = strategyResult.occurrences;
-              error = undefined;
-            }
-          }
-        }
-      } else {
-        error = {
-          display: `Failed to read content of file.`,
-          raw: `Failed to read content of existing file: ${params.file_path}`,
-          type: ToolErrorType.READ_CONTENT_FAILURE,
-        };
+    try {
+      currentContent = fs.readFileSync(params.file_path, 'utf8');
+      // Normalize line endings to LF for consistent processing.
+      currentContent = currentContent.replace(/\r\n/g, '\n');
+      fileExists = true;
+    } catch (err: unknown) {
+      if (!isNodeError(err) || err.code !== 'ENOENT') {
+        throw err;
       }
-  
-      const newContent = this._applyReplacement(
+      fileExists = false;
+    }
+
+    if (params.old_string === '' && !fileExists) {
+      isNewFile = true;
+    } else if (!fileExists) {
+      error = {
+        display: `File not found. Cannot apply edit. Use an empty old_string to create a new file.`,
+        raw: `File not found: ${params.file_path}`,
+        type: ToolErrorType.FILE_NOT_FOUND,
+      };
+    } else if (currentContent !== null) {
+      const replaceStrategy = new FuzzyStrategy();
+      const strategyResult = await replaceStrategy.performEdit({
+        params,
         currentContent,
+        abortSignal,
+      });
+
+      finalOldString = strategyResult.finalOldString;
+      finalNewString = strategyResult.finalNewString;
+      occurrences = strategyResult.occurrences;
+
+      error = getErrorReplaceResult(
+        params,
+        occurrences,
+        expectedReplacements,
         finalOldString,
         finalNewString,
-        isNewFile,
       );
-  
-      return {
-        currentContent,
-        newContent,
-        occurrences,
-        error,
-        isNewFile,
+
+      if (error !== undefined) {
+        const fixedEdit = await this.fixLLMEdit(
+          params.instruction,
+          finalOldString,
+          finalNewString,
+          error.raw,
+          currentContent,
+          this.config.getGeminiClient(),
+          abortSignal,
+        );
+        if (fixedEdit.noChangesRequired) {
+          error = {
+            display: `No changes required. The file already meets the specified conditions.`,
+            raw: `The secondary LLM check determined that no changes were necessary to fulfill the instruction. Explanation: ${fixedEdit.explanation}`,
+            type: ToolErrorType.EDIT_NO_CHANGE,
+          };
+        } else {
+          const strategyResult = await replaceStrategy.performEdit({
+            params: {
+              ...params,
+              old_string: fixedEdit.search,
+              new_string: fixedEdit.replace,
+            },
+            currentContent,
+            abortSignal,
+          });
+          const errorFixed = getErrorReplaceResult(
+            params,
+            strategyResult.occurrences,
+            expectedReplacements,
+            strategyResult.finalOldString,
+            strategyResult.finalNewString,
+          );
+          if (errorFixed === undefined) {
+            // we fixed
+            finalOldString = strategyResult.finalOldString;
+            finalNewString = strategyResult.finalNewString;
+            occurrences = strategyResult.occurrences;
+            error = undefined;
+          }
+        }
+      }
+    } else {
+      error = {
+        display: `Failed to read content of file.`,
+        raw: `Failed to read content of existing file: ${params.file_path}`,
+        type: ToolErrorType.READ_CONTENT_FAILURE,
       };
     }
+
+    const newContent = this._applyReplacement(
+      currentContent,
+      finalOldString,
+      finalNewString,
+      isNewFile,
+    );
+
+    return {
+      currentContent,
+      newContent,
+      occurrences,
+      error,
+      isNewFile,
+    };
+  }
 
   /**
    * Handles the confirmation prompt for the Edit tool in the CLI.
@@ -668,7 +674,7 @@ A good instruction should concisely answer:
     let editData: CalculatedEdit;
     if (this.editCache) {
       editData = this.editCache;
-      this.editCache = null; 
+      this.editCache = null;
     } else {
       try {
         editData = await this.calculateEdit(params, signal);
@@ -804,10 +810,15 @@ A good instruction should concisely answer:
  * @param finalNewString The final new string used for replacement.
  * @returns An error object if there is an error, otherwise undefined.
  */
-function getErrorReplaceResult(params: SmartEditToolParams, occurrences: number, expectedReplacements: number, finalOldString: string, finalNewString: string) {
-  let error:
-        | { display: string; raw: string; type: ToolErrorType }
-        | undefined = undefined;
+function getErrorReplaceResult(
+  params: SmartEditToolParams,
+  occurrences: number,
+  expectedReplacements: number,
+  finalOldString: string,
+  finalNewString: string,
+) {
+  let error: { display: string; raw: string; type: ToolErrorType } | undefined =
+    undefined;
   if (params.old_string === '') {
     error = {
       display: `Failed to edit. Attempted to create a file that already exists.`,
@@ -821,7 +832,8 @@ function getErrorReplaceResult(params: SmartEditToolParams, occurrences: number,
       type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
     };
   } else if (occurrences !== expectedReplacements) {
-    const occurrenceTerm = expectedReplacements === 1 ? 'occurrence' : 'occurrences';
+    const occurrenceTerm =
+      expectedReplacements === 1 ? 'occurrence' : 'occurrences';
 
     error = {
       display: `Failed to edit, expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences}.`,
@@ -837,4 +849,3 @@ function getErrorReplaceResult(params: SmartEditToolParams, occurrences: number,
   }
   return error;
 }
-

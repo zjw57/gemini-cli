@@ -277,87 +277,94 @@ Line 3
     return [{ path: params.file_path }];
   }
 
-private async calculateEdit(
-  params: RemoveAddLinesEditorParams,
-): Promise<CalculatedEdit> {
-  let currentContent: string;
-  let fileExists = false;
-  let isNewFile = false;
+  private async calculateEdit(
+    params: RemoveAddLinesEditorParams,
+  ): Promise<CalculatedEdit> {
+    let currentContent: string;
+    let fileExists = false;
+    let isNewFile = false;
 
-  try {
-    currentContent = await fs.readFile(params.file_path, 'utf8');
-    fileExists = true;
-  } catch (err: unknown) {
-    if (isNodeError(err) && err.code === 'ENOENT') {
-      fileExists = false;
-      isNewFile = true;
-      currentContent = '';
-    } else {
-      throw err;
+    try {
+      currentContent = await fs.readFile(params.file_path, 'utf8');
+      fileExists = true;
+    } catch (err: unknown) {
+      if (isNodeError(err) && err.code === 'ENOENT') {
+        fileExists = false;
+        isNewFile = true;
+        currentContent = '';
+      } else {
+        throw err;
+      }
     }
+
+    const hadTrailingNewline = fileExists && currentContent.endsWith('\n');
+    const originalLines = currentContent.replace(/\r\n/g, '\n').split('\n');
+    const newLines: string[] = [];
+
+    const sortedEdits = [...params.edits].sort(
+      (a, b) => a.startLine - b.startLine,
+    );
+
+    let lastLineProcessed = 0;
+
+    for (const edit of sortedEdits) {
+      const { startLine, linesToDelete, contentToAdd } = edit;
+      const zeroBasedStartLine = startLine - 1;
+
+      if (zeroBasedStartLine < lastLineProcessed) {
+        return {
+          currentContent: currentContent,
+          newContent: '',
+          error: {
+            display: 'Edits must not overlap.',
+            raw: `Overlapping edits detected. Edit at line ${startLine} conflicts with a previous edit.`,
+            type: ToolErrorType.INVALID_TOOL_PARAMS,
+          },
+          isNewFile,
+        };
+      }
+
+      if (zeroBasedStartLine > originalLines.length) {
+        return {
+          currentContent: currentContent,
+          newContent: '',
+          error: {
+            display: `Invalid startLine: ${startLine}. File only has ${originalLines.length} lines.`,
+            raw: `Invalid startLine: ${startLine}. File only has ${originalLines.length} lines.`,
+            type: ToolErrorType.INVALID_TOOL_PARAMS,
+          },
+          isNewFile,
+        };
+      }
+
+      newLines.push(
+        ...originalLines.slice(lastLineProcessed, zeroBasedStartLine),
+      );
+      const flattenedContent = (contentToAdd || []).flat(Infinity);
+      newLines.push(...flattenedContent);
+      lastLineProcessed = Math.min(
+        zeroBasedStartLine + linesToDelete,
+        originalLines.length,
+      );
+    }
+
+    newLines.push(...originalLines.slice(lastLineProcessed));
+    let finalContent = newLines.join('\n');
+
+    if (hadTrailingNewline && !finalContent.endsWith('\n')) {
+      finalContent += '\n';
+    } else if (!hadTrailingNewline && finalContent.endsWith('\n')) {
+      if (finalContent.length > 1) {
+        finalContent = finalContent.slice(0, -1);
+      }
+    }
+
+    return {
+      currentContent: currentContent,
+      newContent: finalContent,
+      isNewFile,
+    };
   }
-
-  const hadTrailingNewline = fileExists && currentContent.endsWith('\n');
-  const originalLines = currentContent.replace(/\r\n/g, '\n').split('\n');
-  const newLines: string[] = [];
-
-  const sortedEdits = [...params.edits].sort((a, b) => a.startLine - b.startLine);
-
-  let lastLineProcessed = 0;
-
-  for (const edit of sortedEdits) {
-    const { startLine, linesToDelete, contentToAdd } = edit;
-    const zeroBasedStartLine = startLine - 1;
-
-    if (zeroBasedStartLine < lastLineProcessed) {
-      return {
-        currentContent: currentContent,
-        newContent: '',
-        error: {
-          display: 'Edits must not overlap.',
-          raw: `Overlapping edits detected. Edit at line ${startLine} conflicts with a previous edit.`, 
-          type: ToolErrorType.INVALID_TOOL_PARAMS,
-        },
-        isNewFile,
-      };
-    }
-
-    if (zeroBasedStartLine > originalLines.length) {
-      return {
-        currentContent: currentContent,
-        newContent: '',
-        error: {
-          display: `Invalid startLine: ${startLine}. File only has ${originalLines.length} lines.`, 
-          raw: `Invalid startLine: ${startLine}. File only has ${originalLines.length} lines.`, 
-          type: ToolErrorType.INVALID_TOOL_PARAMS,
-        },
-        isNewFile,
-      };
-    }
-
-    newLines.push(...originalLines.slice(lastLineProcessed, zeroBasedStartLine));
-    const flattenedContent = (contentToAdd || []).flat(Infinity);
-    newLines.push(...flattenedContent);
-    lastLineProcessed = Math.min(zeroBasedStartLine + linesToDelete, originalLines.length);
-  }
-
-  newLines.push(...originalLines.slice(lastLineProcessed));
-  let finalContent = newLines.join('\n');
-
-  if (hadTrailingNewline && !finalContent.endsWith('\n')) {
-    finalContent += '\n';
-  } else if (!hadTrailingNewline && finalContent.endsWith('\n')) {
-    if (finalContent.length > 1) {
-      finalContent = finalContent.slice(0, -1);
-    }
-  }
-
-  return {
-    currentContent: currentContent,
-    newContent: finalContent,
-    isNewFile,
-  };
-}
 
   async shouldConfirmExecute(
     params: RemoveAddLinesEditorParams,
