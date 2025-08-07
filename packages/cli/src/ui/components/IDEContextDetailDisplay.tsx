@@ -4,7 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type File, type IdeContext } from '@google/gemini-cli-core';
+import {
+  type File,
+  type IdeContext,
+  ideContext as ideContextStore,
+} from '@google/gemini-cli-core';
 import { Box, Text } from 'ink';
 import path from 'node:path';
 import { Colors } from '../colors.js';
@@ -51,10 +55,11 @@ export function IDEContextDetailDisplay({
             const displayName = isDuplicate
               ? `${basename} (/${parentDir})`
               : basename;
+            const isSelected = ideContextStore.isFileSelected(file.path);
 
             return (
               <Text key={file.path}>
-                - {displayName}
+                {isSelected ? '[x]' : '[]'} {displayName}
                 {file.isActive ? ' (active)' : ''}
               </Text>
             );

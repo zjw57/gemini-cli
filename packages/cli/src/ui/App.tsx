@@ -763,6 +763,8 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   const initialPrompt = useMemo(() => config.getQuestion(), [config]);
   const geminiClient = config.getGeminiClient();
 
+  const selectedFileCount = ideContext.getSelectedFiles().length;
+
   useEffect(() => {
     if (
       initialPrompt &&
@@ -1013,6 +1015,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                   ) : (
                     <ContextSummaryDisplay
                       ideContext={ideContextState}
+                      selectedFileCount={selectedFileCount}
                       geminiMdFileCount={geminiMdFileCount}
                       contextFileNames={contextFileNames}
                       mcpServers={config.getMcpServers()}

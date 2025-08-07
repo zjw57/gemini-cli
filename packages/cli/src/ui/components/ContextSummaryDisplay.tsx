@@ -16,6 +16,7 @@ interface ContextSummaryDisplayProps {
   blockedMcpServers?: Array<{ name: string; extensionName: string }>;
   showToolDescriptions?: boolean;
   ideContext?: IdeContext;
+  selectedFileCount: number;
 }
 
 export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
@@ -25,6 +26,7 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
   blockedMcpServers,
   showToolDescriptions,
   ideContext,
+  selectedFileCount,
 }) => {
   const mcpServerCount = Object.keys(mcpServers || {}).length;
   const blockedMcpServerCount = blockedMcpServers?.length || 0;
@@ -43,9 +45,12 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     if (openFileCount === 0) {
       return '';
     }
-    return `${openFileCount} open file${
-      openFileCount > 1 ? 's' : ''
-    } (ctrl+e to view)`;
+    if (selectedFileCount === 0) {
+      return '0 open files';
+    }
+    return `${selectedFileCount} open file${
+      selectedFileCount > 1 ? 's' : ''
+    } (ctrl+e to modify)`;
   })();
 
   const geminiMdText = (() => {
