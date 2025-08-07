@@ -146,9 +146,9 @@ export class IdeClient {
     const resolver = this.diffResponses.get(filePath);
     if (resolver) {
       if (outcome === 'accepted') {
-        resolver({ status: 'accepted', content });
+        resolver({ status: 'accepted', content, source: 'cli' });
       } else {
-        resolver({ status: 'rejected', content: undefined });
+        resolver({ status: 'rejected', content: undefined, source: 'cli' });
       }
       this.diffResponses.delete(filePath);
     }
@@ -258,7 +258,7 @@ export class IdeClient {
         const { filePath, content } = notification.params;
         const resolver = this.diffResponses.get(filePath);
         if (resolver) {
-          resolver({ status: 'accepted', content });
+          resolver({ status: 'accepted', content, source: 'ide' });
           this.diffResponses.delete(filePath);
         } else {
           logger.debug(`No resolver found for ${filePath}`);
@@ -272,7 +272,11 @@ export class IdeClient {
         const { filePath } = notification.params;
         const resolver = this.diffResponses.get(filePath);
         if (resolver) {
-          resolver({ status: 'rejected', content: undefined });
+          resolver({
+            status: 'rejected',
+            content: undefined,
+            source: 'ide',
+          });
           this.diffResponses.delete(filePath);
         } else {
           logger.debug(`No resolver found for ${filePath}`);

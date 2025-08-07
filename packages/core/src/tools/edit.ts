@@ -346,17 +346,22 @@ Expectation for required parameters:
       originalContent: editData.currentContent,
       newContent: editData.newContent,
       onConfirm: async (outcome: ToolConfirmationOutcome) => {
-        if (outcome === ToolConfirmationOutcome.ProceedAlways) {
-          this.config.setApprovalMode(ApprovalMode.AUTO_EDIT);
-        }
-
         if (ideConfirmation) {
           const result = await ideConfirmation;
-          if (result.status === 'accepted' && result.content) {
-            // TODO(chrstn): See https://github.com/google-gemini/gemini-cli/pull/5618#discussion_r2255413084
-            // for info on a possible race condition where the file is modified on disk while being edited.
-            params.old_string = editData.currentContent ?? '';
-            params.new_string = result.content;
+          if (result.status === 'accepted') {
+            if (
+              result.source !== 'ide' &&
+              outcome === ToolConfirmationOutcome.ProceedAlways
+            ) {
+              this.config.setApprovalMode(ApprovalMode.AUTO_EDIT);
+            }
+
+            if (result.content) {
+              // TODO(chrstn): See https://github.com/google-gemini/gemini-cli/pull/5618#discussion_r2255413084
+              // for info on a possible race condition where the file is modified on disk while being edited.
+              params.old_string = editData.currentContent ?? '';
+              params.new_string = result.content;
+            }
           }
         }
       },

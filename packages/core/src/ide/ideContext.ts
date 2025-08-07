@@ -93,10 +93,12 @@ export type DiffUpdateResult =
   | {
       status: 'accepted';
       content?: string;
+      source?: 'ide' | 'cli';
     }
   | {
       status: 'rejected';
       content: undefined;
+      source?: 'ide' | 'cli';
     };
 
 type IdeContextSubscriber = (ideContext: IdeContext | undefined) => void;
