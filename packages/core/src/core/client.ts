@@ -23,7 +23,11 @@ import {
 } from './turn.js';
 import { Config } from '../config/config.js';
 import { UserTierId } from '../code_assist/types.js';
-import { getCoreSystemPrompt, getCompressionPrompt, ESCALATION_SIGNAL } from './prompts.js';
+import {
+  getCoreSystemPrompt,
+  getCompressionPrompt,
+  ESCALATION_SIGNAL,
+} from './prompts.js';
 import { ReadManyFilesTool } from '../tools/read-many-files.js';
 import { getResponseText } from '../utils/generateContentResponseUtilities.js';
 import { checkNextSpeaker } from '../utils/nextSpeakerChecker.js';

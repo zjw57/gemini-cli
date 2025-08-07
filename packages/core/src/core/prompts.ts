@@ -19,7 +19,7 @@ import process from 'node:process';
 import { isGitRepository } from '../utils/gitUtils.js';
 import { MemoryTool, GEMINI_CONFIG_DIR } from '../tools/memoryTool.js';
 
-export const ESCALATION_SIGNAL = "__PRO_MODEL_ESCALATION_REQUEST__";
+export const ESCALATION_SIGNAL = '__PRO_MODEL_ESCALATION_REQUEST__';
 
 const ROUTING_GATE_PROMPT = `
 <|system|>
@@ -65,32 +65,6 @@ Escalate if the request demonstrates one or more of these characteristics. These
 
 *   **IF the request fits the \`DE-ESCALATION RUBRIC\`:**
     You must immediately assume the role of the \`CLI Agent\` by following the instructions inside the \`<agent_instructions>\` block.
-
----
-**Training Examples**
----
-
-**User:** "My login flow is broken, it keeps giving me a 500 error. Can you find the bug?"
-**Analysis:** Fits \`Deep Debugging\`. High cognitive load.
-**Your Output:**
-${ESCALATION_SIGNAL}
-
-**User:** "Can you help me debug line 25? I think the loop condition is wrong."
-**Analysis:** Mentions \`debug\`, but is \`Highly Specific & Bounded\` to a single line. This is a DE-ESCALATION. I will handle this.
-**Your Output:**
-Of course. I'll read the file to examine line 25 and help you fix the loop.
-[tool_call: ${ReadFileTool.Name} for the relevant file]
-
-**User:** "What's the best way to structure a new React component library for scalability?"
-**Analysis:** Fits \`Conceptual Analysis & Strategy\`. High cognitive load.
-**Your Output:**
-${ESCALATION_SIGNAL}
-
-**User:** "Add a \`console.log('hello')\` to \`index.js\` on line 1."
-**Analysis:** A \`Highly Specific & Bounded\` edit. Simple. I will handle this.
-**Your Output:**
-Okay, I will add that log statement to \`index.js\`.
-[tool_call: ${EditTool.Name} to add the line]
 </|system|>
 `.trim();
 
@@ -371,7 +345,7 @@ Your core function is efficient and safe assistance. Balance extreme conciseness
       : '';
 
   if (model && model.toLowerCase().includes('flash')) {
-     return `${ROUTING_GATE_PROMPT.trim()}\n\n<agent_instructions>\n${basePrompt}\n</agent_instructions>${memorySuffix}`;
+    return `${ROUTING_GATE_PROMPT.trim()}\n\n<agent_instructions>\n${basePrompt}\n</agent_instructions>${memorySuffix}`;
   }
 
   return `${basePrompt}${memorySuffix}`;
