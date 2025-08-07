@@ -59,7 +59,7 @@ import {
   FlashFallbackEvent,
   logFlashFallback,
   AuthType,
-  type IdeContext,
+  type IdeContextWithCheckedFiles,
   ideContext,
 } from '@google/gemini-cli-core';
 import {
@@ -170,6 +170,9 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     useState<boolean>(false);
   const [showIDEContextDetail, setShowIDEContextDetail] =
     useState<boolean>(false);
+  const [focusedComponent, setFocusedComponent] = useState<
+    'input' | 'ideContext'
+  >('input');
   const [ctrlCPressedOnce, setCtrlCPressedOnce] = useState(false);
   const [quittingMessages, setQuittingMessages] = useState<
     HistoryItem[] | null
@@ -183,7 +186,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     useState<boolean>(false);
   const [userTier, setUserTier] = useState<UserTierId | undefined>(undefined);
   const [ideContextState, setIdeContextState] = useState<
-    IdeContext | undefined
+    IdeContextWithCheckedFiles | undefined
   >();
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
@@ -630,7 +633,22 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       config.getIdeMode() &&
       ideContextState
     ) {
-      setShowIDEContextDetail((prev) => !prev);
+      if (!showIDEContextDetail) {
+        // Show and focus
+        setShowIDEContextDetail(true);
+        setFocusedComponent('ideContext');
+      } else {
+        if (focusedComponent === 'ideContext') {
+          // Hide it
+          setShowIDEContextDetail(false);
+          setFocusedComponent('input');
+        } else {
+          // Focus it
+          setFocusedComponent('ideContext');
+        }
+      }
+    } else if (key.escape && focusedComponent === 'ideContext') {
+      setFocusedComponent('input');
     } else if (key.ctrl && (input === 'c' || input === 'C')) {
       if (isAuthenticating) {
         // Let AuthInProgress component handle the input.
@@ -1033,10 +1051,12 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
               </Box>
               {showIDEContextDetail && (
                 <IDEContextDetailDisplay
+                  isActive={focusedComponent === 'ideContext'}
                   ideContext={ideContextState}
                   detectedIdeDisplay={config
                     .getIdeClient()
                     .getDetectedIdeDisplayName()}
+                  onFileChecked={ideContext.setFileChecked}
                 />
               )}
               {showErrorDetails && (
@@ -1067,7 +1087,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                   commandContext={commandContext}
                   shellModeActive={shellModeActive}
                   setShellModeActive={setShellModeActive}
-                  focus={isFocused}
+                  focus={isFocused && focusedComponent === 'input'}
                   vimHandleInput={vimHandleInput}
                   placeholder={placeholder}
                 />

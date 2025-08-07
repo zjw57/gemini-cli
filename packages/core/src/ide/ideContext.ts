@@ -23,6 +23,18 @@ export const FileSchema = z.object({
 });
 export type File = z.infer<typeof FileSchema>;
 
+export type IdeFile = File & {
+  /**
+   * Whether the file is checked in the UI.
+   * This is not part of the IDE context, but is tracked in the UI.
+   */
+  isChecked?: boolean;
+  /**
+   * The user's explicit instruction for this file's checked state.
+   */
+  userIntent?: 'check' | 'uncheck';
+};
+
 export const IdeContextSchema = z.object({
   workspaceState: z
     .object({
@@ -31,6 +43,12 @@ export const IdeContextSchema = z.object({
     .optional(),
 });
 export type IdeContext = z.infer<typeof IdeContextSchema>;
+
+export type IdeContextWithCheckedFiles = {
+  workspaceState?: {
+    openFiles?: IdeFile[];
+  };
+};
 
 /**
  * Zod schema for validating the 'ide/contextUpdate' notification from the IDE.
@@ -99,7 +117,9 @@ export type DiffUpdateResult =
       content: undefined;
     };
 
-type IdeContextSubscriber = (ideContext: IdeContext | undefined) => void;
+type IdeContextSubscriber = (
+  ideContext: IdeContextWithCheckedFiles | undefined,
+) => void;
 
 /**
  * Creates a new store for managing the IDE's context.
@@ -109,7 +129,7 @@ type IdeContextSubscriber = (ideContext: IdeContext | undefined) => void;
  * @returns An object with methods to interact with the IDE context.
  */
 export function createIdeContextStore() {
-  let ideContextState: IdeContext | undefined = undefined;
+  let ideContextState: IdeContextWithCheckedFiles | undefined = undefined;
   const subscribers = new Set<IdeContextSubscriber>();
 
   /**
@@ -126,7 +146,39 @@ export function createIdeContextStore() {
    * @param newIdeContext The new IDE context from the IDE.
    */
   function setIdeContext(newIdeContext: IdeContext): void {
-    ideContextState = newIdeContext;
+    const oldFiles = new Map<string, IdeFile>(
+      ideContextState?.workspaceState?.openFiles?.map((f) => [f.path, f]) ?? [],
+    );
+
+    const newOpenFiles = newIdeContext.workspaceState?.openFiles?.map(
+      (file): IdeFile => {
+        const oldFile = oldFiles.get(file.path);
+        const userIntent = oldFile?.userIntent;
+
+        let isChecked: boolean;
+        if (userIntent === 'check') {
+          isChecked = true;
+        } else if (userIntent === 'uncheck') {
+          isChecked = false;
+        } else {
+          isChecked = !!file.isActive;
+        }
+
+        return {
+          ...file,
+          userIntent,
+          isChecked,
+        };
+      },
+    );
+
+    ideContextState = {
+      ...newIdeContext,
+      workspaceState: {
+        ...newIdeContext.workspaceState,
+        openFiles: newOpenFiles,
+      },
+    };
     notifySubscribers();
   }
 
@@ -142,8 +194,40 @@ export function createIdeContextStore() {
    * Retrieves the current IDE context.
    * @returns The `IdeContext` object if a file is active; otherwise, `undefined`.
    */
-  function getIdeContext(): IdeContext | undefined {
+  function getIdeContext(): IdeContextWithCheckedFiles | undefined {
     return ideContextState;
+  }
+
+  /**
+   * Updates the checked state of a file.
+   * @param path The path of the file to update.
+   * @param isChecked The new checked state.
+   */
+  function setFileChecked(path: string, isChecked: boolean): void {
+    if (!ideContextState?.workspaceState?.openFiles) {
+      return;
+    }
+    const openFiles = ideContextState.workspaceState.openFiles;
+    const fileIndex = openFiles.findIndex((f) => f.path === path);
+
+    if (fileIndex > -1) {
+      const newOpenFiles = [...openFiles];
+      const file = newOpenFiles[fileIndex];
+      newOpenFiles[fileIndex] = {
+        ...file,
+        isChecked,
+        userIntent: isChecked ? 'check' : 'uncheck',
+      };
+
+      ideContextState = {
+        ...ideContextState,
+        workspaceState: {
+          ...ideContextState.workspaceState,
+          openFiles: newOpenFiles,
+        },
+      };
+      notifySubscribers();
+    }
   }
 
   /**
@@ -167,6 +251,7 @@ export function createIdeContextStore() {
     getIdeContext,
     subscribeToIdeContext,
     clearIdeContext,
+    setFileChecked,
   };
 }
 

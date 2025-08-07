@@ -7,7 +7,10 @@
 import React from 'react';
 import { Text } from 'ink';
 import { Colors } from '../colors.js';
-import { type IdeContext, type MCPServerConfig } from '@google/gemini-cli-core';
+import {
+  type IdeContextWithCheckedFiles,
+  type MCPServerConfig,
+} from '@google/gemini-cli-core';
 
 interface ContextSummaryDisplayProps {
   geminiMdFileCount: number;
@@ -15,7 +18,7 @@ interface ContextSummaryDisplayProps {
   mcpServers?: Record<string, MCPServerConfig>;
   blockedMcpServers?: Array<{ name: string; extensionName: string }>;
   showToolDescriptions?: boolean;
-  ideContext?: IdeContext;
+  ideContext?: IdeContextWithCheckedFiles;
 }
 
 export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
@@ -28,23 +31,26 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
 }) => {
   const mcpServerCount = Object.keys(mcpServers || {}).length;
   const blockedMcpServerCount = blockedMcpServers?.length || 0;
-  const openFileCount = ideContext?.workspaceState?.openFiles?.length ?? 0;
+  const totalOpenFileCount = ideContext?.workspaceState?.openFiles?.length ?? 0;
 
   if (
     geminiMdFileCount === 0 &&
     mcpServerCount === 0 &&
     blockedMcpServerCount === 0 &&
-    openFileCount === 0
+    totalOpenFileCount === 0
   ) {
     return <Text> </Text>; // Render an empty space to reserve height
   }
 
   const openFilesText = (() => {
-    if (openFileCount === 0) {
+    if (totalOpenFileCount === 0) {
       return '';
     }
-    return `${openFileCount} open file${
-      openFileCount > 1 ? 's' : ''
+    const checkedOpenFileCount =
+      ideContext?.workspaceState?.openFiles?.filter((f) => f.isChecked)
+        .length ?? 0;
+    return `${checkedOpenFileCount} open file${
+      checkedOpenFileCount === 1 ? '' : 's'
     } (ctrl+e to view)`;
   })();
 
