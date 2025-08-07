@@ -121,6 +121,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
 
   const [idePromptAnswered, setIdePromptAnswered] = useState(false);
   const currentIDE = config.getIdeClient().getCurrentIde();
+  registerCleanup(async () => await config.getIdeClient().disconnect());
   const shouldShowIdePrompt =
     config.getIdeModeFeature() &&
     currentIDE &&
