@@ -54,6 +54,7 @@ import { IdeConnectionEvent, IdeConnectionType } from '../telemetry/types.js';
 // Re-export OAuth config type
 export type { MCPOAuthConfig };
 import { WorkspaceContext } from '../utils/workspaceContext.js';
+import { SubagentTool } from '../tools/subagent.js';
 
 export enum ApprovalMode {
   DEFAULT = 'default',
@@ -755,6 +756,7 @@ export class Config {
     registerCoreTool(ShellTool, this);
     registerCoreTool(MemoryTool);
     registerCoreTool(WebSearchTool, this);
+    registerCoreTool(SubagentTool, this);
 
     await registry.discoverAllTools();
     return registry;
