@@ -20,7 +20,6 @@ export const PendingMessagesDisplay = ({
 
   return (
     <Box flexDirection="column" marginTop={1}>
-      {/* <Text color={Colors.Gray}>Queued Messages:</Text> */}
       {messages.map((msg, index) => (
         <Box key={index} paddingLeft={2}>
           <Text color={Colors.AccentYellow} italic>
