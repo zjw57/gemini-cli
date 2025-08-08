@@ -65,7 +65,7 @@ export interface CliArgs {
   includeDirectories: string[] | undefined;
   launchElectron: boolean | undefined;
   startGui: boolean | undefined;
-  _: (string | number)[];
+  _: Array<string | number>;
 }
 
 export async function parseArguments(): Promise<CliArgs> {

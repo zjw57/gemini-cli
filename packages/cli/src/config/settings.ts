@@ -152,18 +152,18 @@ export class LoadedSettings {
     const workspace = this.workspace.settings;
 
     return {
+      ...system,
       ...user,
       ...workspace,
-      ...system,
       customThemes: {
+        ...(system.customThemes || {}),
         ...(user.customThemes || {}),
         ...(workspace.customThemes || {}),
-        ...(system.customThemes || {}),
       },
       mcpServers: {
+        ...(system.mcpServers || {}),
         ...(user.mcpServers || {}),
         ...(workspace.mcpServers || {}),
-        ...(system.mcpServers || {}),
       },
     };
   }

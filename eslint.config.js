@@ -124,6 +124,7 @@ export default tseslint.config(
           ],
         },
       ],
+      'import/no-internal-modules': 'off',
       'import/no-relative-packages': 'error',
       'no-cond-assign': 'error',
       'no-debugger': 'error',
