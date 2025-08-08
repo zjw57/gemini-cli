@@ -189,7 +189,7 @@ describe('InputPrompt', () => {
       setShellModeActive: vi.fn(),
       inputWidth: 80,
       suggestionsWidth: 80,
-      focus: true,
+      isFocused: true,
     };
   });
 
@@ -1162,7 +1162,7 @@ describe('InputPrompt', () => {
 
   describe('unfocused paste', () => {
     it('should handle bracketed paste when not focused', async () => {
-      props.focus = false;
+      props.isFocused = false;
       const { stdin, unmount } = render(<InputPrompt {...props} />);
       await wait();
 
@@ -1179,7 +1179,7 @@ describe('InputPrompt', () => {
     });
 
     it('should ignore regular keypresses when not focused', async () => {
-      props.focus = false;
+      props.isFocused = false;
       const { stdin, unmount } = render(<InputPrompt {...props} />);
       await wait();
 
