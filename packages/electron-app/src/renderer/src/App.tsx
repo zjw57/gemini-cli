@@ -136,8 +136,18 @@ function App() {
         term.current?.write(data);
       });
 
-      term.current.onData((data) => {
-        window.electron.terminal.sendKey(data);
+      term.current.onKey(({ key, domEvent: event }) => {
+        if (event.key === 'Enter' && event.shiftKey) {
+          // For shift-enter, we want to insert a newline. We send a line feed `\n`.
+          // The CLI should interpret this as a newline character within the input,
+          // not as a command submission. The pty will echo the character back
+          // to us, which will then render it in the terminal.
+          window.electron.terminal.sendKey('\n');
+        } else {
+          // For all other keys, including Enter without Shift, send the key as is.
+          // When Enter is pressed, `key` will be `\r`, which signals submission.
+          window.electron.terminal.sendKey(key);
+        }
       });
 
       const removeResetListener = window.electron.terminal.onReset(() => {
