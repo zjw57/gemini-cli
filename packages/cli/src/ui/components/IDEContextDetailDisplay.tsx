@@ -4,11 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  type File,
-  type IdeContext,
-  ideContext,
-} from '@google/gemini-cli-core';
+import { type File, type IdeContext } from '@google/gemini-cli-core';
 import { Box, Text, useInput } from 'ink';
 import path from 'node:path';
 import { useState } from 'react';
@@ -18,6 +14,8 @@ interface IDEContextDetailDisplayProps {
   ideContext: IdeContext | undefined;
   detectedIdeDisplay: string | undefined;
   isFileSelected: (path: string) => boolean;
+  selectFile: (path: string) => void;
+  deselectFile: (path: string) => void;
   isFocused: boolean;
 }
 
@@ -25,6 +23,8 @@ export function IDEContextDetailDisplay({
   ideContext: propsIdeContext,
   detectedIdeDisplay,
   isFileSelected,
+  selectFile,
+  deselectFile,
   isFocused,
 }: IDEContextDetailDisplayProps) {
   const openFiles = propsIdeContext?.workspaceState?.openFiles;
@@ -43,9 +43,9 @@ export function IDEContextDetailDisplay({
         const focusedFile = openFiles[focusIndex];
         if (focusedFile) {
           if (isFileSelected(focusedFile.path)) {
-            ideContext.deselectFile(focusedFile.path);
+            deselectFile(focusedFile.path);
           } else {
-            ideContext.selectFile(focusedFile.path);
+            selectFile(focusedFile.path);
           }
         }
       }

@@ -1060,6 +1060,8 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                     .getIdeClient()
                     .getDetectedIdeDisplayName()}
                   isFileSelected={ideContext.isFileSelected}
+                  selectFile={ideContext.selectFile}
+                  deselectFile={ideContext.deselectFile}
                   isFocused={activeComponent === 'ideContext'}
                 />
               )}
