@@ -94,17 +94,9 @@ export function IDEContextDetailDisplay({
               isCurrentlyFocused && isFocused
                 ? theme.text.accent
                 : theme.text.primary;
-            const bgColor =
-              isCurrentlyFocused && isFocused
-                ? theme.ui.comment
-                : undefined;
 
             return (
-              <Box
-                key={file.path}
-                paddingX={1}
-                flexGrow={1}
-              >
+              <Box key={file.path} paddingX={1} flexGrow={1}>
                 <Text color={textColor}>
                   {indicator} {displayName}
                   {file.isActive ? ' (active)' : ''}

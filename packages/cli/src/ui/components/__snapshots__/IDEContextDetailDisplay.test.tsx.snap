@@ -3,22 +3,26 @@
 exports[`IDEContextDetailDisplay > handles duplicate basenames by showing path hints 1`] = `
 "
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ VS Code Context (ctrl+e to toggle)                                                               │
+│ VS Code Context                                                                                  │
 │                                                                                                  │
 │ Open files:                                                                                      │
-│ [x] bar.txt (/foo) (active)                                                                      │
-│ [] bar.txt (/qux)                                                                                │
-│ [] unique.txt                                                                                    │
+│  [✓] bar.txt (/foo) (active)                                                                     │
+│  [ ] bar.txt (/qux)                                                                              │
+│  [ ] unique.txt                                                                                  │
+│                                                                                                  │
+│ Press Tab to edit included context.                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;
 
 exports[`IDEContextDetailDisplay > renders a list of open files with active status 1`] = `
 "
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ VS Code Context (ctrl+e to toggle)                                                               │
+│ VS Code Context                                                                                  │
 │                                                                                                  │
 │ Open files:                                                                                      │
-│ [x] bar.txt (active)                                                                             │
-│ [] baz.txt                                                                                       │
+│  [✓] bar.txt (active)                                                                            │
+│  [ ] baz.txt                                                                                     │
+│                                                                                                  │
+│ Press Tab to edit included context.                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;

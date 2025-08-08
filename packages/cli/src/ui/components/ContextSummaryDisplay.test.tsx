@@ -42,7 +42,7 @@ describe('<ContextSummaryDisplay />', () => {
     const { lastFrame } = renderWithWidth(120, baseProps);
     const output = lastFrame();
     expect(output).toContain(
-      'Using: 1 open file (ctrl+e to view) | 1 GEMINI.md file | 1 MCP server (ctrl+t to view)',
+      'Using: 1 open file (ctrl+e to toggle) | 1 GEMINI.md file | 1 MCP server (ctrl+t to view)',
     );
     // Check for absence of newlines
     expect(output.includes('\n')).toBe(false);
@@ -53,7 +53,7 @@ describe('<ContextSummaryDisplay />', () => {
     const output = lastFrame();
     const expectedLines = [
       'Using:',
-      '  - 1 open file (ctrl+e to view)',
+      '  - 1 open file (ctrl+e to toggle)',
       '  - 1 GEMINI.md file',
       '  - 1 MCP server (ctrl+t to view)',
     ];
@@ -79,7 +79,7 @@ describe('<ContextSummaryDisplay />', () => {
       mcpServers: {},
     };
     const { lastFrame } = renderWithWidth(60, props);
-    const expectedLines = ['Using:', '  - 1 open file (ctrl+e to view)'];
+    const expectedLines = ['Using:', '  - 1 open file (ctrl+e to toggle)'];
     const actualLines = lastFrame().split('\n');
     expect(actualLines).toEqual(expectedLines);
   });

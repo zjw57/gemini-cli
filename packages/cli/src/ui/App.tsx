@@ -625,12 +625,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       return;
     }
 
-    if (
-      key.ctrl &&
-      input === 'e' &&
-      config.getIdeMode() &&
-      ideContextState
-    ) {
+    if (key.ctrl && input === 'e' && config.getIdeMode() && ideContextState) {
       setShowIDEContextDetail((prev) => !prev);
     } else if (activeComponent === 'ideContext') {
       // Any other key press will switch focus back to the input.
