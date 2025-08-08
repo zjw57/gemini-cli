@@ -51,11 +51,11 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     }
 
     if (selectedFileCount === 0) {
-      return '0 open files';
+      return '0 open files (ctrl+e to toggle)';
     }
     return `${selectedFileCount} open file${
       selectedFileCount > 1 ? 's' : ''
-    } (ctrl+e to view)`;
+    } (ctrl+e to toggle)`;
   })();
 
   const geminiMdText = (() => {

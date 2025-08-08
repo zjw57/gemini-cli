@@ -113,7 +113,7 @@ export const AppWrapper = (props: AppProps) => (
 );
 
 const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
-  const isFocused = useFocus();
+  useFocus();
   useBracketedPaste();
   const [updateInfo, setUpdateInfo] = useState<UpdateObject | null>(null);
   const { stdout } = useStdout();
@@ -187,6 +187,9 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     IdeContext | undefined
   >();
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [activeComponent, setActiveComponent] = useState<
+    'input' | 'ideContext'
+  >('input');
 
   useEffect(() => {
     const unsubscribe = ideContext.subscribeToIdeContext(setIdeContextState);
@@ -616,7 +619,33 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       setConstrainHeight(true);
     }
 
-    if (key.ctrl && input === 'o') {
+    // The tab key is not available in raw mode.
+    if (key.tab && showIDEContextDetail) {
+      setActiveComponent((prev) => (prev === 'input' ? 'ideContext' : 'input'));
+      return;
+    }
+
+    if (
+      key.ctrl &&
+      input === 'e' &&
+      config.getIdeMode() &&
+      ideContextState
+    ) {
+      setShowIDEContextDetail((prev) => !prev);
+    } else if (activeComponent === 'ideContext') {
+      // Any other key press will switch focus back to the input.
+      if (
+        !key.upArrow &&
+        !key.downArrow &&
+        !key.return &&
+        !key.ctrl &&
+        !key.tab
+      ) {
+        setActiveComponent('input');
+      }
+      // Do not process any other input when the IDE context is focused.
+      return;
+    } else if (key.ctrl && input === 'o') {
       setShowErrorDetails((prev) => !prev);
     } else if (key.ctrl && input === 't') {
       const newValue = !showToolDescriptions;
@@ -626,13 +655,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       if (Object.keys(mcpServers || {}).length > 0) {
         handleSlashCommand(newValue ? '/mcp desc' : '/mcp nodesc');
       }
-    } else if (
-      key.ctrl &&
-      input === 'e' &&
-      config.getIdeMode() &&
-      ideContextState
-    ) {
-      setShowIDEContextDetail((prev) => !prev);
     } else if (key.ctrl && (input === 'c' || input === 'C')) {
       if (isAuthenticating) {
         // Let AuthInProgress component handle the input.
@@ -814,9 +836,12 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   // Arbitrary threshold to ensure that items in the static area are large
   // enough but not too large to make the terminal hard to use.
   const staticAreaMaxItemHeight = Math.max(terminalHeight * 4, 100);
-  const placeholder = vimModeEnabled
-    ? "  Press 'i' for INSERT mode and 'Esc' for NORMAL mode."
-    : '  Type your message or @path/to/file';
+  const placeholder =
+    activeComponent === 'ideContext'
+      ? '  Select files to include in context...'
+      : vimModeEnabled
+        ? "  Press 'i' for INSERT mode and 'Esc' for NORMAL mode."
+        : '  Type your message or @path/to/file';
 
   return (
     <StreamingContext.Provider value={streamingState}>
@@ -1040,6 +1065,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                     .getIdeClient()
                     .getDetectedIdeDisplayName()}
                   isFileSelected={ideContext.isFileSelected}
+                  isFocused={activeComponent === 'ideContext'}
                 />
               )}
               {showErrorDetails && (
@@ -1070,7 +1096,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                   commandContext={commandContext}
                   shellModeActive={shellModeActive}
                   setShellModeActive={setShellModeActive}
-                  focus={isFocused}
+                  isFocused={activeComponent === 'input'}
                   vimHandleInput={vimHandleInput}
                   placeholder={placeholder}
                 />

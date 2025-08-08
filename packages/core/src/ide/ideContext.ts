@@ -117,8 +117,9 @@ export function createIdeContextStore() {
    * Notifies all registered subscribers about the current IDE context.
    */
   function notifySubscribers(): void {
+    const newContext = ideContextState ? { ...ideContextState } : undefined;
     for (const subscriber of subscribers) {
-      subscriber(ideContextState);
+      subscriber(newContext);
     }
   }
 
@@ -129,9 +130,13 @@ export function createIdeContextStore() {
   function setIdeContext(newIdeContext: IdeContext): void {
     ideContextState = newIdeContext;
 
-    const openFilePaths = new Set(
-      newIdeContext.workspaceState?.openFiles?.map((f) => f.path) ?? [],
-    );
+    const openFiles = newIdeContext.workspaceState?.openFiles ?? [];
+    const openFilePaths = new Set(openFiles.map((f) => f.path));
+
+    const activeFile = openFiles.find((f) => f.isActive);
+    if (activeFile) {
+      selectionOverrides.delete(activeFile.path);
+    }
 
     for (const overridenFile of selectionOverrides.keys()) {
       if (!openFilePaths.has(overridenFile)) {
@@ -181,6 +186,7 @@ export function createIdeContextStore() {
    */
   function selectFile(path: string) {
     selectionOverrides.set(path, true);
+    notifySubscribers();
   }
 
   /**
@@ -189,6 +195,7 @@ export function createIdeContextStore() {
    */
   function deselectFile(path: string) {
     selectionOverrides.set(path, false);
+    notifySubscribers();
   }
 
   /**

@@ -4,23 +4,55 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type File, type IdeContext } from '@google/gemini-cli-core';
-import { Box, Text } from 'ink';
+import {
+  type File,
+  type IdeContext,
+  ideContext,
+} from '@google/gemini-cli-core';
+import { Box, Text, useInput } from 'ink';
 import path from 'node:path';
-import { Colors } from '../colors.js';
+import { useState } from 'react';
+import { theme } from '../semantic-colors.js';
 
 interface IDEContextDetailDisplayProps {
   ideContext: IdeContext | undefined;
   detectedIdeDisplay: string | undefined;
   isFileSelected: (path: string) => boolean;
+  isFocused: boolean;
 }
 
 export function IDEContextDetailDisplay({
-  ideContext,
+  ideContext: propsIdeContext,
   detectedIdeDisplay,
   isFileSelected,
+  isFocused,
 }: IDEContextDetailDisplayProps) {
-  const openFiles = ideContext?.workspaceState?.openFiles;
+  const openFiles = propsIdeContext?.workspaceState?.openFiles;
+  const [focusIndex, setFocusIndex] = useState(0);
+
+  useInput(
+    (input, key) => {
+      if (!openFiles || openFiles.length === 0) {
+        return;
+      }
+      if (key.upArrow) {
+        setFocusIndex((prev) => Math.max(0, prev - 1));
+      } else if (key.downArrow) {
+        setFocusIndex((prev) => Math.min(openFiles.length - 1, prev + 1));
+      } else if (key.return) {
+        const focusedFile = openFiles[focusIndex];
+        if (focusedFile) {
+          if (isFileSelected(focusedFile.path)) {
+            ideContext.deselectFile(focusedFile.path);
+          } else {
+            ideContext.selectFile(focusedFile.path);
+          }
+        }
+      }
+    },
+    { isActive: isFocused },
+  );
+
   if (!openFiles || openFiles.length === 0) {
     return null;
   }
@@ -31,22 +63,23 @@ export function IDEContextDetailDisplay({
     basenameCounts.set(basename, (basenameCounts.get(basename) || 0) + 1);
   }
 
+  const borderColor = isFocused ? theme.border.focused : theme.border.default;
+
   return (
     <Box
       flexDirection="column"
       marginTop={1}
       borderStyle="round"
-      borderColor={Colors.AccentCyan}
+      borderColor={borderColor}
       paddingX={1}
     >
-      <Text color={Colors.AccentCyan} bold>
-        {detectedIdeDisplay ? detectedIdeDisplay : 'IDE'} Context (ctrl+e to
-        toggle)
+      <Text color={theme.text.primary} bold>
+        {`${detectedIdeDisplay ? detectedIdeDisplay : 'IDE'} Context`}
       </Text>
       {openFiles.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
           <Text bold>Open files:</Text>
-          {openFiles.map((file: File) => {
+          {openFiles.map((file: File, index) => {
             const basename = path.basename(file.path);
             const isDuplicate = (basenameCounts.get(basename) || 0) > 1;
             const parentDir = path.basename(path.dirname(file.path));
@@ -54,15 +87,44 @@ export function IDEContextDetailDisplay({
               ? `${basename} (/${parentDir})`
               : basename;
             const isSelected = isFileSelected(file.path);
-            const indicator = isSelected ? '[x]' : '[]';
+            const isCurrentlyFocused = index === focusIndex;
+            const indicator = isSelected ? '[✓]' : '[ ]';
+
+            const textColor =
+              isCurrentlyFocused && isFocused
+                ? theme.text.accent
+                : theme.text.primary;
+            const bgColor =
+              isCurrentlyFocused && isFocused
+                ? theme.ui.comment
+                : undefined;
 
             return (
-              <Text key={file.path}>
-                {indicator} {displayName}
-                {file.isActive ? ' (active)' : ''}
-              </Text>
+              <Box
+                key={file.path}
+                paddingX={1}
+                flexGrow={1}
+              >
+                <Text color={textColor}>
+                  {indicator} {displayName}
+                  {file.isActive ? ' (active)' : ''}
+                </Text>
+              </Box>
             );
           })}
+        </Box>
+      )}
+      {isFocused ? (
+        <Box marginTop={1}>
+          <Text color={theme.text.secondary}>
+            Use ↑↓ to navigate, Enter to select/unselect files.
+          </Text>
+        </Box>
+      ) : (
+        <Box marginTop={1}>
+          <Text color={theme.text.secondary}>
+            Press Tab to edit included context.
+          </Text>
         </Box>
       )}
     </Box>

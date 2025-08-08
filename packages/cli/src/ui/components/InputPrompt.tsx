@@ -35,7 +35,7 @@ export interface InputPromptProps {
   slashCommands: readonly SlashCommand[];
   commandContext: CommandContext;
   placeholder?: string;
-  focus?: boolean;
+  isFocused?: boolean;
   inputWidth: number;
   suggestionsWidth: number;
   shellModeActive: boolean;
@@ -52,7 +52,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
   slashCommands,
   commandContext,
   placeholder = '  Type your message or @path/to/file',
-  focus = true,
+  isFocused = true,
   inputWidth,
   suggestionsWidth,
   shellModeActive,
@@ -203,7 +203,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
   const handleInput = useCallback(
     (key: Key) => {
       /// We want to handle paste even when not focused to support drag and drop.
-      if (!focus && !key.paste) {
+      if (!isFocused && !key.paste) {
         return;
       }
 
@@ -439,7 +439,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
       buffer.handleInput(key);
     },
     [
-      focus,
+      isFocused,
       buffer,
       completion,
       shellModeActive,
@@ -489,7 +489,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
         </Text>
         <Box flexGrow={1} flexDirection="column">
           {buffer.text.length === 0 && placeholder ? (
-            focus ? (
+            isFocused ? (
               <Text>
                 {chalk.inverse(placeholder.slice(0, 1))}
                 <Text color={theme.text.secondary}>{placeholder.slice(1)}</Text>
@@ -506,7 +506,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
                 display = display + ' '.repeat(inputWidth - currentVisualWidth);
               }
 
-              if (focus && visualIdxInRenderedSet === cursorVisualRow) {
+              if (isFocused && visualIdxInRenderedSet === cursorVisualRow) {
                 const relativeVisualColForHighlight = cursorVisualColAbsolute;
 
                 if (relativeVisualColForHighlight >= 0) {
