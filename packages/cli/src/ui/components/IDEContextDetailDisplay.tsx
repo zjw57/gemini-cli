@@ -7,7 +7,7 @@
 import { type File, type IdeContext } from '@google/gemini-cli-core';
 import { Box, Text, useInput } from 'ink';
 import path from 'node:path';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { theme } from '../semantic-colors.js';
 
 interface IDEContextDetailDisplayProps {
@@ -29,6 +29,12 @@ export function IDEContextDetailDisplay({
 }: IDEContextDetailDisplayProps) {
   const openFiles = propsIdeContext?.workspaceState?.openFiles;
   const [focusIndex, setFocusIndex] = useState(0);
+
+  useEffect(() => {
+    if (openFiles && focusIndex >= openFiles.length) {
+      setFocusIndex(Math.max(0, openFiles.length - 1));
+    }
+  }, [openFiles, focusIndex]);
 
   useInput(
     (input, key) => {
