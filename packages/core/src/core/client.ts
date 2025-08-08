@@ -273,12 +273,11 @@ export class GeminiClient {
     }
 
     if (this.config.getIdeModeFeature() && this.config.getIdeMode()) {
-      const ideContextState = ideContext.getIdeContext();
-      const openFiles = ideContextState?.workspaceState?.openFiles;
+      const selectedFiles = ideContext.getSelectedFiles();
 
-      if (openFiles && openFiles.length > 0) {
+      if (selectedFiles && selectedFiles.length > 0) {
         const contextParts: string[] = [];
-        const firstFile = openFiles[0];
+        const firstFile = selectedFiles[0];
         const activeFile = firstFile.isActive ? firstFile : undefined;
 
         if (activeFile) {
@@ -297,7 +296,9 @@ export class GeminiClient {
           }
         }
 
-        const otherOpenFiles = activeFile ? openFiles.slice(1) : openFiles;
+        const otherOpenFiles = activeFile
+          ? selectedFiles.slice(1)
+          : selectedFiles;
 
         if (otherOpenFiles.length > 0) {
           const recentFiles = otherOpenFiles

@@ -669,27 +669,23 @@ describe('Gemini Client (client.ts)', () => {
   describe('sendMessageStream', () => {
     it('should include IDE context when ideModeFeature is enabled', async () => {
       // Arrange
-      vi.mocked(ideContext.getIdeContext).mockReturnValue({
-        workspaceState: {
-          openFiles: [
-            {
-              path: '/path/to/active/file.ts',
-              timestamp: Date.now(),
-              isActive: true,
-              selectedText: 'hello',
-              cursor: { line: 5, character: 10 },
-            },
-            {
-              path: '/path/to/recent/file1.ts',
-              timestamp: Date.now(),
-            },
-            {
-              path: '/path/to/recent/file2.ts',
-              timestamp: Date.now(),
-            },
-          ],
+      vi.mocked(ideContext.getSelectedFiles).mockReturnValue([
+        {
+          path: '/path/to/active/file.ts',
+          timestamp: Date.now(),
+          isActive: true,
+          selectedText: 'hello',
+          cursor: { line: 5, character: 10 },
         },
-      });
+        {
+          path: '/path/to/recent/file1.ts',
+          timestamp: Date.now(),
+        },
+        {
+          path: '/path/to/recent/file2.ts',
+          timestamp: Date.now(),
+        },
+      ]);
 
       vi.spyOn(client['config'], 'getIdeModeFeature').mockReturnValue(true);
 
@@ -723,7 +719,7 @@ describe('Gemini Client (client.ts)', () => {
       }
 
       // Assert
-      expect(ideContext.getIdeContext).toHaveBeenCalled();
+      expect(ideContext.getSelectedFiles).toHaveBeenCalled();
       const expectedContext = `
 This is the file that the user is looking at:
 - Path: /path/to/active/file.ts
@@ -744,11 +740,7 @@ Here are some other files the user has open, with the most recent at the top:
 
     it('should not add context if ideModeFeature is enabled but no open files', async () => {
       // Arrange
-      vi.mocked(ideContext.getIdeContext).mockReturnValue({
-        workspaceState: {
-          openFiles: [],
-        },
-      });
+      vi.mocked(ideContext.getSelectedFiles).mockReturnValue([]);
 
       vi.spyOn(client['config'], 'getIdeModeFeature').mockReturnValue(true);
 
@@ -782,7 +774,7 @@ Here are some other files the user has open, with the most recent at the top:
       }
 
       // Assert
-      expect(ideContext.getIdeContext).toHaveBeenCalled();
+      expect(ideContext.getSelectedFiles).toHaveBeenCalled();
       expect(mockTurnRunFn).toHaveBeenCalledWith(
         initialRequest,
         expect.any(Object),
@@ -791,19 +783,15 @@ Here are some other files the user has open, with the most recent at the top:
 
     it('should add context if ideModeFeature is enabled and there is one active file', async () => {
       // Arrange
-      vi.mocked(ideContext.getIdeContext).mockReturnValue({
-        workspaceState: {
-          openFiles: [
-            {
-              path: '/path/to/active/file.ts',
-              timestamp: Date.now(),
-              isActive: true,
-              selectedText: 'hello',
-              cursor: { line: 5, character: 10 },
-            },
-          ],
+      vi.mocked(ideContext.getSelectedFiles).mockReturnValue([
+        {
+          path: '/path/to/active/file.ts',
+          timestamp: Date.now(),
+          isActive: true,
+          selectedText: 'hello',
+          cursor: { line: 5, character: 10 },
         },
-      });
+      ]);
 
       vi.spyOn(client['config'], 'getIdeModeFeature').mockReturnValue(true);
 
@@ -837,7 +825,7 @@ Here are some other files the user has open, with the most recent at the top:
       }
 
       // Assert
-      expect(ideContext.getIdeContext).toHaveBeenCalled();
+      expect(ideContext.getSelectedFiles).toHaveBeenCalled();
       const expectedContext = `
 This is the file that the user is looking at:
 - Path: /path/to/active/file.ts
@@ -855,20 +843,16 @@ This is the selected text in the file:
 
     it('should add context if ideModeFeature is enabled and there are open files but no active file', async () => {
       // Arrange
-      vi.mocked(ideContext.getIdeContext).mockReturnValue({
-        workspaceState: {
-          openFiles: [
-            {
-              path: '/path/to/recent/file1.ts',
-              timestamp: Date.now(),
-            },
-            {
-              path: '/path/to/recent/file2.ts',
-              timestamp: Date.now(),
-            },
-          ],
+      vi.mocked(ideContext.getSelectedFiles).mockReturnValue([
+        {
+          path: '/path/to/recent/file1.ts',
+          timestamp: Date.now(),
         },
-      });
+        {
+          path: '/path/to/recent/file2.ts',
+          timestamp: Date.now(),
+        },
+      ]);
 
       vi.spyOn(client['config'], 'getIdeModeFeature').mockReturnValue(true);
 
@@ -902,7 +886,7 @@ This is the selected text in the file:
       }
 
       // Assert
-      expect(ideContext.getIdeContext).toHaveBeenCalled();
+      expect(ideContext.getSelectedFiles).toHaveBeenCalled();
       const expectedContext = `
 Here are some files the user has open, with the most recent at the top:
 - /path/to/recent/file1.ts
