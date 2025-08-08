@@ -32,9 +32,10 @@ describe('<ContextSummaryDisplay />', () => {
     showToolDescriptions: false,
     ideContext: {
       workspaceState: {
-        openFiles: [{ path: '/a/b/c' }],
+        openFiles: [{ path: '/a/b/c', isActive: true, timestamp: 0 }],
       },
     },
+    selectedFileCount: 1,
   };
 
   it('should render on a single line on a wide screen', () => {

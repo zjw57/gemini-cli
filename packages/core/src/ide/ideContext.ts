@@ -111,6 +111,7 @@ type IdeContextSubscriber = (ideContext: IdeContext | undefined) => void;
 export function createIdeContextStore() {
   let ideContextState: IdeContext | undefined = undefined;
   const subscribers = new Set<IdeContextSubscriber>();
+  const selectionOverrides = new Map<string, boolean>();
 
   /**
    * Notifies all registered subscribers about the current IDE context.
@@ -127,6 +128,17 @@ export function createIdeContextStore() {
    */
   function setIdeContext(newIdeContext: IdeContext): void {
     ideContextState = newIdeContext;
+
+    const openFilePaths = new Set(
+      newIdeContext.workspaceState?.openFiles?.map((f) => f.path) ?? [],
+    );
+
+    for (const overridenFile of selectionOverrides.keys()) {
+      if (!openFilePaths.has(overridenFile)) {
+        selectionOverrides.delete(overridenFile);
+      }
+    }
+
     notifySubscribers();
   }
 
@@ -135,6 +147,7 @@ export function createIdeContextStore() {
    */
   function clearIdeContext(): void {
     ideContextState = undefined;
+    selectionOverrides.clear();
     notifySubscribers();
   }
 
@@ -162,11 +175,74 @@ export function createIdeContextStore() {
     };
   }
 
+  /**
+   * Adds a file to the set of selected files.
+   * @param path The absolute path of the file to select.
+   */
+  function selectFile(path: string) {
+    selectionOverrides.set(path, true);
+  }
+
+  /**
+   * Removes a file from the set of selected files.
+   * @param path The absolute path of the file to deselect.
+   */
+  function deselectFile(path: string) {
+    selectionOverrides.set(path, false);
+  }
+
+  /**
+   * Checks if a file is selected, either explicitly or implicitly.
+   * A file is implicitly selected if it is the active file in the IDE and not
+   * explicitly deselected.
+   * @param path The absolute path of the file to check.
+   * @returns `true` if the file is selected, `false` otherwise.
+   */
+  function isFileSelected(path: string): boolean {
+    const override = selectionOverrides.get(path);
+    if (override !== undefined) {
+      return override;
+    }
+
+    const activeFile = ideContextState?.workspaceState?.openFiles?.find(
+      (f) => f.isActive,
+    );
+    return activeFile?.path === path;
+  }
+
+  /**
+   * Returns a list of all selected files. This includes implicitly selected
+   * files (i.e. the active file unless deselected) and explicitly selected
+   * files. The files are sorted by recency based on the `openFiles` list from
+   * the IDE.
+   * @returns A list of absolute paths of the selected files.
+   */
+  function getSelectedFiles(): File[] {
+    const openFiles = ideContextState?.workspaceState?.openFiles ?? [];
+    if (!openFiles.length) {
+      return [];
+    }
+
+    const activeFilePath = openFiles.find((f) => f.isActive)?.path;
+
+    return openFiles.filter((file) => {
+      const override = selectionOverrides.get(file.path);
+      if (override !== undefined) {
+        return override;
+      }
+      return file.path === activeFilePath;
+    });
+  }
+
   return {
     setIdeContext,
     getIdeContext,
     subscribeToIdeContext,
     clearIdeContext,
+    selectFile,
+    deselectFile,
+    isFileSelected,
+    getSelectedFiles,
   };
 }
 

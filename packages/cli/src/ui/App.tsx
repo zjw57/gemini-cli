@@ -1017,6 +1017,9 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                       mcpServers={config.getMcpServers()}
                       blockedMcpServers={config.getBlockedMcpServers()}
                       showToolDescriptions={showToolDescriptions}
+                      selectedFileCount={
+                        ideContext.getSelectedFiles()?.length ?? 0
+                      }
                     />
                   )}
                 </Box>
@@ -1036,6 +1039,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                   detectedIdeDisplay={config
                     .getIdeClient()
                     .getDetectedIdeDisplayName()}
+                  isFileSelected={ideContext.isFileSelected}
                 />
               )}
               {showErrorDetails && (

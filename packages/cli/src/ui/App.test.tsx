@@ -169,6 +169,7 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const ideContextMock = {
     getIdeContext: vi.fn(),
     subscribeToIdeContext: vi.fn(() => vi.fn()), // subscribe returns an unsubscribe function
+    getSelectedFiles: vi.fn(),
   };
 
   return {
@@ -511,6 +512,14 @@ describe('App UI', () => {
         ],
       },
     });
+    vi.mocked(ideContext.getSelectedFiles).mockReturnValue([
+      {
+        path: '/path/to/my-file.ts',
+        isActive: true,
+        selectedText: 'hello',
+        timestamp: 0,
+      },
+    ]);
 
     const { lastFrame, unmount } = render(
       <App
@@ -530,6 +539,15 @@ describe('App UI', () => {
         openFiles: [],
       },
     });
+
+    vi.mocked(ideContext.getSelectedFiles).mockReturnValue([
+      {
+        path: '/path/to/my-file.ts',
+        isActive: true,
+        selectedText: 'hello',
+        timestamp: 0,
+      },
+    ]);
 
     const { lastFrame, unmount } = render(
       <App
@@ -567,6 +585,25 @@ describe('App UI', () => {
       },
     });
 
+    vi.mocked(ideContext.getSelectedFiles).mockReturnValue([
+      {
+        path: '/path/to/my-file.ts',
+        isActive: true,
+        selectedText: 'hello',
+        timestamp: 0,
+      },
+      {
+        path: '/path/to/another-file.ts',
+        isActive: false,
+        timestamp: 1,
+      },
+      {
+        path: '/path/to/third-file.ts',
+        isActive: false,
+        timestamp: 2,
+      },
+    ]);
+
     const { lastFrame, unmount } = render(
       <App
         config={mockConfig as unknown as ServerConfig}
@@ -592,6 +629,16 @@ describe('App UI', () => {
         ],
       },
     });
+
+    vi.mocked(ideContext.getSelectedFiles).mockReturnValue([
+      {
+        path: '/path/to/my-file.ts',
+        isActive: true,
+        selectedText: 'hello',
+        timestamp: 0,
+      },
+    ]);
+
     mockConfig.getGeminiMdFileCount.mockReturnValue(1);
     mockConfig.getAllGeminiMdFilenames.mockReturnValue(['GEMINI.md']);
 

@@ -12,11 +12,13 @@ import { Colors } from '../colors.js';
 interface IDEContextDetailDisplayProps {
   ideContext: IdeContext | undefined;
   detectedIdeDisplay: string | undefined;
+  isFileSelected: (path: string) => boolean;
 }
 
 export function IDEContextDetailDisplay({
   ideContext,
   detectedIdeDisplay,
+  isFileSelected,
 }: IDEContextDetailDisplayProps) {
   const openFiles = ideContext?.workspaceState?.openFiles;
   if (!openFiles || openFiles.length === 0) {
@@ -51,10 +53,12 @@ export function IDEContextDetailDisplay({
             const displayName = isDuplicate
               ? `${basename} (/${parentDir})`
               : basename;
+            const isSelected = isFileSelected(file.path);
+            const indicator = isSelected ? '[x]' : '[]';
 
             return (
               <Text key={file.path}>
-                - {displayName}
+                {indicator} {displayName}
                 {file.isActive ? ' (active)' : ''}
               </Text>
             );

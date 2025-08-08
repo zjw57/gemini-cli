@@ -20,6 +20,7 @@ describe('IDEContextDetailDisplay', () => {
       <IDEContextDetailDisplay
         ideContext={ideContext}
         detectedIdeDisplay="VS Code"
+        isFileSelected={() => false}
       />,
     );
     expect(lastFrame()).toBe('');
@@ -29,8 +30,8 @@ describe('IDEContextDetailDisplay', () => {
     const ideContext: IdeContext = {
       workspaceState: {
         openFiles: [
-          { path: '/foo/bar.txt', isActive: true },
-          { path: '/foo/baz.txt', isActive: false },
+          { path: '/foo/bar.txt', isActive: true, timestamp: 0 },
+          { path: '/foo/baz.txt', isActive: false, timestamp: 0 },
         ],
       },
     };
@@ -38,6 +39,7 @@ describe('IDEContextDetailDisplay', () => {
       <IDEContextDetailDisplay
         ideContext={ideContext}
         detectedIdeDisplay="VS Code"
+        isFileSelected={(path) => path === '/foo/bar.txt'}
       />,
     );
     const output = lastFrame();
@@ -48,9 +50,9 @@ describe('IDEContextDetailDisplay', () => {
     const ideContext: IdeContext = {
       workspaceState: {
         openFiles: [
-          { path: '/foo/bar.txt', isActive: true },
-          { path: '/qux/bar.txt', isActive: false },
-          { path: '/foo/unique.txt', isActive: false },
+          { path: '/foo/bar.txt', isActive: true, timestamp: 0 },
+          { path: '/qux/bar.txt', isActive: false, timestamp: 0 },
+          { path: '/foo/unique.txt', isActive: false, timestamp: 0 },
         ],
       },
     };
@@ -58,6 +60,7 @@ describe('IDEContextDetailDisplay', () => {
       <IDEContextDetailDisplay
         ideContext={ideContext}
         detectedIdeDisplay="VS Code"
+        isFileSelected={(path) => path === '/foo/bar.txt'}
       />,
     );
     const output = lastFrame();
