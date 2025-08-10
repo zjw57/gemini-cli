@@ -169,7 +169,7 @@ export class TestRig {
   }
 
   run(promptOrOptions, ...args) {
-    let command = this.isNativeBinary 
+    let command = this.isNativeBinary
       ? `${this.binaryPath} --yolo`
       : `node ${this.bundlePath} --yolo`;
     const execOptions = {
