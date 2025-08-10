@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -49,10 +49,15 @@ for (const { name, target } of targets) {
   console.log(`Building ${name}...`);
 
   try {
-    const command = `bun build --compile --target=${target} ${bundleJs} --outfile ${outputPath}`;
-    execSync(command, { stdio: 'pipe' });
+    execFileSync('bun', [
+      'build',
+      '--compile',
+      `--target=${target}`,
+      bundleJs,
+      '--outfile',
+      outputPath
+    ], { stdio: ['pipe', 'pipe', 'pipe'] });
 
-    // Check if file was created
     if (fs.existsSync(outputPath)) {
       const stats = fs.statSync(outputPath);
       const sizeMB = (stats.size / (1024 * 1024)).toFixed(1);
@@ -64,6 +69,9 @@ for (const { name, target } of targets) {
   } catch (error) {
     console.error(`  ✗ Failed to build ${name}`);
     console.error(`    ${error.message}`);
+    if (error.stderr) {
+      console.error(`    ${error.stderr.toString()}`);
+    }
     failedTargets.push(name);
   }
 }
@@ -81,6 +89,7 @@ if (failedTargets.length > 0) {
   console.log(
     'In CI, all targets should build successfully on the appropriate runner.',
   );
+  process.exit(1);
 }
 
 console.log(`\nBinaries saved to: ${outputDir}`);
