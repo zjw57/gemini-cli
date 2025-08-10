@@ -154,7 +154,7 @@ export class GeminiChat {
       name: 'GeminiCLI',
       model: this.config.getModel(),
       instruction: systemInstruction as string,
-      tools: tools?.map((tool) => new AdkToolAdapter(tool)),
+      tools: tools?.map((tool) => new AdkToolAdapter(tool as AnyDeclarativeTool)),
       generateContentConfig: adkGenerationConfig,
       // planner: thinkingConfig, // Not implemented yet.
     });
@@ -534,9 +534,9 @@ export class GeminiChat {
     this.history = history;
   }
 
-  setTools(tools: AnyDeclarativeTool[]): void {
-    this.generationConfig.tools = tools.map((tool) => tool.schema);
-    this.agent.tools = tools.map((tool) => new AdkToolAdapter(tool));
+  setTools(tools: Tool[]): void {
+    this.generationConfig.tools = tools;
+    this.agent.tools = tools.map((tool) => new AdkToolAdapter(tool as AnyDeclarativeTool));
   }
 
   getFinalUsageMetadata(

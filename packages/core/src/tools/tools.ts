@@ -19,13 +19,13 @@ import {
  */
 export class AdkToolAdapter extends AdkBaseTool {
   constructor(
-    private readonly geminiTool: DeclarativeTool<object, ToolResult>,
+    private readonly tool: AnyDeclarativeTool,
   ) {
-    super(geminiTool.name, geminiTool.description);
+    super(tool.name, tool.description);
   }
 
   _getDeclaration(): FunctionDeclaration | undefined {
-    return this.geminiTool.schema;
+    return this.tool.schema;
   }
 
   async runAsync(
@@ -33,7 +33,7 @@ export class AdkToolAdapter extends AdkBaseTool {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     toolContext: AdkToolContext,
   ): Promise<unknown> {
-    const invocation = this.geminiTool.build(args);
+    const invocation = this.tool.build(args);
     const abortController = new AbortController();
     const result = await invocation.execute(abortController.signal);
     return result.llmContent;
