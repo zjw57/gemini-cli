@@ -27,7 +27,9 @@ const targets = [
 
 // Check if bundle/gemini.js exists
 if (!fs.existsSync(bundleJs)) {
-  console.error('Error: bundle/gemini.js not found. Please run "npm run bundle" first.');
+  console.error(
+    'Error: bundle/gemini.js not found. Please run "npm run bundle" first.',
+  );
   process.exit(1);
 }
 
@@ -45,11 +47,11 @@ let failedTargets = [];
 for (const { name, target } of targets) {
   const outputPath = path.join(outputDir, name);
   console.log(`Building ${name}...`);
-  
+
   try {
     const command = `bun build --compile --target=${target} ${bundleJs} --outfile ${outputPath}`;
     execSync(command, { stdio: 'pipe' });
-    
+
     // Check if file was created
     if (fs.existsSync(outputPath)) {
       const stats = fs.statSync(outputPath);
@@ -67,12 +69,18 @@ for (const { name, target } of targets) {
 }
 
 console.log('\n' + '='.repeat(50));
-console.log(`Build complete: ${successCount}/${targets.length} binaries built successfully`);
+console.log(
+  `Build complete: ${successCount}/${targets.length} binaries built successfully`,
+);
 
 if (failedTargets.length > 0) {
   console.log(`Failed targets: ${failedTargets.join(', ')}`);
-  console.log('\nNote: Cross-compilation may require Bun 1.1.0+ and might not work for all targets from all host platforms.');
-  console.log('In CI, all targets should build successfully on the appropriate runner.');
+  console.log(
+    '\nNote: Cross-compilation may require Bun 1.1.0+ and might not work for all targets from all host platforms.',
+  );
+  console.log(
+    'In CI, all targets should build successfully on the appropriate runner.',
+  );
 }
 
 console.log(`\nBinaries saved to: ${outputDir}`);
