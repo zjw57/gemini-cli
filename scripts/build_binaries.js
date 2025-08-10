@@ -49,14 +49,18 @@ for (const { name, target } of targets) {
   console.log(`Building ${name}...`);
 
   try {
-    execFileSync('bun', [
-      'build',
-      '--compile',
-      `--target=${target}`,
-      bundleJs,
-      '--outfile',
-      outputPath
-    ], { stdio: ['pipe', 'pipe', 'pipe'] });
+    execFileSync(
+      'bun',
+      [
+        'build',
+        '--compile',
+        `--target=${target}`,
+        bundleJs,
+        '--outfile',
+        outputPath,
+      ],
+      { stdio: ['pipe', 'pipe', 'pipe'] },
+    );
 
     if (fs.existsSync(outputPath)) {
       const stats = fs.statSync(outputPath);
@@ -68,9 +72,16 @@ for (const { name, target } of targets) {
     }
   } catch (error) {
     console.error(`  ✗ Failed to build ${name}`);
-    console.error(`    ${error.message}`);
-    if (error.stderr) {
-      console.error(`    ${error.stderr.toString()}`);
+    const errorDetails =
+      error.stderr || error.stdout || error.message || 'Unknown error';
+    const errorString = errorDetails.toString().trim();
+    if (errorString) {
+      console.error(
+        errorString
+          .split('\n')
+          .map((line) => `    ${line}`)
+          .join('\n'),
+      );
     }
     failedTargets.push(name);
   }
