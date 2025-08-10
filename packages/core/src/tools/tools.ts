@@ -7,6 +7,38 @@
 import { FunctionDeclaration, PartListUnion, Schema } from '@google/genai';
 import { ToolErrorType } from './tool-error.js';
 import { DiffUpdateResult } from '../ide/ideContext.js';
+import { 
+  BaseTool as AdkBaseTool,
+  ToolContext as AdkToolContext
+} from '@google/adk';
+
+
+/**
+ * An adapter that wraps a gemini-cli DeclarativeTool to make it compatible
+ * with the adk LlmAgent.
+ */
+export class AdkToolAdapter extends AdkBaseTool {
+  constructor(
+    private readonly geminiTool: DeclarativeTool<object, ToolResult>,
+  ) {
+    super(geminiTool.name, geminiTool.description);
+  }
+
+  _getDeclaration(): FunctionDeclaration | undefined {
+    return this.geminiTool.schema;
+  }
+
+  async runAsync(
+    args: Record<string, unknown>,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    toolContext: AdkToolContext,
+  ): Promise<unknown> {
+    const invocation = this.geminiTool.build(args);
+    const abortController = new AbortController();
+    const result = await invocation.execute(abortController.signal);
+    return result.llmContent;
+  }
+}
 
 /**
  * Represents a validated and ready-to-execute tool call.
