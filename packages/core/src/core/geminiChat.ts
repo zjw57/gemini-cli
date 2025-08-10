@@ -26,6 +26,13 @@ import { ApiErrorEvent, ApiResponseEvent } from '../telemetry/types.js';
 import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 import { hasCycleInSchema } from '../tools/tools.js';
 import { StructuredError } from './turn.js';
+import {
+  LlmAgent,
+  InMemoryRunner,
+  InMemorySessionService,
+  FunctionTool as AdkFunctionTool,
+  BaseTool as AdkBaseTool,
+} from '@google/adk';
 
 /**
  * Returns true if the response is valid, false otherwise.
@@ -121,6 +128,9 @@ export class GeminiChat {
   // A promise to represent the current state of the message being sent to the
   // model.
   private sendPromise: Promise<void> = Promise.resolve();
+  private runner: InMemoryRunner;
+  private agent: LlmAgent;
+  private session: InMemorySessionService;
 
   constructor(
     private readonly config: Config,
@@ -129,6 +139,63 @@ export class GeminiChat {
     private history: Content[] = [],
   ) {
     validateHistory(history);
+
+    // We need to pop off a bunch of attrs that LlmAgent isn't expecting
+    const {
+      tools,
+      thinkingConfig: _thinkingConfig,
+      systemInstruction,
+      ...adkGenerationConfig
+    } = this.generationConfig;
+
+    const adkTools = this.convertToolsToAdk(tools);
+
+    this.agent = new LlmAgent({
+      name: 'GeminiCLI',
+      model: this.config.getModel(),
+      instruction: systemInstruction,
+      tools: adkTools,
+      generateContentConfig: adkGenerationConfig,
+      // planner: thinkingConfig, // Not implemented yet.
+    });
+
+    const appName = this.agent.name;
+    this.runner = new InMemoryRunner({ agent: this.agent, appName });
+  }
+
+  private convertToolsToAdk(tools: Tool[] | undefined): AdkBaseTool[] {
+    const adkTools: AdkBaseTool[] = [];
+    if (tools) {
+      for (const tool of tools) {
+        if (tool.functionDeclarations) {
+          for (const funcDecl of tool.functionDeclarations) {
+            const functionTool = new AdkFunctionTool({
+              name: funcDecl.name,
+              description: funcDecl.description,
+              parameters: funcDecl.parameters,
+              execute: async (args: Record<string, unknown>) => {
+                const toolRegistry = await this.config.getToolRegistry();
+                const result = await toolRegistry.executeTool(
+                  funcDecl.name,
+                  args,
+                );
+                return result.llmContent;
+              },
+            });
+            adkTools.push(functionTool);
+          }
+        }
+      }
+    }
+    return adkTools;
+  }
+
+  private async getSession(): InMemorySessionService {
+    const session = await this.runner.sessionService.createSession(
+      this.agent.name,
+      'placeholder',
+    );
+    return session;
   }
 
   private async _logApiResponse(
@@ -203,6 +270,7 @@ export class GeminiChat {
         );
         if (accepted !== false && accepted !== null) {
           this.config.setModel(fallbackModel);
+          this.agent.model = fallbackModel;
           this.config.setFallbackMode(true);
           return fallbackModel;
         }
@@ -220,6 +288,7 @@ export class GeminiChat {
 
   setSystemInstruction(sysInstr: string) {
     this.generationConfig.systemInstruction = sysInstr;
+    this.agent.instruction = sysInstr;
   }
   /**
    * Sends a message to the model and returns the response.
@@ -246,6 +315,9 @@ export class GeminiChat {
     prompt_id: string,
   ): Promise<GenerateContentResponse> {
     await this.sendPromise;
+    if (this.session === undefined) {
+      this.session = await this.getSession();
+    }
     const userContent = createUserContent(params.message);
     const requestContents = this.getHistory(true).concat(userContent);
 
@@ -266,14 +338,7 @@ export class GeminiChat {
           );
         }
 
-        return this.contentGenerator.generateContent(
-          {
-            model: modelToUse,
-            contents: requestContents,
-            config: { ...this.generationConfig, ...params.config },
-          },
-          prompt_id,
-        );
+        return this.generateContent(requestContents);
       };
 
       response = await retryWithBackoff(apiCall, {
@@ -331,6 +396,16 @@ export class GeminiChat {
     }
   }
 
+  private generateContent(
+    requestContents: Content[],
+  ): Promise<GenerateContentResponse> {
+    return this.runner.runSync({
+      userId: 'placeholder',
+      sessionId: this.session.id,
+      newMessage: requestContents,
+    });
+  }
+
   /**
    * Sends a message to the model and returns the response in chunks.
    *
@@ -358,6 +433,9 @@ export class GeminiChat {
     prompt_id: string,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
     await this.sendPromise;
+    if (this.session === undefined) {
+      this.session = await this.getSession();
+    }
     const userContent = createUserContent(params.message);
     const requestContents = this.getHistory(true).concat(userContent);
 
@@ -377,14 +455,7 @@ export class GeminiChat {
           );
         }
 
-        return this.contentGenerator.generateContentStream(
-          {
-            model: modelToUse,
-            contents: requestContents,
-            config: { ...this.generationConfig, ...params.config },
-          },
-          prompt_id,
-        );
+        return this.generateContentStream(userContent);
       };
 
       // Note: Retrying streams can be complex. If generateContentStream itself doesn't handle retries
@@ -426,6 +497,16 @@ export class GeminiChat {
       this.sendPromise = Promise.resolve();
       throw error;
     }
+  }
+
+  private async generateContentStream(
+    newMessage: Content,
+  ): Promise<AsyncGenerator<GenerateContentResponse>> {
+    return await this.runner.runAsync({
+      userId: 'placeholder',
+      sessionId: this.session.id,
+      newMessage: newMessage,
+    });
   }
 
   /**
@@ -481,6 +562,7 @@ export class GeminiChat {
 
   setTools(tools: Tool[]): void {
     this.generationConfig.tools = tools;
+    this.agent.tools = this.convertToolsToAdk(tools);
   }
 
   getFinalUsageMetadata(

@@ -217,6 +217,7 @@ export class GeminiClient {
             },
           }
         : this.generateContentConfig;
+
       return new GeminiChat(
         this.config,
         this.getContentGenerator(),
