@@ -380,53 +380,28 @@ describe('Server Config (config.ts)', () => {
       expect(config.getUsageStatisticsEnabled()).toBe(true);
     });
 
-    it('sets usage statistics based on the provided value', () => {
-      const config = new Config({
-        ...baseParams,
-        usageStatisticsEnabled: true,
-      });
-      expect(config.getUsageStatisticsEnabled()).toBe(true);
-    });
-
-    it('logs a session start event by default', () => {
-      const config = new Config(baseParams);
-      expect(config.getInitialSessionEventEnabled()).toBe(true);
-    });
-
-    it('sets initial session event logging based on the provided value', () => {
-      const config = new Config({
-        ...baseParams,
-        logInitialSessionEventEnabled: false,
-      });
-      expect(config.getInitialSessionEventEnabled()).toBe(false);
-    });
-
-    it.each([
-      [
-        { enabled: true, expectCall: true },
-        { enabled: false, expectCall: false },
-      ],
-    ])(
-      'properly logs the session start event when (enabled: $enabled)',
-      ({ enabled, expectCall }) => {
-        vi.spyOn(ClearcutLogger.prototype, 'logStartSessionEvent');
-
-        new Config({
+    it.each([{ enabled: true }, { enabled: false }])(
+      'sets usage statistics based on the provided value (enabled: $enabled)',
+      ({ enabled }) => {
+        const config = new Config({
           ...baseParams,
-          logInitialSessionEventEnabled: enabled,
+          usageStatisticsEnabled: enabled,
         });
-
-        if (expectCall) {
-          expect(
-            ClearcutLogger.prototype.logStartSessionEvent,
-          ).toHaveBeenCalledOnce();
-        } else {
-          expect(
-            ClearcutLogger.prototype.logStartSessionEvent,
-          ).not.toHaveBeenCalledOnce();
-        }
+        expect(config.getUsageStatisticsEnabled()).toBe(enabled);
       },
     );
+
+    it('logs the session start event', () => {
+      vi.spyOn(ClearcutLogger.prototype, 'logStartSessionEvent');
+
+      new Config({
+        ...baseParams,
+      });
+
+      expect(
+        ClearcutLogger.prototype.logStartSessionEvent,
+      ).toHaveBeenCalledOnce();
+    });
   });
 
   describe('Telemetry Settings', () => {

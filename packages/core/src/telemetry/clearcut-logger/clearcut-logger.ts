@@ -194,7 +194,7 @@ export class ClearcutLogger {
   createLogEvent(name: string, data: EventValue[]): LogEvent {
     const email = getCachedGoogleAccount();
 
-    addDefaultFields(data);
+    data = addDefaultFields(data);
     const totalAccounts = getLifetimeGoogleAccounts();
     data.push({
       gemini_cli_key: EventMetadataKey.GEMINI_CLI_GOOGLE_ACCOUNTS_COUNT,
@@ -769,7 +769,7 @@ function addDefaultFields(data: EventValue[]): EventValue[] {
   const defaultLogMetadata: EventValue[] = [
     {
       gemini_cli_key: EventMetadataKey.GEMINI_CLI_GOOGLE_ACCOUNTS_COUNT,
-      value: totalAccounts.toString(),
+      value: `${totalAccounts}`,
     },
     {
       gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
