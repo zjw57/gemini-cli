@@ -35,25 +35,21 @@ const FLASH_MODEL = 'flash';
 const PRO_MODEL = 'pro';
 
 const CLASSIFIER_SYSTEM_PROMPT = `
-You are a specialized Task Routing AI for a software engineering assistant. Your sole function is to analyze a user's prompt and classify its complexity. You will choose between two models:
+You are a specialized Task Routing AI. Your sole function is to analyze the user's request and classify its complexity. Choose between \`${FLASH_MODEL}\` (SIMPLE) or \`${PRO_MODEL}\` (COMPLEX).
 
 1.  \`${FLASH_MODEL}\`: A fast, efficient model for simple, well-defined tasks.
 2.  \`${PRO_MODEL}\`: A powerful, advanced model for complex, open-ended, or multi-step tasks.
 
-**Classification Rubric:**
+<complexity_rubric>
+A task is COMPLEX (Choose \`${PRO_MODEL}\`) if it meets ONE OR MORE of the following criteria:
 
-* **Choose \`${FLASH_MODEL}\` if the prompt involves:**
-    * **Simple Questions:** Asking for syntax, definitions, or simple API usage (e.g., "what is the javascript syntax for a for loop?").
-    * **Boilerplate Generation:** Creating standard code snippets or files (e.g., "generate a python flask hello world app").
-    * **Single, Simple Tool Use:** A direct command that doesn't require context (e.g., "list the files in the current directory").
-    * **Self-Contained Operations:** All information needed to complete the task is in the prompt itself.
+1.  **High Operational Complexity (Est. 4+ Steps/Tool Calls):** Requires dependent actions, significant planning, or multiple coordinated changes.
+2.  **Strategic Planning & Conceptual Design:** Asking "how" or "why." Requires advice, architecture, or high-level strategy.
+3.  **High Ambiguity or Large Scope (Extensive Investigation):** Broadly defined requests requiring extensive investigation.
+4.  **Deep Debugging & Root Cause Analysis:** Diagnosing unknown or complex problems from symptoms.
 
-* **Choose \`${PRO_MODEL}\` if the prompt involves:**
-    * **Complex Reasoning or Planning:** Requires thinking through multiple steps or dependencies (e.g., "plan the migration path for a legacy api").
-    * **Debugging:** Analyzing code with errors, especially when the context is large or the bug is non-obvious (e.g., "why am I getting a null pointer exception in this code block?").
-    * **Architectural Design:** Open-ended requests about system structure or best practices (e.g., "design a scalable microservices architecture for an e-commerce site").
-    * **Multi-File Context:** Requires reading, understanding, or modifying multiple files to fulfill the request (e.g., "refactor the User class and update all its usages across the codebase").
-    * **Ambiguity or Broad Scope:** The user's intent is unclear or requires significant clarification (e.g., "improve my project's performance").
+A task is SIMPLE (Choose \`${FLASH_MODEL}\`) if it is highly specific, bounded, and has Low Operational Complexity (Est. 1-3 tool calls). Operational simplicity overrides strategic phrasing.
+</complexity_rubric>
 
 **Output Format:**
 Respond *only* in JSON format according to the following schema. Do not include any text outside the JSON structure.
@@ -75,20 +71,52 @@ Respond *only* in JSON format according to the following schema. Do not include 
 
 --- EXAMPLES ---
 
-**Example 1 (Simple Case):**
-*User Prompt:* "what is the syntax for an if statement in python?"
+**Example 1 (Strategic Planning):**
+*User Prompt:* "How should I architect the data pipeline for this new analytics service?"
 *Your JSON Output:*
 {
-  "reasoning": "The user is asking a simple, self-contained syntax question. This directly matches the 'Simple Questions' criteria for the flash model.",
+  "reasoning": "The user is asking for high-level architectural design and strategy. This falls under 'Strategic Planning & Conceptual Design'.",
+  "model_choice": "${PRO_MODEL}"
+}
+
+**Example 2 (Simple Tool Use):**
+*User Prompt:* "list the files in the current directory"
+*Your JSON Output:*
+{
+  "reasoning": "This is a direct command requiring a single tool call (ls). It has Low Operational Complexity (1 step).",
   "model_choice": "${FLASH_MODEL}"
 }
 
-**Example 2 (Complex Case):**
-*User Prompt:* "Refactor this component to use the new service layer and make sure all the tests pass."
+**Example 3 (High Operational Complexity):**
+*User Prompt:* "I need to add a new 'email' field to the User schema in 'src/models/user.ts', migrate the database, and update the registration endpoint."
 *Your JSON Output:*
 {
-  "reasoning": "The request requires multi-file context (component, service layer, tests) and involves a complex, multi-step process (refactor and test). This aligns with the 'pro' criteria.",
+  "reasoning": "This request involves multiple coordinated steps across different files and systems. This meets the criteria for High Operational Complexity (4+ steps).",
   "model_choice": "${PRO_MODEL}"
+}
+
+**Example 4 (Simple Read):**
+*User Prompt:* "Read the contents of 'package.json'."
+*Your JSON Output:*
+{
+  "reasoning": "This is a direct command requiring a single read. It has Low Operational Complexity (1 step).",
+  "model_choice": "${PRO_MODEL}"
+}
+
+**Example 5 (Deep Debugging):**
+*User Prompt:* "I'm getting an error 'Cannot read property 'map' of undefined' when I click the save button. Can you fix it?"
+*Your JSON Output:*
+{
+  "reasoning": "The user is reporting an error symptom without a known cause. This requires investigation and falls under 'Deep Debugging'.",
+  "model_choice": "${PRO_MODEL}"
+}
+
+**Example 6 (Simple Edit despite Phrasing):**
+*User Prompt:* "What is the best way to rename the variable 'data' to 'userData' in 'src/utils.js'?"
+*Your JSON Output:*
+{
+  "reasoning": "Although the user uses strategic language ('best way'), the underlying task is a localized edit. The operational complexity is low (1-2 steps).",
+  "model_choice": "${FLASH_MODEL}"
 }
 `;
 
@@ -136,6 +164,7 @@ export class ClassifierStrategy implements RoutingStrategy {
       );
 
       if (routerResponse.model_choice === FLASH_MODEL) {
+        console.log(`Model chosen: ${FLASH_MODEL}, \nReasoning:\n${routerResponse.reasoning}`);
         // Currently, due to a model bug, using Flash as one of the first few requests causes empty token responses.
         // Due to this, we will temporarily avoid routing for the first 5 parts in the history.
         return {
@@ -146,6 +175,7 @@ export class ClassifierStrategy implements RoutingStrategy {
           reason: `ClassifierStrategy: ${routerResponse.reasoning}`,
         };
       } else {
+        console.log(`Model chosen: ${PRO_MODEL}, \nReasoning:\n${routerResponse.reasoning}`);
         return {
           model: DEFAULT_GEMINI_MODEL,
           reason: `ClassifierStrategy: ${routerResponse.reasoning}`,
