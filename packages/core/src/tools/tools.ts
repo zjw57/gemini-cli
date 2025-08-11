@@ -17,12 +17,19 @@ import {
  * with the adk LlmAgent.
  */
 export class AdkToolAdapter extends AdkBaseTool {
+  private originalTool: AnyDeclarativeTool;
+
   constructor(private readonly tool: AnyDeclarativeTool) {
     super(tool.name, tool.description);
+    this.originalTool = tool;
   }
 
   _getDeclaration(): FunctionDeclaration | undefined {
-    return this.tool.schema;
+    return {
+      name: this.name,
+      description: this.description,
+      parameters: this.originalTool.parameterSchema,
+    };
   }
 
   async runAsync(
