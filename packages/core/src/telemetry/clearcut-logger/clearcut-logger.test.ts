@@ -51,8 +51,10 @@ describe('ClearcutLogger', () => {
   const MOCK_RESPONSE_BODY: LogResponse = {
     nextRequestWaitMs: 1000,
   };
-  const CLEARCUT_URL = 'https://play.googleapis.com/log?format=json&hasfast=true';
+  const CLEARCUT_URL =
+    'https://play.googleapis.com/log?format=json&hasfast=true';
   const MOCK_DATE = new Date('2025-01-02T00:00:00.000Z');
+  const EXAMPLE_RESPONSE = '["900000",null,[[["ANDROID_BACKUP",0],["BATTERY_STATS",0],["SMART_SETUP",0],["TRON",0]],-3334737594024971225],[]]';
 
   // A helper to get the internal events array for testing
   const getEvents = (l: ClearcutLogger): LogEventEntry[][] =>

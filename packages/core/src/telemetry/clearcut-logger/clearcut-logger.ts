@@ -94,6 +94,11 @@ function determineSurface(): string {
 }
 
 /**
+ * Clearcut URL to send logging events to.
+ */
+const CLEARCUT_URL = 'https://play.googleapis.com/log?format=json&hasfast=true';
+
+/**
  * Interval in which buffered events are sent to clearcut.
  */
 const FLUSH_INTERVAL_MS = 1000 * 60;
@@ -239,16 +244,16 @@ export class ClearcutLogger {
     const eventsToSend = this.events.toArray() as LogEventEntry[][];
     this.events.clear();
 
-    const request: LogRequest = {
+    const request: LogRequest[] = [{
       log_source_name: 'CONCORD',
       request_time_ms: Date.now(),
       log_event: eventsToSend,
-    };
+    }];
 
-    let result = {};
+    let result: LogResponse = {};
 
     try {
-      const response = await fetch('https://play.googleapis.com/log', {
+      const response = await fetch(CLEARCUT_URL, {
         agent: this.getProxyAgent(),
         method: 'POST',
         body: safeJsonStringify(request),
@@ -256,13 +261,15 @@ export class ClearcutLogger {
           'Content-Type': 'application/json',
         },
       });
-      const responsePayload = (await response.json()) as LogResponse;
+
+      const responseBody = await response.text();
 
       if (response.status >= 200 && response.status < 300) {
         this.lastFlushTime = Date.now();
+        const nextRequestWaitMs = Number(JSON.parse(responseBody)[0]);
         result = {
           ...result,
-          nextRequestWaitMs: responsePayload.nextRequestWaitMs,
+          nextRequestWaitMs,
         };
       } else {
         if (this.config?.getDebugMode()) {
@@ -274,7 +281,11 @@ export class ClearcutLogger {
         // Re-queue failed events for retry
         this.requeueFailedEvents(eventsToSend);
       }
-    } catch {
+    } catch (e: unknown) {
+      if (this.config?.getDebugMode()) {
+        console.error('Error flushing log events:', e as Error);
+      }
+
       // Re-queue failed events for retry
       this.requeueFailedEvents(eventsToSend);
     }
