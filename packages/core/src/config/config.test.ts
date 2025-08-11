@@ -406,23 +406,26 @@ describe('Server Config (config.ts)', () => {
         { enabled: true, expectCall: true },
         { enabled: false, expectCall: false },
       ],
-    ])('properly logs the session start event when (enabled: $enabled)', ({ enabled, expectCall }) => {
-      vi.spyOn(ClearcutLogger.prototype, 'logStartSessionEvent');
-      const config = new Config({
-        ...baseParams,
-        logInitialSessionEventEnabled: enabled,
-      });
+    ])(
+      'properly logs the session start event when (enabled: $enabled)',
+      ({ enabled, expectCall }) => {
+        vi.spyOn(ClearcutLogger.prototype, 'logStartSessionEvent');
+        const config = new Config({
+          ...baseParams,
+          logInitialSessionEventEnabled: enabled,
+        });
 
-      if (expectCall) {
-        expect(
-          ClearcutLogger.prototype.logStartSessionEvent,
-        ).toHaveBeenCalledOnce();
-      } else {
-        expect(
-          ClearcutLogger.prototype.logStartSessionEvent,
-        ).not.toHaveBeenCalledOnce();
-      }
-    });
+        if (expectCall) {
+          expect(
+            ClearcutLogger.prototype.logStartSessionEvent,
+          ).toHaveBeenCalledOnce();
+        } else {
+          expect(
+            ClearcutLogger.prototype.logStartSessionEvent,
+          ).not.toHaveBeenCalledOnce();
+        }
+      },
+    );
   });
 
   describe('Telemetry Settings', () => {
