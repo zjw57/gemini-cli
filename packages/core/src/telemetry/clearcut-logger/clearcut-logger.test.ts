@@ -48,13 +48,13 @@ afterAll(() => {
 });
 
 describe('ClearcutLogger', () => {
-  const MOCK_RESPONSE_BODY: LogResponse = {
-    nextRequestWaitMs: 1000,
-  };
+
+  const NEXT_WAIT_MS = 9001;
   const CLEARCUT_URL =
-    'https://play.googleapis.com/log?format=json&hasfast=true';
+    'https://play.googleapis.com/log';
   const MOCK_DATE = new Date('2025-01-02T00:00:00.000Z');
-  const EXAMPLE_RESPONSE = '["900000",null,[[["ANDROID_BACKUP",0],["BATTERY_STATS",0],["SMART_SETUP",0],["TRON",0]],-3334737594024971225],[]]';
+  const EXAMPLE_RESPONSE =
+    `["${NEXT_WAIT_MS}",null,[[["ANDROID_BACKUP",0],["BATTERY_STATS",0],["SMART_SETUP",0],["TRON",0]],-3334737594024971225],[]]`;
 
   // A helper to get the internal events array for testing
   const getEvents = (l: ClearcutLogger): LogEventEntry[][] =>
@@ -72,7 +72,7 @@ describe('ClearcutLogger', () => {
     installationId = 'test-installation-id',
   } = {}) {
     server.resetHandlers(
-      http.post(CLEARCUT_URL, () => HttpResponse.json(MOCK_RESPONSE_BODY)),
+      http.post(CLEARCUT_URL, () => HttpResponse.text(EXAMPLE_RESPONSE)),
     );
 
     vi.useFakeTimers();
@@ -191,7 +191,7 @@ describe('ClearcutLogger', () => {
       const response = await logger!.flushToClearcut();
 
       expect(response.nextRequestWaitMs).toBe(
-        MOCK_RESPONSE_BODY.nextRequestWaitMs,
+        NEXT_WAIT_MS
       );
     });
 
@@ -203,7 +203,7 @@ describe('ClearcutLogger', () => {
 
       expect(getEvents(logger!)).toEqual([]);
       expect(response.nextRequestWaitMs).toBe(
-        MOCK_RESPONSE_BODY.nextRequestWaitMs,
+        NEXT_WAIT_MS
       );
     });
 
