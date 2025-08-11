@@ -72,8 +72,8 @@ describe('ClearcutLogger', () => {
 
     const loggerConfig = makeFakeConfig({
       ...config,
-      logInitialSessionEventEnabled: false,
     });
+    ClearcutLogger.clearInstance();
 
     mockUserAccount.getCachedGoogleAccount.mockReturnValue(cachedGoogleAccount);
     mockUserAccount.getLifetimeGoogleAccounts.mockReturnValue(
@@ -114,8 +114,9 @@ describe('ClearcutLogger', () => {
 
     it('is a singleton', () => {
       ClearcutLogger.clearInstance();
-      const { logger: logger1 } = setup();
-      const { logger: logger2 } = setup();
+      const { loggerConfig } = setup();
+      const logger1 = ClearcutLogger.getInstance(loggerConfig);
+      const logger2 = ClearcutLogger.getInstance(loggerConfig);
       expect(logger1).toBe(logger2);
     });
   });
