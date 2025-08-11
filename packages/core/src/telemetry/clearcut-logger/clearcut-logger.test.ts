@@ -26,7 +26,7 @@ import * as userId from '../../utils/user_id.js';
 import { EventMetadataKey } from './event-metadata-key.js';
 import { makeFakeConfig } from '../../test-utils/config.js';
 import { http, HttpResponse } from 'msw';
-import { server } from '../../../mocks/msw.js';
+import { server } from '../../mocks/msw.js';
 
 vi.mock('../../utils/user_account');
 vi.mock('../../utils/user_id');
@@ -51,7 +51,7 @@ describe('ClearcutLogger', () => {
   const MOCK_RESPONSE_BODY: LogResponse = {
     nextRequestWaitMs: 1000,
   };
-  const CLEARCUT_URL = 'https://play.googleapis.com/log';
+  const CLEARCUT_URL = 'https://play.googleapis.com/log?format=json&hasfast=true';
   const MOCK_DATE = new Date('2025-01-02T00:00:00.000Z');
 
   // A helper to get the internal events array for testing
