@@ -48,13 +48,10 @@ afterAll(() => {
 });
 
 describe('ClearcutLogger', () => {
-
   const NEXT_WAIT_MS = 9001;
-  const CLEARCUT_URL =
-    'https://play.googleapis.com/log';
+  const CLEARCUT_URL = 'https://play.googleapis.com/log';
   const MOCK_DATE = new Date('2025-01-02T00:00:00.000Z');
-  const EXAMPLE_RESPONSE =
-    `["${NEXT_WAIT_MS}",null,[[["ANDROID_BACKUP",0],["BATTERY_STATS",0],["SMART_SETUP",0],["TRON",0]],-3334737594024971225],[]]`;
+  const EXAMPLE_RESPONSE = `["${NEXT_WAIT_MS}",null,[[["ANDROID_BACKUP",0],["BATTERY_STATS",0],["SMART_SETUP",0],["TRON",0]],-3334737594024971225],[]]`;
 
   // A helper to get the internal events array for testing
   const getEvents = (l: ClearcutLogger): LogEventEntry[][] =>
@@ -190,9 +187,7 @@ describe('ClearcutLogger', () => {
 
       const response = await logger!.flushToClearcut();
 
-      expect(response.nextRequestWaitMs).toBe(
-        NEXT_WAIT_MS
-      );
+      expect(response.nextRequestWaitMs).toBe(NEXT_WAIT_MS);
     });
 
     it('should clear events on successful flush', async () => {
@@ -202,9 +197,7 @@ describe('ClearcutLogger', () => {
       const response = await logger!.flushToClearcut();
 
       expect(getEvents(logger!)).toEqual([]);
-      expect(response.nextRequestWaitMs).toBe(
-        NEXT_WAIT_MS
-      );
+      expect(response.nextRequestWaitMs).toBe(NEXT_WAIT_MS);
     });
 
     it('should handle a network error and requeue events', async () => {

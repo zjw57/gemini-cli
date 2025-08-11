@@ -244,11 +244,13 @@ export class ClearcutLogger {
     const eventsToSend = this.events.toArray() as LogEventEntry[][];
     this.events.clear();
 
-    const request: LogRequest[] = [{
-      log_source_name: 'CONCORD',
-      request_time_ms: Date.now(),
-      log_event: eventsToSend,
-    }];
+    const request: LogRequest[] = [
+      {
+        log_source_name: 'CONCORD',
+        request_time_ms: Date.now(),
+        log_event: eventsToSend,
+      },
+    ];
 
     let result: LogResponse = {};
 
