@@ -47,7 +47,7 @@ afterAll(() => {
 });
 
 describe('ClearcutLogger', () => {
-  const NEXT_WAIT_MS = 9001;
+  const NEXT_WAIT_MS = 1234;
   const CLEARCUT_URL = 'https://play.googleapis.com/log';
   const MOCK_DATE = new Date('2025-01-02T00:00:00.000Z');
   const EXAMPLE_RESPONSE = `["${NEXT_WAIT_MS}",null,[[["ANDROID_BACKUP",0],["BATTERY_STATS",0],["SMART_SETUP",0],["TRON",0]],-3334737594024971225],[]]`;
