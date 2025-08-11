@@ -1,4 +1,9 @@
-import { DEFAULT_UNIVERSE } from 'google-auth-library';
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { Config, ConfigParameters } from '../config/config.js';
 
 /**
