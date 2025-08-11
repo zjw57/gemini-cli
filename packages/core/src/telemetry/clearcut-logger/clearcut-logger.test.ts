@@ -105,15 +105,18 @@ describe('ClearcutLogger', () => {
         usageStatisticsEnabled: true,
         expectedValue: expect.any(ClearcutLogger),
       },
-    ])('returns an instance if usage statistics are enabled', ({usageStatisticsEnabled, expectedValue}) => {
-      ClearcutLogger.clearInstance();
-      const { logger } = setup({
-        config: {
-          usageStatisticsEnabled
-        },
-      });
-      expect(logger).toEqual(expectedValue)
-    });
+    ])(
+      'returns an instance if usage statistics are enabled',
+      ({ usageStatisticsEnabled, expectedValue }) => {
+        ClearcutLogger.clearInstance();
+        const { logger } = setup({
+          config: {
+            usageStatisticsEnabled,
+          },
+        });
+        expect(logger).toEqual(expectedValue);
+      },
+    );
 
     it('is a singleton', () => {
       ClearcutLogger.clearInstance();

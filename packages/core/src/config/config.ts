@@ -265,7 +265,6 @@ export class Config {
   private readonly chatCompression: ChatCompressionSettings | undefined;
   private readonly interactive: boolean;
   private initialized: boolean = false;
-
   private readonly logInitialSessionEventEnabled: boolean;
 
   constructor(params: ConfigParameters) {
@@ -334,7 +333,8 @@ export class Config {
       params.loadMemoryFromIncludeDirectories ?? false;
     this.chatCompression = params.chatCompression;
     this.interactive = params.interactive ?? false;
-    this.logInitialSessionEventEnabled = params.logInitialSessionEventEnabled ?? true;
+    this.logInitialSessionEventEnabled =
+      params.logInitialSessionEventEnabled ?? true;
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);

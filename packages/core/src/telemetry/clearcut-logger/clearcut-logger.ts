@@ -127,7 +127,7 @@ export class ClearcutLogger {
    */
   private lastFlushTime: number = Date.now();
 
-  /** 
+  /**
    * the value is true when there is a pending flush happening. This prevents
    * concurrent flush operations.
    */
@@ -256,7 +256,7 @@ export class ClearcutLogger {
           'Content-Type': 'application/json',
         },
       });
-      const responsePayload = await response.json() as LogResponse;
+      const responsePayload = (await response.json()) as LogResponse;
 
       if (response.status >= 200 && response.status < 300) {
         this.lastFlushTime = Date.now();

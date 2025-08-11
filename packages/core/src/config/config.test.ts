@@ -18,7 +18,6 @@ import {
 } from '../core/contentGenerator.js';
 import { GeminiClient } from '../core/client.js';
 import { GitService } from '../services/gitService.js';
-import { DEFAULT_GEMINI_FLASH_LITE_MODEL } from './models.js';
 import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
 
 vi.mock('fs', async (importOriginal) => {
