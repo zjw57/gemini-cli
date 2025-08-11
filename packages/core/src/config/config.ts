@@ -170,7 +170,9 @@ export interface ConfigParameters {
   contextFileName?: string | string[];
   accessibility?: AccessibilitySettings;
   telemetry?: TelemetrySettings;
+  /** if true, then usage statistics will be sent back to Google. */
   usageStatisticsEnabled?: boolean;
+  logInitialSessionEventEnabled?: boolean;
   fileFiltering?: {
     respectGitIgnore?: boolean;
     respectGeminiIgnore?: boolean;
@@ -264,6 +266,8 @@ export class Config {
   private readonly interactive: boolean;
   private initialized: boolean = false;
 
+  private readonly logInitialSessionEventEnabled: boolean;
+
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
     this.embeddingModel =
@@ -330,6 +334,7 @@ export class Config {
       params.loadMemoryFromIncludeDirectories ?? false;
     this.chatCompression = params.chatCompression;
     this.interactive = params.interactive ?? false;
+    this.logInitialSessionEventEnabled = params.logInitialSessionEventEnabled ?? true;
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -340,9 +345,11 @@ export class Config {
     }
 
     if (this.getUsageStatisticsEnabled()) {
-      ClearcutLogger.getInstance(this)?.logStartSessionEvent(
-        new StartSessionEvent(this),
-      );
+      if (this.logInitialSessionEventEnabled) {
+        ClearcutLogger.getInstance(this)?.logStartSessionEvent(
+          new StartSessionEvent(this),
+        );
+      }
     } else {
       console.log('Data collection is disabled.');
     }
@@ -622,6 +629,10 @@ export class Config {
 
   getUsageStatisticsEnabled(): boolean {
     return this.usageStatisticsEnabled;
+  }
+
+  getInitialSessionEventEnabled(): boolean {
+    return this.logInitialSessionEventEnabled;
   }
 
   getExtensionContextFilePaths(): string[] {

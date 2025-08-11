@@ -18,6 +18,8 @@ import {
 } from '../core/contentGenerator.js';
 import { GeminiClient } from '../core/client.js';
 import { GitService } from '../services/gitService.js';
+import { DEFAULT_GEMINI_FLASH_LITE_MODEL } from './models.js';
+import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
 
 vi.mock('fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('fs')>();
@@ -370,6 +372,58 @@ describe('Server Config (config.ts)', () => {
     const config = new Config(baseParams);
     const fileService = config.getFileService();
     expect(fileService).toBeDefined();
+  });
+
+  describe('Usage Statistics', () => {
+    it('defaults usage statistics to enabled if not specified', () => {
+      const config = new Config(baseParams);
+
+      expect(config.getUsageStatisticsEnabled()).toBe(true);
+    });
+
+    it('sets usage statistics based on the provided value', () => {
+      const config = new Config({
+        ...baseParams,
+        usageStatisticsEnabled: true,
+      });
+      expect(config.getUsageStatisticsEnabled()).toBe(true);
+    });
+
+    it('logs a session start event by default', () => {
+      const config = new Config(baseParams);
+      expect(config.getInitialSessionEventEnabled()).toBe(true);
+    });
+
+    it('sets initial session event logging based on the provided value', () => {
+      const config = new Config({
+        ...baseParams,
+        logInitialSessionEventEnabled: false,
+      });
+      expect(config.getInitialSessionEventEnabled()).toBe(false);
+    });
+
+    it.each([
+      [
+        { enabled: true, expectCall: true },
+        { enabled: false, expectCall: false },
+      ],
+    ])('properly logs the session start event', ({ enabled, expectCall }) => {
+      vi.spyOn(ClearcutLogger.prototype, 'logStartSessionEvent');
+      const config = new Config({
+        ...baseParams,
+        logInitialSessionEventEnabled: enabled,
+      });
+
+      if (expectCall) {
+        expect(
+          ClearcutLogger.prototype.logStartSessionEvent,
+        ).toHaveBeenCalledOnce();
+      } else {
+        expect(
+          ClearcutLogger.prototype.logStartSessionEvent,
+        ).not.toHaveBeenCalledOnce();
+      }
+    });
   });
 
   describe('Telemetry Settings', () => {
