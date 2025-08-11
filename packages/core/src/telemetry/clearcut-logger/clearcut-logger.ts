@@ -258,8 +258,7 @@ export class ClearcutLogger {
         body: safeJsonStringify(request),
         headers: {
           'Content-Type': 'application/json',
-        },
-        timeout: 30_000,
+        }
       });
 
       const responseBody = await response.text();
