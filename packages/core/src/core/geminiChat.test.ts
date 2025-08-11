@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { InMemoryRunner, InMemorySessionService } from '@google/adk';
+import {
+  InMemoryRunner,
+  InMemorySessionService,
+  LlmAgent,
+  Event,
+} from '@google/adk';
 import {
   Content,
   GenerateContentConfig,
@@ -40,12 +45,17 @@ vi.mock('@google/adk', async (importOriginal) => {
   };
 });
 
+const toEvent = (response: GenerateContentResponse): Event =>
+  new Event({
+    content: response.candidates?.[0].content,
+  });
+
 describe('GeminiChat', () => {
   let chat: GeminiChat;
   let mockConfig: Config;
   const config: GenerateContentConfig = {};
-  let mockRunner: any;
-  let mockSession: any;
+  let mockRunner: InMemoryRunner;
+  let mockSession: InMemorySessionService;
   let mockContentGenerator: ContentGenerator;
 
   beforeEach(() => {
@@ -76,12 +86,14 @@ describe('GeminiChat', () => {
     setSimulate429(false);
     // Reset history for each test by creating a new instance
     chat = new GeminiChat(mockConfig, mockContentGenerator, config, []);
-    mockRunner = new InMemoryRunner();
+    mockRunner = new InMemoryRunner({
+      agent: { name: 'mock-agent' } as LlmAgent,
+    });
     mockSession = new InMemorySessionService();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (chat as any).runner = mockRunner;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (chat as any).session = mockSession;
+    // @ts-expect-error Accessing private property for testing
+    chat.runner = mockRunner;
+    // @ts-expect-error Accessing private property for testing
+    chat.session = mockSession;
   });
 
   afterEach(() => {
@@ -105,14 +117,14 @@ describe('GeminiChat', () => {
         ],
         text: () => 'response',
       } as unknown as GenerateContentResponse;
-      vi.mocked(mockRunner.runSync).mockResolvedValue(response);
+      vi.mocked(mockRunner.runSync).mockResolvedValue([toEvent(response)]);
 
       await chat.sendMessage({ message: 'hello' }, 'prompt-id-1');
 
       expect(mockRunner.runSync).toHaveBeenCalledWith({
         userId: 'placeholder',
         sessionId: 'mock-session-id',
-        newMessage: [{ role: 'user', parts: [{ text: 'hello' }] }],
+        newMessage: { role: 'user', parts: [{ text: 'hello' }] },
       });
     });
   });
@@ -120,7 +132,7 @@ describe('GeminiChat', () => {
   describe('sendMessageStream', () => {
     it('should call runner.runAsync with the correct parameters', async () => {
       const response = (async function* () {
-        yield {
+        yield toEvent({
           candidates: [
             {
               content: {
@@ -133,16 +145,16 @@ describe('GeminiChat', () => {
             },
           ],
           text: () => 'response',
-        } as unknown as GenerateContentResponse;
+        } as unknown as GenerateContentResponse);
       })();
-      vi.mocked(mockRunner.runAsync).mockResolvedValue(response);
+      mockRunner.runAsync = vi.fn().mockResolvedValue(response);
 
       await chat.sendMessageStream({ message: 'hello' }, 'prompt-id-1');
 
       expect(mockRunner.runAsync).toHaveBeenCalledWith({
         userId: 'placeholder',
         sessionId: 'mock-session-id',
-        newMessage: [{ role: 'user', parts: [{ text: 'hello' }] }],
+        newMessage: { role: 'user', parts: [{ text: 'hello' }] },
       });
     });
   });

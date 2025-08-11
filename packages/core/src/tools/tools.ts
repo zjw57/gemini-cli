@@ -7,20 +7,17 @@
 import { FunctionDeclaration, PartListUnion, Schema } from '@google/genai';
 import { ToolErrorType } from './tool-error.js';
 import { DiffUpdateResult } from '../ide/ideContext.js';
-import { 
+import {
   BaseTool as AdkBaseTool,
-  ToolContext as AdkToolContext
+  ToolContext as AdkToolContext,
 } from '@google/adk';
-
 
 /**
  * An adapter that wraps a gemini-cli DeclarativeTool to make it compatible
  * with the adk LlmAgent.
  */
 export class AdkToolAdapter extends AdkBaseTool {
-  constructor(
-    private readonly tool: AnyDeclarativeTool,
-  ) {
+  constructor(private readonly tool: AnyDeclarativeTool) {
     super(tool.name, tool.description);
   }
 

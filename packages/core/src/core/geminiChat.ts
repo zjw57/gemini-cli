@@ -30,11 +30,8 @@ import {
   hasCycleInSchema,
 } from '../tools/tools.js';
 import { StructuredError } from './turn.js';
-import {
-  LlmAgent,
-  InMemoryRunner,
-  Session,
-} from '@google/adk';
+import { toGenerateContentResponse } from './responseConverter.js';
+import { LlmAgent, InMemoryRunner, Session, Event } from '@google/adk';
 
 /**
  * Returns true if the response is valid, false otherwise.
@@ -154,7 +151,9 @@ export class GeminiChat {
       name: 'GeminiCLI',
       model: this.config.getModel(),
       instruction: systemInstruction as string,
-      tools: tools?.map((tool) => new AdkToolAdapter(tool as AnyDeclarativeTool)),
+      tools: tools?.map(
+        (tool) => new AdkToolAdapter(tool as AnyDeclarativeTool),
+      ),
       generateContentConfig: adkGenerationConfig,
       // planner: thinkingConfig, // Not implemented yet.
     });
@@ -292,9 +291,8 @@ export class GeminiChat {
   ): Promise<GenerateContentResponse> {
     await this.sendPromise;
     await this.maybeSetSession();
-    
+
     const userContent = createUserContent(params.message);
-    const requestContents = this.getHistory(true).concat(userContent);
 
     const startTime = Date.now();
     let response: GenerateContentResponse;
@@ -371,14 +369,18 @@ export class GeminiChat {
     }
   }
 
-  private generateContent(
+  private async generateContent(
     newMessage: Content,
   ): Promise<GenerateContentResponse> {
-    return this.runner.runSync({
+    let event = (await this.runner.runSync({
       userId: 'placeholder',
-      sessionId: this.session?.id || "",
+      sessionId: this.session?.id || '',
       newMessage,
-    });
+    })) as Event | Event[];
+    if (Array.isArray(event)) {
+      event = event[0];
+    }
+    return toGenerateContentResponse(event);
   }
 
   /**
@@ -411,7 +413,6 @@ export class GeminiChat {
     await this.maybeSetSession();
 
     const userContent = createUserContent(params.message);
-    const requestContents = this.getHistory(true).concat(userContent);
 
     const startTime = Date.now();
 
@@ -475,12 +476,18 @@ export class GeminiChat {
 
   private async generateContentStream(
     newMessage: Content,
-  ): Promise<AsyncGenerator<Event>> {
-    return await this.runner.runAsync({
+  ): Promise<AsyncGenerator<GenerateContentResponse>> {
+    const eventStream = (await this.runner.runAsync({
       userId: 'placeholder',
-      sessionId: this.session?.id || "",
+      sessionId: this.session?.id || '',
       newMessage,
-    });
+    })) as AsyncGenerator<Event>;
+
+    return (async function* () {
+      for await (const event of eventStream) {
+        yield toGenerateContentResponse(event);
+      }
+    })();
   }
 
   /**
@@ -536,7 +543,9 @@ export class GeminiChat {
 
   setTools(tools: Tool[]): void {
     this.generationConfig.tools = tools;
-    this.agent.tools = tools.map((tool) => new AdkToolAdapter(tool as AnyDeclarativeTool));
+    this.agent.tools = tools.map(
+      (tool) => new AdkToolAdapter(tool as AnyDeclarativeTool),
+    );
   }
 
   getFinalUsageMetadata(
