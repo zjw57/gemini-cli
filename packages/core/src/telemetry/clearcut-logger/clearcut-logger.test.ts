@@ -16,7 +16,6 @@ import {
 
 import {
   ClearcutLogger,
-  LogResponse,
   LogEventEntry,
   TEST_ONLY,
 } from './clearcut-logger.js';
