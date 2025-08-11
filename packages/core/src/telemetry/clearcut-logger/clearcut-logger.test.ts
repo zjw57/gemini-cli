@@ -134,6 +134,17 @@ describe('ClearcutLogger', () => {
         value: '9001',
       });
     });
+
+    it('logs the current surface', () => {
+      const { logger } = setup({});
+
+      const event = logger?.createLogEvent('abc', []);
+
+      expect(event?.event_metadata[0][1]).toEqual({
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
+        value: 'SURFACE_NOT_SET',
+      });
+    });
   });
 
   describe('enqueueLogEvent', () => {
