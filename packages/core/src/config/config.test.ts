@@ -410,7 +410,8 @@ describe('Server Config (config.ts)', () => {
       'properly logs the session start event when (enabled: $enabled)',
       ({ enabled, expectCall }) => {
         vi.spyOn(ClearcutLogger.prototype, 'logStartSessionEvent');
-        const config = new Config({
+
+        new Config({
           ...baseParams,
           logInitialSessionEventEnabled: enabled,
         });

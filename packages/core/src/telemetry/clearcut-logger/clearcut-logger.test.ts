@@ -14,12 +14,7 @@ import {
   afterAll,
 } from 'vitest';
 
-import {
-  ClearcutLogger,
-  LogResponse,
-  LogEventEntry,
-  TEST_ONLY,
-} from './clearcut-logger.js';
+import { ClearcutLogger, LogEventEntry, TEST_ONLY } from './clearcut-logger.js';
 import { ConfigParameters } from '../../config/config.js';
 import * as userAccount from '../../utils/user_account.js';
 import * as userId from '../../utils/user_id.js';
@@ -48,7 +43,7 @@ afterAll(() => {
 });
 
 describe('ClearcutLogger', () => {
-  const NEXT_WAIT_MS = 9001;
+  const NEXT_WAIT_MS = 1234;
   const CLEARCUT_URL = 'https://play.googleapis.com/log';
   const MOCK_DATE = new Date('2025-01-02T00:00:00.000Z');
   const EXAMPLE_RESPONSE = `["${NEXT_WAIT_MS}",null,[[["ANDROID_BACKUP",0],["BATTERY_STATS",0],["SMART_SETUP",0],["TRON",0]],-3334737594024971225],[]]`;

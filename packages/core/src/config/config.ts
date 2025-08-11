@@ -170,7 +170,6 @@ export interface ConfigParameters {
   contextFileName?: string | string[];
   accessibility?: AccessibilitySettings;
   telemetry?: TelemetrySettings;
-  /** if true, then usage statistics will be sent back to Google. */
   usageStatisticsEnabled?: boolean;
   logInitialSessionEventEnabled?: boolean;
   fileFiltering?: {
