@@ -175,7 +175,14 @@ export class IdeClient {
     }
   }
 
-  disconnect() {
+  async disconnect() {
+    if (this.state.status === IDEConnectionStatus.Disconnected) {
+      return;
+    }
+    for (const filePath of this.diffResponses.keys()) {
+      await this.closeDiff(filePath);
+    }
+    this.diffResponses.clear();
     this.setState(
       IDEConnectionStatus.Disconnected,
       'IDE integration disabled. To enable it again, run /ide enable.',
@@ -204,17 +211,22 @@ export class IdeClient {
       this.state.status === IDEConnectionStatus.Disconnected &&
       status === IDEConnectionStatus.Disconnected;
 
-    // Only update details if the state wasn't already disconnected, so that
-    // the first detail message is preserved.
+    // Only update details & log to console if the state wasn't already
+    // disconnected, so that the first detail message is preserved.
     if (!isAlreadyDisconnected) {
       this.state = { status, details };
+      if (details) {
+        if (logToConsole) {
+          logger.error(details);
+        } else {
+          // We only want to log disconnect messages to debug
+          // if they are not already being logged to the console.
+          logger.debug(details);
+        }
+      }
     }
 
     if (status === IDEConnectionStatus.Disconnected) {
-      if (logToConsole) {
-        logger.error(details);
-      }
-      logger.debug(details);
       ideContext.clearIdeContext();
     }
   }
@@ -253,7 +265,7 @@ export class IdeClient {
     if (!port) {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        `Failed to connect to IDE companion extension for ${this.currentIdeDisplayName}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
+        `Failed to connect to IDE companion extension for ${this.currentIdeDisplayName}. Please ensure the extension is running and try restarting your terminal. To install the extension, run /ide install.`,
         true,
       );
       return undefined;
@@ -324,7 +336,7 @@ export class IdeClient {
         version: '1.0.0',
       });
       transport = new StreamableHTTPClientTransport(
-        new URL(`http://localhost:${port}/mcp`),
+        new URL(`http://${getIdeServerHost()}:${port}/mcp`),
       );
       await this.client.connect(transport);
       this.registerClientHandlers();
@@ -332,7 +344,7 @@ export class IdeClient {
     } catch (_error) {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        `Failed to connect to IDE companion extension for ${this.currentIdeDisplayName}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
+        `Failed to connect to IDE companion extension for ${this.currentIdeDisplayName}. Please ensure the extension is running and try restarting your terminal. To install the extension, run /ide install.`,
         true,
       );
       if (transport) {
@@ -344,4 +356,13 @@ export class IdeClient {
       }
     }
   }
+}
+
+function getIdeServerHost() {
+  const isInContainer =
+    fs.existsSync('/.dockerenv') ||
+    fs.existsSync('/run/.containerenv') ||
+    !!process.env.SANDBOX ||
+    !!process.env.container;
+  return isInContainer ? 'host.docker.internal' : 'localhost';
 }
