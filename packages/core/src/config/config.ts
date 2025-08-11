@@ -695,7 +695,7 @@ export class Config {
       await this.ideClient.connect();
       logIdeConnection(this, new IdeConnectionEvent(IdeConnectionType.SESSION));
     } else {
-      this.ideClient.disconnect();
+      await this.ideClient.disconnect();
     }
   }
 
