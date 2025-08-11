@@ -191,27 +191,10 @@ export class ClearcutLogger {
     }
   }
 
-  addDefaultFields(data: EventValue[]): void {
-    const totalAccounts = getLifetimeGoogleAccounts();
-    const surface = determineSurface();
-    const defaultLogMetadata = [
-      {
-        gemini_cli_key: EventMetadataKey.GEMINI_CLI_GOOGLE_ACCOUNTS_COUNT,
-        value: totalAccounts.toString(),
-      },
-      {
-        gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
-        value: surface,
-      },
-    ];
-    data.push(...defaultLogMetadata);
-  }
-
   createLogEvent(name: string, data: EventValue[]): LogEvent {
     const email = getCachedGoogleAccount();
 
-    // Add default fields that should exist for all logs
-    this.addDefaultFields(data);
+    addDefaultFields(data);
     const totalAccounts = getLifetimeGoogleAccounts();
     data.push({
       gemini_cli_key: EventMetadataKey.GEMINI_CLI_GOOGLE_ACCOUNTS_COUNT,
@@ -773,6 +756,26 @@ export class ClearcutLogger {
       );
     }
   }
+}
+
+/**
+ * Adds default fields to data, and returns a new data array.  This fields
+ * should exist on all log events.
+ */
+function addDefaultFields(data: EventValue[]): EventValue[] {
+  const totalAccounts = getLifetimeGoogleAccounts();
+  const surface = determineSurface();
+  const defaultLogMetadata: EventValue[] = [
+    {
+      gemini_cli_key: EventMetadataKey.GEMINI_CLI_GOOGLE_ACCOUNTS_COUNT,
+      value: totalAccounts.toString(),
+    },
+    {
+      gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
+      value: surface,
+    },
+  ];
+  return [...data, ...defaultLogMetadata];
 }
 
 export const TEST_ONLY = {
