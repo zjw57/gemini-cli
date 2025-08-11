@@ -406,7 +406,7 @@ describe('Server Config (config.ts)', () => {
         { enabled: true, expectCall: true },
         { enabled: false, expectCall: false },
       ],
-    ])('properly logs the session start event', ({ enabled, expectCall }) => {
+    ])('properly logs the session start event when (enabled: $enabled)', ({ enabled, expectCall }) => {
       vi.spyOn(ClearcutLogger.prototype, 'logStartSessionEvent');
       const config = new Config({
         ...baseParams,
