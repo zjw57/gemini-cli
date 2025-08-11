@@ -624,10 +624,6 @@ export class Config {
     return this.usageStatisticsEnabled;
   }
 
-  getInitialSessionEventEnabled(): boolean {
-    return this.logInitialSessionEventEnabled;
-  }
-
   getExtensionContextFilePaths(): string[] {
     return this.extensionContextFilePaths;
   }
