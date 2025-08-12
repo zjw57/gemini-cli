@@ -43,16 +43,6 @@ afterAll(() => {
   server.close();
 });
 
-let originalEnv = process.env;
-
-beforeEach(() => {
-  originalEnv = process.env;
-});
-
-afterEach(() => {
-  process.env = originalEnv;
-});
-
 describe('ClearcutLogger', () => {
   const NEXT_WAIT_MS = 1234;
   const CLEARCUT_URL = 'https://play.googleapis.com/log';
@@ -66,6 +56,10 @@ describe('ClearcutLogger', () => {
 
   const requeueFailedEvents = (l: ClearcutLogger, events: LogEventEntry[][]) =>
     l['requeueFailedEvents'](events);
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   function setup({
     config = {} as Partial<ConfigParameters>,
@@ -179,7 +173,9 @@ describe('ClearcutLogger', () => {
       ({ env, expectedValue }) => {
         const { logger } = setup({});
 
-        process.env = { ...env };
+        for (const [key, value] of Object.entries(env)) {
+          vi.stubEnv(key, value);
+        }
 
         const event = logger?.createLogEvent('abc', []);
 
@@ -225,7 +221,10 @@ describe('ClearcutLogger', () => {
       'logs the current surface for as $expectedValue, preempting vscode detection',
       ({ env, expectedValue }) => {
         const { logger } = setup({});
-        process.env = { ...env, TERM_PROGRAM: 'vscode' };
+        for (const [key, value] of Object.entries(env)) {
+          vi.stubEnv(key, value);
+        }
+        vi.stubEnv('TERM_PROGRAM', 'vscode');
         const event = logger?.createLogEvent('abc', []);
         expect(event?.event_metadata[0][1]).toEqual({
           gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
