@@ -148,23 +148,28 @@ describe('ClearcutLogger', () => {
       {
         env: {
           CLOUD_SHELL: 'true',
+          GITHUB_SHA: undefined,
         },
         expectedValue: 'CLOUD_SHELL',
       },
       {
         env: {
           MONOSPACE_ENV: 'true',
+          GITHUB_SHA: undefined,
         },
         expectedValue: 'FIREBASE_STUDIO',
       },
       {
         env: {
           REPLIT_USER: 'johnstamos',
+          GITHUB_SHA: undefined,
         },
         expectedValue: 'REPLIT',
       },
       {
-        env: {},
+        env: {
+          GITHUB_SHA: undefined,
+        },
         expectedValue: 'SURFACE_NOT_SET',
       },
     ])(
@@ -189,30 +194,35 @@ describe('ClearcutLogger', () => {
       {
         env: {
           CURSOR_TRACE_ID: 'abc123',
+          GITHUB_SHA: undefined,
         },
         expectedValue: 'CURSOR',
       },
       {
         env: {
           TERM_PROGRAM: 'vscode',
+          GITHUB_SHA: undefined,
         },
         expectedValue: 'VSCODE',
       },
       {
         env: {
           MONOSPACE_ENV: 'true',
+          GITHUB_SHA: undefined,
         },
         expectedValue: 'FIREBASE_STUDIO',
       },
       {
         env: {
           __COG_BASHRC_SOURCED: 'true',
+          GITHUB_SHA: undefined,
         },
         expectedValue: 'DEVIN',
       },
       {
         env: {
           CLOUD_SHELL: 'true',
+          GITHUB_SHA: undefined,
         },
         expectedValue: 'CLOUD_SHELL',
       },
