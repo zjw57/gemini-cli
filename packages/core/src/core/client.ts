@@ -220,12 +220,12 @@ export class GeminiClient {
 
       return new GeminiChat(
         this.config,
-        this.getContentGenerator(),
         {
           systemInstruction,
           ...generateContentConfigWithThinking,
           tools,
         },
+        toolRegistry,
         history,
       );
     } catch (error) {

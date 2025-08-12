@@ -20,7 +20,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Config } from '../config/config.js';
 import { setSimulate429 } from '../utils/testUtils.js';
 import { GeminiChat } from './geminiChat.js';
-import { ContentGenerator } from './contentGenerator.js';
+import { ToolRegistry } from '../tools/tool-registry.js';
 
 vi.mock('@google/adk', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@google/adk')>();
@@ -56,16 +56,10 @@ describe('GeminiChat', () => {
   const config: GenerateContentConfig = {};
   let mockRunner: InMemoryRunner;
   let mockSession: InMemorySessionService;
-  let mockContentGenerator: ContentGenerator;
+  let mockToolRegistry: ToolRegistry;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockContentGenerator = {
-      generateContent: vi.fn(),
-      generateContentStream: vi.fn(),
-      countTokens: vi.fn(),
-      embedContent: vi.fn(),
-    };
     mockConfig = {
       getSessionId: () => 'test-session-id',
       getTelemetryLogPromptsEnabled: () => true,
@@ -81,11 +75,12 @@ describe('GeminiChat', () => {
       setQuotaErrorOccurred: vi.fn(),
       flashFallbackHandler: undefined,
     } as unknown as Config;
+    mockToolRegistry = new ToolRegistry(mockConfig);
 
     // Disable 429 simulation for tests
     setSimulate429(false);
     // Reset history for each test by creating a new instance
-    chat = new GeminiChat(mockConfig, mockContentGenerator, config, []);
+    chat = new GeminiChat(mockConfig, config, mockToolRegistry, []);
     mockRunner = new InMemoryRunner({
       agent: { name: 'mock-agent' } as LlmAgent,
     });
@@ -247,7 +242,7 @@ describe('GeminiChat', () => {
       chat.recordHistory(userInput, newModelOutput); // userInput here is for the *next* turn, but history is already primed
 
       // Reset and set up a more realistic scenario for merging with existing history
-      chat = new GeminiChat(mockConfig, mockContentGenerator, config, []);
+      chat = new GeminiChat(mockConfig, config, mockToolRegistry, []);
       const firstUserInput: Content = {
         role: 'user',
         parts: [{ text: 'First user input' }],
@@ -290,7 +285,7 @@ describe('GeminiChat', () => {
         role: 'model',
         parts: [{ text: 'Initial model answer.' }],
       };
-      chat = new GeminiChat(mockConfig, mockContentGenerator, config, [
+      chat = new GeminiChat(mockConfig, config, mockToolRegistry, [
         initialUser,
         initialModel,
       ]);

@@ -9,7 +9,6 @@ import { ToolRegistry } from '../tools/tool-registry.js';
 import { Config } from '../config/config.js';
 import { ToolCallRequestInfo } from './turn.js';
 import { executeToolCall } from './nonInteractiveToolExecutor.js';
-import { createContentGenerator } from './contentGenerator.js';
 import { getEnvironmentContext } from '../utils/environmentContext.js';
 import {
   Content,
@@ -587,18 +586,14 @@ export class SubAgentScope {
         generationConfig.systemInstruction = systemInstruction;
       }
 
-      const contentGenerator = await createContentGenerator(
-        this.runtimeContext.getContentGeneratorConfig(),
-        this.runtimeContext,
-        this.runtimeContext.getSessionId(),
-      );
+      const toolRegistry = await this.runtimeContext.getToolRegistry();
 
       this.runtimeContext.setModel(this.modelConfig.model);
 
       return new GeminiChat(
         this.runtimeContext,
-        contentGenerator,
         generationConfig,
+        toolRegistry,
         start_history,
       );
     } catch (error) {

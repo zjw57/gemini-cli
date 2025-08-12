@@ -19,7 +19,7 @@ import {
 } from '@google/genai';
 import { retryWithBackoff } from '../utils/retry.js';
 import { isFunctionResponse } from '../utils/messageInspectors.js';
-import { ContentGenerator, AuthType } from './contentGenerator.js';
+import { AuthType } from './contentGenerator.js';
 import { Config } from '../config/config.js';
 import { logApiResponse, logApiError } from '../telemetry/loggers.js';
 import { ApiErrorEvent, ApiResponseEvent } from '../telemetry/types.js';
@@ -32,6 +32,7 @@ import {
 import { StructuredError } from './turn.js';
 import { toGenerateContentResponse } from './responseConverter.js';
 import { LlmAgent, InMemoryRunner, Session, Event } from '@google/adk';
+import { ToolRegistry } from '../tools/tool-registry.js';
 
 /**
  * Returns true if the response is valid, false otherwise.
@@ -133,15 +134,15 @@ export class GeminiChat {
 
   constructor(
     private readonly config: Config,
-    private readonly contentGenerator: ContentGenerator,
     private readonly generationConfig: GenerateContentConfig = {},
+    private readonly toolRegistry: ToolRegistry,
     private history: Content[] = [],
   ) {
     validateHistory(history);
 
     // We need to pop off a bunch of attrs that LlmAgent isn't expecting
     const {
-      tools,
+      tools: _tools, // This is really a list of functionDeclarations
       thinkingConfig: _thinkingConfig,
       systemInstruction,
       ...adkGenerationConfig
@@ -151,9 +152,9 @@ export class GeminiChat {
       name: 'GeminiCLI',
       model: this.config.getModel(),
       instruction: systemInstruction as string,
-      tools: tools?.map(
-        (tool) => new AdkToolAdapter(tool as AnyDeclarativeTool),
-      ),
+      tools: toolRegistry
+        .getAllTools()
+        .map((tool) => new AdkToolAdapter(tool as AnyDeclarativeTool)),
       generateContentConfig: adkGenerationConfig,
       // planner: thinkingConfig, // Not implemented yet.
     });
@@ -543,8 +544,11 @@ export class GeminiChat {
 
   setTools(tools: Tool[]): void {
     this.generationConfig.tools = tools;
-    this.agent.tools = tools.map(
-      (tool) => new AdkToolAdapter(tool as AnyDeclarativeTool),
+    this.agent.tools = tools?.flatMap(
+      (tool) =>
+        tool.functionDeclarations?.map(
+          (func) => new AdkToolAdapter(func as AnyDeclarativeTool),
+        ) || [],
     );
   }
 

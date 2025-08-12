@@ -11,6 +11,7 @@ import { GeminiClient } from '../core/client.js';
 import { Config } from '../config/config.js';
 import { checkNextSpeaker, NextSpeakerResponse } from './nextSpeakerChecker.js';
 import { GeminiChat } from '../core/geminiChat.js';
+import { ToolRegistry } from '../tools/tool-registry.js';
 
 // Mock GeminiClient and Config constructor
 vi.mock('../core/client.js');
@@ -68,11 +69,13 @@ describe('checkNextSpeaker', () => {
     vi.mocked(mockModelsInstance.generateContent).mockReset();
     vi.mocked(mockModelsInstance.generateContentStream).mockReset();
 
+    const toolRegistry = new ToolRegistry(mockConfigInstance);
+
     // GeminiChat will receive the mocked instances via the mocked GoogleGenAI constructor
     chatInstance = new GeminiChat(
       mockConfigInstance,
-      mockModelsInstance, // This is the instance returned by mockGoogleGenAIInstance.getGenerativeModel
-      {},
+      {}, // This is the instance returned by mockGoogleGenAIInstance.getGenerativeModel
+      toolRegistry,
       [], // initial history
     );
 
