@@ -46,7 +46,7 @@ afterAll(() => {
 let originalEnv = process.env;
 
 beforeEach(() => {
-  process.env = { ...originalEnv };
+  originalEnv = process.env;
 });
 
 afterEach(() => {
