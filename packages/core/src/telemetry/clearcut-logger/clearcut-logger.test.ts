@@ -181,6 +181,41 @@ describe('ClearcutLogger', () => {
         value: expectedValue,
       });
     });
+
+    it.each([
+      {
+        env: {
+          CURSOR_TRACE_ID: 'abc123',
+        },
+        expectedValue: 'CURSOR',
+      },
+      {
+        env: {
+          TERM_PROGRAM: 'vscode',
+        },
+        expectedValue: 'VSCODE',
+      },
+      {
+        env: {
+          MONOSPACE_ENV: 'true',
+        },
+        expectedValue: 'FIREBASE_STUDIO',
+      },
+      {
+        env: {
+          CLOUD_SHELL: 'true',
+        },
+        expectedValue: 'CLOUD_SHELL',
+      }
+    ])('logs the current surface for as $expectedValue, preempting vscode detection', ({env, expectedValue}) => {
+      const { logger } = setup({});
+      process.env = { ...process.env, ...env, TERM_PROGRAM: 'vscode' };
+      const event = logger?.createLogEvent('abc', []);
+      expect(event?.event_metadata[0][1]).toEqual({
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
+        value: expectedValue,
+      });
+    });
   });
 
   describe('enqueueLogEvent', () => {
