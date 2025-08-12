@@ -68,12 +68,9 @@ describe('McpServerForm', () => {
 
   it('handles string array changes', () => {
     render(<McpServerForm {...baseProps} serverName={null} />);
-    fireEvent.change(
-      screen.getByLabelText('Include Tools (comma-separated)'),
-      {
-        target: { value: 'tool1, tool2' },
-      },
-    );
+    fireEvent.change(screen.getByLabelText('Include Tools (comma-separated)'), {
+      target: { value: 'tool1, tool2' },
+    });
     expect(
       screen.getByLabelText('Include Tools (comma-separated)'),
     ).toHaveValue('tool1, tool2');
@@ -122,12 +119,9 @@ describe('McpServerForm', () => {
     fireEvent.change(screen.getByLabelText('Description'), {
       target: { value: 'Updated description' },
     });
-    fireEvent.change(
-      screen.getByLabelText('Arguments (comma-separated)'),
-      {
-        target: { value: 'a, b, c' },
-      },
-    );
+    fireEvent.change(screen.getByLabelText('Arguments (comma-separated)'), {
+      target: { value: 'a, b, c' },
+    });
     fireEvent.click(screen.getByLabelText('Trust Server'));
 
     fireEvent.click(screen.getByText('Save'));

@@ -262,7 +262,10 @@ export async function main() {
     process.exit(0);
   }
 
-  if (settings.merged.launchTarget === 'electron' && !argv.launchElectron) {
+  if (
+    settings.merged.launchTarget === 'electron' &&
+    process.env.GEMINI_CLI_CONTEXT !== 'electron'
+  ) {
     const child = spawn('npm', ['run', 'dev'], {
       cwd: 'packages/electron-app',
       detached: true,

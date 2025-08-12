@@ -145,7 +145,7 @@ describe('ReadManyFilesTool', () => {
     it('should return error if paths array is empty', () => {
       const params = { paths: [] };
       expect(tool.validateParams(params)).toBe(
-        'params/paths must NOT have fewer than 1 items',
+        'params.paths should NOT have fewer than 1 items',
       );
     });
 
@@ -161,7 +161,7 @@ describe('ReadManyFilesTool', () => {
     it('should return error if paths array contains an empty string', () => {
       const params = { paths: ['file1.txt', ''] };
       expect(tool.validateParams(params)).toBe(
-        'params/paths/1 must NOT have fewer than 1 characters',
+        'params.paths[1] should NOT be shorter than 1 characters',
       );
     });
 
@@ -171,7 +171,7 @@ describe('ReadManyFilesTool', () => {
         include: ['*.ts', 123] as string[],
       };
       expect(tool.validateParams(params)).toBe(
-        'params/include/1 must be string',
+        'params.include[1] should be string',
       );
     });
 
@@ -181,7 +181,7 @@ describe('ReadManyFilesTool', () => {
         exclude: ['*.log', {}] as string[],
       };
       expect(tool.validateParams(params)).toBe(
-        'params/exclude/1 must be string',
+        'params.exclude[1] should be string',
       );
     });
   });

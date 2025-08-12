@@ -4,12 +4,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { Settings } from 'lucide-react';
 import { SettingsModal } from './components/SettingsModal';
+import { GeminiEditor } from './components/GeminiEditor';
+
+interface GeminiEditorState {
+  open: boolean;
+  filePath: string;
+  oldContent: string;
+  newContent: string;
+  diffPath: string;
+}
 
 const darkTheme = {
   background: '#282a36',
@@ -47,12 +56,38 @@ function debounce<T extends (...args: unknown[]) => void>(
   };
 }
 
+import { ThemeContext } from './contexts/ThemeContext';
+
 function App() {
   const termRef = useRef<HTMLDivElement>(null);
   const term = useRef<Terminal>();
   const [cliTheme, setCliTheme] = useState(darkTheme);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [editorState, setEditorState] = useState<GeminiEditorState>({
+    open: false,
+    filePath: '',
+    oldContent: '',
+    newContent: '',
+    diffPath: '',
+  });
   const isResetting = useRef(false);
+
+  useEffect(() => {
+    const removeListener = window.electron.onShowGeminiEditor(
+      (_event, data) => {
+        setEditorState({
+          open: true,
+          filePath: data.meta.filePath,
+          oldContent: data.oldContent,
+          newContent: data.newContent,
+          diffPath: data.diffPath,
+        });
+      },
+    );
+    return () => {
+      removeListener();
+    };
+  }, []);
 
   useEffect(() => {
     const removeListener = window.electron.theme.onInit(
@@ -128,7 +163,7 @@ function App() {
       // Initial resize with a small delay to allow layout to settle
       setTimeout(() => onResize(), 100);
 
-      window.electron.terminal.onData((_event, data) => {
+      const dataListener = window.electron.terminal.onData((_event, data) => {
         if (isResetting.current) {
           term.current?.clear();
           isResetting.current = false;
@@ -166,9 +201,9 @@ function App() {
       return () => {
         resizeObserver.disconnect();
         window.removeEventListener('focus', onResize);
-        // @ts-expect-error - IpcRenderer types are hard
         removeResetListener();
         removeMainWindowResizeListener();
+        dataListener();
       };
     }
   }, []);
@@ -180,74 +215,94 @@ function App() {
   }, [cliTheme]);
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        width: '100%',
-        position: 'fixed',
-        backgroundColor: cliTheme.background,
-      }}
-    >
+    <ThemeContext.Provider value={cliTheme}>
       <div
         style={{
-          height: '30px',
-          backgroundColor: cliTheme.background,
-          color: cliTheme.foreground,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontWeight: 'bold',
-          fontSize: '12px',
-          // @ts-expect-error -webkit-app-region is a valid property in Electron
-          '-webkit-app-region': 'drag',
-          flexShrink: 0,
-          position: 'relative',
-          userSelect: 'none',
-          borderBottom: `1px solid ${cliTheme.selectionBackground || '#44475a'}`,
+          flexDirection: 'column',
+          height: '100%',
+          width: '100%',
+          position: 'fixed',
+          backgroundColor: cliTheme.background,
         }}
       >
-        <span style={{ flex: 1, textAlign: 'center' }}>Gemini CLI</span>
         <div
           style={{
-            position: 'absolute',
-            right: '10px',
-            top: '5px',
+            height: '30px',
+            backgroundColor: cliTheme.background,
+            color: cliTheme.foreground,
             display: 'flex',
-            gap: '10px',
-            WebkitAppRegion: 'no-drag',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold',
+            fontSize: '12px',
+            // @ts-expect-error -webkit-app-region is a valid property in Electron
+            '-webkit-app-region': 'drag',
+            flexShrink: 0,
+            position: 'relative',
+            userSelect: 'none',
+            borderBottom: `1px solid ${cliTheme.selectionBackground || '#44475a'}`,
           }}
         >
-          <button
-            onClick={() => setIsSettingsOpen(true)}
+          <span style={{ flex: 1, textAlign: 'center' }}>Gemini CLI</span>
+          <div
             style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'inherit',
+              position: 'absolute',
+              right: '10px',
+              top: '5px',
+              display: 'flex',
+              gap: '10px',
+              WebkitAppRegion: 'no-drag',
             }}
           >
-            <Settings size={16} />
-          </button>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'inherit',
+              }}
+            >
+              <Settings size={16} />
+            </button>
+          </div>
         </div>
-      </div>
-      <div
-        ref={termRef}
-        style={{
-          width: '100%',
-          flex: 1,
-          padding: '0 10px 10px 10px',
-          boxSizing: 'border-box',
-        }}
-      />
-      {isSettingsOpen && (
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
+        <div
+          ref={termRef}
+          style={{
+            width: '100%',
+            flex: 1,
+            padding: '0 10px 10px 10px',
+            boxSizing: 'border-box',
+          }}
         />
-      )}
-    </div>
+        {isSettingsOpen && (
+          <SettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+          />
+        )}
+        {editorState.open && (
+          <Suspense fallback={<div>Loading...</div>}>
+            <GeminiEditor
+              open={editorState.open}
+              filePath={editorState.filePath}
+              oldContent={editorState.oldContent}
+              newContent={editorState.newContent}
+              onClose={async (result) => {
+                const response = await window.electron.resolveDiff({
+                  ...result,
+                  diffPath: editorState.diffPath,
+                });
+                console.log('resolveDiff response:', response);
+                setEditorState({ ...editorState, open: false });
+              }}
+            />
+          </Suspense>
+        )}
+      </div>
+    </ThemeContext.Provider>
   );
 }
 

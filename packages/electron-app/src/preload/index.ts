@@ -20,13 +20,23 @@ contextBridge.exposeInMainWorld('electron', {
     };
   },
   terminal: {
-    onData: (callback: (event: IpcRendererEvent, data: string) => void) =>
-      ipcRenderer.on('terminal.incomingData', callback),
+    onData: (callback: (event: IpcRendererEvent, data: string) => void) => {
+      const channel = 'terminal.incomingData';
+      ipcRenderer.on(channel, callback);
+      return () => {
+        ipcRenderer.removeListener(channel, callback);
+      };
+    },
     sendKey: (key: string) => ipcRenderer.send('terminal.keystroke', key),
     resize: (size: { cols: number; rows: number }) =>
       ipcRenderer.send('terminal.resize', size),
-    onReset: (callback: (event: IpcRendererEvent) => void) =>
-      ipcRenderer.on('terminal.reset', callback),
+    onReset: (callback: (event: IpcRendererEvent) => void) => {
+      const channel = 'terminal.reset';
+      ipcRenderer.on(channel, callback);
+      return () => {
+        ipcRenderer.removeListener(channel, callback);
+      };
+    },
   },
   theme: {
     set: (theme: 'light' | 'dark') => ipcRenderer.send('theme:set', theme),
@@ -35,7 +45,13 @@ contextBridge.exposeInMainWorld('electron', {
         event: IpcRendererEvent,
         theme: Record<string, string>,
       ) => void,
-    ) => ipcRenderer.on('theme:init', callback),
+    ) => {
+      const channel = 'theme:init';
+      ipcRenderer.on(channel, callback);
+      return () => {
+        ipcRenderer.removeListener(channel, callback);
+      };
+    },
   },
   themes: {
     get: () => ipcRenderer.invoke('themes:get'),
@@ -44,5 +60,23 @@ contextBridge.exposeInMainWorld('electron', {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (settings: { changes: Record<string, unknown>; scope?: string }) =>
       ipcRenderer.invoke('settings:set', settings),
+    restartTerminal: () => ipcRenderer.send('settings:restart-terminal'),
   },
+  onShowGeminiEditor: (
+    callback: (
+      event: IpcRendererEvent,
+      data: { filePath: string; oldContent: string; newContent: string },
+    ) => void,
+  ) => {
+    const channel = 'gemini-editor:show';
+    ipcRenderer.on(channel, callback);
+    return () => {
+      ipcRenderer.removeListener(channel, callback);
+    };
+  },
+  resolveDiff: (result: {
+    status: string;
+    content?: string;
+    diffPath: string;
+  }) => ipcRenderer.invoke('gemini-editor:resolve', result),
 });

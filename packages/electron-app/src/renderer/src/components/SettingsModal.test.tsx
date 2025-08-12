@@ -71,9 +71,7 @@ describe('SettingsModal', () => {
 
     expect(screen.getByText('Settings')).toBeInTheDocument();
     const sidebar = container.querySelector('.settings-sidebar');
-    expect(
-      sidebar?.querySelector('.active')?.textContent,
-    ).toBe('Appearance');
+    expect(sidebar?.querySelector('.active')?.textContent).toBe('Appearance');
   });
 
   it('calls onClose when the close button is clicked', () => {
@@ -171,6 +169,28 @@ describe('SettingsModal', () => {
     await waitFor(() => {
       expect(mockSettingsSet).toHaveBeenCalledWith({
         changes: { mcpServers: { new: {} } },
+        scope: 'User',
+      });
+    });
+  });
+
+  it('handles changing the terminal cwd setting', async () => {
+    mockSettingsGet.mockResolvedValue({
+      merged: { terminalCwd: '/Users/test' },
+    });
+    render(<SettingsModal isOpen={true} onClose={() => {}} />);
+
+    fireEvent.click(screen.getByText('Behavior'));
+
+    const cwdInput = await screen.findByLabelText('Terminal Working Directory');
+    expect(cwdInput).toHaveValue('/Users/test');
+
+    fireEvent.change(cwdInput, { target: { value: '/Users/test/new' } });
+
+    expect(cwdInput).toHaveValue('/Users/test/new');
+    await waitFor(() => {
+      expect(mockSettingsSet).toHaveBeenCalledWith({
+        changes: { terminalCwd: '/Users/test/new' },
         scope: 'User',
       });
     });

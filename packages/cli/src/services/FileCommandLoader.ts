@@ -143,13 +143,17 @@ export class FileCommandLoader implements ICommandLoader {
     if (this.config) {
       const activeExtensions = this.config
         .getExtensions()
-        .filter((ext) => ext.isActive)
-        .sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically for deterministic loading
+        .filter((ext: { isActive: boolean }) => ext.isActive)
+        .sort((a: { name: string }, b: { name: string }) =>
+          a.name.localeCompare(b.name),
+        ); // Sort alphabetically for deterministic loading
 
-      const extensionCommandDirs = activeExtensions.map((ext) => ({
-        path: path.join(ext.path, 'commands'),
-        extensionName: ext.name,
-      }));
+      const extensionCommandDirs = activeExtensions.map(
+        (ext: { path: string; name: string }) => ({
+          path: path.join(ext.path, 'commands'),
+          extensionName: ext.name,
+        }),
+      );
 
       dirs.push(...extensionCommandDirs);
     }

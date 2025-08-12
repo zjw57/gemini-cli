@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback } from 'react';
 import './SettingsModal.css';
 import type { Settings, ThemeDisplay } from '@google/gemini-cli';
 import { McpServerManager } from './McpServerManager';
+import { LanguageMappingsManager } from './LanguageMappingsManager';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -130,6 +131,14 @@ const SETTINGS_CONFIG = [
     category: 'Behavior',
   },
   {
+    key: 'terminalCwd',
+    label: 'Terminal Working Directory',
+    description:
+      'The starting directory for the integrated terminal. Defaults to your Documents folder if not set.',
+    type: 'text',
+    category: 'Behavior',
+  },
+  {
     key: 'launchTarget',
     label: 'Launch Target',
     description: 'The target to launch when starting the application.',
@@ -151,6 +160,15 @@ const SETTINGS_CONFIG = [
     description: 'Comma-separated list of context file names.',
     type: 'text',
     category: 'Behavior',
+  },
+  {
+    key: 'languageMappings',
+    label: 'Language Mappings',
+    description:
+      'Map file extensions to language names for syntax highlighting.',
+    type: 'custom',
+    category: 'Behavior',
+    render: () => <LanguageMappingsManager />,
   },
 
   // File Filtering
@@ -298,8 +316,8 @@ const CATEGORIES = [
   'Behavior',
   'File Filtering',
   'Updates & Telemetry',
-  'Advanced',
   'MCP Servers',
+  'Advanced',
 ];
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
@@ -347,6 +365,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     },
     [settings, scope],
   );
+
+  const handleClose = () => {
+    window.electron.settings.restartTerminal();
+    onClose();
+  };
 
   const renderSetting = (key: string, type: string, options?: string[]) => {
     const value = get(settings, key, '');
@@ -428,7 +451,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </li>
           ))}
         </ul>
-        <button className="close-button" onClick={onClose}>
+        <button className="close-button" onClick={handleClose}>
           Close
         </button>
       </div>
@@ -456,17 +479,26 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         )}
         {SETTINGS_CONFIG.filter((s) => s.category === activeCategory).map(
-          (config) => (
-            <div className="setting-item" key={config.key}>
-              <div className="setting-info">
-                <label htmlFor={config.key}>{config.label}</label>
-                <p>{config.description}</p>
+          (config) =>
+            config.type === 'custom' ? (
+              <div className="setting-item" key={config.key}>
+                <div className="setting-info">
+                  <label>{config.label}</label>
+                  <p>{config.description}</p>
+                </div>
+                <div className="setting-control">{config.render?.()}</div>
               </div>
-              <div className="setting-control">
-                {renderSetting(config.key, config.type, config.options)}
+            ) : (
+              <div className="setting-item" key={config.key}>
+                <div className="setting-info">
+                  <label htmlFor={config.key}>{config.label}</label>
+                  <p>{config.description}</p>
+                </div>
+                <div className="setting-control">
+                  {renderSetting(config.key, config.type, config.options)}
+                </div>
               </div>
-            </div>
-          ),
+            ),
         )}
         {activeCategory === 'MCP Servers' && (
           <McpServerManager

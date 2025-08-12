@@ -223,7 +223,7 @@ describe('WriteFileTool', () => {
         content: null,
       } as unknown as WriteFileToolParams; // Intentionally non-conforming
       expect(tool.validateToolParams(params)).toMatch(
-        `params/content must be string`,
+        `params.content should be string`,
       );
     });
   });

@@ -508,8 +508,8 @@ export const SETTINGS_SCHEMA = {
     label: 'Launch Target',
     category: 'General',
     requiresRestart: true,
-    default: 'terminal'
-  }
+    default: undefined as string | undefined,
+  },
 } as const;
 
 type InferSettings<T extends SettingsSchema> = {

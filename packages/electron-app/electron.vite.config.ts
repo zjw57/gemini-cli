@@ -17,6 +17,9 @@ export default defineConfig({
         formats: ['cjs'],
       },
       outDir: 'out/main',
+      rollupOptions: {
+        external: [/^@google\/gemini-cli\/.*/],
+      },
     },
   },
   preload: {

@@ -81,7 +81,7 @@ export async function parseArguments(): Promise<CliArgs> {
     .usage(
       'Usage: gemini [options] [command]\n\nGemini CLI - Launch an interactive CLI, use -p/--prompt for non-interactive mode',
     )
-    .command('$0', 'Launch Gemini CLI', (yargsInstance) =>
+    .command('$0 [scriptPath]', 'Launch Gemini CLI', (yargsInstance) =>
       yargsInstance
         .option('model', {
           alias: 'm',
@@ -231,14 +231,14 @@ export async function parseArguments(): Promise<CliArgs> {
           description: 'Launch the Electron GUI app.',
         })
         .command('gui', 'Launch the Electron GUI app.')
-            .check((argv) => {
-              if (argv.prompt && argv.promptInteractive) {
-                throw new Error(
-                  'Cannot use both --prompt (-p) and --prompt-interactive (-i) together',
-                );
-              }
-              return true;
-            }),
+        .check((argv) => {
+          if (argv.prompt && argv.promptInteractive) {
+            throw new Error(
+              'Cannot use both --prompt (-p) and --prompt-interactive (-i) together',
+            );
+          }
+          return true;
+        }),
     )
     // Register MCP subcommands
     .command(mcpCommand)

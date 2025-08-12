@@ -86,13 +86,19 @@ describe('preload script', () => {
     it('sends resize events', () => {
       const size = { cols: 80, rows: 24 };
       exposedApi.terminal.resize(size);
-      expect(mockIpcRenderer.send).toHaveBeenCalledWith('terminal.resize', size);
+      expect(mockIpcRenderer.send).toHaveBeenCalledWith(
+        'terminal.resize',
+        size,
+      );
     });
 
     it('listens for reset events', () => {
       const callback = () => {};
       exposedApi.terminal.onReset(callback);
-      expect(mockIpcRenderer.on).toHaveBeenCalledWith('terminal.reset', callback);
+      expect(mockIpcRenderer.on).toHaveBeenCalledWith(
+        'terminal.reset',
+        callback,
+      );
     });
   });
 
