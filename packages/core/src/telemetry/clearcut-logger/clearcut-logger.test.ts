@@ -212,6 +212,12 @@ describe('ClearcutLogger', () => {
       },
       {
         env: {
+          __COG_BASHRC_SOURCED: 'true',
+        },
+        expectedValue: 'DEVIN',
+      },
+      {
+        env: {
           CLOUD_SHELL: 'true',
         },
         expectedValue: 'CLOUD_SHELL',

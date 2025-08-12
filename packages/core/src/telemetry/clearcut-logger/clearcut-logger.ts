@@ -84,7 +84,9 @@ export interface LogRequest {
  * methods might have in their runtimes.
  */
 function determineSurface(): string {
-  if (process.env.REPLIT_USER) {
+  if (process.env.__COG_BASHRC_SOURCED) {
+    return 'DEVIN';
+  } else if (process.env.REPLIT_USER) {
     return 'REPLIT';
   } else if (process.env.CURSOR_TRACE_ID) {
     return 'CURSOR';
