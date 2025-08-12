@@ -10,7 +10,6 @@ import {
   it,
   expect,
   afterEach,
-  beforeEach,
   beforeAll,
   afterAll,
 } from 'vitest';
