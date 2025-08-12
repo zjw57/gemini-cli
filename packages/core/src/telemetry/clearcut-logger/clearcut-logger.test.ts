@@ -43,17 +43,14 @@ afterAll(() => {
   server.close();
 });
 
-// TODO(richieforeman): Consider moving this to test setup globally.
-beforeAll(() => {
-  server.listen({});
+let originalEnv = process.env;
+
+beforeEach(() => {
+  process.env = { ...originalEnv };
 });
 
 afterEach(() => {
-  server.resetHandlers();
-});
-
-afterAll(() => {
-  server.close();
+  process.env = originalEnv;
 });
 
 describe('ClearcutLogger', () => {
@@ -61,11 +58,6 @@ describe('ClearcutLogger', () => {
   const CLEARCUT_URL = 'https://play.googleapis.com/log';
   const MOCK_DATE = new Date('2025-01-02T00:00:00.000Z');
   const EXAMPLE_RESPONSE = `["${NEXT_WAIT_MS}",null,[[["ANDROID_BACKUP",0],["BATTERY_STATS",0],["SMART_SETUP",0],["TRON",0]],-3334737594024971225],[]]`;
-  const NEXT_WAIT_MS = 1234;
-  const CLEARCUT_URL = 'https://play.googleapis.com/log';
-  const MOCK_DATE = new Date('2025-01-02T00:00:00.000Z');
-  const EXAMPLE_RESPONSE = `["${NEXT_WAIT_MS}",null,[[["ANDROID_BACKUP",0],["BATTERY_STATS",0],["SMART_SETUP",0],["TRON",0]],-3334737594024971225],[]]`;
-
   // A helper to get the internal events array for testing
   const getEvents = (l: ClearcutLogger): LogEventEntry[][] =>
     l['events'].toArray() as LogEventEntry[][];
@@ -74,16 +66,6 @@ describe('ClearcutLogger', () => {
 
   const requeueFailedEvents = (l: ClearcutLogger, events: LogEventEntry[][]) =>
     l['requeueFailedEvents'](events);
-
-  let originalEnv = process.env;
-
-  beforeEach(() => {
-    process.env = { ...originalEnv };
-  });
-
-  afterEach(() => {
-    process.env = originalEnv;
-  });
 
   function setup({
     config = {} as Partial<ConfigParameters>,
@@ -109,10 +91,6 @@ describe('ClearcutLogger', () => {
     );
     mockUserId.getInstallationId.mockReturnValue(installationId);
 
-    const logger = ClearcutLogger.getInstance(loggerConfig);
-
-    return { logger, loggerConfig };
-  }
     const logger = ClearcutLogger.getInstance(loggerConfig);
 
     return { logger, loggerConfig };
@@ -201,7 +179,7 @@ describe('ClearcutLogger', () => {
       ({ env, expectedValue }) => {
         const { logger } = setup({});
 
-        process.env = { ...process.env, ...env };
+        process.env = { ...env };
 
         const event = logger?.createLogEvent('abc', []);
 
@@ -247,7 +225,7 @@ describe('ClearcutLogger', () => {
       'logs the current surface for as $expectedValue, preempting vscode detection',
       ({ env, expectedValue }) => {
         const { logger } = setup({});
-        process.env = { ...process.env, ...env, TERM_PROGRAM: 'vscode' };
+        process.env = { ...env, TERM_PROGRAM: 'vscode' };
         const event = logger?.createLogEvent('abc', []);
         expect(event?.event_metadata[0][1]).toEqual({
           gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
