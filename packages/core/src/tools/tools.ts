@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FunctionDeclaration, PartListUnion, Schema } from '@google/genai';
+import { FunctionDeclaration, PartListUnion } from '@google/genai';
 import { ToolErrorType } from './tool-error.js';
 import { DiffUpdateResult } from '../ide/ideContext.js';
 
@@ -48,6 +48,34 @@ export interface ToolInvocation<
    * @returns Result of the tool execution.
    */
   execute(
+    signal: AbortSignal,
+    updateOutput?: (output: string) => void,
+  ): Promise<TResult>;
+}
+
+/**
+ * A convenience base class for ToolInvocation.
+ */
+export abstract class BaseToolInvocation<
+  TParams extends object,
+  TResult extends ToolResult,
+> implements ToolInvocation<TParams, TResult>
+{
+  constructor(readonly params: TParams) {}
+
+  abstract getDescription(): string;
+
+  toolLocations(): ToolLocation[] {
+    return [];
+  }
+
+  shouldConfirmExecute(
+    _abortSignal: AbortSignal,
+  ): Promise<ToolCallConfirmationDetails | false> {
+    return Promise.resolve(false);
+  }
+
+  abstract execute(
     signal: AbortSignal,
     updateOutput?: (output: string) => void,
   ): Promise<TResult>;
@@ -158,7 +186,7 @@ export abstract class DeclarativeTool<
     readonly displayName: string,
     readonly description: string,
     readonly icon: Icon,
-    readonly parameterSchema: Schema,
+    readonly parameterSchema: unknown,
     readonly isOutputMarkdown: boolean = true,
     readonly canUpdateOutput: boolean = false,
   ) {}
@@ -167,7 +195,7 @@ export abstract class DeclarativeTool<
     return {
       name: this.name,
       description: this.description,
-      parameters: this.parameterSchema,
+      parametersJsonSchema: this.parameterSchema,
     };
   }
 
@@ -253,14 +281,14 @@ export abstract class BaseTool<
    * @param description Description of what the tool does
    * @param isOutputMarkdown Whether the tool's output should be rendered as markdown
    * @param canUpdateOutput Whether the tool supports live (streaming) output
-   * @param parameterSchema Open API 3.0 Schema defining the parameters
+   * @param parameterSchema JSON Schema defining the parameters
    */
   constructor(
     readonly name: string,
     readonly displayName: string,
     readonly description: string,
     readonly icon: Icon,
-    readonly parameterSchema: Schema,
+    readonly parameterSchema: unknown,
     readonly isOutputMarkdown: boolean = true,
     readonly canUpdateOutput: boolean = false,
   ) {
@@ -470,6 +498,14 @@ export interface FileDiff {
   fileName: string;
   originalContent: string | null;
   newContent: string;
+  diffStat?: DiffStat;
+}
+
+export interface DiffStat {
+  ai_removed_lines: number;
+  ai_added_lines: number;
+  user_added_lines: number;
+  user_removed_lines: number;
 }
 
 export interface ToolEditConfirmationDetails {
