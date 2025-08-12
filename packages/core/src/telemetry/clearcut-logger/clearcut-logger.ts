@@ -5,7 +5,6 @@
  */
 
 import { HttpsProxyAgent } from 'https-proxy-agent';
-import fetch from 'node-fetch';
 import {
   StartSessionEvent,
   EndSessionEvent,
@@ -90,13 +89,13 @@ function determineSurface(): string {
     return 'REPLIT';
   } else if (process.env.CURSOR_TRACE_ID) {
     return 'CURSOR';
-  }  else if (process.env.GITHUB_SHA) {
+  } else if (process.env.GITHUB_SHA) {
     return 'GITHUB_ACTION';
   } else if (process.env.CLOUD_SHELL === 'true') {
     return 'CLOUD_SHELL';
   } else if (process.env.MONOSPACE_ENV === 'true') {
     return 'FIREBASE_STUDIO';
-  } else if(process.env.TERM_PROGRAM === 'vscode') {
+  } else if (process.env.TERM_PROGRAM === 'vscode') {
     return 'VSCODE';
   } else {
     return process.env.SURFACE || 'SURFACE_NOT_SET';
@@ -263,7 +262,6 @@ export class ClearcutLogger {
 
     try {
       const response = await fetch(CLEARCUT_URL, {
-        agent: this.getProxyAgent(),
         method: 'POST',
         body: safeJsonStringify(request),
         headers: {

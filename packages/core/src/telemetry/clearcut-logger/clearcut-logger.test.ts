@@ -43,7 +43,24 @@ afterAll(() => {
   server.close();
 });
 
+// TODO(richieforeman): Consider moving this to test setup globally.
+beforeAll(() => {
+  server.listen({});
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
+
 describe('ClearcutLogger', () => {
+  const NEXT_WAIT_MS = 1234;
+  const CLEARCUT_URL = 'https://play.googleapis.com/log';
+  const MOCK_DATE = new Date('2025-01-02T00:00:00.000Z');
+  const EXAMPLE_RESPONSE = `["${NEXT_WAIT_MS}",null,[[["ANDROID_BACKUP",0],["BATTERY_STATS",0],["SMART_SETUP",0],["TRON",0]],-3334737594024971225],[]]`;
   const NEXT_WAIT_MS = 1234;
   const CLEARCUT_URL = 'https://play.googleapis.com/log';
   const MOCK_DATE = new Date('2025-01-02T00:00:00.000Z');
@@ -92,6 +109,10 @@ describe('ClearcutLogger', () => {
     );
     mockUserId.getInstallationId.mockReturnValue(installationId);
 
+    const logger = ClearcutLogger.getInstance(loggerConfig);
+
+    return { logger, loggerConfig };
+  }
     const logger = ClearcutLogger.getInstance(loggerConfig);
 
     return { logger, loggerConfig };
