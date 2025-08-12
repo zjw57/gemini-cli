@@ -166,21 +166,30 @@ describe('ClearcutLogger', () => {
         expectedValue: 'FIREBASE_STUDIO',
       },
       {
+        env: {
+          REPLIT_USER: 'johnstamos',
+        },
+        expectedValue: 'REPLIT',
+      },
+      {
         env: {},
         expectedValue: 'SURFACE_NOT_SET',
-      }
-    ])('logs the current surface for $expectedValue', ({ env, expectedValue }) => {
-      const { logger } = setup({});
+      },
+    ])(
+      'logs the current surface for $expectedValue',
+      ({ env, expectedValue }) => {
+        const { logger } = setup({});
 
-      process.env = { ...process.env, ...env };
+        process.env = { ...process.env, ...env };
 
-      const event = logger?.createLogEvent('abc', []);
+        const event = logger?.createLogEvent('abc', []);
 
-      expect(event?.event_metadata[0][1]).toEqual({
-        gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
-        value: expectedValue,
-      });
-    });
+        expect(event?.event_metadata[0][1]).toEqual({
+          gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
+          value: expectedValue,
+        });
+      },
+    );
 
     it.each([
       {
@@ -206,16 +215,19 @@ describe('ClearcutLogger', () => {
           CLOUD_SHELL: 'true',
         },
         expectedValue: 'CLOUD_SHELL',
-      }
-    ])('logs the current surface for as $expectedValue, preempting vscode detection', ({env, expectedValue}) => {
-      const { logger } = setup({});
-      process.env = { ...process.env, ...env, TERM_PROGRAM: 'vscode' };
-      const event = logger?.createLogEvent('abc', []);
-      expect(event?.event_metadata[0][1]).toEqual({
-        gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
-        value: expectedValue,
-      });
-    });
+      },
+    ])(
+      'logs the current surface for as $expectedValue, preempting vscode detection',
+      ({ env, expectedValue }) => {
+        const { logger } = setup({});
+        process.env = { ...process.env, ...env, TERM_PROGRAM: 'vscode' };
+        const event = logger?.createLogEvent('abc', []);
+        expect(event?.event_metadata[0][1]).toEqual({
+          gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
+          value: expectedValue,
+        });
+      },
+    );
   });
 
   describe('enqueueLogEvent', () => {

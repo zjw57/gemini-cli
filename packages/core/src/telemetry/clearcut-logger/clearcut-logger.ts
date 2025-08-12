@@ -84,7 +84,9 @@ export interface LogRequest {
  * methods might have in their runtimes.
  */
 function determineSurface(): string {
-  if (process.env.CURSOR_TRACE_ID) {
+  if (process.env.REPLIT_USER) {
+    return 'REPLIT';
+  } else if (process.env.CURSOR_TRACE_ID) {
     return 'CURSOR';
   }  else if (process.env.GITHUB_SHA) {
     return 'GITHUB_ACTION';
