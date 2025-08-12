@@ -84,7 +84,9 @@ export interface LogRequest {
  * methods might have in their runtimes.
  */
 function determineSurface(): string {
-  if (process.env.CLOUD_SHELL === 'true') {
+  if (process.env.GITHUB_SHA) {
+    return 'GITHUB_ACTION';
+  } else if (process.env.CLOUD_SHELL === 'true') {
     return 'CLOUD_SHELL';
   } else if (process.env.MONOSPACE_ENV === 'true') {
     return 'FIREBASE_STUDIO';

@@ -10,6 +10,7 @@ import {
   it,
   expect,
   afterEach,
+  beforeEach,
   beforeAll,
   afterAll,
 } from 'vitest';
@@ -56,6 +57,16 @@ describe('ClearcutLogger', () => {
 
   const requeueFailedEvents = (l: ClearcutLogger, events: LogEventEntry[][]) =>
     l['requeueFailedEvents'](events);
+
+  let originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
 
   function setup({
     config = {} as Partial<ConfigParameters>,
@@ -135,14 +146,39 @@ describe('ClearcutLogger', () => {
       });
     });
 
-    it('logs the current surface', () => {
+    it.each([
+      {
+        env: {
+          GITHUB_SHA: 'abc13',
+        },
+        expectedValue: 'GITHUB_ACTION',
+      },
+      {
+        env: {
+          CLOUD_SHELL: 'true',
+        },
+        expectedValue: 'CLOUD_SHELL',
+      },
+      {
+        env: {
+          MONOSPACE_ENV: 'true',
+        },
+        expectedValue: 'FIREBASE_STUDIO',
+      },
+      {
+        env: {},
+        expectedValue: 'SURFACE_NOT_SET',
+      }
+    ])('logs the current surface for $expectedValue', ({ env, expectedValue }) => {
       const { logger } = setup({});
+
+      process.env = { ...process.env, ...env };
 
       const event = logger?.createLogEvent('abc', []);
 
       expect(event?.event_metadata[0][1]).toEqual({
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
-        value: 'SURFACE_NOT_SET',
+        value: expectedValue,
       });
     });
   });
