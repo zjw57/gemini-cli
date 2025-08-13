@@ -148,17 +148,19 @@ export class GeminiChat {
       ...adkGenerationConfig
     } = this.generationConfig;
 
+    const adkTools = (toolRegistry.getAllTools().map(
+      (tool) => new AdkToolAdapter(tool as AnyDeclarativeTool))
+    );
+
     this.agent = new LlmAgent({
       name: 'GeminiCLI',
       model: this.config.getModel(),
       instruction: systemInstruction as string,
-      tools: toolRegistry
-        .getAllTools()
-        .map((tool) => new AdkToolAdapter(tool as AnyDeclarativeTool)),
+      tools: adkTools,
       generateContentConfig: adkGenerationConfig,
       // planner: thinkingConfig, // Not implemented yet.
     });
-
+    
     const appName = this.agent.name;
     this.runner = new InMemoryRunner({ agent: this.agent, appName });
   }
