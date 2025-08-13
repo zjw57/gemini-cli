@@ -15,10 +15,10 @@ import {
   ToolEditConfirmationDetails,
   ToolConfirmationOutcome,
   ToolCallConfirmationDetails,
-  Icon,
+  Kind,
+  ToolLocation,
 } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
-import { Type } from '@google/genai';
 import { SchemaValidator } from '../utils/schemaValidator.js';
 import { makeRelative, shortenPath } from '../utils/paths.js';
 import { getErrorMessage, isNodeError } from '../utils/errors.js';
@@ -83,27 +83,34 @@ export class WriteFileTool
       `Writes content to a specified file in the local filesystem.
 
       The user has the ability to modify \`content\`. If modified, this will be stated in the response.`,
-      Icon.Pencil,
+      Kind.Edit,
       {
         properties: {
           file_path: {
             description:
               "The absolute path to the file to write to (e.g., '/home/user/project/file.txt'). Relative paths are not supported.",
-            type: Type.STRING,
+            type: 'string',
           },
           content: {
             description: 'The content to write to the file.',
-            type: Type.STRING,
+            type: 'string',
           },
         },
         required: ['file_path', 'content'],
-        type: Type.OBJECT,
+        type: 'object',
       },
     );
   }
 
+  toolLocations(params: WriteFileToolParams): ToolLocation[] {
+    return [{ path: params.file_path }];
+  }
+
   validateToolParams(params: WriteFileToolParams): string | null {
-    const errors = SchemaValidator.validate(this.schema.parameters, params);
+    const errors = SchemaValidator.validate(
+      this.schema.parametersJsonSchema,
+      params,
+    );
     if (errors) {
       return errors;
     }
@@ -193,7 +200,6 @@ export class WriteFileTool
 
     const ideClient = this.config.getIdeClient();
     const ideConfirmation =
-      this.config.getIdeModeFeature() &&
       this.config.getIdeMode() &&
       ideClient.getConnectionStatus().status === IDEConnectionStatus.Connected
         ? ideClient.openDiff(params.file_path, correctedContent)
