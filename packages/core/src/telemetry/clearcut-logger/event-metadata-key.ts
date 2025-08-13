@@ -173,6 +173,45 @@ export enum EventMetadataKey {
 
   // Logs the subcommand of the slash command.
   GEMINI_CLI_SLASH_COMMAND_SUBCOMMAND = 42,
+
+  // Logs the status of the slash command (e.g. 'success', 'error')
+  GEMINI_CLI_SLASH_COMMAND_STATUS = 51,
+
+  // ==========================================================================
+  // Next Speaker Check Event Keys
+  // ===========================================================================
+
+  // Logs the finish reason of the previous streamGenerateContent response
+  GEMINI_CLI_RESPONSE_FINISH_REASON = 43,
+
+  // Logs the result of the next speaker check
+  GEMINI_CLI_NEXT_SPEAKER_CHECK_RESULT = 44,
+
+  // ==========================================================================
+  // Malformed JSON Response Event Keys
+  // ==========================================================================
+
+  // Logs the model that produced the malformed JSON response.
+  GEMINI_CLI_MALFORMED_JSON_RESPONSE_MODEL = 45,
+
+  // ==========================================================================
+  // IDE Connection Event Keys
+  // ===========================================================================
+
+  // Logs the type of the IDE connection.
+  GEMINI_CLI_IDE_CONNECTION_TYPE = 46,
+
+  // Logs AI added lines in edit/write tool response.
+  GEMINI_CLI_AI_ADDED_LINES = 47,
+
+  // Logs AI removed lines in edit/write tool response.
+  GEMINI_CLI_AI_REMOVED_LINES = 48,
+
+  // Logs user added lines in edit/write tool response.
+  GEMINI_CLI_USER_ADDED_LINES = 49,
+
+  // Logs user removed lines in edit/write tool response.
+  GEMINI_CLI_USER_REMOVED_LINES = 50,
 }
 
 export function getEventMetadataKey(
