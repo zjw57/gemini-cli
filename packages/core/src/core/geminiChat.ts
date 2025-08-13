@@ -210,8 +210,6 @@ export class GeminiChat {
 
     const model = this.config.getModel();
 
-    this._logApiRequest(requestContents, model, prompt_id);
-
     const startTime = Date.now();
     let response: GenerateContentResponse;
 
@@ -317,10 +315,6 @@ export class GeminiChat {
     const userContent = createUserContent(params.message);
     const requestContents = this.getHistory(true).concat(userContent);
 
-    this._logApiRequest(requestContents, modelToUse, prompt_id);
-
-    const startTime = Date.now();
-
     try {
       const apiCall = () => {
         // Prevent Flash model calls immediately after quota error
@@ -332,6 +326,8 @@ export class GeminiChat {
             'Please submit a new query to continue with the Flash model.',
           );
         }
+
+        console.log(`The model about to be used is: ${modelToUse}`);
         return this.contentGenerator.generateContentStream(
           {
             model: modelToUse,

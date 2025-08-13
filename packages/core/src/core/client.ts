@@ -116,6 +116,7 @@ export class GeminiClient {
 
   private readonly loopDetector: LoopDetectionService;
   private lastPromptId: string;
+  private currentSequenceModel: string | null = null;
   private lastSentIdeContext: IdeContext | undefined;
   private forceFullIdeContext = true;
 
@@ -448,6 +449,7 @@ export class GeminiClient {
     if (this.lastPromptId !== prompt_id) {
       this.loopDetector.reset(prompt_id);
       this.lastPromptId = prompt_id;
+      this.currentSequenceModel = null;
     }
     this.sessionTurnCount++;
     if (
@@ -508,11 +510,24 @@ export class GeminiClient {
       signal,
     };
 
-    const router = this.config.getModelRouterService();
-    const decision = await router.route(routingContext, this);
-    this.config.setModel(decision.model);
+    let modelToUse: string;
 
-    const resultStream = turn.run(request, signal, decision.model);
+    // Determine Model (Stickiness vs. Routing)
+    if (this.currentSequenceModel) {
+      modelToUse = this.currentSequenceModel;
+    } else {
+      if (this.config.isInFallbackMode()) {
+        modelToUse = DEFAULT_GEMINI_FLASH_MODEL;
+      } else {
+        const router = this.config.getModelRouterService();
+        const decision = await router.route(routingContext, this);
+        modelToUse = decision.model;
+      }
+      // Lock the model for the rest of the sequence
+      this.currentSequenceModel = modelToUse;
+    }
+
+    const resultStream = turn.run(request, signal, modelToUse);
     for await (const event of resultStream) {
       if (this.loopDetector.addAndCheck(event)) {
         yield { type: GeminiEventType.LoopDetected };
@@ -612,7 +627,7 @@ export class GeminiClient {
         );
         throw error;
       }
-            const prefix = '```json';
+      const prefix = '```json';
       const suffix = '```';
       if (text.startsWith(prefix) && text.endsWith(suffix)) {
         ClearcutLogger.getInstance(this.config)?.logMalformedJsonResponseEvent(

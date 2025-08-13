@@ -6,14 +6,12 @@
 
 import { Config } from '../config/config.js';
 import { GeminiClient } from '../core/client.js';
-import { DefaultStrategy } from './strategies/defaultStrategy.js';
 import {
   RoutingContext,
   RoutingDecision,
   RoutingStrategy,
 } from './routingStrategy.js';
 import { ClassifierStrategy } from './strategies/classifierStrategy.js';
-import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/config.js';
 
 /**
  * A centralized service for making model routing decisions.
@@ -24,7 +22,6 @@ export class ModelRouterService {
 
   constructor(config: Config) {
     this.config = config;
-    // this.strategy = new DefaultStrategy(config);
     this.strategy = new ClassifierStrategy();
   }
 
@@ -47,23 +44,6 @@ export class ModelRouterService {
     //     reason: 'Cannot route to Flash for history with less than 5 parts.',
     //   };
     // }
-
-    // For function responses or next speaker checks, use the current model.
-    const turnType = context.turnContext.turnType;
-    if (turnType === 'tool_response' || turnType === 'next_speaker_request') {
-      return {
-        model: this.config.getModel(),
-        reason: `Bypass routing for turn type: ${turnType}`,
-      };
-    }
-
-    // If we are in fallback, we should switch to the Flash model.
-    if (this.config.isInFallbackMode()) {
-      return {
-        model: DEFAULT_GEMINI_FLASH_MODEL,
-        reason: `Routing to ${DEFAULT_GEMINI_FLASH_MODEL} due to quota fallback.`,
-      };
-    }
 
     // Honor the override mechanism.
     if (context.forcedModel) {

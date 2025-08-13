@@ -164,7 +164,9 @@ export class ClassifierStrategy implements RoutingStrategy {
       );
 
       if (routerResponse.model_choice === FLASH_MODEL) {
-        console.log(`Model chosen: ${FLASH_MODEL}, \nReasoning:\n${routerResponse.reasoning}`);
+        console.log(
+          `Model chosen: ${FLASH_MODEL}, \nReasoning:\n${routerResponse.reasoning}`,
+        );
         // Currently, due to a model bug, using Flash as one of the first few requests causes empty token responses.
         // Due to this, we will temporarily avoid routing for the first 5 parts in the history.
         return {
@@ -175,7 +177,9 @@ export class ClassifierStrategy implements RoutingStrategy {
           reason: `ClassifierStrategy: ${routerResponse.reasoning}`,
         };
       } else {
-        console.log(`Model chosen: ${PRO_MODEL}, \nReasoning:\n${routerResponse.reasoning}`);
+        console.log(
+          `Model chosen: ${PRO_MODEL}, \nReasoning:\n${routerResponse.reasoning}`,
+        );
         return {
           model: DEFAULT_GEMINI_MODEL,
           reason: `ClassifierStrategy: ${routerResponse.reasoning}`,
@@ -188,9 +192,9 @@ export class ClassifierStrategy implements RoutingStrategy {
         )}. Defaulting to flash model.`,
       );
       return {
-        model: DEFAULT_GEMINI_FLASH_MODEL,
+        model: DEFAULT_GEMINI_MODEL,
         reason:
-          'ClassifierStrategy: Failed to classify, defaulting to flash model.',
+          'ClassifierStrategy: Failed to classify, defaulting to pro model.',
       };
     }
   }
