@@ -174,7 +174,7 @@ ${textContent}
     return null;
   }
 
-  getDescription(params: WebFetchToolParams): string {
+  override getDescription(params: WebFetchToolParams): string {
     const displayPrompt =
       params.prompt.length > 100
         ? params.prompt.substring(0, 97) + '...'
@@ -182,7 +182,7 @@ ${textContent}
     return `Processing URLs and instructions from prompt: "${displayPrompt}"`;
   }
 
-  async shouldConfirmExecute(
+  override async shouldConfirmExecute(
     params: WebFetchToolParams,
   ): Promise<ToolCallConfirmationDetails | false> {
     if (this.config.getApprovalMode() === ApprovalMode.AUTO_EDIT) {

@@ -119,7 +119,7 @@ export class LSTool extends BaseTool<LSToolParams, ToolResult> {
    * @param params Parameters to validate
    * @returns An error message string if invalid, null otherwise
    */
-  validateToolParams(params: LSToolParams): string | null {
+  override validateToolParams(params: LSToolParams): string | null {
     const errors = SchemaValidator.validate(
       this.schema.parametersJsonSchema,
       params,
@@ -168,7 +168,7 @@ export class LSTool extends BaseTool<LSToolParams, ToolResult> {
    * @param params Parameters for the file reading
    * @returns A string describing the file being read
    */
-  getDescription(params: LSToolParams): string {
+  override getDescription(params: LSToolParams): string {
     const relativePath = makeRelative(params.path, this.config.getTargetDir());
     return shortenPath(relativePath);
   }

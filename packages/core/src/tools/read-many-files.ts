@@ -245,7 +245,7 @@ Use this tool when the user's query implies needing the content of several files
     return null;
   }
 
-  getDescription(params: ReadManyFilesParams): string {
+  override getDescription(params: ReadManyFilesParams): string {
     const allPatterns = [...params.paths, ...(params.include || [])];
     const pathDesc = `using patterns: \`${allPatterns.join('`, `')}\` (within target directory: \`${this.config.getTargetDir()}\`)`;
 

@@ -58,7 +58,7 @@ export class DiscoveredMCPTool extends BaseTool<ToolParams, ToolResult> {
     readonly serverName: string,
     readonly serverToolName: string,
     description: string,
-    readonly parameterSchema: unknown,
+    override readonly parameterSchema: unknown,
     readonly timeout?: number,
     readonly trust?: boolean,
     nameOverride?: string,
@@ -87,7 +87,7 @@ export class DiscoveredMCPTool extends BaseTool<ToolParams, ToolResult> {
     );
   }
 
-  async shouldConfirmExecute(
+  override async shouldConfirmExecute(
     _params: ToolParams,
     _abortSignal: AbortSignal,
   ): Promise<ToolCallConfirmationDetails | false> {

@@ -127,7 +127,7 @@ export class MemoryTool
     );
   }
 
-  getDescription(_params: SaveMemoryParams): string {
+  override getDescription(_params: SaveMemoryParams): string {
     const memoryFilePath = getGlobalMemoryFilePath();
     return `in ${tildeifyPath(memoryFilePath)}`;
   }
@@ -189,7 +189,7 @@ export class MemoryTool
     }
   }
 
-  async shouldConfirmExecute(
+  override async shouldConfirmExecute(
     params: SaveMemoryParams,
     _abortSignal: AbortSignal,
   ): Promise<ToolEditConfirmationDetails | false> {

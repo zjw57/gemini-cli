@@ -509,11 +509,6 @@ describe('memoryImportProcessor', () => {
       expect(result.importTree.imports).toHaveLength(2);
 
       // First import: nested.md
-      // Prefix with underscore to indicate they're intentionally unused
-      const _expectedNestedPath = testPath(projectRoot, 'src', 'nested.md');
-      const _expectedInnerPath = testPath(projectRoot, 'src', 'inner.md');
-      const _expectedSimplePath = testPath(projectRoot, 'src', 'simple.md');
-
       // Check that the paths match using includes to handle potential absolute/relative differences
       expect(result.importTree.imports![0].path).toContain('nested.md');
       expect(result.importTree.imports![0].imports).toHaveLength(1);
@@ -724,11 +719,6 @@ describe('memoryImportProcessor', () => {
       expect(result.importTree.imports).toHaveLength(2);
 
       // First import: nested.md
-      // Prefix with underscore to indicate they're intentionally unused
-      const _expectedNestedPath = testPath(projectRoot, 'src', 'nested.md');
-      const _expectedInnerPath = testPath(projectRoot, 'src', 'inner.md');
-      const _expectedSimplePath = testPath(projectRoot, 'src', 'simple.md');
-
       // Check that the paths match using includes to handle potential absolute/relative differences
       expect(result.importTree.imports![0].path).toContain('nested.md');
       expect(result.importTree.imports![0].imports).toHaveLength(1);
@@ -899,7 +889,7 @@ describe('memoryImportProcessor', () => {
 
       // Test relative paths - resolve them against basePath
       const relativePath = './file.md';
-      const _resolvedRelativePath = path.resolve(basePath, relativePath);
+      path.resolve(basePath, relativePath);
       expect(validateImportPath(relativePath, basePath, [basePath])).toBe(true);
 
       // Test parent directory access (should be allowed if parent is in allowed paths)
@@ -907,12 +897,12 @@ describe('memoryImportProcessor', () => {
       if (parentPath !== basePath) {
         // Only test if parent is different
         const parentRelativePath = '../file.md';
-        const _resolvedParentPath = path.resolve(basePath, parentRelativePath);
+        path.resolve(basePath, parentRelativePath);
         expect(
           validateImportPath(parentRelativePath, basePath, [parentPath]),
         ).toBe(true);
 
-        const _resolvedSubPath = path.resolve(basePath, 'sub');
+        path.resolve(basePath, 'sub');
         const resultSub = validateImportPath('sub', basePath, [basePath]);
         expect(resultSub).toBe(true);
       }

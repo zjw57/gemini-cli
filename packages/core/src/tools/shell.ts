@@ -87,7 +87,7 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
     );
   }
 
-  getDescription(params: ShellToolParams): string {
+  override getDescription(params: ShellToolParams): string {
     let description = `${params.command}`;
     // append optional [in directory]
     // note description is needed even if validation fails due to absolute path
@@ -101,7 +101,7 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
     return description;
   }
 
-  validateToolParams(params: ShellToolParams): string | null {
+  override validateToolParams(params: ShellToolParams): string | null {
     const commandCheck = isCommandAllowed(params.command, this.config);
     if (!commandCheck.allowed) {
       if (!commandCheck.reason) {
@@ -145,7 +145,7 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
     return null;
   }
 
-  async shouldConfirmExecute(
+  override async shouldConfirmExecute(
     params: ShellToolParams,
     _abortSignal: AbortSignal,
   ): Promise<ToolCallConfirmationDetails | false> {
