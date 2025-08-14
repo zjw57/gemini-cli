@@ -236,7 +236,7 @@ describe('ClearcutLogger', () => {
           vi.stubEnv(key, value);
         }
         vi.stubEnv('TERM_PROGRAM', 'vscode');
-        const event = logger?.createLogEvent('abc', []);
+        const event = logger?.createLogEvent(FAKE_TELEMETRY_EVENT, []);
         expect(event?.event_metadata[0][1]).toEqual({
           gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
           value: expectedValue,
