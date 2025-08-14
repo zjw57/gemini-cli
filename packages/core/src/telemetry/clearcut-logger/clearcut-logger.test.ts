@@ -94,6 +94,10 @@ describe('ClearcutLogger', () => {
   const requeueFailedEvents = (l: ClearcutLogger, events: LogEventEntry[][]) =>
     l['requeueFailedEvents'](events);
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   function setup({
     config = {} as Partial<ConfigParameters>,
     lifetimeGoogleAccounts = 1,
@@ -175,13 +179,68 @@ describe('ClearcutLogger', () => {
     it('logs the current surface', () => {
       const { logger } = setup({});
 
+      vi.stubEnv('TERM_PROGRAM', 'vscode');
+      vi.stubEnv('SURFACE', 'ide-1234');
+
       const event = logger?.createLogEvent(FAKE_TELEMETRY_EVENT, []);
 
       expect(event?.event_metadata[0][1]).toEqual({
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
-        value: 'SURFACE_NOT_SET',
+        value: 'ide-1234',
       });
     });
+
+    it.each([
+      {
+        env: {
+          CURSOR_TRACE_ID: 'abc123',
+          GITHUB_SHA: undefined,
+        },
+        expectedValue: 'cursor',
+      },
+      {
+        env: {
+          TERM_PROGRAM: 'vscode',
+          GITHUB_SHA: undefined,
+        },
+        expectedValue: 'vscode',
+      },
+      {
+        env: {
+          MONOSPACE_ENV: 'true',
+          GITHUB_SHA: undefined,
+        },
+        expectedValue: 'firebasestudio',
+      },
+      {
+        env: {
+          __COG_BASHRC_SOURCED: 'true',
+          GITHUB_SHA: undefined,
+        },
+        expectedValue: 'devin',
+      },
+      {
+        env: {
+          CLOUD_SHELL: 'true',
+          GITHUB_SHA: undefined,
+        },
+        expectedValue: 'cloudshell',
+      },
+    ])(
+      'logs the current surface for as $expectedValue, preempting vscode detection',
+      ({ env, expectedValue }) => {
+        const { logger } = setup({});
+        for (const [key, value] of Object.entries(env)) {
+          vi.stubEnv(key, value);
+        }
+        vi.stubEnv('TERM_PROGRAM', 'vscode');
+        const event = logger?.createLogEvent('abc', []);
+        expect(event?.event_metadata[0][1]).toEqual({
+          gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
+          value: expectedValue,
+        });
+      },
+    );
   });
 
   describe('logChatCompressionEvent', () => {
