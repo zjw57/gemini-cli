@@ -14,7 +14,6 @@ import {
   DEFAULT_GEMINI_FLASH_MODEL,
   DEFAULT_GEMINI_MODEL,
 } from '../../config/models.js';
-import { getErrorMessage } from '../../utils/errors.js';
 import { createUserContent, GenerateContentConfig, Type } from '@google/genai';
 import { DEFAULT_GEMINI_FLASH_LITE_MODEL } from '../../config/models.js';
 import {
@@ -25,6 +24,9 @@ import {
 const CLASSIFIER_GENERATION_CONFIG: GenerateContentConfig = {
   temperature: 0,
   maxOutputTokens: 200,
+  thinkingConfig: {
+    thinkingBudget: 0,
+  },
 };
 
 // The number of recent history turns to provide to the router for context.
@@ -141,60 +143,67 @@ export class ClassifierStrategy implements RoutingStrategy {
     context: RoutingContext,
     client: GeminiClient,
   ): Promise<RoutingDecision> {
+    const startTime = Date.now();
+
     const historySlice = context.history.slice(-HISTORY_SEARCH_WINDOW);
 
     // The classifier only needs conversational text. Filter out tool-related turns.
-    const cleanHistory = historySlice.filter((content) => {
-      return !isFunctionCall(content) && !isFunctionResponse(content);
-    });
+    // TODO - Consider using function req/res if they help accuracy.
+    const cleanHistory = historySlice.filter(
+      (content) => !isFunctionCall(content) && !isFunctionResponse(content),
+    );
 
     // Take the last N turns from the *cleaned* history.
     const finalHistory = cleanHistory.slice(-HISTORY_TURNS_FOR_CONTEXT);
 
-    try {
-      const routerResponse = await client.generateJson(
-        [...finalHistory, createUserContent(context.request)],
-        RESPONSE_SCHEMA,
-        context.signal,
-        DEFAULT_GEMINI_FLASH_LITE_MODEL,
-        {
-          systemInstruction: { parts: [{ text: CLASSIFIER_SYSTEM_PROMPT }] },
-          ...CLASSIFIER_GENERATION_CONFIG,
-        },
-      );
+    const routerResponse = await client.generateJson(
+      [...finalHistory, createUserContent(context.request)],
+      RESPONSE_SCHEMA,
+      context.signal,
+      DEFAULT_GEMINI_FLASH_LITE_MODEL,
+      {
+        systemInstruction: { parts: [{ text: CLASSIFIER_SYSTEM_PROMPT }] },
+        ...CLASSIFIER_GENERATION_CONFIG,
+      },
+    );
 
-      if (routerResponse.model_choice === FLASH_MODEL) {
-        console.log(
-          `Model chosen: ${FLASH_MODEL}, \nReasoning:\n${routerResponse.reasoning}`,
-        );
-        // Currently, due to a model bug, using Flash as one of the first few requests causes empty token responses.
-        // Due to this, we will temporarily avoid routing for the first 5 parts in the history.
-        return {
-          model:
-            context.history.length < 5
-              ? DEFAULT_GEMINI_FLASH_LITE_MODEL
-              : DEFAULT_GEMINI_FLASH_MODEL,
-          reason: `ClassifierStrategy: ${routerResponse.reasoning}`,
-        };
-      } else {
-        console.log(
-          `Model chosen: ${PRO_MODEL}, \nReasoning:\n${routerResponse.reasoning}`,
-        );
-        return {
-          model: DEFAULT_GEMINI_MODEL,
-          reason: `ClassifierStrategy: ${routerResponse.reasoning}`,
-        };
-      }
-    } catch (error) {
+    const reasoning = routerResponse.reasoning as string;
+    const latencyMs = Date.now() - startTime;
+
+    if (routerResponse.model_choice === FLASH_MODEL) {
       console.log(
-        `ClassifierStrategy failed: ${getErrorMessage(
-          error,
-        )}. Defaulting to flash model.`,
+        `Model chosen: ${FLASH_MODEL},
+Reasoning:
+${reasoning}`,
+      );
+      // Currently, due to a model bug, using Flash as one of the first few requests causes empty token responses.
+      // Due to this, we will temporarily avoid routing for the first 5 parts in the history.
+      return {
+        model:
+          context.history.length < 5
+            ? DEFAULT_GEMINI_FLASH_LITE_MODEL
+            : DEFAULT_GEMINI_FLASH_MODEL,
+        reason: `ClassifierStrategy: ${reasoning}`,
+        metadata: {
+          source: 'Classifier',
+          latencyMs,
+          reasoning,
+        },
+      };
+    } else {
+      console.log(
+        `Model chosen: ${PRO_MODEL},
+Reasoning:
+${reasoning}`,
       );
       return {
         model: DEFAULT_GEMINI_MODEL,
-        reason:
-          'ClassifierStrategy: Failed to classify, defaulting to pro model.',
+        reason: `ClassifierStrategy: ${reasoning}`,
+        metadata: {
+          source: 'Classifier',
+          latencyMs,
+          reasoning,
+        },
       };
     }
   }

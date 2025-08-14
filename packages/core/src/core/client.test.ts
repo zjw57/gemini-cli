@@ -19,11 +19,16 @@ import { GeminiChat } from './geminiChat.js';
 import { Config } from '../config/config.js';
 import { GeminiEventType, Turn } from './turn.js';
 import { getCoreSystemPrompt } from './prompts.js';
-import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 import { FileDiscoveryService } from '../services/fileDiscoveryService.js';
 import { setSimulate429 } from '../utils/testUtils.js';
 import { tokenLimit } from './tokenLimits.js';
 import { ideContext } from '../ide/ideContext.js';
+import { ModelRouterService } from '../routing/modelRouterService.js';
+import { RoutingDecision } from '../routing/routingStrategy.js';
+import {
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_GEMINI_FLASH_MODEL,
+} from '../config/models.js';
 
 // --- Mocks ---
 const mockChatCreateFn = vi.fn();
@@ -73,6 +78,7 @@ vi.mock('../telemetry/index.js', () => ({
   logApiError: vi.fn(),
 }));
 vi.mock('../ide/ideContext.js');
+vi.mock('../routing/modelRouterService.js');
 
 describe('findIndexAfterFraction', () => {
   const history: Content[] = [
@@ -134,6 +140,7 @@ describe('findIndexAfterFraction', () => {
 
 describe('Gemini Client (client.ts)', () => {
   let client: GeminiClient;
+  let mockRouter: ModelRouterService;
   beforeEach(async () => {
     vi.resetAllMocks();
 
@@ -151,6 +158,13 @@ describe('Gemini Client (client.ts)', () => {
         },
       };
       return mock as unknown as GoogleGenAI;
+    });
+
+    mockRouter = new ModelRouterService(new Config({} as never));
+    vi.spyOn(mockRouter, 'route').mockResolvedValue({
+      model: DEFAULT_GEMINI_MODEL,
+      reason: 'Default mock decision',
+      metadata: { source: 'Classifier', latencyMs: 0 },
     });
 
     mockChatCreateFn.mockResolvedValue({} as Chat);
@@ -208,6 +222,8 @@ describe('Gemini Client (client.ts)', () => {
       getGeminiClient: vi.fn(),
       setFallbackMode: vi.fn(),
       getChatCompression: vi.fn().mockReturnValue(undefined),
+      getModelRouterService: vi.fn().mockReturnValue(mockRouter),
+      isInFallbackMode: vi.fn().mockReturnValue(false),
     };
     const MockedConfig = vi.mocked(Config, true);
     MockedConfig.mockImplementation(
@@ -795,6 +811,7 @@ ${JSON.stringify(
       expect(mockTurnRunFn).toHaveBeenCalledWith(
         initialRequest,
         expect.any(Object),
+        expect.any(String),
       );
     });
 
@@ -1663,6 +1680,197 @@ ${JSON.stringify(
       client.setHistory(historyWithThoughts, { stripThoughts: false });
 
       expect(mockChat.setHistory).toHaveBeenCalledWith(historyWithThoughts);
+    });
+  });
+  describe('sendMessageStream - Routing and Stickiness', () => {
+    beforeEach(() => {
+      // Setup mocks required for sendMessageStream to run without external dependencies
+      const mockStream = (async function* () {
+        yield { type: 'content', value: 'Response' };
+      })();
+      mockTurnRunFn.mockReturnValue(mockStream);
+
+      const mockChat: Partial<GeminiChat> = {
+        addHistory: vi.fn(),
+        getHistory: vi.fn().mockReturnValue([]),
+      };
+      client['chat'] = mockChat as GeminiChat;
+
+      const mockGenerator: Partial<ContentGenerator> = {
+        countTokens: vi.fn().mockResolvedValue({ totalTokens: 0 }),
+      };
+      client['contentGenerator'] = mockGenerator as ContentGenerator;
+
+      // Ensure IDE context doesn't interfere with these specific tests
+      vi.spyOn(client['config'], 'getIdeMode').mockReturnValue(false);
+    });
+
+    it('should call the router for the first request in a sequence and use the decided model', async () => {
+      const decision: RoutingDecision = {
+        model: 'routed-model-pro',
+        reason: 'Routed',
+        metadata: { source: 'Classifier', latencyMs: 10 },
+      };
+      vi.spyOn(mockRouter, 'route').mockResolvedValue(decision);
+
+      const stream = client.sendMessageStream(
+        [{ text: 'Hi' }],
+        new AbortController().signal,
+        'prompt-seq-1',
+      );
+      for await (const _ of stream) {
+        // consume stream
+      }
+
+      expect(mockRouter.route).toHaveBeenCalledTimes(1);
+      // Verify Turn.run was called with the explicit override model
+      expect(mockTurnRunFn).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(Object),
+        'routed-model-pro',
+      );
+    });
+
+    it('should NOT call the router for subsequent requests in the same sequence (Stickiness)', async () => {
+      const initialDecision: RoutingDecision = {
+        model: 'routed-model-flash',
+        reason: 'Routed Flash',
+        metadata: { source: 'Classifier', latencyMs: 10 },
+      };
+      vi.mocked(mockRouter.route).mockResolvedValue(initialDecision);
+
+      // First call (establishes the sequence model)
+      const stream1 = client.sendMessageStream(
+        [{ text: 'Request 1' }],
+        new AbortController().signal,
+        'prompt-seq-2',
+      );
+      for await (const _ of stream1) {
+        // consume stream
+      }
+
+      expect(mockRouter.route).toHaveBeenCalledTimes(1);
+
+      // Change the router's potential decision (it shouldn't matter due to stickiness)
+      vi.mocked(mockRouter.route).mockResolvedValue({
+        model: 'routed-model-pro',
+        reason: 'Changed',
+        metadata: { source: 'Classifier', latencyMs: 0 },
+      });
+
+      // Second call with the SAME prompt_id
+      const stream2 = client.sendMessageStream(
+        [{ functionResponse: { name: 'tool', response: {} } }], // Often a tool response
+        new AbortController().signal,
+        'prompt-seq-2',
+      );
+      for await (const _ of stream2) {
+        // consume stream
+      }
+
+      // Router should NOT have been called again
+      expect(mockRouter.route).toHaveBeenCalledTimes(1);
+      // It should have used the initial model
+      expect(mockTurnRunFn).toHaveBeenLastCalledWith(
+        expect.any(Object),
+        expect.any(Object),
+        'routed-model-flash',
+      );
+    });
+
+    it('should call the router again when the prompt_id changes (New Sequence)', async () => {
+      vi.mocked(mockRouter.route)
+        .mockResolvedValueOnce({
+          model: 'model-a',
+          reason: 'A',
+          metadata: { source: 'Classifier', latencyMs: 0 },
+        })
+        .mockResolvedValueOnce({
+          model: 'model-b',
+          reason: 'B',
+          metadata: { source: 'Classifier', latencyMs: 0 },
+        });
+
+      // First sequence
+      const stream1 = client.sendMessageStream(
+        [{ text: 'Hi' }],
+        new AbortController().signal,
+        'prompt-seq-3',
+      );
+      for await (const _ of stream1) {
+        // consume stream
+      }
+
+      // Second sequence
+      const stream2 = client.sendMessageStream(
+        [{ text: 'Hello again' }],
+        new AbortController().signal,
+        'prompt-seq-4', // Different ID
+      );
+      for await (const _ of stream2) {
+        // consume stream
+      }
+
+      expect(mockRouter.route).toHaveBeenCalledTimes(2);
+      expect(mockTurnRunFn).toHaveBeenLastCalledWith(
+        expect.any(Object),
+        expect.any(Object),
+        'model-b',
+      );
+    });
+
+    it('should bypass router and use Flash if in fallback mode (New Sequence)', async () => {
+      vi.spyOn(client['config'], 'isInFallbackMode').mockReturnValue(true);
+
+      const stream = client.sendMessageStream(
+        [{ text: 'Hi' }],
+        new AbortController().signal,
+        'prompt-seq-5',
+      );
+      for await (const _ of stream) {
+        // consume stream
+      }
+
+      expect(mockRouter.route).not.toHaveBeenCalled();
+      expect(mockTurnRunFn).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(Object),
+        DEFAULT_GEMINI_FLASH_MODEL,
+      );
+    });
+
+    it('should stick to the fallback model during the sequence', async () => {
+      vi.spyOn(client['config'], 'isInFallbackMode').mockReturnValue(true);
+
+      // First call (establishes fallback)
+      const stream1 = client.sendMessageStream(
+        [{ text: 'Hi' }],
+        new AbortController().signal,
+        'prompt-seq-6',
+      );
+      for await (const _ of stream1) {
+        // consume stream
+      }
+
+      // Turn off fallback mode (it shouldn't matter now due to stickiness)
+      vi.spyOn(client['config'], 'isInFallbackMode').mockReturnValue(false);
+
+      // Second call (should stick to Flash)
+      const stream2 = client.sendMessageStream(
+        [{ text: 'Continue' }],
+        new AbortController().signal,
+        'prompt-seq-6',
+      );
+      for await (const _ of stream2) {
+        // consume stream
+      }
+
+      expect(mockRouter.route).not.toHaveBeenCalled();
+      expect(mockTurnRunFn).toHaveBeenLastCalledWith(
+        expect.any(Object),
+        expect.any(Object),
+        DEFAULT_GEMINI_FLASH_MODEL,
+      );
     });
   });
 });

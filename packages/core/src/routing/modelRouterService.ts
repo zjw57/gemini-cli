@@ -5,7 +5,11 @@
  */
 
 import { Config } from '../config/config.js';
+import { DEFAULT_GEMINI_MODEL } from '../config/models.js';
 import { GeminiClient } from '../core/client.js';
+import { logModelRouting } from '../telemetry/loggers.js';
+import { ModelRoutingEvent } from '../telemetry/types.js';
+import { getErrorMessage } from '../utils/errors.js';
 import {
   RoutingContext,
   RoutingDecision,
@@ -32,28 +36,75 @@ export class ModelRouterService {
    * @param client A reference to the GeminiClient.
    * @returns A promise that resolves to a RoutingDecision.
    */
-  public async route(
+  async route(
     context: RoutingContext,
     client: GeminiClient,
   ): Promise<RoutingDecision> {
-    // Currently, due to a model bug, using Flash as one of the first few requests causes empty token responses.
-    // Due to this, we will temporarily avoid routing for the first 5 parts in the history.
-    // if (context.history.length < 5) {
-    //   return {
-    //     model: this.config.getModel(),
-    //     reason: 'Cannot route to Flash for history with less than 5 parts.',
-    //   };
-    // }
-
+    const startTime = Date.now();
     // Honor the override mechanism.
     if (context.forcedModel) {
-      return {
+      const decision: RoutingDecision = {
         model: context.forcedModel,
         reason: `Routing bypassed by forced model directive. Using: ${context.forcedModel}`,
+        metadata: {
+          source: 'Forced',
+          latencyMs: 0,
+        },
       };
+      const event: ModelRoutingEvent = {
+        'event.name': 'model_routing',
+        'event.timestamp': new Date().toISOString(),
+        decision_model: decision.model,
+        decision_source: 'Forced',
+        routing_latency_ms: 0,
+        failed: false,
+      };
+      logModelRouting(this.config, event);
+      return decision;
     }
 
-    // If no override is present, delegate to the currently configured strategy.
-    return this.strategy.route(context, client);
+    try {
+      // If no override is present, delegate to the currently configured strategy.
+      const decision = await this.strategy.route(context, client);
+      const event: ModelRoutingEvent = {
+        'event.name': 'model_routing',
+        'event.timestamp': new Date().toISOString(),
+        decision_model: decision.model,
+        decision_source: decision.metadata.source,
+        routing_latency_ms: decision.metadata.latencyMs,
+        classifier_reasoning: decision.metadata.reasoning,
+        failed: false,
+      };
+      logModelRouting(this.config, event);
+      return decision;
+    } catch (error) {
+      const latency = Date.now() - startTime;
+      const errorMessage = getErrorMessage(error);
+      console.log(
+        `ClassifierStrategy failed: ${errorMessage}. Defaulting to pro model.`,
+      );
+      const decision: RoutingDecision = {
+        model: DEFAULT_GEMINI_MODEL,
+        reason:
+          'ClassifierStrategy: Failed to classify, defaulting to pro model.',
+        metadata: {
+          source: 'Fallback',
+          latencyMs: latency,
+          error: errorMessage,
+        },
+      };
+
+      const event: ModelRoutingEvent = {
+        'event.name': 'model_routing',
+        'event.timestamp': new Date().toISOString(),
+        decision_model: decision.model,
+        decision_source: 'Fallback',
+        routing_latency_ms: latency,
+        failed: true,
+        error_message: errorMessage,
+      };
+      logModelRouting(this.config, event);
+      return decision;
+    }
   }
 }

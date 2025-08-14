@@ -20,10 +20,7 @@ import { retryWithBackoff } from '../utils/retry.js';
 import { isFunctionResponse } from '../utils/messageInspectors.js';
 import { ContentGenerator, AuthType } from './contentGenerator.js';
 import { Config } from '../config/config.js';
-import {
-  DEFAULT_GEMINI_FLASH_MODEL,
-  DEFAULT_GEMINI_FLASH_LITE_MODEL,
-} from '../config/models.js';
+import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 import { hasCycleInSchema } from '../tools/tools.js';
 import { StructuredError } from './turn.js';
 
@@ -210,7 +207,6 @@ export class GeminiChat {
 
     const model = this.config.getModel();
 
-    const startTime = Date.now();
     let response: GenerateContentResponse;
 
     try {
@@ -310,7 +306,7 @@ export class GeminiChat {
     prompt_id: string,
     model?: string,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
-    let modelToUse = model ? model : this.config.getModel();
+    const modelToUse = model ? model : this.config.getModel();
     await this.sendPromise;
     const userContent = createUserContent(params.message);
     const requestContents = this.getHistory(true).concat(userContent);

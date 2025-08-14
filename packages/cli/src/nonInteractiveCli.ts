@@ -15,12 +15,7 @@ import {
   ToolErrorType,
   parseAndFormatApiError,
 } from '@google/gemini-cli-core';
-import {
-  Content,
-  Part,
-  FunctionCall,
-  PartListUnion,
-} from '@google/genai';
+import { Content, Part, FunctionCall } from '@google/genai';
 
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
 

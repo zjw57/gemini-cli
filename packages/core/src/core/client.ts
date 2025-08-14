@@ -5,7 +5,6 @@
  */
 
 import {
-  createUserContent,
   EmbedContentParameters,
   GenerateContentConfig,
   PartListUnion,
@@ -247,6 +246,7 @@ export class GeminiClient {
             ...this.generateContentConfig,
             thinkingConfig: {
               includeThoughts: true,
+              thinkingBudget: -1,
             },
           }
         : this.generateContentConfig;
@@ -499,14 +499,7 @@ export class GeminiClient {
     const routingContext: RoutingContext = {
       history: this.getChat().getHistory(/*curated=*/ true),
       request,
-      turnContext: {
-        turnType: isFunctionResponse(createUserContent(request))
-          ? 'tool_response'
-          : request === NEXT_SPEAKER_REQUEST
-            ? 'next_speaker_request'
-            : 'initial_prompt',
-        promptId: prompt_id,
-      },
+      promptId: prompt_id,
       signal,
     };
 
