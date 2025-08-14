@@ -27,6 +27,7 @@ import {
 } from '../utils/user_account.js';
 import { AuthType } from '../core/contentGenerator.js';
 import readline from 'node:readline';
+import { ConsolePatcher } from '../utils/ConsolePatcher.js';
 
 //  OAuth Client ID used to initiate OAuth2Client class.
 const OAUTH_CLIENT_ID =
@@ -70,121 +71,131 @@ export async function getOauthClient(
   authType: AuthType,
   config: Config,
 ): Promise<OAuth2Client> {
-  const client = new OAuth2Client({
-    clientId: OAUTH_CLIENT_ID,
-    clientSecret: OAUTH_CLIENT_SECRET,
-    transporterOptions: {
-      proxy: config.getProxy(),
-    },
+  const patcher = new ConsolePatcher({
+    debugMode: config?.getDebugMode() || !!process.env.DEBUG,
+    stderr: true,
   });
+  patcher.patch();
 
-  if (
-    process.env.GOOGLE_GENAI_USE_GCA &&
-    process.env.GOOGLE_CLOUD_ACCESS_TOKEN
-  ) {
-    client.setCredentials({
-      access_token: process.env.GOOGLE_CLOUD_ACCESS_TOKEN,
+  try {
+    const client = new OAuth2Client({
+      clientId: OAUTH_CLIENT_ID,
+      clientSecret: OAUTH_CLIENT_SECRET,
+      transporterOptions: {
+        proxy: config.getProxy(),
+      },
     });
-    await fetchAndCacheUserInfo(client);
-    return client;
-  }
 
-  client.on('tokens', async (tokens: Credentials) => {
-    await cacheCredentials(tokens);
-  });
-
-  // If there are cached creds on disk, they always take precedence
-  if (await loadCachedCredentials(client)) {
-    // Found valid cached credentials.
-    // Check if we need to retrieve Google Account ID or Email
-    if (!getCachedGoogleAccount()) {
-      try {
-        await fetchAndCacheUserInfo(client);
-      } catch {
-        // Non-fatal, continue with existing auth.
-      }
-    }
-    console.log('Loaded cached credentials.');
-    return client;
-  }
-
-  // In Google Cloud Shell, we can use Application Default Credentials (ADC)
-  // provided via its metadata server to authenticate non-interactively using
-  // the identity of the user logged into Cloud Shell.
-  if (authType === AuthType.CLOUD_SHELL) {
-    try {
-      console.log("Attempting to authenticate via Cloud Shell VM's ADC.");
-      const computeClient = new Compute({
-        // We can leave this empty, since the metadata server will provide
-        // the service account email.
+    if (
+      process.env.GOOGLE_GENAI_USE_GCA &&
+      process.env.GOOGLE_CLOUD_ACCESS_TOKEN
+    ) {
+      client.setCredentials({
+        access_token: process.env.GOOGLE_CLOUD_ACCESS_TOKEN,
       });
-      await computeClient.getAccessToken();
-      console.log('Authentication successful.');
-
-      // Do not cache creds in this case; note that Compute client will handle its own refresh
-      return computeClient;
-    } catch (e) {
-      throw new Error(
-        `Could not authenticate using Cloud Shell credentials. Please select a different authentication method or ensure you are in a properly configured environment. Error: ${getErrorMessage(
-          e,
-        )}`,
-      );
+      await fetchAndCacheUserInfo(client);
+      return client;
     }
-  }
 
-  if (config.isBrowserLaunchSuppressed()) {
-    let success = false;
-    const maxRetries = 2;
-    for (let i = 0; !success && i < maxRetries; i++) {
-      success = await authWithUserCode(client);
-      if (!success) {
-        console.error(
-          '\nFailed to authenticate with user code.',
-          i === maxRetries - 1 ? '' : 'Retrying...\n',
+    client.on('tokens', async (tokens: Credentials) => {
+      await cacheCredentials(tokens);
+    });
+
+    // If there are cached creds on disk, they always take precedence
+    if (await loadCachedCredentials(client)) {
+      // Found valid cached credentials.
+      // Check if we need to retrieve Google Account ID or Email
+      if (!getCachedGoogleAccount()) {
+        try {
+          await fetchAndCacheUserInfo(client);
+        } catch {
+          // Non-fatal, continue with existing auth.
+        }
+      }
+      console.log('Loaded cached credentials.');
+      return client;
+    }
+
+    // In Google Cloud Shell, we can use Application Default Credentials (ADC)
+    // provided via its metadata server to authenticate non-interactively using
+    // the identity of the user logged into Cloud Shell.
+    if (authType === AuthType.CLOUD_SHELL) {
+      try {
+        console.log("Attempting to authenticate via Cloud Shell VM's ADC.");
+        const computeClient = new Compute({
+          // We can leave this empty, since the metadata server will provide
+          // the service account email.
+        });
+        await computeClient.getAccessToken();
+        console.log('Authentication successful.');
+
+        // Do not cache creds in this case; note that Compute client will handle its own refresh
+        return computeClient;
+      } catch (e) {
+        throw new Error(
+          `Could not authenticate using Cloud Shell credentials. Please select a different authentication method or ensure you are in a properly configured environment. Error: ${getErrorMessage(
+            e,
+          )}`,
         );
       }
     }
-    if (!success) {
-      process.exit(1);
-    }
-  } else {
-    const webLogin = await authWithWeb(client);
 
-    console.log(
-      `\n\nCode Assist login required.\n` +
-        `Attempting to open authentication page in your browser.\n` +
-        `Otherwise navigate to:\n\n${webLogin.authUrl}\n\n`,
-    );
-    try {
-      // Attempt to open the authentication URL in the default browser.
-      // We do not use the `wait` option here because the main script's execution
-      // is already paused by `loginCompletePromise`, which awaits the server callback.
-      const childProcess = await open(webLogin.authUrl);
+    if (config.isBrowserLaunchSuppressed()) {
+      let success = false;
+      const maxRetries = 2;
+      for (let i = 0; !success && i < maxRetries; i++) {
+        success = await authWithUserCode(client);
+        if (!success) {
+          console.error(
+            '\nFailed to authenticate with user code.',
+            i === maxRetries - 1 ? '' : 'Retrying...\n',
+          );
+        }
+      }
+      if (!success) {
+        process.exit(1);
+      }
+    } else {
+      const webLogin = await authWithWeb(client);
 
-      // IMPORTANT: Attach an error handler to the returned child process.
-      // Without this, if `open` fails to spawn a process (e.g., `xdg-open` is not found
-      // in a minimal Docker container), it will emit an unhandled 'error' event,
-      // causing the entire Node.js process to crash.
-      childProcess.on('error', (_) => {
+      process.stdout.write(
+        `\n\nCode Assist login required.\n` +
+          `Attempting to open authentication page in your browser.\n` +
+          `Otherwise navigate to:\n\n${webLogin.authUrl}\n\n`,
+      );
+      try {
+        // Attempt to open the authentication URL in the default browser.
+        // We do not use the `wait` option here because the main script's execution
+        // is already paused by `loginCompletePromise`, which awaits the server callback.
+        const childProcess = await open(webLogin.authUrl);
+
+        // IMPORTANT: Attach an error handler to the returned child process.
+        // Without this, if `open` fails to spawn a process (e.g., `xdg-open` is not found
+        // in a minimal Docker container), it will emit an unhandled 'error' event,
+        // causing the entire Node.js process to crash.
+        childProcess.on('error', (_) => {
+          console.error(
+            'Failed to open browser automatically. Please try running again with NO_BROWSER=true set.',
+          );
+          process.exit(1);
+        });
+      } catch (err) {
         console.error(
-          'Failed to open browser automatically. Please try running again with NO_BROWSER=true set.',
+          'An unexpected error occurred while trying to open the browser:',
+          err,
+          '\nPlease try running again with NO_BROWSER=true set.',
         );
         process.exit(1);
-      });
-    } catch (err) {
-      console.error(
-        'An unexpected error occurred while trying to open the browser:',
-        err,
-        '\nPlease try running again with NO_BROWSER=true set.',
-      );
-      process.exit(1);
+      }
+      console.log('Waiting for authentication...');
+
+      await webLogin.loginCompletePromise;
     }
-    console.log('Waiting for authentication...');
 
-    await webLogin.loginCompletePromise;
+    return client;
+  } finally {
+    patcher.cleanup();
   }
-
-  return client;
 }
 
 async function authWithUserCode(client: OAuth2Client): Promise<boolean> {
@@ -199,10 +210,10 @@ async function authWithUserCode(client: OAuth2Client): Promise<boolean> {
     code_challenge: codeVerifier.codeChallenge,
     state,
   });
-  console.log('Please visit the following URL to authorize the application:');
-  console.log('');
-  console.log(authUrl);
-  console.log('');
+  process.stdout.write(
+    'Please visit the following URL to authorize the application:\n\n',
+  );
+  process.stdout.write(authUrl);
 
   const code = await new Promise<string>((resolve) => {
     const rl = readline.createInterface({

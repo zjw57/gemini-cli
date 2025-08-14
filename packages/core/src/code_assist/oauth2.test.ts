@@ -39,6 +39,7 @@ const mockConfig = {
   getNoBrowser: () => false,
   getProxy: () => 'http://test.proxy.com:8080',
   isBrowserLaunchSuppressed: () => false,
+  getDebugMode: () => false,
 } as unknown as Config;
 
 // Mock fetch globally
@@ -184,6 +185,7 @@ describe('oauth2', () => {
       getNoBrowser: () => true,
       getProxy: () => 'http://test.proxy.com:8080',
       isBrowserLaunchSuppressed: () => true,
+      getDebugMode: () => false,
     } as unknown as Config;
 
     const mockCodeVerifier = {
@@ -221,7 +223,8 @@ describe('oauth2', () => {
     };
     (readline.createInterface as Mock).mockReturnValue(mockReadline);
 
-    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const originalWrite = process.stdout.write;
+    process.stdout.write = vi.fn(() => true);
 
     const client = await getOauthClient(
       AuthType.LOGIN_WITH_GOOGLE,
@@ -233,7 +236,7 @@ describe('oauth2', () => {
     // Verify the auth flow
     expect(mockGenerateCodeVerifierAsync).toHaveBeenCalled();
     expect(mockGenerateAuthUrl).toHaveBeenCalled();
-    expect(consoleLogSpy).toHaveBeenCalledWith(
+    expect(process.stdout.write).toHaveBeenCalledWith(
       expect.stringContaining(mockAuthUrl),
     );
     expect(mockReadline.question).toHaveBeenCalledWith(
@@ -247,7 +250,7 @@ describe('oauth2', () => {
     });
     expect(mockSetCredentials).toHaveBeenCalledWith(mockTokens);
 
-    consoleLogSpy.mockRestore();
+    process.stdout.write = originalWrite;
   });
 
   describe('in Cloud Shell', () => {
@@ -322,6 +325,33 @@ describe('oauth2', () => {
       ).rejects.toThrow(
         'Could not authenticate using Cloud Shell credentials. Please select a different authentication method or ensure you are in a properly configured environment. Error: ADC Failed',
       );
+    });
+
+    it('should redirect logs to stderr during successful authentication', async () => {
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const consoleLogSpy = vi
+        .spyOn(console, 'log')
+        .mockImplementation(() => {});
+
+      await getOauthClient(AuthType.CLOUD_SHELL, mockConfig);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Attempting to authenticate via Cloud Shell VM's ADC.",
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Authentication successful.',
+      );
+      expect(consoleLogSpy).not.toHaveBeenCalledWith(
+        "Attempting to authenticate via Cloud Shell VM's ADC.",
+      );
+      expect(consoleLogSpy).not.toHaveBeenCalledWith(
+        'Authentication successful.',
+      );
+
+      consoleErrorSpy.mockRestore();
+      consoleLogSpy.mockRestore();
     });
   });
 
@@ -445,6 +475,43 @@ describe('oauth2', () => {
       // It should be called with the cached credentials, not the GCP access token.
       expect(mockSetCredentials).toHaveBeenCalledTimes(1);
       expect(mockSetCredentials).toHaveBeenCalledWith(cachedCreds);
+    });
+  });
+
+  describe('with console patching for non-interactive mode', () => {
+    it('Logs are redirected to stderr during successful cached credential loading', async () => {
+      const cachedCreds = { refresh_token: 'cached-token' };
+      const credsPath = path.join(tempHomeDir, '.gemini', 'oauth_creds.json');
+      await fs.promises.mkdir(path.dirname(credsPath), { recursive: true });
+      await fs.promises.writeFile(credsPath, JSON.stringify(cachedCreds));
+
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const consoleLogSpy = vi
+        .spyOn(console, 'log')
+        .mockImplementation(() => {});
+      const mockClient = {
+        setCredentials: vi.fn(),
+        getAccessToken: vi.fn().mockResolvedValue({ token: 'test-token' }),
+        getTokenInfo: vi.fn().mockResolvedValue({}), // valid token
+        on: vi.fn(),
+      };
+      (OAuth2Client as unknown as Mock).mockImplementation(
+        () => mockClient as unknown as OAuth2Client,
+      );
+
+      await getOauthClient(AuthType.LOGIN_WITH_GOOGLE, mockConfig);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Loaded cached credentials.',
+      );
+      expect(consoleLogSpy).not.toHaveBeenCalledWith(
+        'Loaded cached credentials.',
+      );
+
+      consoleErrorSpy.mockRestore();
+      consoleLogSpy.mockRestore();
     });
   });
 });
