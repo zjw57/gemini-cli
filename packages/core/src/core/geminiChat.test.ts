@@ -4,12 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  InMemoryRunner,
-  InMemorySessionService,
-  LlmAgent,
-  Event,
-} from '@google/adk';
+import { InMemoryRunner, LlmAgent, Event } from '@google/adk';
 import {
   Content,
   GenerateContentConfig,
@@ -55,7 +50,6 @@ describe('GeminiChat', () => {
   let mockConfig: Config;
   const config: GenerateContentConfig = {};
   let mockRunner: InMemoryRunner;
-  let mockSession: InMemorySessionService;
   let mockToolRegistry: ToolRegistry;
 
   beforeEach(() => {
@@ -85,11 +79,8 @@ describe('GeminiChat', () => {
     mockRunner = new InMemoryRunner({
       agent: { name: 'mock-agent' } as LlmAgent,
     });
-    mockSession = new InMemorySessionService();
     // @ts-expect-error Accessing private property for testing
     chat.runner = mockRunner;
-    // @ts-expect-error Accessing private property for testing
-    chat.session = mockSession;
   });
 
   afterEach(() => {

@@ -103,7 +103,7 @@ describe('getEnvironmentContext', () => {
   it('should return basic environment context for a single directory', async () => {
     const parts = await getEnvironmentContext(mockConfig as Config);
 
-    expect(parts.length).toBe(1);
+    expect(parts.length).toBe(2);
     const context = parts[0].text;
 
     expect(context).toContain("Today's date is Tuesday, August 5, 2025");
@@ -117,11 +117,14 @@ describe('getEnvironmentContext', () => {
     expect(getFolderStructure).toHaveBeenCalledWith('/test/dir', {
       fileService: undefined,
     });
+    expect(parts[1].text).toBe(
+      '\nThis is all FYI; no need to act yet, respond only with exactly "Got it. Thanks for the context!"',
+    );
   });
 
   it('should return basic environment context for multiple directories', async () => {
     (
-      vi.mocked(mockConfig.getWorkspaceContext!)().getDirectories as Mock
+      vi.mocked(mockConfig.getWorkspaceContext!()!).getDirectories as Mock
     ).mockReturnValue(['/test/dir1', '/test/dir2']);
     vi.mocked(getFolderStructure)
       .mockResolvedValueOnce('Structure 1')
@@ -129,7 +132,7 @@ describe('getEnvironmentContext', () => {
 
     const parts = await getEnvironmentContext(mockConfig as Config);
 
-    expect(parts.length).toBe(1);
+    expect(parts.length).toBe(2);
     const context = parts[0].text;
 
     expect(context).toContain(
@@ -139,6 +142,9 @@ describe('getEnvironmentContext', () => {
       'Here is the folder structure of the current working directories:\n\nStructure 1\nStructure 2',
     );
     expect(getFolderStructure).toHaveBeenCalledTimes(2);
+    expect(parts[1].text).toBe(
+      '\nThis is all FYI; no need to act yet, respond only with exactly "Got it. Thanks for the context!"',
+    );
   });
 
   it('should include full file context when getFullContext is true', async () => {
@@ -154,7 +160,7 @@ describe('getEnvironmentContext', () => {
 
     const parts = await getEnvironmentContext(mockConfig as Config);
 
-    expect(parts.length).toBe(2);
+    expect(parts.length).toBe(3);
     expect(parts[1].text).toBe(
       '\n--- Full File Context ---\nFull file content here',
     );
@@ -163,6 +169,9 @@ describe('getEnvironmentContext', () => {
       paths: ['**/*'],
       useDefaultExcludes: true,
     });
+    expect(parts[2].text).toBe(
+      '\nThis is all FYI; no need to act yet, respond only with exactly "Got it. Thanks for the context!"',
+    );
   });
 
   it('should handle read_many_files returning no content', async () => {
@@ -176,7 +185,10 @@ describe('getEnvironmentContext', () => {
 
     const parts = await getEnvironmentContext(mockConfig as Config);
 
-    expect(parts.length).toBe(1); // No extra part added
+    expect(parts.length).toBe(2); // No extra part added
+    expect(parts[1].text).toBe(
+      '\nThis is all FYI; no need to act yet, respond only with exactly "Got it. Thanks for the context!"',
+    );
   });
 
   it('should handle read_many_files tool not being found', async () => {
@@ -185,7 +197,10 @@ describe('getEnvironmentContext', () => {
 
     const parts = await getEnvironmentContext(mockConfig as Config);
 
-    expect(parts.length).toBe(1); // No extra part added
+    expect(parts.length).toBe(2); // No extra part added
+    expect(parts[1].text).toBe(
+      '\nThis is all FYI; no need to act yet, respond only with exactly "Got it. Thanks for the context!"',
+    );
   });
 
   it('should handle errors when reading full file context', async () => {
@@ -199,7 +214,10 @@ describe('getEnvironmentContext', () => {
 
     const parts = await getEnvironmentContext(mockConfig as Config);
 
-    expect(parts.length).toBe(2);
+    expect(parts.length).toBe(3);
     expect(parts[1].text).toBe('\n--- Error reading full file context ---');
+    expect(parts[2].text).toBe(
+      '\nThis is all FYI; no need to act yet, respond only with exactly "Got it. Thanks for the context!"',
+    );
   });
 });
