@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+
 import 'vitest';
 import {
   vi,
@@ -33,6 +34,7 @@ interface CustomMatchers<R = unknown> {
 }
 
 declare module 'vitest' {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-empty-object-type
   interface Matchers<T = any> extends CustomMatchers<T> {}
 }
 
@@ -44,7 +46,7 @@ expect.extend({
     const { isNot } = this;
     const event = JSON.parse(received[0].source_extension_json) as LogEvent;
     const metadata = event['event_metadata'][0];
-    const data = metadata.find((m) => m.gemini_cli_key == key)?.value;
+    const data = metadata.find((m) => m.gemini_cli_key === key)?.value;
 
     const pass = data !== undefined && data === value;
 
