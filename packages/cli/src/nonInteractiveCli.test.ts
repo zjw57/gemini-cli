@@ -150,6 +150,48 @@ describe('runNonInteractive', () => {
     expect(processStdoutSpy).toHaveBeenCalledWith('\n');
   });
 
+  it('should handle a single tool call with a single response part', async () => {
+    const toolCallEvent: ServerGeminiStreamEvent = {
+      type: GeminiEventType.ToolCallRequest,
+      value: {
+        callId: 'tool-1',
+        name: 'testTool',
+        args: { arg1: 'value1' },
+        isClientInitiated: false,
+        prompt_id: 'prompt-id-2',
+      },
+    };
+    const toolResponse: Part = { text: 'Tool response' };
+    mockCoreExecuteToolCall.mockResolvedValue({ responseParts: toolResponse });
+
+    const firstCallEvents: ServerGeminiStreamEvent[] = [toolCallEvent];
+    const secondCallEvents: ServerGeminiStreamEvent[] = [
+      { type: GeminiEventType.Content, value: 'Final answer' },
+    ];
+
+    mockGeminiClient.sendMessageStream
+      .mockReturnValueOnce(createStreamFromEvents(firstCallEvents))
+      .mockReturnValueOnce(createStreamFromEvents(secondCallEvents));
+
+    await runNonInteractive(mockConfig, 'Use a tool', 'prompt-id-2');
+
+    expect(mockGeminiClient.sendMessageStream).toHaveBeenCalledTimes(2);
+    expect(mockCoreExecuteToolCall).toHaveBeenCalledWith(
+      mockConfig,
+      expect.objectContaining({ name: 'testTool' }),
+      mockToolRegistry,
+      expect.any(AbortSignal),
+    );
+    expect(mockGeminiClient.sendMessageStream).toHaveBeenNthCalledWith(
+      2,
+      [{ text: 'Tool response' }],
+      expect.any(AbortSignal),
+      'prompt-id-2',
+    );
+    expect(processStdoutSpy).toHaveBeenCalledWith('Final answer');
+    expect(processStdoutSpy).toHaveBeenCalledWith('\n');
+  });
+
   it('should handle error during tool execution', async () => {
     const toolCallEvent: ServerGeminiStreamEvent = {
       type: GeminiEventType.ToolCallRequest,
@@ -241,5 +283,28 @@ describe('runNonInteractive', () => {
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       '\n Reached max session turns for this session. Increase the number of turns by specifying maxSessionTurns in settings.json.',
     );
+  });
+
+  it('should exit gracefully on EPIPE error', async () => {
+    const events: ServerGeminiStreamEvent[] = [
+      { type: GeminiEventType.Content, value: 'Hello' },
+    ];
+    mockGeminiClient.sendMessageStream.mockReturnValue(
+      createStreamFromEvents(events),
+    );
+
+    // Simulate an EPIPE error
+    vi.spyOn(process.stdout, 'on').mockImplementation((event, listener) => {
+      if (event === 'error') {
+        const error = new Error('write EPIPE') as NodeJS.ErrnoException;
+        error.code = 'EPIPE';
+        (listener as (err: NodeJS.ErrnoException) => void)(error);
+      }
+      return process.stdout;
+    });
+
+    await runNonInteractive(mockConfig, 'Test input', 'prompt-id-1');
+
+    expect(process.exit).toHaveBeenCalledWith(0);
   });
 });

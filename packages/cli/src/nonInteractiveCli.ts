@@ -74,63 +74,63 @@ export async function runNonInteractive(
 
         if (event.type === GeminiEventType.Content) {
           process.stdout.write(event.value);
-        } else if (event.type === GeminiEventType.ToolCallRequest) {
-          const toolCallRequest = event.value;
-          const fc: FunctionCall = {
-            name: toolCallRequest.name,
-            args: toolCallRequest.args,
-            id: toolCallRequest.callId,
-          };
-          functionCalls.push(fc);
-        }
+        } // else if (event.type === GeminiEventType.ToolCallRequest) {
+        //   const toolCallRequest = event.value;
+        //   const fc: FunctionCall = {
+        //     name: toolCallRequest.name,
+        //     args: toolCallRequest.args,
+        //     id: toolCallRequest.callId,
+        //   };
+        //   functionCalls.push(fc);
+        // }
       }
 
-      if (functionCalls.length > 0) {
-        const toolResponseParts: Part[] = [];
+      // if (functionCalls.length > 0) {
+      //   const toolResponseParts: Part[] = [];
 
-        for (const fc of functionCalls) {
-          const callId = fc.id ?? `${fc.name}-${Date.now()}`;
-          const requestInfo: ToolCallRequestInfo = {
-            callId,
-            name: fc.name as string,
-            args: (fc.args ?? {}) as Record<string, unknown>,
-            isClientInitiated: false,
-            prompt_id,
-          };
+      //   for (const fc of functionCalls) {
+      //     const callId = fc.id ?? `${fc.name}-${Date.now()}`;
+      //     const requestInfo: ToolCallRequestInfo = {
+      //       callId,
+      //       name: fc.name as string,
+      //       args: (fc.args ?? {}) as Record<string, unknown>,
+      //       isClientInitiated: false,
+      //       prompt_id,
+      //     };
 
-          const toolResponse = await executeToolCall(
-            config,
-            requestInfo,
-            toolRegistry,
-            abortController.signal,
-          );
+      //     const toolResponse = await executeToolCall(
+      //       config,
+      //       requestInfo,
+      //       toolRegistry,
+      //       abortController.signal,
+      //     );
 
-          if (toolResponse.error) {
-            console.error(
-              `Error executing tool ${fc.name}: ${toolResponse.resultDisplay || toolResponse.error.message}`,
-            );
-            if (toolResponse.errorType === ToolErrorType.UNHANDLED_EXCEPTION)
-              process.exit(1);
-          }
+      //     if (toolResponse.error) {
+      //       console.error(
+      //         `Error executing tool ${fc.name}: ${toolResponse.resultDisplay || toolResponse.error.message}`,
+      //       );
+      //       if (toolResponse.errorType === ToolErrorType.UNHANDLED_EXCEPTION)
+      //         process.exit(1);
+      //     }
 
-          if (toolResponse.responseParts) {
-            const parts = Array.isArray(toolResponse.responseParts)
-              ? toolResponse.responseParts
-              : [toolResponse.responseParts];
-            for (const part of parts) {
-              if (typeof part === 'string') {
-                toolResponseParts.push({ text: part });
-              } else if (part) {
-                toolResponseParts.push(part);
-              }
-            }
-          }
-        }
-        currentMessages = [{ role: 'user', parts: toolResponseParts }];
-      } else {
-        process.stdout.write('\n'); // Ensure a final newline
-        return;
-      }
+      //     if (toolResponse.responseParts) {
+      //       const parts = Array.isArray(toolResponse.responseParts)
+      //         ? toolResponse.responseParts
+      //         : [toolResponse.responseParts];
+      //       for (const part of parts) {
+      //         if (typeof part === 'string') {
+      //           toolResponseParts.push({ text: part });
+      //         } else if (part) {
+      //           toolResponseParts.push(part);
+      //         }
+      //       }
+      //     }
+      //   }
+      //   currentMessages = [{ role: 'user', parts: toolResponseParts }];
+      // } else {
+      process.stdout.write('\n'); // Ensure a final newline
+      return;
+      // }
     }
   } catch (error) {
     console.error(

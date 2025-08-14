@@ -26,17 +26,11 @@ vi.mock('@google/adk', async (importOriginal) => {
       createSession: vi.fn().mockResolvedValue({ id: 'mock-session-id' }),
     },
   };
-  const mockSessionServiceInstance = {
-    id: 'mock-session-id',
-  };
 
   return {
     ...actual,
     LlmAgent: vi.fn().mockImplementation(() => ({})),
     InMemoryRunner: vi.fn().mockImplementation(() => mockRunnerInstance),
-    InMemorySessionService: vi
-      .fn()
-      .mockImplementation(() => mockSessionServiceInstance),
   };
 });
 
@@ -74,11 +68,15 @@ describe('GeminiChat', () => {
 
     // Disable 429 simulation for tests
     setSimulate429(false);
-    // Reset history for each test by creating a new instance
-    chat = new GeminiChat(mockConfig, config, mockToolRegistry, []);
     mockRunner = new InMemoryRunner({
       agent: { name: 'mock-agent' } as LlmAgent,
+      // @ts-expect-error - We are adding a mock property
+      sessionService: {
+        createSession: vi.fn().mockResolvedValue({ id: 'mock-session-id' }),
+      },
     });
+    // Reset history for each test by creating a new instance
+    chat = new GeminiChat(mockConfig, config, mockToolRegistry);
     // @ts-expect-error Accessing private property for testing
     chat.runner = mockRunner;
   });
