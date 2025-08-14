@@ -41,6 +41,7 @@ import {
   recordTokenUsageMetrics,
   recordApiResponseMetrics,
   recordToolCallMetrics,
+  recordChatCompressionMetrics,
 } from './metrics.js';
 import { isTelemetrySdkInitialized } from './sdk.js';
 import { uiTelemetryService, UiEvent } from './uiTelemetry.js';
@@ -400,6 +401,11 @@ export function logChatCompression(
     attributes,
   };
   logger.emit(logRecord);
+
+  recordChatCompressionMetrics(config, {
+    tokens_before: event.tokens_before,
+    tokens_after: event.tokens_after,
+  });
 }
 
 export function logKittySequenceOverflow(
