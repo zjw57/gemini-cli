@@ -9,25 +9,13 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as net from 'node:net';
 import { IdeClient } from '../packages/core/src/ide/ide-client.js';
-import { getIdeProcess } from '../packages/core/src/ide/process-utils.js';
+import { getIdeProcessId } from '../packages/core/src/ide/process-utils.js';
 import { spawn, ChildProcess } from 'child_process';
-import { DetectedIde } from '../packages/core/src/ide/detect-ide.js';
-
-vi.mock('../packages/core/src/ide/process-utils.js', async (importOriginal) => {
-  const original =
-    await importOriginal<
-      typeof import('../packages/core/src/ide/process-utils.js')
-    >();
-  return {
-    ...original,
-    getIdeProcess: vi.fn(),
-  };
-});
 
 describe('IdeClient', () => {
   it('reads port from file and connects', async () => {
     const port = 12345;
-    const { pid } = await getIdeProcess();
+    const pid = await getIdeProcessId();
     const portFile = path.join(os.tmpdir(), `gemini-ide-server-${pid}.json`);
     fs.writeFileSync(portFile, JSON.stringify({ port }));
 
@@ -35,26 +23,6 @@ describe('IdeClient', () => {
     await ideClient.connect();
 
     expect(ideClient.getConnectionStatus().status).not.toBe('disconnected');
-
-    fs.unlinkSync(portFile);
-  });
-
-  it('detects vscode fork', async () => {
-    const port = 12345;
-    const pid = 123;
-    const portFile = path.join(os.tmpdir(), `gemini-ide-server-${pid}.json`);
-    fs.writeFileSync(portFile, JSON.stringify({ port }));
-
-    const mockedGetIdeProcess = vi.mocked(getIdeProcess);
-    mockedGetIdeProcess.mockResolvedValue({
-      pid,
-      command: 'some-vscode-fork',
-    });
-
-    const ideClient = IdeClient.getInstance();
-    await ideClient.connect();
-
-    expect(ideClient.getCurrentIde()).toBe(DetectedIde.VSCodeFork);
 
     fs.unlinkSync(portFile);
   });
@@ -81,7 +49,7 @@ describe('IdeClient fallback connection logic', () => {
   let portFile: string;
 
   beforeEach(async () => {
-    ({ pid } = await getIdeProcess());
+    pid = await getIdeProcessId();
     portFile = path.join(os.tmpdir(), `gemini-ide-server-${pid}.json`);
     envPort = await getFreePort();
     server = net.createServer().listen(envPort);
@@ -124,7 +92,7 @@ describe('IdeClient fallback connection logic', () => {
   });
 });
 
-describe('getIdeProcess', () => {
+describe('getIdeProcessId', () => {
   let child: ChildProcess;
 
   afterEach(() => {
@@ -135,7 +103,7 @@ describe('getIdeProcess', () => {
 
   it('should return the pid of the parent process', async () => {
     // We need to spawn a child process that will run the test
-    // so that we can check that getIdeProcess returns the pid of the parent
+    // so that we can check that getIdeProcessId returns the pid of the parent
     const parentPid = process.pid;
     const output = await new Promise<string>((resolve, reject) => {
       child = spawn(
@@ -143,8 +111,8 @@ describe('getIdeProcess', () => {
         [
           '-e',
           `
-        const { getIdeProcess } = require('../packages/core/src/ide/process-utils.js');
-        getIdeProcess().then(info => console.log(info.pid));
+        const { getIdeProcessId } = require('../packages/core/src/ide/process-utils.js');
+        getIdeProcessId().then(pid => console.log(pid));
       `,
         ],
         {
