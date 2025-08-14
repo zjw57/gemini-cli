@@ -76,6 +76,7 @@ describe('GeminiChat', () => {
       flashFallbackHandler: undefined,
     } as unknown as Config;
     mockToolRegistry = new ToolRegistry(mockConfig);
+    vi.spyOn(mockToolRegistry, 'getAllTools').mockReturnValue([]);
 
     // Disable 429 simulation for tests
     setSimulate429(false);
