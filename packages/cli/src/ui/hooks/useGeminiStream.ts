@@ -547,7 +547,7 @@ export const useGeminiStream = (
             );
             break;
           case ServerGeminiEventType.ToolCallRequest:
-            toolCallRequests.push(event.value);
+            //toolCallRequests.push(event.value);
             break;
           case ServerGeminiEventType.UserCancelled:
             handleUserCancelledEvent(userMessageTimestamp);

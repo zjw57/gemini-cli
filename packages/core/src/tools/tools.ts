@@ -33,7 +33,7 @@ export class AdkToolAdapter extends AdkBaseTool {
     const invocation = this.tool.build(args);
     const abortController = new AbortController();
     const result = await invocation.execute(abortController.signal);
-    return result.llmContent;
+    return result;
   }
 }
 

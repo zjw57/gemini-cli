@@ -105,5 +105,9 @@ ${directoryContext}
     }
   }
 
+  // initialParts.push({
+  //   text: '\nThis is all FYI; no need to act yet, respond only with exactly "Got it. Thanks for the context!"'
+  // });
+
   return initialParts;
 }

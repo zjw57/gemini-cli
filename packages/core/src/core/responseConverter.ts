@@ -14,21 +14,22 @@ import { Event } from '@google/adk';
 export function toGenerateContentResponse(
   event: Event,
 ): GenerateContentResponse {
-  const candidates: Candidate[] = event.content
-    ? [
-        {
-          content: event.content,
-          finishReason: event.isFinalResponse()
-            ? FinishReason.STOP
-            : FinishReason.OTHER,
-          index: 0,
-          safetyRatings: [],
-        },
-      ]
-    : [];
+  
+  const candidate: Candidate = {
+    content: event.content,
+    finishReason: event.errorCode ? event.errorCode as FinishReason : undefined,
+    finishMessage: event.errorMessage || '',
+    groundingMetadata: event.groundingMetadata,
+    index: 0,
+    safetyRatings: [],
+  } as Candidate;
 
-  return {
-    candidates,
+  const response: GenerateContentResponse = {
+    candidates: [candidate],
     text: (event.content?.parts?.[0]?.text as string) || '',
+    functionCalls: event.getFunctionCalls(),
+    usageMetadata: event.usageMetadata
   } as GenerateContentResponse;
+
+  return response;
 }
