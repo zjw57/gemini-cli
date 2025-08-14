@@ -16,7 +16,6 @@ import {
 import { Content, createUserContent } from '@google/genai';
 import { Config } from '../../config/config.js';
 
-// Mocks
 vi.mock('../../core/client.js');
 
 describe('ClassifierStrategy', () => {
@@ -26,7 +25,6 @@ describe('ClassifierStrategy', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock GeminiClient, specifically the generateJson method
     mockClient = new GeminiClient({} as Config);
     strategy = new ClassifierStrategy();
 
@@ -98,7 +96,6 @@ describe('ClassifierStrategy', () => {
 
     const decision = await strategy.route(mockContext, mockClient);
 
-    // Expect Flash Lite due to the workaround for the model bug
     expect(decision.model).toBe(DEFAULT_GEMINI_FLASH_LITE_MODEL);
   });
 

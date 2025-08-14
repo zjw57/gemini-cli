@@ -17,11 +17,10 @@ import { ClassifierStrategy } from './strategies/classifierStrategy.js';
 import { DEFAULT_GEMINI_MODEL } from '../config/models.js';
 import { logModelRouting } from '../telemetry/loggers.js';
 
-// Mocks
 vi.mock('../config/config.js');
 vi.mock('../core/client.js');
 vi.mock('./strategies/classifierStrategy.js');
-vi.mock('../telemetry/loggers.js'); // Mock the telemetry logger
+vi.mock('../telemetry/loggers.js');
 
 describe('ModelRouterService', () => {
   let service: ModelRouterService;
@@ -35,9 +34,7 @@ describe('ModelRouterService', () => {
     mockConfig = new Config({} as never);
     mockClient = new GeminiClient(mockConfig);
 
-    // Mock the strategy that the service uses internally
     mockStrategy = new ClassifierStrategy();
-    // Ensure the constructor uses our mock instance
     vi.mocked(ClassifierStrategy).mockImplementation(
       () => mockStrategy as ClassifierStrategy,
     );
@@ -73,7 +70,6 @@ describe('ModelRouterService', () => {
       );
       expect(decision.metadata.source).toBe('Forced');
 
-      // Verify telemetry
       expect(logModelRouting).toHaveBeenCalledWith(
         mockConfig,
         expect.objectContaining({
@@ -103,7 +99,6 @@ describe('ModelRouterService', () => {
       expect(strategySpy).toHaveBeenCalledWith(mockContext, mockClient);
       expect(decision).toEqual(strategyDecision);
 
-      // Verify telemetry
       expect(logModelRouting).toHaveBeenCalledWith(
         mockConfig,
         expect.objectContaining({
@@ -122,7 +117,6 @@ describe('ModelRouterService', () => {
         .spyOn(mockStrategy, 'route')
         .mockRejectedValue(error);
 
-      // Spy on console.log to check the error message output
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       const decision = await service.route(mockContext, mockClient);
@@ -141,7 +135,6 @@ describe('ModelRouterService', () => {
         ),
       );
 
-      // Verify telemetry for failure
       expect(logModelRouting).toHaveBeenCalledWith(
         mockConfig,
         expect.objectContaining({

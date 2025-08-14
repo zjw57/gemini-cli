@@ -323,7 +323,6 @@ export class GeminiChat {
           );
         }
 
-        console.log(`The model about to be used is: ${modelToUse}`);
         return this.contentGenerator.generateContentStream(
           {
             model: modelToUse,

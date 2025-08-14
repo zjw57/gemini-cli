@@ -1684,7 +1684,6 @@ ${JSON.stringify(
   });
   describe('sendMessageStream - Routing and Stickiness', () => {
     beforeEach(() => {
-      // Setup mocks required for sendMessageStream to run without external dependencies
       const mockStream = (async function* () {
         yield { type: 'content', value: 'Response' };
       })();
@@ -1701,7 +1700,6 @@ ${JSON.stringify(
       };
       client['contentGenerator'] = mockGenerator as ContentGenerator;
 
-      // Ensure IDE context doesn't interfere with these specific tests
       vi.spyOn(client['config'], 'getIdeMode').mockReturnValue(false);
     });
 
@@ -1723,7 +1721,6 @@ ${JSON.stringify(
       }
 
       expect(mockRouter.route).toHaveBeenCalledTimes(1);
-      // Verify Turn.run was called with the explicit override model
       expect(mockTurnRunFn).toHaveBeenCalledWith(
         expect.any(Object),
         expect.any(Object),
@@ -1760,7 +1757,7 @@ ${JSON.stringify(
 
       // Second call with the SAME prompt_id
       const stream2 = client.sendMessageStream(
-        [{ functionResponse: { name: 'tool', response: {} } }], // Often a tool response
+        [{ functionResponse: { name: 'tool', response: {} } }],
         new AbortController().signal,
         'prompt-seq-2',
       );
