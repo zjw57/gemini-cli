@@ -170,6 +170,7 @@ describe('Gemini Client (client.ts)', () => {
     const mockToolRegistry = {
       getFunctionDeclarations: vi.fn().mockReturnValue([]),
       getTool: vi.fn().mockReturnValue(null),
+      getAllTools: vi.fn().mockReturnValue([]),
     };
     const fileService = new FileDiscoveryService('/test/dir');
     const contentGeneratorConfig = {

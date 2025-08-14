@@ -148,9 +148,9 @@ export class GeminiChat {
       ...adkGenerationConfig
     } = this.generationConfig;
 
-    const adkTools = (toolRegistry.getAllTools().map(
-      (tool) => new AdkToolAdapter(tool as AnyDeclarativeTool))
-    );
+    const adkTools = toolRegistry
+      .getAllTools()
+      .map((tool) => new AdkToolAdapter(tool as AnyDeclarativeTool));
 
     this.agent = new LlmAgent({
       name: 'GeminiCLI',
@@ -160,21 +160,18 @@ export class GeminiChat {
       generateContentConfig: adkGenerationConfig,
       // planner: thinkingConfig, // Not implemented yet.
     });
-    
+
     const appName = this.agent.name;
     this.runner = new InMemoryRunner({ agent: this.agent, appName });
 
     // Send the first message.
     // TODO: can we "pack the history" instead?
     if (history?.length) {
-      const firstMessage = history[0].parts && history[0].parts[0].text
+      const firstMessage = history[0].parts && history[0].parts[0].text;
       if (firstMessage) {
-        this.sendMessage(
-          {message: firstMessage},
-          "placeholder",
-        );
-      };
-    };
+        this.sendMessage({ message: firstMessage }, 'placeholder');
+      }
+    }
   }
 
   private async maybeSetSession(): Promise<Session> {

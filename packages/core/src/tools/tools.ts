@@ -22,7 +22,7 @@ export class AdkToolAdapter extends AdkBaseTool {
   }
 
   _getDeclaration(): FunctionDeclaration | undefined {
-    return this.tool.schema
+    return this.tool.schema;
   }
 
   async runAsync(
