@@ -43,7 +43,10 @@ import { ProxyAgent, setGlobalDispatcher } from 'undici';
 import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 import { LoopDetectionService } from '../services/loopDetectionService.js';
 import { ideContext } from '../ide/ideContext.js';
-import { logNextSpeakerCheck } from '../telemetry/loggers.js';
+import {
+  logChatCompression,
+  logNextSpeakerCheck,
+} from '../telemetry/loggers.js';
 import {
   makeChatCompressionEvent,
   MalformedJsonResponseEvent,
@@ -829,7 +832,8 @@ export class GeminiClient {
       return null;
     }
 
-    ClearcutLogger.getInstance(this.config)?.logChatCompressionEvent(
+    logChatCompression(
+      this.config,
       makeChatCompressionEvent({
         tokens_before: originalTokenCount,
         tokens_after: newTokenCount,
