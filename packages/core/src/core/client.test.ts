@@ -1873,4 +1873,91 @@ ${JSON.stringify(
       );
     });
   });
+  describe('sendMessageStream - GEMINI_MODEL environment variable', () => {
+    let originalGeminiModel: string | undefined;
+
+    beforeEach(() => {
+      // Save the original value
+      originalGeminiModel = process.env.GEMINI_MODEL;
+
+      // Setup mocks required for sendMessageStream to run
+      const mockStream = (async function* () {
+        yield { type: 'content', value: 'Response' };
+      })();
+      mockTurnRunFn.mockReturnValue(mockStream);
+      const mockChat: Partial<GeminiChat> = {
+        addHistory: vi.fn(),
+        getHistory: vi.fn().mockReturnValue([]),
+      };
+      client['chat'] = mockChat as GeminiChat;
+      const mockGenerator: Partial<ContentGenerator> = {
+        countTokens: vi.fn().mockResolvedValue({ totalTokens: 0 }),
+      };
+      client['contentGenerator'] = mockGenerator as ContentGenerator;
+      vi.spyOn(client['config'], 'getIdeMode').mockReturnValue(false);
+    });
+
+    afterEach(() => {
+      // Restore the original value
+      process.env.GEMINI_MODEL = originalGeminiModel;
+    });
+
+    it('should use GEMINI_MODEL env var as a forced model override', async () => {
+      const envModel = 'env-override-model';
+      process.env.GEMINI_MODEL = envModel;
+
+      const routeSpy = vi.spyOn(mockRouter, 'route');
+
+      const stream = client.sendMessageStream(
+        [{ text: 'Hi' }],
+        new AbortController().signal,
+        'prompt-env-var-1',
+      );
+      for await (const _ of stream) {
+        // consume stream
+      }
+
+      expect(routeSpy).toHaveBeenCalledTimes(1);
+      const routingContext = routeSpy.mock.calls[0][0];
+      expect(routingContext.forcedModel).toBe(envModel);
+    });
+
+    it('should not force a model if GEMINI_MODEL is undefined', async () => {
+      delete process.env.GEMINI_MODEL;
+
+      const routeSpy = vi.spyOn(mockRouter, 'route');
+
+      const stream = client.sendMessageStream(
+        [{ text: 'Hi' }],
+        new AbortController().signal,
+        'prompt-env-var-2',
+      );
+      for await (const _ of stream) {
+        // consume stream
+      }
+
+      expect(routeSpy).toHaveBeenCalledTimes(1);
+      const routingContext = routeSpy.mock.calls[0][0];
+      expect(routingContext.forcedModel).toBeUndefined();
+    });
+
+    it('should pass an empty string to the router if GEMINI_MODEL is an empty string', async () => {
+      process.env.GEMINI_MODEL = '';
+
+      const routeSpy = vi.spyOn(mockRouter, 'route');
+
+      const stream = client.sendMessageStream(
+        [{ text: 'Hi' }],
+        new AbortController().signal,
+        'prompt-env-var-3',
+      );
+      for await (const _ of stream) {
+        // consume stream
+      }
+
+      expect(routeSpy).toHaveBeenCalledTimes(1);
+      const routingContext = routeSpy.mock.calls[0][0];
+      expect(routingContext.forcedModel).toBe('');
+    });
+  });
 });

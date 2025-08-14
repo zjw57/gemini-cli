@@ -501,6 +501,7 @@ export class GeminiClient {
       request,
       promptId: prompt_id,
       signal,
+      forcedModel: process.env.GEMINI_MODEL,
     };
 
     let modelToUse: string;
