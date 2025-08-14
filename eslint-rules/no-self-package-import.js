@@ -36,8 +36,12 @@ function findPackageName(filePath, root) {
     const parentDir = path.dirname(currentDir);
     const packageJsonPath = path.join(currentDir, 'package.json');
     if (fs.existsSync(packageJsonPath)) {
-      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-      return pkg.name;
+      try {
+        const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+        return pkg.name;
+      } catch {
+        // Malformed package.json, continue searching up the tree.
+      }
     }
 
     // Move up one level
