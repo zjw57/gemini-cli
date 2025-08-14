@@ -224,8 +224,8 @@ export enum EventMetadataKey {
   GEMINI_CLI_KITTY_SEQUENCE_LENGTH = 53,
 
   // Logs the number of tokens before context window compression.
-  GEMINI_CLI_COMPRESSION_TOKENS_BEFORE = 54,
+  GEMINI_CLI_COMPRESSION_TOKENS_BEFORE = 60,
 
   // Logs the number of tokens after context window compression.
-  GEMINI_CLI_COMPRESSION_TOKENS_AFTER = 55,
+  GEMINI_CLI_COMPRESSION_TOKENS_AFTER = 61,
 }
