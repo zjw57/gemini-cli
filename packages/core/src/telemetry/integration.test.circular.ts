@@ -56,7 +56,7 @@ describe('Circular Reference Integration Test', () => {
     const logger = ClearcutLogger.getInstance(mockConfig);
 
     expect(() => {
-      logger?.enqueueLogEvent(problematicEvent);
+      logger?.enqueueLogEvent(problematicEvent as any);
     }).not.toThrow();
   });
 });
