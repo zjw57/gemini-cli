@@ -342,28 +342,31 @@ async function loadCachedCredentials(client: OAuth2Client): Promise<boolean> {
   try {
     // First check for GOOGLE_APPLICATION_CREDENTIALS env var
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      const creds = await fs.readFile(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf-8');
+      const creds = await fs.readFile(
+        process.env.GOOGLE_APPLICATION_CREDENTIALS,
+        'utf-8',
+      );
       client.setCredentials(JSON.parse(creds));
-      
+
       // This will verify locally that the credentials look good.
       const { token } = await client.getAccessToken();
       if (!token) {
         return false;
       }
-      
+
       // This will check with the server to see if it hasn't been revoked.
       await client.getTokenInfo(token);
       return true;
     }
-    
+
     // Load from keychain/encrypted storage
     const credentials = await OAuthCredentialStorage.loadCredentials();
     if (!credentials) {
       return false;
     }
-    
+
     client.setCredentials(credentials);
-    
+
     // This will verify locally that the credentials look good.
     const { token } = await client.getAccessToken();
     if (!token) {

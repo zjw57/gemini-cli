@@ -266,7 +266,7 @@ describe('oauth2', () => {
     beforeEach(() => {
       // For CLOUD_SHELL tests, ensure no cached credentials are found
       vi.mocked(OAuthCredentialStorage.loadCredentials).mockResolvedValue(null);
-      
+
       mockGetAccessToken.mockResolvedValue({ token: 'test-access-token' });
       mockComputeClient = {
         credentials: { refresh_token: 'test-refresh-token' },
@@ -278,9 +278,11 @@ describe('oauth2', () => {
 
     it('should attempt to load cached credentials first', async () => {
       const cachedCreds = { refresh_token: 'cached-token' };
-      
+
       // Mock OAuthCredentialStorage to return cached credentials
-      vi.mocked(OAuthCredentialStorage.loadCredentials).mockResolvedValue(cachedCreds);
+      vi.mocked(OAuthCredentialStorage.loadCredentials).mockResolvedValue(
+        cachedCreds,
+      );
 
       const mockClient = {
         setCredentials: vi.fn(),
@@ -418,7 +420,9 @@ describe('oauth2', () => {
 
       // Make it fall through to cached credentials path
       const cachedCreds = { refresh_token: 'cached-token' };
-      vi.mocked(OAuthCredentialStorage.loadCredentials).mockResolvedValue(cachedCreds);
+      vi.mocked(OAuthCredentialStorage.loadCredentials).mockResolvedValue(
+        cachedCreds,
+      );
 
       await getOauthClient(AuthType.LOGIN_WITH_GOOGLE, mockConfig);
 
@@ -447,7 +451,9 @@ describe('oauth2', () => {
 
       // Make it fall through to cached credentials path
       const cachedCreds = { refresh_token: 'cached-token' };
-      vi.mocked(OAuthCredentialStorage.loadCredentials).mockResolvedValue(cachedCreds);
+      vi.mocked(OAuthCredentialStorage.loadCredentials).mockResolvedValue(
+        cachedCreds,
+      );
 
       await getOauthClient(AuthType.LOGIN_WITH_GOOGLE, mockConfig);
 

@@ -28,10 +28,12 @@ export class HybridTokenStorage extends BaseTokenStorage {
 
   private async initializeStorage(): Promise<ITokenStorage> {
     const shouldLog = !globalStorageTypeLogged;
-    
+
     if (process.env.GEMINI_FORCE_FILE_STORAGE === 'true') {
       if (shouldLog) {
-        console.log('📁 Using file-based token storage (forced by environment variable)');
+        console.log(
+          '📁 Using file-based token storage (forced by environment variable)',
+        );
         globalStorageTypeLogged = true;
       }
       this.primaryStorage = this.fallbackStorage;
@@ -42,16 +44,18 @@ export class HybridTokenStorage extends BaseTokenStorage {
     if (shouldLog) {
       console.log('🔐 Checking keychain availability...');
     }
-    
+
     try {
       // Dynamically import KeychainTokenStorage to avoid initialization issues
       const { KeychainTokenStorage } = await import('./keychain.js');
       const keychainStorage = new KeychainTokenStorage(this.serviceName);
-      
+
       const isAvailable = await keychainStorage.isAvailable();
       if (isAvailable) {
         if (shouldLog) {
-          console.log('✅ Keychain is available - using secure OS keychain for token storage');
+          console.log(
+            '✅ Keychain is available - using secure OS keychain for token storage',
+          );
           globalStorageTypeLogged = true;
         }
         this.primaryStorage = keychainStorage;
@@ -59,12 +63,16 @@ export class HybridTokenStorage extends BaseTokenStorage {
         return this.primaryStorage;
       } else {
         if (shouldLog) {
-          console.log('⚠️  Keychain not available - falling back to encrypted file storage');
+          console.log(
+            '⚠️  Keychain not available - falling back to encrypted file storage',
+          );
         }
       }
     } catch (error) {
       if (shouldLog) {
-        console.log('⚠️  Failed to initialize keychain - falling back to encrypted file storage');
+        console.log(
+          '⚠️  Failed to initialize keychain - falling back to encrypted file storage',
+        );
         console.debug('Keychain error details:', error);
       }
     }

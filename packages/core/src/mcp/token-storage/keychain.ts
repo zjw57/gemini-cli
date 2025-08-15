@@ -9,9 +9,15 @@ import { MCPOAuthCredentials } from './types.js';
 
 interface Keytar {
   getPassword(service: string, account: string): Promise<string | null>;
-  setPassword(service: string, account: string, password: string): Promise<void>;
+  setPassword(
+    service: string,
+    account: string,
+    password: string,
+  ): Promise<void>;
   deletePassword(service: string, account: string): Promise<boolean>;
-  findCredentials(service: string): Promise<Array<{ account: string; password: string }>>;
+  findCredentials(
+    service: string,
+  ): Promise<Array<{ account: string; password: string }>>;
 }
 
 let keytarModule: Keytar | null = null;
@@ -22,9 +28,9 @@ async function getKeytar(): Promise<Keytar | null> {
   if (keytarLoadAttempted) {
     return keytarModule;
   }
-  
+
   keytarLoadAttempted = true;
-  
+
   try {
     console.debug('Loading keytar module for OS keychain access...');
     // Try to import keytar without any timeout - let the OS handle it

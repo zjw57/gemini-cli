@@ -33,7 +33,7 @@ export class OAuthCredentialStorage {
     try {
       const storage = this.getStorage();
       const credentials = await storage.getCredentials(MAIN_ACCOUNT_KEY);
-      
+
       if (credentials && credentials.token) {
         // Convert from MCPOAuthCredentials format to Google Credentials format
         const googleCreds: Credentials = {
@@ -42,14 +42,14 @@ export class OAuthCredentialStorage {
           token_type: credentials.token.tokenType || undefined,
           scope: credentials.token.scope || undefined,
         };
-        
+
         if (credentials.token.expiresAt) {
           googleCreds.expiry_date = credentials.token.expiresAt;
         }
-        
+
         return googleCreds;
       }
-      
+
       // Fallback: Try to migrate from old file-based storage
       return await this.migrateFromFileStorage();
     } catch (error) {
@@ -63,7 +63,7 @@ export class OAuthCredentialStorage {
    */
   static async saveCredentials(credentials: Credentials): Promise<void> {
     const storage = this.getStorage();
-    
+
     // Convert Google Credentials to MCPOAuthCredentials format
     const mcpCredentials: MCPOAuthCredentials = {
       serverName: MAIN_ACCOUNT_KEY,
@@ -76,7 +76,7 @@ export class OAuthCredentialStorage {
       },
       updatedAt: Date.now(),
     };
-    
+
     await storage.setCredentials(mcpCredentials);
   }
 
@@ -87,9 +87,13 @@ export class OAuthCredentialStorage {
     try {
       const storage = this.getStorage();
       await storage.deleteCredentials(MAIN_ACCOUNT_KEY);
-      
+
       // Also try to remove the old file if it exists
-      const oldFilePath = path.join(os.homedir(), GEMINI_DIR, CREDENTIAL_FILENAME);
+      const oldFilePath = path.join(
+        os.homedir(),
+        GEMINI_DIR,
+        CREDENTIAL_FILENAME,
+      );
       await fs.rm(oldFilePath, { force: true }).catch(() => {});
     } catch (error) {
       console.debug('Failed to clear OAuth credentials:', error);
@@ -101,20 +105,26 @@ export class OAuthCredentialStorage {
    */
   private static async migrateFromFileStorage(): Promise<Credentials | null> {
     try {
-      const oldFilePath = path.join(os.homedir(), GEMINI_DIR, CREDENTIAL_FILENAME);
+      const oldFilePath = path.join(
+        os.homedir(),
+        GEMINI_DIR,
+        CREDENTIAL_FILENAME,
+      );
       const credsJson = await fs.readFile(oldFilePath, 'utf-8');
       const credentials = JSON.parse(credsJson) as Credentials;
-      
+
       // Save to new storage
       await this.saveCredentials(credentials);
-      
+
       // Remove old file after successful migration
       await fs.rm(oldFilePath, { force: true }).catch(() => {});
-      
-      console.log('✅ Successfully migrated OAuth credentials to secure storage');
-      
+
+      console.log(
+        '✅ Successfully migrated OAuth credentials to secure storage',
+      );
+
       return credentials;
-    } catch (error) {
+    } catch {
       // No old credentials to migrate
       return null;
     }

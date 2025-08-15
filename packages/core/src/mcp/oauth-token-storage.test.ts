@@ -36,7 +36,14 @@ describe('MCPOAuthTokenStorage', () => {
     updatedAt: Date.now(),
   };
 
-  let mockStorage: any;
+  let mockStorage: {
+    getAllCredentials: ReturnType<typeof vi.fn>;
+    getCredentials: ReturnType<typeof vi.fn>;
+    setCredentials: ReturnType<typeof vi.fn>;
+    deleteCredentials: ReturnType<typeof vi.fn>;
+    clearAll: ReturnType<typeof vi.fn>;
+    listServers: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -83,7 +90,9 @@ describe('MCPOAuthTokenStorage', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      mockStorage.getAllCredentials.mockRejectedValue(new Error('Storage error'));
+      mockStorage.getAllCredentials.mockRejectedValue(
+        new Error('Storage error'),
+      );
 
       const tokens = await MCPOAuthTokenStorage.loadTokens();
 
@@ -169,7 +178,9 @@ describe('MCPOAuthTokenStorage', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      mockStorage.deleteCredentials.mockRejectedValue(new Error('Delete error'));
+      mockStorage.deleteCredentials.mockRejectedValue(
+        new Error('Delete error'),
+      );
 
       await MCPOAuthTokenStorage.removeToken('test-server');
 
@@ -183,7 +194,9 @@ describe('MCPOAuthTokenStorage', () => {
   describe('isTokenExpired', () => {
     it('should return false for token without expiry', () => {
       const tokenWithoutExpiry = { ...mockToken, expiresAt: undefined };
-      expect(MCPOAuthTokenStorage.isTokenExpired(tokenWithoutExpiry)).toBe(false);
+      expect(MCPOAuthTokenStorage.isTokenExpired(tokenWithoutExpiry)).toBe(
+        false,
+      );
     });
 
     it('should return false for valid token', () => {

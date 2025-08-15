@@ -52,7 +52,7 @@ describe('HybridTokenStorage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env = { ...originalEnv };
-    
+
     // Create mock instances before creating HybridTokenStorage
     mockKeychainStorage = {
       isAvailable: vi.fn(),
@@ -63,7 +63,7 @@ describe('HybridTokenStorage', () => {
       getAllCredentials: vi.fn(),
       clearAll: vi.fn(),
     };
-    
+
     mockFileStorage = {
       getCredentials: vi.fn(),
       setCredentials: vi.fn(),
@@ -72,10 +72,14 @@ describe('HybridTokenStorage', () => {
       getAllCredentials: vi.fn(),
       clearAll: vi.fn(),
     };
-    
-    (KeychainTokenStorage as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => mockKeychainStorage);
-    (FileTokenStorage as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => mockFileStorage);
-    
+
+    (
+      KeychainTokenStorage as unknown as ReturnType<typeof vi.fn>
+    ).mockImplementation(() => mockKeychainStorage);
+    (
+      FileTokenStorage as unknown as ReturnType<typeof vi.fn>
+    ).mockImplementation(() => mockFileStorage);
+
     storage = new HybridTokenStorage();
   });
 
