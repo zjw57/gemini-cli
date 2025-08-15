@@ -8,7 +8,6 @@ import { useCallback, useMemo, useEffect, useState } from 'react';
 import { type PartListUnion } from '@google/genai';
 import process from 'node:process';
 import { UseHistoryManagerReturn } from './useHistoryManager.js';
-import { useStateAndRef } from './useStateAndRef.js';
 import {
   Config,
   GitService,
@@ -58,6 +57,11 @@ export const useSlashCommandProcessor = (
 ) => {
   const session = useSessionStats();
   const [commands, setCommands] = useState<readonly SlashCommand[]>([]);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+
+  const reloadCommands = useCallback(() => {
+    setReloadTrigger((v) => v + 1);
+  }, []);
   const [shellConfirmationRequest, setShellConfirmationRequest] =
     useState<null | {
       commands: string[];
@@ -88,16 +92,16 @@ export const useSlashCommandProcessor = (
     return l;
   }, [config]);
 
-  const [pendingCompressionItemRef, setPendingCompressionItem] =
-    useStateAndRef<HistoryItemWithoutId | null>(null);
+  const [pendingCompressionItem, setPendingCompressionItem] =
+    useState<HistoryItemWithoutId | null>(null);
 
   const pendingHistoryItems = useMemo(() => {
     const items: HistoryItemWithoutId[] = [];
-    if (pendingCompressionItemRef.current != null) {
-      items.push(pendingCompressionItemRef.current);
+    if (pendingCompressionItem != null) {
+      items.push(pendingCompressionItem);
     }
     return items;
-  }, [pendingCompressionItemRef]);
+  }, [pendingCompressionItem]);
 
   const addMessage = useCallback(
     (message: Message) => {
@@ -112,6 +116,7 @@ export const useSlashCommandProcessor = (
           modelVersion: message.modelVersion,
           selectedAuthType: message.selectedAuthType,
           gcpProject: message.gcpProject,
+          ideClient: message.ideClient,
         };
       } else if (message.type === MessageType.HELP) {
         historyItemContent = {
@@ -168,11 +173,12 @@ export const useSlashCommandProcessor = (
         },
         loadHistory,
         setDebugMessage: onDebugMessage,
-        pendingItem: pendingCompressionItemRef.current,
+        pendingItem: pendingCompressionItem,
         setPendingItem: setPendingCompressionItem,
         toggleCorgiMode,
         toggleVimEnabled,
         setGeminiMdFileCount,
+        reloadCommands,
       },
       session: {
         stats: session.stats,
@@ -190,12 +196,13 @@ export const useSlashCommandProcessor = (
       refreshStatic,
       session.stats,
       onDebugMessage,
-      pendingCompressionItemRef,
+      pendingCompressionItem,
       setPendingCompressionItem,
       toggleCorgiMode,
       toggleVimEnabled,
       sessionShellAllowlist,
       setGeminiMdFileCount,
+      reloadCommands,
     ],
   );
 
@@ -221,7 +228,7 @@ export const useSlashCommandProcessor = (
     return () => {
       controller.abort();
     };
-  }, [config, ideMode]);
+  }, [config, ideMode, reloadTrigger]);
 
   const handleSlashCommand = useCallback(
     async (
@@ -229,8 +236,6 @@ export const useSlashCommandProcessor = (
       oneTimeShellAllowlist?: Set<string>,
       overwriteConfirmed?: boolean,
     ): Promise<SlashCommandProcessorResult | false> => {
-      setIsProcessing(true);
-
       if (typeof rawQuery !== 'string') {
         return false;
       }
@@ -239,6 +244,8 @@ export const useSlashCommandProcessor = (
       if (!trimmed.startsWith('/') && !trimmed.startsWith('?')) {
         return false;
       }
+
+      setIsProcessing(true);
 
       const userMessageTimestamp = Date.now();
       addItem({ type: MessageType.USER, text: trimmed }, userMessageTimestamp);
