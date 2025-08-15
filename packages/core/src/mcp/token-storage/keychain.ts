@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import * as crypto from 'node:crypto';
 import { BaseTokenStorage } from './base.js';
 import { MCPOAuthCredentials } from './types.js';
 
@@ -217,7 +218,7 @@ export class KeychainTokenStorage extends BaseTokenStorage {
         return false;
       }
 
-      const testAccount = '__keychain_test__';
+      const testAccount = `__keychain_test__${crypto.randomBytes(8).toString('hex')}`;
       const testPassword = 'test';
 
       console.debug('Testing keychain write access...');

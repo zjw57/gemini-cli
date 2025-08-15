@@ -62,13 +62,17 @@ export class OAuthCredentialStorage {
    * Save OAuth credentials
    */
   static async saveCredentials(credentials: Credentials): Promise<void> {
+    if (!credentials.access_token) {
+      throw new Error('Attempted to save credentials without an access token.');
+    }
+
     const storage = this.getStorage();
 
     // Convert Google Credentials to MCPOAuthCredentials format
     const mcpCredentials: MCPOAuthCredentials = {
       serverName: MAIN_ACCOUNT_KEY,
       token: {
-        accessToken: credentials.access_token!,
+        accessToken: credentials.access_token,
         refreshToken: credentials.refresh_token || undefined,
         tokenType: credentials.token_type || 'Bearer',
         scope: credentials.scope || undefined,
