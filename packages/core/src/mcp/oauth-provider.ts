@@ -489,7 +489,6 @@ export class MCPOAuthProvider {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        // GitHub requires this specific Accept header to return JSON
         Accept: 'application/json, application/x-www-form-urlencoded',
       },
       body: params.toString(),
