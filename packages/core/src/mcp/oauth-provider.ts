@@ -384,6 +384,7 @@ export class MCPOAuthProvider {
     });
 
     const responseText = await response.text();
+    const contentType = response.headers.get('content-type') || '';
 
     if (!response.ok) {
       // Try to parse error from form-urlencoded response
@@ -401,6 +402,18 @@ export class MCPOAuthProvider {
       }
       throw new Error(
         `Token exchange failed: ${response.status} - ${responseText}`,
+      );
+    }
+
+    // Log unexpected content types for debugging
+    if (
+      !contentType.includes('application/json') &&
+      !contentType.includes('application/x-www-form-urlencoded')
+    ) {
+      console.warn(
+        `Token endpoint returned unexpected content-type: ${contentType}. ` +
+          `Expected application/json or application/x-www-form-urlencoded. ` +
+          `Will attempt to parse response.`,
       );
     }
 
@@ -493,10 +506,23 @@ export class MCPOAuthProvider {
     });
 
     const responseText = await response.text();
+    const contentType = response.headers.get('content-type') || '';
 
     if (!response.ok) {
       throw new Error(
         `Token refresh failed: ${response.status} - ${responseText}`,
+      );
+    }
+
+    // Log unexpected content types for debugging
+    if (
+      !contentType.includes('application/json') &&
+      !contentType.includes('application/x-www-form-urlencoded')
+    ) {
+      console.warn(
+        `Token refresh endpoint returned unexpected content-type: ${contentType}. ` +
+          `Expected application/json or application/x-www-form-urlencoded. ` +
+          `Will attempt to parse response.`,
       );
     }
 

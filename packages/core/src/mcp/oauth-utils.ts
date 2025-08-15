@@ -65,8 +65,7 @@ export class OAuthUtils {
     }
 
     // Path-based discovery: append path suffix to well-known URLs
-    const pathSuffix =
-      serverUrl.pathname === '/' ? '' : serverUrl.pathname.replace(/\/$/, ''); // Remove trailing slash
+    const pathSuffix = serverUrl.pathname.replace(/\/$/, ''); // Remove trailing slash
     return {
       protectedResource: new URL(
         `/.well-known/oauth-protected-resource${pathSuffix}`,
