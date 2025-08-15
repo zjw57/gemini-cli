@@ -135,6 +135,7 @@ describe('MCPOAuthProvider', () => {
       // Mock token exchange
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        text: () => Promise.resolve(JSON.stringify(mockTokenResponse)),
         json: () => Promise.resolve(mockTokenResponse),
       });
 
@@ -165,7 +166,11 @@ describe('MCPOAuthProvider', () => {
 
     it('should handle OAuth discovery when no authorization URL provided', async () => {
       // Use a mutable config object
-      const configWithoutAuth: MCPOAuthConfig = { ...mockConfig };
+      const configWithoutAuth: MCPOAuthConfig = {
+        ...mockConfig,
+        clientId: 'test-client-id',
+        clientSecret: 'test-client-secret',
+      };
       delete configWithoutAuth.authorizationUrl;
       delete configWithoutAuth.tokenUrl;
 
@@ -179,21 +184,23 @@ describe('MCPOAuthProvider', () => {
         scopes_supported: ['read', 'write'],
       };
 
+      // Mock HEAD request for WWW-Authenticate check
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
+          status: 200,
+          headers: new Map(),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          text: () => Promise.resolve(JSON.stringify(mockResourceMetadata)),
           json: () => Promise.resolve(mockResourceMetadata),
         })
         .mockResolvedValueOnce({
           ok: true,
+          text: () => Promise.resolve(JSON.stringify(mockAuthServerMetadata)),
           json: () => Promise.resolve(mockAuthServerMetadata),
         });
-
-      // Patch config after discovery
-      configWithoutAuth.authorizationUrl =
-        mockAuthServerMetadata.authorization_endpoint;
-      configWithoutAuth.tokenUrl = mockAuthServerMetadata.token_endpoint;
-      configWithoutAuth.scopes = mockAuthServerMetadata.scopes_supported;
 
       // Setup callback handler
       let callbackHandler: unknown;
@@ -222,6 +229,7 @@ describe('MCPOAuthProvider', () => {
       // Mock token exchange with discovered endpoint
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        text: () => Promise.resolve(JSON.stringify(mockTokenResponse)),
         json: () => Promise.resolve(mockTokenResponse),
       });
 
@@ -236,7 +244,9 @@ describe('MCPOAuthProvider', () => {
         'https://discovered.auth.com/token',
         expect.objectContaining({
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: expect.objectContaining({
+            'Content-Type': 'application/x-www-form-urlencoded',
+          }),
         }),
       );
     });
@@ -263,10 +273,12 @@ describe('MCPOAuthProvider', () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
+          text: () => Promise.resolve(JSON.stringify(mockAuthServerMetadata)),
           json: () => Promise.resolve(mockAuthServerMetadata),
         })
         .mockResolvedValueOnce({
           ok: true,
+          text: () => Promise.resolve(JSON.stringify(mockRegistrationResponse)),
           json: () => Promise.resolve(mockRegistrationResponse),
         });
 
@@ -297,6 +309,7 @@ describe('MCPOAuthProvider', () => {
       // Mock token exchange
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        text: () => Promise.resolve(JSON.stringify(mockTokenResponse)),
         json: () => Promise.resolve(mockTokenResponse),
       });
 
@@ -447,6 +460,7 @@ describe('MCPOAuthProvider', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        text: () => Promise.resolve(JSON.stringify(refreshResponse)),
         json: () => Promise.resolve(refreshResponse),
       });
 
@@ -461,7 +475,10 @@ describe('MCPOAuthProvider', () => {
         'https://auth.example.com/token',
         expect.objectContaining({
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Accept: 'application/json, application/x-www-form-urlencoded',
+          },
           body: expect.stringContaining('grant_type=refresh_token'),
         }),
       );
@@ -470,6 +487,7 @@ describe('MCPOAuthProvider', () => {
     it('should include client secret in refresh request when available', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        text: () => Promise.resolve(JSON.stringify(mockTokenResponse)),
         json: () => Promise.resolve(mockTokenResponse),
       });
 
@@ -546,6 +564,7 @@ describe('MCPOAuthProvider', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        text: () => Promise.resolve(JSON.stringify(refreshResponse)),
         json: () => Promise.resolve(refreshResponse),
       });
 
@@ -666,6 +685,7 @@ describe('MCPOAuthProvider', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        text: () => Promise.resolve(JSON.stringify(mockTokenResponse)),
         json: () => Promise.resolve(mockTokenResponse),
       });
 
@@ -711,10 +731,15 @@ describe('MCPOAuthProvider', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        text: () => Promise.resolve(JSON.stringify(mockTokenResponse)),
         json: () => Promise.resolve(mockTokenResponse),
       });
 
-      await MCPOAuthProvider.authenticate('test-server', mockConfig);
+      await MCPOAuthProvider.authenticate(
+        'test-server',
+        mockConfig,
+        'https://auth.example.com',
+      );
 
       expect(capturedUrl).toBeDefined();
       expect(capturedUrl!).toContain('response_type=code');
@@ -759,6 +784,7 @@ describe('MCPOAuthProvider', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        text: () => Promise.resolve(JSON.stringify(mockTokenResponse)),
         json: () => Promise.resolve(mockTokenResponse),
       });
 
@@ -808,6 +834,7 @@ describe('MCPOAuthProvider', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        text: () => Promise.resolve(JSON.stringify(mockTokenResponse)),
         json: () => Promise.resolve(mockTokenResponse),
       });
 
