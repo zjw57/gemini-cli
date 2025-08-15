@@ -37,7 +37,15 @@ const createMockResponse = (options: {
   text?: string | (() => Promise<string>);
   json?: unknown | (() => Promise<unknown>);
 }) => {
-  const response: any = {
+  const response: {
+    ok: boolean;
+    status?: number;
+    headers: {
+      get: (name: string) => string | null;
+    };
+    text?: () => Promise<string>;
+    json?: () => Promise<unknown>;
+  } = {
     ok: options.ok,
     headers: {
       get: (name: string) => {
@@ -56,14 +64,14 @@ const createMockResponse = (options: {
   if (options.text !== undefined) {
     response.text =
       typeof options.text === 'string'
-        ? () => Promise.resolve(options.text)
-        : options.text;
+        ? () => Promise.resolve(options.text as string)
+        : (options.text as () => Promise<string>);
   }
 
   if (options.json !== undefined) {
     response.json =
       typeof options.json === 'function'
-        ? options.json
+        ? (options.json as () => Promise<unknown>)
         : () => Promise.resolve(options.json);
   }
 
