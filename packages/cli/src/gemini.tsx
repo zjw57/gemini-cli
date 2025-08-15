@@ -278,7 +278,10 @@ export async function main() {
           />
         </SettingsContext.Provider>
       </React.StrictMode>,
-      { exitOnCtrlC: false },
+      {
+        exitOnCtrlC: false,
+        isScreenReaderEnabled: config.getScreenReaderMode(),
+      },
     );
 
     checkForUpdates()

@@ -160,9 +160,12 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   const [staticNeedsRefresh, setStaticNeedsRefresh] = useState(false);
   const [staticKey, setStaticKey] = useState(0);
   const refreshStatic = useCallback(() => {
+    if (config.getScreenReaderMode()) {
+      return;
+    }
     stdout.write(ansiEscapes.clearTerminal);
     setStaticKey((prev) => prev + 1);
-  }, [setStaticKey, stdout]);
+  }, [setStaticKey, stdout, config]);
 
   const [geminiMdFileCount, setGeminiMdFileCount] = useState<number>(0);
   const [debugMessage, setDebugMessage] = useState<string>('');
@@ -892,16 +895,9 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
          * content is set it'll flush content to the terminal and move the area which it's "clearing"
          * down a notch. Without Static the area which gets erased and redrawn continuously grows.
          */}
-        <Static
-          key={staticKey}
-          items={[
-            <Box flexDirection="column" key="header">
-              {!settings.merged.hideBanner && (
-                <Header version={version} nightly={nightly} />
-              )}
-              {!settings.merged.hideTips && <Tips config={config} />}
-            </Box>,
-            ...history.map((h) => (
+        {config.getScreenReaderMode() ? (
+          <Box flexDirection="column" key="header">
+            {history.map((h) => (
               <HistoryItemDisplay
                 terminalWidth={mainAreaWidth}
                 availableTerminalHeight={staticAreaMaxItemHeight}
@@ -911,11 +907,34 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                 config={config}
                 commands={slashCommands}
               />
-            )),
-          ]}
-        >
-          {(item) => item}
-        </Static>
+            ))}
+          </Box>
+        ) : (
+          <Static
+            key={staticKey}
+            items={[
+              <Box flexDirection="column" key="header">
+                {!settings.merged.hideBanner && (
+                  <Header version={version} nightly={nightly} />
+                )}
+                {!settings.merged.hideTips && <Tips config={config} />}
+              </Box>,
+              ...history.map((h) => (
+                <HistoryItemDisplay
+                  terminalWidth={mainAreaWidth}
+                  availableTerminalHeight={staticAreaMaxItemHeight}
+                  key={h.id}
+                  item={h}
+                  isPending={false}
+                  config={config}
+                  commands={slashCommands}
+                />
+              )),
+            ]}
+          >
+            {(item) => item}
+          </Static>
+        )}
         <OverflowProvider>
           <Box ref={pendingHistoryItemRef} flexDirection="column">
             {pendingHistoryItems.map((item, i) => (

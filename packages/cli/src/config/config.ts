@@ -72,6 +72,7 @@ export interface CliArgs {
   listExtensions: boolean | undefined;
   proxy: string | undefined;
   includeDirectories: string[] | undefined;
+  screenReaderMode: boolean | undefined;
 }
 
 export async function parseArguments(): Promise<CliArgs> {
@@ -221,6 +222,11 @@ export async function parseArguments(): Promise<CliArgs> {
           coerce: (dirs: string[]) =>
             // Handle comma-separated values
             dirs.flatMap((dir) => dir.split(',').map((d) => d.trim())),
+        })
+        .option('screen-reader-mode', {
+          type: 'boolean',
+          description: 'Enable screen reader mode for accessibility.',
+          default: false,
         })
         .check((argv) => {
           if (argv.prompt && argv.promptInteractive) {
@@ -527,6 +533,7 @@ export async function loadCliConfig(
     folderTrust,
     interactive,
     trustedFolder,
+    screenReaderMode: argv.screenReaderMode,
   });
 }
 
