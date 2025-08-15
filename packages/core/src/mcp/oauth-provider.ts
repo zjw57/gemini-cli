@@ -378,7 +378,6 @@ export class MCPOAuthProvider {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        // GitHub requires this specific Accept header to return JSON
         Accept: 'application/json, application/x-www-form-urlencoded',
       },
       body: params.toString(),
@@ -405,7 +404,6 @@ export class MCPOAuthProvider {
       );
     }
 
-    // GitHub returns token response as form-urlencoded, not JSON
     // Try to parse as JSON first, fall back to form-urlencoded
     try {
       return JSON.parse(responseText) as OAuthTokenResponse;
@@ -502,7 +500,6 @@ export class MCPOAuthProvider {
       );
     }
 
-    // GitHub returns token response as form-urlencoded, not JSON
     // Try to parse as JSON first, fall back to form-urlencoded
     try {
       return JSON.parse(responseText) as OAuthTokenResponse;
