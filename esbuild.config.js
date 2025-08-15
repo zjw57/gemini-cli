@@ -22,12 +22,6 @@ esbuild
     platform: 'node',
     format: 'esm',
     external: [
-      '@lydell/node-pty',
-      '@lydell/node-pty-darwin-arm64',
-      '@lydell/node-pty-darwin-x64',
-      '@lydell/node-pty-linux-x64',
-      '@lydell/node-pty-win32-arm64',
-      '@lydell/node-pty-win32-x64',
     ],
     alias: {
       'is-in-ci': path.resolve(
@@ -41,5 +35,8 @@ esbuild
     banner: {
       js: `import { createRequire } from 'module'; const require = createRequire(import.meta.url); globalThis.__filename = require('url').fileURLToPath(import.meta.url); globalThis.__dirname = require('path').dirname(globalThis.__filename);`,
     },
+    loader: {
+      '.node': 'file',
+    }
   })
   .catch(() => process.exit(1));

@@ -5,6 +5,10 @@
  */
 
 import esbuild from 'esbuild';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const pkg = require('./package.json');
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
@@ -41,7 +45,7 @@ async function main() {
     sourcesContent: false,
     platform: 'node',
     outfile: 'dist/extension.cjs',
-    external: ['vscode'],
+    external: ['vscode', ...Object.keys(pkg.dependencies || {})],
     logLevel: 'silent',
     plugins: [
       /* add to the end of plugins array */

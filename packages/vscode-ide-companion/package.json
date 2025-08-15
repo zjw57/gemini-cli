@@ -102,7 +102,7 @@
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "vsce package --no-dependencies",
+    "package": "vsce package",
     "generate:notices": "node ./scripts/generate-notices.js",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
@@ -127,5 +127,8 @@
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "zod": "^3.25.76"
+  },
+  "optionalDependencies": {
+    "@lydell/node-pty": "1.1.0"
   }
 }

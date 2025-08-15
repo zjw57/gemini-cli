@@ -24,7 +24,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 
-execSync('npx --yes @vscode/vsce package --no-dependencies', {
+execSync('npx --yes @vscode/vsce package', {
   stdio: 'inherit',
   cwd: join(root, 'packages', 'vscode-ide-companion'),
 });
