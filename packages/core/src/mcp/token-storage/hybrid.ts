@@ -133,5 +133,6 @@ export class HybridTokenStorage extends BaseTokenStorage {
   async resetStorage(): Promise<void> {
     this.primaryStorage = null;
     this.storageType = null;
+    this.storageInitPromise = null;
   }
 }
