@@ -42,9 +42,9 @@ function isGitUrl(source: string): boolean {
       'git@gitlab.com:',
       'git@bitbucket.org:',
       'git@git.sr.ht:',
-      'git@codeberg.org:'
+      'git@codeberg.org:',
     ];
-    return allowedSshHosts.some(host => source.startsWith(host));
+    return allowedSshHosts.some((host) => source.startsWith(host));
   }
 
   // Handle HTTP/HTTPS URLs with proper host validation
@@ -53,10 +53,10 @@ function isGitUrl(source: string): boolean {
       const url = new URL(source);
       const allowedHosts = [
         'github.com',
-        'gitlab.com', 
+        'gitlab.com',
         'bitbucket.org',
         'git.sr.ht',
-        'codeberg.org'
+        'codeberg.org',
       ];
       return allowedHosts.includes(url.hostname);
     } catch {
