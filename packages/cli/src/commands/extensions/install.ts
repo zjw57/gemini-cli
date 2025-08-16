@@ -9,7 +9,7 @@ import type { CommandModule } from 'yargs';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import {
   SettingsManager,
   ExtensionMetadata,
@@ -68,7 +68,10 @@ export async function installExtension(argv: {
       // It's a git repository
       tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gemini-cli-ext-'));
       console.log(`Cloning from ${source} into ${tempDir}...`);
-      execSync(`git clone ${source} .`, { cwd: tempDir, stdio: 'inherit' });
+      execFileSync('git', ['clone', source, '.'], {
+        cwd: tempDir,
+        stdio: 'inherit',
+      });
       sourcePath = tempDir;
     } else {
       throw new Error(

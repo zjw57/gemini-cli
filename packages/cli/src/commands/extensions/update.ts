@@ -42,7 +42,7 @@ async function updateExtension(argv: { name: string }) {
       ? path.join(os.homedir(), EXTENSIONS_DIRECTORY_NAME)
       : path.join(process.cwd(), EXTENSIONS_DIRECTORY_NAME);
 
-  const targetPath = path.join(extensionsDir, name);
+  const targetPath = path.join(extensionsDir, path.basename(name));
 
   if (!fs.existsSync(targetPath)) {
     console.error(

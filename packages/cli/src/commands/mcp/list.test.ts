@@ -13,6 +13,9 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 vi.mock('../../config/settings-manager.js');
 vi.mock('@google/gemini-cli-core');
 vi.mock('@modelcontextprotocol/sdk/client/index.js');
+vi.mock('../../config/extension.js', () => ({
+  loadExtensions: vi.fn(() => []),
+}));
 
 const MockedSettingsManager = SettingsManager as vi.Mocked<
   typeof SettingsManager

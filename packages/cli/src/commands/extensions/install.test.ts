@@ -104,8 +104,9 @@ describe('extensions install command', () => {
       user: true,
     });
 
-    expect(mockedChildProcess.execSync).toHaveBeenCalledWith(
-      `git clone ${gitUrl} .`,
+    expect(mockedChildProcess.execFileSync).toHaveBeenCalledWith(
+      'git',
+      ['clone', gitUrl, '.'],
       {
         cwd: tempGitDir,
         stdio: 'inherit',

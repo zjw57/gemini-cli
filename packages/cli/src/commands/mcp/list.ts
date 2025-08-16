@@ -27,8 +27,24 @@ async function getMcpServersFromConfig(): Promise<
 
   const userMcpServers = await userSettingsManager.getMcpServers();
   const projectMcpServers = await projectSettingsManager.getMcpServers();
+  const mcpServers = { ...userMcpServers, ...projectMcpServers };
 
-  return { ...userMcpServers, ...projectMcpServers };
+  const { loadExtensions } = await import('../../config/extension.js');
+  const extensions = loadExtensions(process.cwd());
+  for (const extension of extensions) {
+    Object.entries(extension.config.mcpServers || {}).forEach(
+      ([key, server]) => {
+        if (mcpServers[key]) {
+          return;
+        }
+        mcpServers[key] = {
+          ...server,
+          extensionName: extension.config.name,
+        };
+      },
+    );
+  }
+  return mcpServers;
 }
 
 async function testMCPConnection(

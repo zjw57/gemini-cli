@@ -336,8 +336,11 @@ export async function loadCliConfig(
   const folderTrust = folderTrustFeature && folderTrustSetting;
   const trustedFolder = isWorkspaceTrusted(settings);
 
-  const settingsManager = new SettingsManager();
-  const managedExtensions = await settingsManager.getInstalledExtensions();
+  const userExts = await new SettingsManager('user').getInstalledExtensions();
+  const projectExts = await new SettingsManager(
+    'project',
+  ).getInstalledExtensions();
+  const managedExtensions = [...userExts, ...projectExts];
 
   let allExtensions = annotateActiveExtensions(extensions, managedExtensions);
 
