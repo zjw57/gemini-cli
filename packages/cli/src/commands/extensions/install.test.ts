@@ -35,7 +35,7 @@ describe('extensions install command', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    tempDir = '/tmp/gemini-cli-test-';
+    tempDir = path.join(os.tmpdir(), 'gemini-cli-test');
     vi.mocked(os.homedir).mockReturnValue(tempDir);
     mockedFs.mkdtempSync.mockReturnValue(path.join(tempDir, 'gemini-cli-ext-'));
     mockedFs.existsSync.mockReturnValue(false);
