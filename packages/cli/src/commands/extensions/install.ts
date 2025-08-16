@@ -35,15 +35,36 @@ async function getExtensionName(extensionDir: string): Promise<string> {
 }
 
 function isGitUrl(source: string): boolean {
-  return (
-    source.startsWith('http://') ||
-    source.startsWith('https://') ||
-    source.startsWith('git@') ||
-    source.includes('github.com') ||
-    source.includes('gitlab.com') ||
-    source.includes('bitbucket.org') ||
-    source.endsWith('.git')
-  );
+  // Handle SSH git URLs (only allow known hosts)
+  if (source.startsWith('git@')) {
+    const allowedSshHosts = [
+      'git@github.com:',
+      'git@gitlab.com:',
+      'git@bitbucket.org:',
+      'git@git.sr.ht:',
+      'git@codeberg.org:'
+    ];
+    return allowedSshHosts.some(host => source.startsWith(host));
+  }
+
+  // Handle HTTP/HTTPS URLs with proper host validation
+  if (source.startsWith('http://') || source.startsWith('https://')) {
+    try {
+      const url = new URL(source);
+      const allowedHosts = [
+        'github.com',
+        'gitlab.com', 
+        'bitbucket.org',
+        'git.sr.ht',
+        'codeberg.org'
+      ];
+      return allowedHosts.includes(url.hostname);
+    } catch {
+      return false; // Invalid URL
+    }
+  }
+
+  return false;
 }
 
 export async function installExtension(argv: {
