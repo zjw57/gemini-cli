@@ -6,30 +6,23 @@
 
 // File for 'gemini mcp remove' command
 import type { CommandModule } from 'yargs';
-import { loadSettings, SettingScope } from '../../config/settings.js';
+import { SettingsManager } from '../../config/settings-manager.js';
+import { scopeOption } from '../shared-options.js';
+import { getScope } from '../../utils/scope.js';
+import { handlerWrapper } from '../handler-wrapper.js';
 
-async function removeMcpServer(
-  name: string,
-  options: {
-    scope: string;
-  },
-) {
-  const { scope } = options;
-  const settingsScope =
-    scope === 'user' ? SettingScope.User : SettingScope.Workspace;
-  const settings = loadSettings(process.cwd());
+async function removeMcpServer(argv: { name: string; scope?: string }) {
+  const { name, scope } = argv;
+  const settingsManager = new SettingsManager(getScope(argv));
 
-  const existingSettings = settings.forScope(settingsScope).settings;
-  const mcpServers = existingSettings.mcpServers || {};
+  const mcpServers = await settingsManager.getMcpServers();
 
   if (!mcpServers[name]) {
     console.log(`Server "${name}" not found in ${scope} settings.`);
     return;
   }
 
-  delete mcpServers[name];
-
-  settings.setValue(settingsScope, 'mcpServers', mcpServers);
+  await settingsManager.removeMcpServer(name);
 
   console.log(`Server "${name}" removed from ${scope} settings.`);
 }
@@ -45,16 +38,9 @@ export const removeCommand: CommandModule = {
         type: 'string',
         demandOption: true,
       })
-      .option('scope', {
-        alias: 's',
-        describe: 'Configuration scope (user or project)',
-        type: 'string',
-        default: 'project',
-        choices: ['user', 'project'],
-      }),
-  handler: async (argv) => {
-    await removeMcpServer(argv.name as string, {
-      scope: argv.scope as string,
-    });
-  },
+      .option('scope', scopeOption),
+  handler: handlerWrapper(
+    removeMcpServer,
+    'An error occurred while removing the MCP server',
+  ),
 };

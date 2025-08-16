@@ -6,18 +6,17 @@
 
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { listMcpServers } from './list.js';
-import { loadSettings } from '../../config/settings.js';
-import { loadExtensions } from '../../config/extension.js';
+import { SettingsManager } from '../../config/settings-manager.js';
 import { createTransport } from '@google/gemini-cli-core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
-vi.mock('../../config/settings.js');
-vi.mock('../../config/extension.js');
+vi.mock('../../config/settings-manager.js');
 vi.mock('@google/gemini-cli-core');
 vi.mock('@modelcontextprotocol/sdk/client/index.js');
 
-const mockedLoadSettings = loadSettings as vi.Mock;
-const mockedLoadExtensions = loadExtensions as vi.Mock;
+const MockedSettingsManager = SettingsManager as vi.Mocked<
+  typeof SettingsManager
+>;
 const mockedCreateTransport = createTransport as vi.Mock;
 const MockedClient = Client as vi.Mock;
 
@@ -50,7 +49,6 @@ describe('mcp list command', () => {
 
     MockedClient.mockImplementation(() => mockClient);
     mockedCreateTransport.mockResolvedValue(mockTransport);
-    mockedLoadExtensions.mockReturnValue([]);
   });
 
   afterEach(() => {
@@ -58,22 +56,21 @@ describe('mcp list command', () => {
   });
 
   it('should display message when no servers configured', async () => {
-    mockedLoadSettings.mockReturnValue({ merged: { mcpServers: {} } });
+    MockedSettingsManager.prototype.getMcpServers = vi
+      .fn()
+      .mockResolvedValue({});
 
     await listMcpServers();
 
+    expect(consoleSpy).toHaveBeenCalledWith('Configured MCP servers:\n');
     expect(consoleSpy).toHaveBeenCalledWith('No MCP servers configured.');
   });
 
   it('should display different server types with connected status', async () => {
-    mockedLoadSettings.mockReturnValue({
-      merged: {
-        mcpServers: {
-          'stdio-server': { command: '/path/to/server', args: ['arg1'] },
-          'sse-server': { url: 'https://example.com/sse' },
-          'http-server': { httpUrl: 'https://example.com/http' },
-        },
-      },
+    MockedSettingsManager.prototype.getMcpServers = vi.fn().mockResolvedValue({
+      'stdio-server': { command: '/path/to/server', args: ['arg1'] },
+      'sse-server': { url: 'https://example.com/sse' },
+      'http-server': { httpUrl: 'https://example.com/http' },
     });
 
     mockClient.connect.mockResolvedValue(undefined);
@@ -100,12 +97,8 @@ describe('mcp list command', () => {
   });
 
   it('should display disconnected status when connection fails', async () => {
-    mockedLoadSettings.mockReturnValue({
-      merged: {
-        mcpServers: {
-          'test-server': { command: '/test/server' },
-        },
-      },
+    MockedSettingsManager.prototype.getMcpServers = vi.fn().mockResolvedValue({
+      'test-server': { command: '/test/server' },
     });
 
     mockClient.connect.mockRejectedValue(new Error('Connection failed'));
@@ -115,39 +108,6 @@ describe('mcp list command', () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining(
         'test-server: /test/server  (stdio) - Disconnected',
-      ),
-    );
-  });
-
-  it('should merge extension servers with config servers', async () => {
-    mockedLoadSettings.mockReturnValue({
-      merged: {
-        mcpServers: { 'config-server': { command: '/config/server' } },
-      },
-    });
-
-    mockedLoadExtensions.mockReturnValue([
-      {
-        config: {
-          name: 'test-extension',
-          mcpServers: { 'extension-server': { command: '/ext/server' } },
-        },
-      },
-    ]);
-
-    mockClient.connect.mockResolvedValue(undefined);
-    mockClient.ping.mockResolvedValue(undefined);
-
-    await listMcpServers();
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'config-server: /config/server  (stdio) - Connected',
-      ),
-    );
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'extension-server: /ext/server  (stdio) - Connected',
       ),
     );
   });

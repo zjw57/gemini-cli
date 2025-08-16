@@ -113,52 +113,36 @@ describe('loadExtensions', () => {
 
 describe('annotateActiveExtensions', () => {
   const extensions = [
-    { config: { name: 'ext1', version: '1.0.0' }, contextFiles: [] },
-    { config: { name: 'ext2', version: '1.0.0' }, contextFiles: [] },
-    { config: { name: 'ext3', version: '1.0.0' }, contextFiles: [] },
+    { path: '', config: { name: 'ext1', version: '1.0.0' }, contextFiles: [] },
+    { path: '', config: { name: 'ext2', version: '1.0.0' }, contextFiles: [] },
+    { path: '', config: { name: 'ext3', version: '1.0.0' }, contextFiles: [] },
   ];
 
-  it('should mark all extensions as active if no enabled extensions are provided', () => {
-    const activeExtensions = annotateActiveExtensions(extensions, []);
-    expect(activeExtensions).toHaveLength(3);
-    expect(activeExtensions.every((e) => e.isActive)).toBe(true);
-  });
+  const managedExtensions = [
+    {
+      name: 'ext1',
+      source: '',
+      installDate: '',
+      lastUpdated: '',
+      active: true,
+      scope: 'user' as const,
+    },
+    {
+      name: 'ext2',
+      source: '',
+      installDate: '',
+      lastUpdated: '',
+      active: false,
+      scope: 'user' as const,
+    },
+  ];
 
-  it('should mark only the enabled extensions as active', () => {
-    const activeExtensions = annotateActiveExtensions(extensions, [
-      'ext1',
-      'ext3',
-    ]);
-    expect(activeExtensions).toHaveLength(3);
-    expect(activeExtensions.find((e) => e.name === 'ext1')?.isActive).toBe(
-      true,
-    );
-    expect(activeExtensions.find((e) => e.name === 'ext2')?.isActive).toBe(
-      false,
-    );
-    expect(activeExtensions.find((e) => e.name === 'ext3')?.isActive).toBe(
-      true,
-    );
-  });
-
-  it('should mark all extensions as inactive when "none" is provided', () => {
-    const activeExtensions = annotateActiveExtensions(extensions, ['none']);
-    expect(activeExtensions).toHaveLength(3);
-    expect(activeExtensions.every((e) => !e.isActive)).toBe(true);
-  });
-
-  it('should handle case-insensitivity', () => {
-    const activeExtensions = annotateActiveExtensions(extensions, ['EXT1']);
-    expect(activeExtensions.find((e) => e.name === 'ext1')?.isActive).toBe(
-      true,
-    );
-  });
-
-  it('should log an error for unknown extensions', () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    annotateActiveExtensions(extensions, ['ext4']);
-    expect(consoleSpy).toHaveBeenCalledWith('Extension not found: ext4');
-    consoleSpy.mockRestore();
+  it('should correctly annotate extensions based on managed status', () => {
+    const annotated = annotateActiveExtensions(extensions, managedExtensions);
+    expect(annotated).toHaveLength(3);
+    expect(annotated.find((e) => e.name === 'ext1')?.isActive).toBe(true);
+    expect(annotated.find((e) => e.name === 'ext2')?.isActive).toBe(false);
+    expect(annotated.find((e) => e.name === 'ext3')?.isActive).toBe(true);
   });
 });
 

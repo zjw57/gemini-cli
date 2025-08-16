@@ -80,7 +80,12 @@
     "src/ui/utils/computeStats.test.ts",
     "src/ui/themes/theme.test.ts",
     "src/validateNonInterActiveAuth.test.ts",
-    "src/services/prompt-processors/shellProcessor.test.ts"
+    "src/services/prompt-processors/shellProcessor.test.ts",
+    "src/commands/extensions/install.test.ts",
+    "src/commands/extensions/uninstall.test.ts",
+    "src/commands/extensions/activate.test.ts",
+    "src/commands/extensions/deactivate.test.ts",
+    "src/commands/extensions/update.test.ts"
   ],
   "references": [{ "path": "../core" }]
 }

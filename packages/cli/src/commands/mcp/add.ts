@@ -6,26 +6,30 @@
 
 // File for 'gemini mcp add' command
 import type { CommandModule } from 'yargs';
-import { loadSettings, SettingScope } from '../../config/settings.js';
 import { MCPServerConfig } from '@google/gemini-cli-core';
+import { SettingsManager } from '../../config/settings-manager.js';
+import { scopeOption } from '../shared-options.js';
+import { getScope } from '../../utils/scope.js';
+import { handlerWrapper } from '../handler-wrapper.js';
 
-async function addMcpServer(
-  name: string,
-  commandOrUrl: string,
-  args: Array<string | number> | undefined,
-  options: {
-    scope: string;
-    transport: string;
-    env: string[] | undefined;
-    header: string[] | undefined;
-    timeout?: number;
-    trust?: boolean;
-    description?: string;
-    includeTools?: string[];
-    excludeTools?: string[];
-  },
-) {
+async function addMcpServer(argv: {
+  name: string;
+  commandOrUrl: string;
+  args?: Array<string | number>;
+  scope?: string;
+  transport?: string;
+  env?: string[];
+  header?: string[];
+  timeout?: number;
+  trust?: boolean;
+  description?: string;
+  includeTools?: string[];
+  excludeTools?: string[];
+}) {
   const {
+    name,
+    commandOrUrl,
+    args,
     scope,
     transport,
     env,
@@ -35,10 +39,8 @@ async function addMcpServer(
     description,
     includeTools,
     excludeTools,
-  } = options;
-  const settingsScope =
-    scope === 'user' ? SettingScope.User : SettingScope.Workspace;
-  const settings = loadSettings(process.cwd());
+  } = argv;
+  const settingsManager = new SettingsManager(getScope(argv));
 
   let newServer: Partial<MCPServerConfig> = {};
 
@@ -101,8 +103,7 @@ async function addMcpServer(
       break;
   }
 
-  const existingSettings = settings.forScope(settingsScope).settings;
-  const mcpServers = existingSettings.mcpServers || {};
+  const mcpServers = await settingsManager.getMcpServers();
 
   const isExistingServer = !!mcpServers[name];
   if (isExistingServer) {
@@ -111,9 +112,7 @@ async function addMcpServer(
     );
   }
 
-  mcpServers[name] = newServer as MCPServerConfig;
-
-  settings.setValue(settingsScope, 'mcpServers', mcpServers);
+  await settingsManager.addMcpServer(name, newServer as MCPServerConfig);
 
   if (isExistingServer) {
     console.log(`MCP server "${name}" updated in ${scope} settings.`);
@@ -144,13 +143,7 @@ export const addCommand: CommandModule = {
         type: 'string',
         demandOption: true,
       })
-      .option('scope', {
-        alias: 's',
-        describe: 'Configuration scope (user or project)',
-        type: 'string',
-        default: 'project',
-        choices: ['user', 'project'],
-      })
+      .option('scope', scopeOption)
       .option('transport', {
         alias: 't',
         describe: 'Transport type (stdio, sse, http)',
@@ -201,22 +194,8 @@ export const addCommand: CommandModule = {
           argv.args = [...existingArgs, ...(argv['--'] as string[])];
         }
       }),
-  handler: async (argv) => {
-    await addMcpServer(
-      argv.name as string,
-      argv.commandOrUrl as string,
-      argv.args as Array<string | number>,
-      {
-        scope: argv.scope as string,
-        transport: argv.transport as string,
-        env: argv.env as string[],
-        header: argv.header as string[],
-        timeout: argv.timeout as number | undefined,
-        trust: argv.trust as boolean | undefined,
-        description: argv.description as string | undefined,
-        includeTools: argv.includeTools as string[] | undefined,
-        excludeTools: argv.excludeTools as string[] | undefined,
-      },
-    );
-  },
+  handler: handlerWrapper(
+    addMcpServer,
+    'An error occurred while adding the MCP server',
+  ),
 };

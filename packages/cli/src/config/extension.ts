@@ -5,6 +5,7 @@
  */
 
 import { MCPServerConfig, GeminiCLIExtension } from '@google/gemini-cli-core';
+import { ExtensionMetadata } from './settings-manager.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -114,56 +115,20 @@ function getContextFileNames(config: ExtensionConfig): string[] {
 
 export function annotateActiveExtensions(
   extensions: Extension[],
-  enabledExtensionNames: string[],
+  managedExtensions: ExtensionMetadata[],
 ): GeminiCLIExtension[] {
-  const annotatedExtensions: GeminiCLIExtension[] = [];
-
-  if (enabledExtensionNames.length === 0) {
-    return extensions.map((extension) => ({
-      name: extension.config.name,
-      version: extension.config.version,
-      isActive: true,
-      path: extension.path,
-    }));
-  }
-
-  const lowerCaseEnabledExtensions = new Set(
-    enabledExtensionNames.map((e) => e.trim().toLowerCase()),
+  const managedExtensionsMap = new Map(
+    managedExtensions.map((ext) => [ext.name, ext]),
   );
 
-  if (
-    lowerCaseEnabledExtensions.size === 1 &&
-    lowerCaseEnabledExtensions.has('none')
-  ) {
-    return extensions.map((extension) => ({
-      name: extension.config.name,
-      version: extension.config.version,
-      isActive: false,
-      path: extension.path,
-    }));
-  }
-
-  const notFoundNames = new Set(lowerCaseEnabledExtensions);
-
-  for (const extension of extensions) {
-    const lowerCaseName = extension.config.name.toLowerCase();
-    const isActive = lowerCaseEnabledExtensions.has(lowerCaseName);
-
-    if (isActive) {
-      notFoundNames.delete(lowerCaseName);
-    }
-
-    annotatedExtensions.push({
+  return extensions.map((extension) => {
+    const managed = managedExtensionsMap.get(extension.config.name);
+    const isActive = managed ? managed.active : true; // Unmanaged are active by default
+    return {
       name: extension.config.name,
       version: extension.config.version,
       isActive,
       path: extension.path,
-    });
-  }
-
-  for (const requestedName of notFoundNames) {
-    console.error(`Extension not found: ${requestedName}`);
-  }
-
-  return annotatedExtensions;
+    };
+  });
 }

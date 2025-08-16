@@ -6,62 +6,49 @@
 
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import yargs from 'yargs';
-import { loadSettings, SettingScope } from '../../config/settings.js';
 import { removeCommand } from './remove.js';
+import { SettingsManager } from '../../config/settings-manager.js';
 
-vi.mock('fs/promises', () => ({
-  readFile: vi.fn(),
-  writeFile: vi.fn(),
-}));
+vi.mock('../../config/settings-manager.js');
 
-vi.mock('../../config/settings.js', async () => {
-  const actual = await vi.importActual('../../config/settings.js');
-  return {
-    ...actual,
-    loadSettings: vi.fn(),
-  };
-});
-
-const mockedLoadSettings = loadSettings as vi.Mock;
+const MockedSettingsManager = SettingsManager as vi.Mocked<
+  typeof SettingsManager
+>;
 
 describe('mcp remove command', () => {
   let parser: yargs.Argv;
-  let mockSetValue: vi.Mock;
-  let mockSettings: Record<string, unknown>;
 
   beforeEach(() => {
     vi.resetAllMocks();
     const yargsInstance = yargs([]).command(removeCommand);
     parser = yargsInstance;
-    mockSetValue = vi.fn();
-    mockSettings = {
-      mcpServers: {
-        'test-server': {
-          command: 'echo "hello"',
-        },
-      },
-    };
-    mockedLoadSettings.mockReturnValue({
-      forScope: () => ({ settings: mockSettings }),
-      setValue: mockSetValue,
-    });
   });
 
   it('should remove a server from project settings', async () => {
+    const mockRemoveMcpServer = vi.fn();
+    MockedSettingsManager.prototype.removeMcpServer = mockRemoveMcpServer;
+    MockedSettingsManager.prototype.getMcpServers = vi.fn().mockResolvedValue({
+      'test-server': {
+        command: 'echo "hello"',
+      },
+    });
+
     await parser.parseAsync('remove test-server');
 
-    expect(mockSetValue).toHaveBeenCalledWith(
-      SettingScope.Workspace,
-      'mcpServers',
-      {},
-    );
+    expect(mockRemoveMcpServer).toHaveBeenCalledWith('test-server');
   });
 
   it('should show a message if server not found', async () => {
+    const mockRemoveMcpServer = vi.fn();
+    MockedSettingsManager.prototype.removeMcpServer = mockRemoveMcpServer;
+    MockedSettingsManager.prototype.getMcpServers = vi
+      .fn()
+      .mockResolvedValue({});
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
     await parser.parseAsync('remove non-existent-server');
 
-    expect(mockSetValue).not.toHaveBeenCalled();
+    expect(mockRemoveMcpServer).not.toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalledWith(
       'Server "non-existent-server" not found in project settings.',
     );

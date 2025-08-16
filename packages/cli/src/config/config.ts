@@ -11,6 +11,7 @@ import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 import process from 'node:process';
 import { mcpCommand } from '../commands/mcp.js';
+import { extensionsCommand } from '../commands/extensions.js';
 import {
   Config,
   loadServerHierarchicalMemory,
@@ -36,6 +37,7 @@ import { loadSandboxConfig } from './sandboxConfig.js';
 import { resolvePath } from '../utils/resolvePath.js';
 
 import { isWorkspaceTrusted } from './trustedFolders.js';
+import { SettingsManager } from './settings-manager.js';
 
 // Simple console logger for now - replace with actual logger if available
 const logger = {
@@ -245,6 +247,7 @@ export async function parseArguments(): Promise<CliArgs> {
     )
     // Register MCP subcommands
     .command(mcpCommand)
+    .command(extensionsCommand)
     .version(await getCliVersion()) // This will enable the --version flag based on package.json
     .alias('v', 'version')
     .help()
@@ -257,8 +260,11 @@ export async function parseArguments(): Promise<CliArgs> {
 
   // Handle case where MCP subcommands are executed - they should exit the process
   // and not return to main CLI logic
-  if (result._.length > 0 && result._[0] === 'mcp') {
-    // MCP commands handle their own execution and process exit
+  if (
+    result._.length > 0 &&
+    (result._[0] === 'mcp' || result._[0] === 'extensions')
+  ) {
+    // MCP and extensions commands handle their own execution and process exit
     process.exit(0);
   }
 
@@ -330,10 +336,41 @@ export async function loadCliConfig(
   const folderTrust = folderTrustFeature && folderTrustSetting;
   const trustedFolder = isWorkspaceTrusted(settings);
 
-  const allExtensions = annotateActiveExtensions(
-    extensions,
-    argv.extensions || [],
-  );
+  const settingsManager = new SettingsManager();
+  const managedExtensions = await settingsManager.getInstalledExtensions();
+
+  let allExtensions = annotateActiveExtensions(extensions, managedExtensions);
+
+  if (argv.extensions && argv.extensions.length > 0) {
+    const lowerCaseEnabledExtensions = new Set(
+      argv.extensions.map((e) => e.trim().toLowerCase()),
+    );
+
+    if (
+      lowerCaseEnabledExtensions.size === 1 &&
+      lowerCaseEnabledExtensions.has('none')
+    ) {
+      allExtensions = allExtensions.map((e) => ({ ...e, isActive: false }));
+    } else {
+      const notFoundNames = new Set(lowerCaseEnabledExtensions);
+      allExtensions = allExtensions.map((extension) => {
+        const lowerCaseName = extension.name.toLowerCase();
+        const isEnabled = lowerCaseEnabledExtensions.has(lowerCaseName);
+
+        if (isEnabled) {
+          notFoundNames.delete(lowerCaseName);
+        }
+
+        return {
+          ...extension,
+          isActive: extension.isActive && isEnabled,
+        };
+      });
+      for (const requestedName of notFoundNames) {
+        console.error(`Extension not found: ${requestedName}`);
+      }
+    }
+  }
 
   const activeExtensions = extensions.filter(
     (_, i) => allExtensions[i].isActive,
