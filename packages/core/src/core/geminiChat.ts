@@ -16,6 +16,7 @@ import {
   Part,
   GenerateContentResponseUsageMetadata,
   Tool,
+  PartListUnion,
 } from '@google/genai';
 import { retryWithBackoff } from '../utils/retry.js';
 import { isFunctionResponse } from '../utils/messageInspectors.js';
@@ -130,7 +131,7 @@ export class GeminiChat {
   private sendPromise: Promise<void> = Promise.resolve();
   private runner: InMemoryRunner;
   private agent: LlmAgent;
-  private session: Session | undefined;
+  private sessionId: string | undefined;
 
   constructor(
     private readonly config: Config,
@@ -167,22 +168,22 @@ export class GeminiChat {
     // Send the first message.
     // TODO: can we "pack the history" instead?
     if (history?.length) {
-      const firstMessage = history[0].parts && history[0].parts[0].text;
-      if (firstMessage) {
-        this.sendMessage({ message: firstMessage }, 'placeholder');
-      }
+        this.sendMessage({ 
+          message: history[0].parts as PartListUnion}, 
+          'placeholder'
+        );
     }
   }
 
-  private async maybeSetSession(): Promise<Session> {
-    if (this.session === undefined) {
+  private async maybeSetSession(): Promise<string> {
+    if (this.sessionId === undefined) {
       const session = await this.runner.sessionService.createSession(
         this.agent.name,
         'placeholder',
       );
-      this.session = session;
+      this.sessionId = session.id;
     }
-    return this.session;
+    return this.sessionId;
   }
 
   private async _logApiResponse(
@@ -386,7 +387,7 @@ export class GeminiChat {
   ): Promise<GenerateContentResponse> {
     let event = (await this.runner.runSync({
       userId: 'placeholder',
-      sessionId: this.session?.id || '',
+      sessionId: this.sessionId || '',
       newMessage,
     })) as Event | Event[];
     if (Array.isArray(event)) {
@@ -491,7 +492,7 @@ export class GeminiChat {
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
     const eventStream = (await this.runner.runAsync({
       userId: 'placeholder',
-      sessionId: this.session?.id || '',
+      sessionId: this.sessionId || '',
       newMessage,
     })) as AsyncGenerator<Event>;
 
