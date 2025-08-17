@@ -29,7 +29,7 @@ export class HybridTokenStorage extends BaseTokenStorage {
   private async initializeStorage(): Promise<ITokenStorage> {
     const shouldLog = !globalStorageTypeLogged;
 
-    if (process.env.GEMINI_FORCE_FILE_STORAGE === 'true') {
+    if (process.env['GEMINI_FORCE_FILE_STORAGE'] === 'true') {
       if (shouldLog) {
         console.log(
           '📁 Using file-based token storage (forced by environment variable)',

@@ -102,7 +102,7 @@ describe('HybridTokenStorage', () => {
     });
 
     it('should use file storage when GEMINI_FORCE_FILE_STORAGE is set', async () => {
-      process.env.GEMINI_FORCE_FILE_STORAGE = 'true';
+      process.env['GEMINI_FORCE_FILE_STORAGE'] = 'true';
       mockFileStorage.getCredentials.mockResolvedValue(null);
 
       await storage.getCredentials('test-server');
