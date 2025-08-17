@@ -13,11 +13,32 @@ import {
   isTelemetrySdkInitialized,
   GeminiEventType,
   ToolErrorType,
+  ToolCallResponseInfo,
 } from '@google/gemini-cli-core';
 import { Content, Part, FunctionCall } from '@google/genai';
 
 import { parseAndFormatApiError } from './ui/utils/errorParsing.js';
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
+
+
+const createErrorResponse = (
+  request: ToolCallRequestInfo,
+  error: Error,
+  errorType: ToolErrorType | undefined,
+): ToolCallResponseInfo => ({
+  callId: request.callId,
+  error,
+  responseParts: {
+    functionResponse: {
+      id: request.callId,
+      name: request.name,
+      response: { error: error.message },
+    },
+  },
+  resultDisplay: error.message,
+  errorType,
+});
+
 
 export async function runNonInteractive(
   config: Config,
@@ -98,7 +119,7 @@ export async function runNonInteractive(
             prompt_id,
           };
 
-          const toolResponse = await executeToolCall(
+          let toolResponse = await executeToolCall(
             config,
             requestInfo,
             toolRegistry,
@@ -109,8 +130,7 @@ export async function runNonInteractive(
             console.error(
               `Error executing tool ${fc.name}: ${toolResponse.resultDisplay || toolResponse.error.message}`,
             );
-            if (toolResponse.errorType === ToolErrorType.UNHANDLED_EXCEPTION)
-              process.exit(1);
+            toolResponse = createErrorResponse(requestInfo, toolResponse.error, toolResponse.errorType);
           }
 
           if (toolResponse.responseParts) {
