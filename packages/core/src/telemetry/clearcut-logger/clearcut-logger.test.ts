@@ -18,6 +18,7 @@ import {
   ClearcutLogger,
   LogEvent,
   LogEventEntry,
+  EventNames,
   TEST_ONLY,
 } from './clearcut-logger.js';
 import { ConfigParameters } from '../../config/config.js';
@@ -27,10 +28,11 @@ import { EventMetadataKey } from './event-metadata-key.js';
 import { makeFakeConfig } from '../../test-utils/config.js';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../mocks/msw.js';
-import { BaseTelemetryEvent, makeChatCompressionEvent } from '../types.js';
+import { makeChatCompressionEvent } from '../types.js';
 
 interface CustomMatchers<R = unknown> {
   toHaveMetadataValue: ([key, value]: [EventMetadataKey, string]) => R;
+  toHaveEventName: (name: EventNames) => R;
 }
 
 declare module 'vitest' {
@@ -39,6 +41,17 @@ declare module 'vitest' {
 }
 
 expect.extend({
+  toHaveEventName(received: LogEventEntry[], name: EventNames) {
+    const { isNot } = this;
+    const event = JSON.parse(received[0].source_extension_json) as LogEvent;
+    const pass = event.event_name === (name as unknown as string);
+    return {
+      pass,
+      message: () =>
+        `event name ${event.event_name} does${isNot ? ' not ' : ''} match ${name}}`,
+    };
+  },
+
   toHaveMetadataValue(
     received: LogEventEntry[],
     [key, value]: [EventMetadataKey, string],
@@ -52,7 +65,8 @@ expect.extend({
 
     return {
       pass,
-      message: () => `event ${received} does${isNot ? ' not' : ''} ${value}}`,
+      message: () =>
+        `event ${received} does${isNot ? ' not' : ''} have ${value}}`,
     };
   },
 });
@@ -81,11 +95,6 @@ describe('ClearcutLogger', () => {
   const CLEARCUT_URL = 'https://play.googleapis.com/log';
   const MOCK_DATE = new Date('2025-01-02T00:00:00.000Z');
   const EXAMPLE_RESPONSE = `["${NEXT_WAIT_MS}",null,[[["ANDROID_BACKUP",0],["BATTERY_STATS",0],["SMART_SETUP",0],["TRON",0]],-3334737594024971225],[]]`;
-
-  const FAKE_TELEMETRY_EVENT: BaseTelemetryEvent = {
-    'event.name': 'fake_event',
-    'event.timestamp': new Date().toISOString(),
-  };
 
   // A helper to get the internal events array for testing
   const getEvents = (l: ClearcutLogger): LogEventEntry[][] =>
@@ -170,7 +179,7 @@ describe('ClearcutLogger', () => {
         lifetimeGoogleAccounts: 9001,
       });
 
-      const event = logger?.createLogEvent(FAKE_TELEMETRY_EVENT, []);
+      const event = logger?.createLogEvent(EventNames.API_ERROR, []);
 
       expect(event?.event_metadata[0][0]).toEqual({
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_GOOGLE_ACCOUNTS_COUNT,
@@ -184,7 +193,7 @@ describe('ClearcutLogger', () => {
       vi.stubEnv('TERM_PROGRAM', 'vscode');
       vi.stubEnv('SURFACE', 'ide-1234');
 
-      const event = logger?.createLogEvent(FAKE_TELEMETRY_EVENT, []);
+      const event = logger?.createLogEvent(EventNames.API_ERROR, []);
 
       expect(event?.event_metadata[0][1]).toEqual({
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
@@ -236,7 +245,7 @@ describe('ClearcutLogger', () => {
           vi.stubEnv(key, value);
         }
         vi.stubEnv('TERM_PROGRAM', 'vscode');
-        const event = logger?.createLogEvent(FAKE_TELEMETRY_EVENT, []);
+        const event = logger?.createLogEvent(EventNames.API_ERROR, []);
         expect(event?.event_metadata[0][1]).toEqual({
           gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
           value: expectedValue,
@@ -257,6 +266,7 @@ describe('ClearcutLogger', () => {
 
       const events = getEvents(logger!);
       expect(events.length).toBe(1);
+      expect(events[0]).toHaveEventName(EventNames.CHAT_COMPRESSION);
       expect(events[0]).toHaveMetadataValue([
         EventMetadataKey.GEMINI_CLI_COMPRESSION_TOKENS_BEFORE,
         '9001',
@@ -271,7 +281,7 @@ describe('ClearcutLogger', () => {
   describe('enqueueLogEvent', () => {
     it('should add events to the queue', () => {
       const { logger } = setup();
-      logger!.enqueueLogEvent(logger!.createLogEvent(FAKE_TELEMETRY_EVENT));
+      logger!.enqueueLogEvent(logger!.createLogEvent(EventNames.API_ERROR));
       expect(getEventsSize(logger!)).toBe(1);
     });
 
@@ -280,36 +290,42 @@ describe('ClearcutLogger', () => {
 
       for (let i = 0; i < TEST_ONLY.MAX_EVENTS; i++) {
         logger!.enqueueLogEvent(
-          logger!.createLogEvent({
-            ...FAKE_TELEMETRY_EVENT,
-            ['event.name']: `${i}`,
-          }),
+          logger!.createLogEvent(EventNames.API_ERROR, [
+            {
+              gemini_cli_key: EventMetadataKey.GEMINI_CLI_AI_ADDED_LINES,
+              value: `${i}`,
+            },
+          ]),
         );
       }
 
-      expect(getEventsSize(logger!)).toBe(TEST_ONLY.MAX_EVENTS);
-      const firstEvent = JSON.parse(
-        getEvents(logger!)[0][0].source_extension_json,
-      );
-      expect(firstEvent['event_name']).toEqual('0');
+      let events = getEvents(logger!);
+      expect(events.length).toBe(TEST_ONLY.MAX_EVENTS);
+      expect(events[0]).toHaveMetadataValue([
+        EventMetadataKey.GEMINI_CLI_AI_ADDED_LINES,
+        '0',
+      ]);
 
       // This should push out the first event
       logger!.enqueueLogEvent(
-        logger!.createLogEvent({
-          ...FAKE_TELEMETRY_EVENT,
-          'event.name': `${TEST_ONLY.MAX_EVENTS}`,
-        }),
+        logger!.createLogEvent(EventNames.API_ERROR, [
+          {
+            gemini_cli_key: EventMetadataKey.GEMINI_CLI_AI_ADDED_LINES,
+            value: `${TEST_ONLY.MAX_EVENTS}`,
+          },
+        ]),
       );
+      events = getEvents(logger!);
+      expect(events.length).toBe(TEST_ONLY.MAX_EVENTS);
+      expect(events[0]).toHaveMetadataValue([
+        EventMetadataKey.GEMINI_CLI_AI_ADDED_LINES,
+        '1',
+      ]);
 
-      expect(getEventsSize(logger!)).toBe(TEST_ONLY.MAX_EVENTS);
-      const newFirstEvent = JSON.parse(
-        getEvents(logger!)[0][0].source_extension_json,
-      );
-      expect(newFirstEvent.event_name).toBe('1');
-      const lastEvent = JSON.parse(
-        getEvents(logger!)[TEST_ONLY.MAX_EVENTS - 1][0].source_extension_json,
-      );
-      expect(lastEvent['event_name']).toBe(`${TEST_ONLY.MAX_EVENTS}`);
+      expect(events.at(TEST_ONLY.MAX_EVENTS - 1)).toHaveMetadataValue([
+        EventMetadataKey.GEMINI_CLI_AI_ADDED_LINES,
+        `${TEST_ONLY.MAX_EVENTS}`,
+      ]);
     });
   });
 
@@ -321,7 +337,7 @@ describe('ClearcutLogger', () => {
         },
       });
 
-      logger!.enqueueLogEvent(logger!.createLogEvent(FAKE_TELEMETRY_EVENT));
+      logger!.enqueueLogEvent(logger!.createLogEvent(EventNames.API_ERROR));
 
       const response = await logger!.flushToClearcut();
 
@@ -331,7 +347,7 @@ describe('ClearcutLogger', () => {
     it('should clear events on successful flush', async () => {
       const { logger } = setup();
 
-      logger!.enqueueLogEvent(logger!.createLogEvent(FAKE_TELEMETRY_EVENT));
+      logger!.enqueueLogEvent(logger!.createLogEvent(EventNames.API_ERROR));
       const response = await logger!.flushToClearcut();
 
       expect(getEvents(logger!)).toEqual([]);
@@ -342,18 +358,8 @@ describe('ClearcutLogger', () => {
       const { logger } = setup();
 
       server.resetHandlers(http.post(CLEARCUT_URL, () => HttpResponse.error()));
-      logger!.enqueueLogEvent(
-        logger!.createLogEvent({
-          ...FAKE_TELEMETRY_EVENT,
-          'event.name': 'event-1',
-        }),
-      );
-      logger!.enqueueLogEvent(
-        logger!.createLogEvent({
-          ...FAKE_TELEMETRY_EVENT,
-          'event.name': 'event-2',
-        }),
-      );
+      logger!.enqueueLogEvent(logger!.createLogEvent(EventNames.API_REQUEST));
+      logger!.enqueueLogEvent(logger!.createLogEvent(EventNames.API_ERROR));
       expect(getEventsSize(logger!)).toBe(2);
 
       const x = logger!.flushToClearcut();
@@ -361,10 +367,9 @@ describe('ClearcutLogger', () => {
 
       expect(getEventsSize(logger!)).toBe(2);
       const events = getEvents(logger!);
-      const logEvent = JSON.parse(
-        events[0][0].source_extension_json,
-      ) as LogEvent;
-      expect(logEvent.event_name).toBe('event-1');
+
+      expect(events.length).toBe(2);
+      expect(events[0]).toHaveEventName(EventNames.API_REQUEST);
     });
 
     it('should handle an HTTP error and requeue events', async () => {
@@ -383,26 +388,15 @@ describe('ClearcutLogger', () => {
         ),
       );
 
-      logger!.enqueueLogEvent(
-        logger!.createLogEvent({
-          ...FAKE_TELEMETRY_EVENT,
-          'event.name': 'event-1',
-        }),
-      );
-      logger!.enqueueLogEvent(
-        logger!.createLogEvent({
-          ...FAKE_TELEMETRY_EVENT,
-          'event.name': 'event-2',
-        }),
-      );
+      logger!.enqueueLogEvent(logger!.createLogEvent(EventNames.API_REQUEST));
+      logger!.enqueueLogEvent(logger!.createLogEvent(EventNames.API_ERROR));
 
       expect(getEvents(logger!).length).toBe(2);
       await logger!.flushToClearcut();
 
-      expect(getEvents(logger!).length).toBe(2);
       const events = getEvents(logger!);
-      const event = JSON.parse(events[0][0].source_extension_json) as LogEvent;
-      expect(event.event_name).toBe('event-1');
+
+      expect(events[0]).toHaveEventName(EventNames.API_REQUEST);
     });
   });
 
@@ -438,7 +432,7 @@ describe('ClearcutLogger', () => {
       const spaceToLeave = 5;
       const initialEventCount = maxEvents - spaceToLeave;
       for (let i = 0; i < initialEventCount; i++) {
-        logger!.enqueueLogEvent(logger!.createLogEvent(FAKE_TELEMETRY_EVENT));
+        logger!.enqueueLogEvent(logger!.createLogEvent(EventNames.API_ERROR));
       }
       expect(getEventsSize(logger!)).toBe(initialEventCount);
 
