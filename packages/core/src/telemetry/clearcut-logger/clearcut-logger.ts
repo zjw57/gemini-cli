@@ -86,13 +86,13 @@ export interface LogRequest {
  * This is computed based upon a series of environment variables these distribution
  * methods might have in their runtimes.
  */
-function determineSurface(): string {
+async function determineSurface(): Promise<string> {
   if (process.env['SURFACE']) {
     return process.env['SURFACE'];
   } else if (process.env['GITHUB_SHA']) {
     return 'GitHub';
   } else if (process.env['TERM_PROGRAM'] === 'vscode') {
-    return detectIde() || DetectedIde.VSCode;
+    return (await detectIde()) || DetectedIde.VSCode;
   } else {
     return 'SURFACE_NOT_SET';
   }
@@ -196,10 +196,10 @@ export class ClearcutLogger {
     }
   }
 
-  createLogEvent(name: string, data: EventValue[]): LogEvent {
+  async createLogEvent(name: string, data: EventValue[]): Promise<LogEvent> {
     const email = getCachedGoogleAccount();
 
-    data = addDefaultFields(data);
+    data = await addDefaultFields(data);
 
     const logEvent: LogEvent = {
       console_type: 'GEMINI_CLI',
@@ -386,10 +386,14 @@ export class ClearcutLogger {
     ];
 
     // Flush start event immediately
-    this.enqueueLogEvent(this.createLogEvent(start_session_event_name, data));
-    this.flushToClearcut().catch((error) => {
-      console.debug('Error flushing to Clearcut:', error);
-    });
+    this.createLogEvent(start_session_event_name, data)
+      .then((logEvent) => {
+        this.enqueueLogEvent(logEvent);
+        return this.flushToClearcut();
+      })
+      .catch((error) => {
+        console.debug('Error flushing to Clearcut:', error);
+      });
   }
 
   logNewPromptEvent(event: UserPromptEvent): void {
@@ -412,8 +416,10 @@ export class ClearcutLogger {
       },
     ];
 
-    this.enqueueLogEvent(this.createLogEvent(new_prompt_event_name, data));
-    this.flushIfNeeded();
+    this.createLogEvent(new_prompt_event_name, data).then((logEvent) => {
+      this.enqueueLogEvent(logEvent);
+      this.flushIfNeeded();
+    });
   }
 
   logToolCallEvent(event: ToolCallEvent): void {
@@ -466,9 +472,10 @@ export class ClearcutLogger {
       }
     }
 
-    const logEvent = this.createLogEvent(tool_call_event_name, data);
-    this.enqueueLogEvent(logEvent);
-    this.flushIfNeeded();
+    this.createLogEvent(tool_call_event_name, data).then((logEvent) => {
+      this.enqueueLogEvent(logEvent);
+      this.flushIfNeeded();
+    });
   }
 
   logApiRequestEvent(event: ApiRequestEvent): void {
@@ -483,8 +490,10 @@ export class ClearcutLogger {
       },
     ];
 
-    this.enqueueLogEvent(this.createLogEvent(api_request_event_name, data));
-    this.flushIfNeeded();
+    this.createLogEvent(api_request_event_name, data).then((logEvent) => {
+      this.enqueueLogEvent(logEvent);
+      this.flushIfNeeded();
+    });
   }
 
   logApiResponseEvent(event: ApiResponseEvent): void {
@@ -540,8 +549,10 @@ export class ClearcutLogger {
       },
     ];
 
-    this.enqueueLogEvent(this.createLogEvent(api_response_event_name, data));
-    this.flushIfNeeded();
+    this.createLogEvent(api_response_event_name, data).then((logEvent) => {
+      this.enqueueLogEvent(logEvent);
+      this.flushIfNeeded();
+    });
   }
 
   logApiErrorEvent(event: ApiErrorEvent): void {
@@ -572,8 +583,10 @@ export class ClearcutLogger {
       },
     ];
 
-    this.enqueueLogEvent(this.createLogEvent(api_error_event_name, data));
-    this.flushIfNeeded();
+    this.createLogEvent(api_error_event_name, data).then((logEvent) => {
+      this.enqueueLogEvent(logEvent);
+      this.flushIfNeeded();
+    });
   }
 
   logFlashFallbackEvent(event: FlashFallbackEvent): void {
@@ -588,10 +601,14 @@ export class ClearcutLogger {
       },
     ];
 
-    this.enqueueLogEvent(this.createLogEvent(flash_fallback_event_name, data));
-    this.flushToClearcut().catch((error) => {
-      console.debug('Error flushing to Clearcut:', error);
-    });
+    this.createLogEvent(flash_fallback_event_name, data)
+      .then((logEvent) => {
+        this.enqueueLogEvent(logEvent);
+        return this.flushToClearcut();
+      })
+      .catch((error) => {
+        console.debug('Error flushing to Clearcut:', error);
+      });
   }
 
   logLoopDetectedEvent(event: LoopDetectedEvent): void {
@@ -606,8 +623,10 @@ export class ClearcutLogger {
       },
     ];
 
-    this.enqueueLogEvent(this.createLogEvent(loop_detected_event_name, data));
-    this.flushIfNeeded();
+    this.createLogEvent(loop_detected_event_name, data).then((logEvent) => {
+      this.enqueueLogEvent(logEvent);
+      this.flushIfNeeded();
+    });
   }
 
   logNextSpeakerCheck(event: NextSpeakerCheckEvent): void {
@@ -630,10 +649,12 @@ export class ClearcutLogger {
       },
     ];
 
-    this.enqueueLogEvent(
-      this.createLogEvent(next_speaker_check_event_name, data),
+    this.createLogEvent(next_speaker_check_event_name, data).then(
+      (logEvent) => {
+        this.enqueueLogEvent(logEvent);
+        this.flushIfNeeded();
+      },
     );
-    this.flushIfNeeded();
   }
 
   logSlashCommandEvent(event: SlashCommandEvent): void {
@@ -658,8 +679,10 @@ export class ClearcutLogger {
       });
     }
 
-    this.enqueueLogEvent(this.createLogEvent(slash_command_event_name, data));
-    this.flushIfNeeded();
+    this.createLogEvent(slash_command_event_name, data).then((logEvent) => {
+      this.enqueueLogEvent(logEvent);
+      this.flushIfNeeded();
+    });
   }
 
   logMalformedJsonResponseEvent(event: MalformedJsonResponseEvent): void {
@@ -671,10 +694,12 @@ export class ClearcutLogger {
       },
     ];
 
-    this.enqueueLogEvent(
-      this.createLogEvent(malformed_json_response_event_name, data),
+    this.createLogEvent(malformed_json_response_event_name, data).then(
+      (logEvent) => {
+        this.enqueueLogEvent(logEvent);
+        this.flushIfNeeded();
+      },
     );
-    this.flushIfNeeded();
   }
 
   logIdeConnectionEvent(event: IdeConnectionEvent): void {
@@ -685,8 +710,10 @@ export class ClearcutLogger {
       },
     ];
 
-    this.enqueueLogEvent(this.createLogEvent(ide_connection_event_name, data));
-    this.flushIfNeeded();
+    this.createLogEvent(ide_connection_event_name, data).then((logEvent) => {
+      this.enqueueLogEvent(logEvent);
+      this.flushIfNeeded();
+    });
   }
 
   logKittySequenceOverflowEvent(event: KittySequenceOverflowEvent): void {
@@ -701,10 +728,12 @@ export class ClearcutLogger {
       },
     ];
 
-    this.enqueueLogEvent(
-      this.createLogEvent(kitty_sequence_overflow_event_name, data),
+    this.createLogEvent(kitty_sequence_overflow_event_name, data).then(
+      (logEvent) => {
+        this.enqueueLogEvent(logEvent);
+        this.flushIfNeeded();
+      },
     );
-    this.flushIfNeeded();
   }
 
   logEndSessionEvent(event: EndSessionEvent): void {
@@ -716,10 +745,14 @@ export class ClearcutLogger {
     ];
 
     // Flush immediately on session end.
-    this.enqueueLogEvent(this.createLogEvent(end_session_event_name, data));
-    this.flushToClearcut().catch((error) => {
-      console.debug('Error flushing to Clearcut:', error);
-    });
+    this.createLogEvent(end_session_event_name, data)
+      .then((logEvent) => {
+        this.enqueueLogEvent(logEvent);
+        return this.flushToClearcut();
+      })
+      .catch((error) => {
+        console.debug('Error flushing to Clearcut:', error);
+      });
   }
 
   getProxyAgent() {
@@ -794,9 +827,9 @@ export class ClearcutLogger {
  * Adds default fields to data, and returns a new data array.  This fields
  * should exist on all log events.
  */
-function addDefaultFields(data: EventValue[]): EventValue[] {
+async function addDefaultFields(data: EventValue[]): Promise<EventValue[]> {
   const totalAccounts = getLifetimeGoogleAccounts();
-  const surface = determineSurface();
+  const surface = await determineSurface();
   const defaultLogMetadata: EventValue[] = [
     {
       gemini_cli_key: EventMetadataKey.GEMINI_CLI_GOOGLE_ACCOUNTS_COUNT,

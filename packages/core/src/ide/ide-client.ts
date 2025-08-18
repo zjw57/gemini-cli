@@ -15,7 +15,7 @@ import {
   CloseDiffResponseSchema,
   DiffUpdateResult,
 } from '../ide/ideContext.js';
-import { getIdeProcessId } from './process-utils.js';
+import { getIdeProcessInfo } from './process-utils.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import * as os from 'node:os';
@@ -53,7 +53,7 @@ function getRealPath(path: string): string {
  * Manages the connection to and interaction with the IDE server.
  */
 export class IdeClient {
-  private static instance: IdeClient;
+  private static instance: Promise<IdeClient> | undefined = undefined;
   private client: Client | undefined = undefined;
   private state: IDEConnectionState = {
     status: IDEConnectionStatus.Disconnected,
@@ -64,18 +64,23 @@ export class IdeClient {
   private readonly currentIdeDisplayName: string | undefined;
   private diffResponses = new Map<string, (result: DiffUpdateResult) => void>();
 
-  private constructor() {
-    this.currentIde = detectIde();
+  private constructor(currentIde: DetectedIde | undefined) {
+    this.currentIde = currentIde;
     if (this.currentIde) {
       this.currentIdeDisplayName = getIdeInfo(this.currentIde).displayName;
     }
   }
 
-  static getInstance(): IdeClient {
+  static getInstance(): Promise<IdeClient> {
     if (!IdeClient.instance) {
-      IdeClient.instance = new IdeClient();
+      IdeClient.instance = this.create();
     }
     return IdeClient.instance;
+  }
+
+  private static async create(): Promise<IdeClient> {
+    const currentIde = await detectIde();
+    return new IdeClient(currentIde);
   }
 
   async connect(): Promise<void> {
@@ -300,11 +305,8 @@ export class IdeClient {
 
   private async getPortFromFile(): Promise<string | undefined> {
     try {
-      const ideProcessId = await getIdeProcessId();
-      const portFile = path.join(
-        os.tmpdir(),
-        `gemini-ide-server-${ideProcessId}.json`,
-      );
+      const { pid } = await getIdeProcessInfo();
+      const portFile = path.join(os.tmpdir(), `gemini-ide-server-${pid}.json`);
       const portFileContents = await fs.promises.readFile(portFile, 'utf8');
       const port = JSON.parse(portFileContents).port;
       return port.toString();

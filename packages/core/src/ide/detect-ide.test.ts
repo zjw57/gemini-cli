@@ -6,6 +6,15 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { detectIde, DetectedIde } from './detect-ide.js';
+import * as processUtils from './process-utils.js';
+
+vi.mock('./process-utils.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./process-utils.js')>();
+  return {
+    ...actual,
+    getIdeProcessInfo: vi.fn(),
+  };
+});
 
 describe('detectIde', () => {
   afterEach(() => {
@@ -14,55 +23,50 @@ describe('detectIde', () => {
 
   it.each([
     {
-      env: {},
+      command: 'code',
       expected: DetectedIde.VSCode,
     },
     {
-      env: { __COG_BASHRC_SOURCED: '1' },
+      command: 'devin',
       expected: DetectedIde.Devin,
     },
     {
-      env: { REPLIT_USER: 'test' },
+      command: 'replit',
       expected: DetectedIde.Replit,
     },
     {
-      env: { CURSOR_TRACE_ID: 'test' },
+      command: 'cursor',
       expected: DetectedIde.Cursor,
     },
     {
-      env: { CODESPACES: 'true' },
+      command: 'codespaces',
       expected: DetectedIde.Codespaces,
     },
     {
-      env: { EDITOR_IN_CLOUD_SHELL: 'true' },
+      command: 'cloudshell',
       expected: DetectedIde.CloudShell,
     },
     {
-      env: { CLOUD_SHELL: 'true' },
-      expected: DetectedIde.CloudShell,
-    },
-    {
-      env: { TERM_PRODUCT: 'Trae' },
+      command: 'trae',
       expected: DetectedIde.Trae,
     },
     {
-      env: { FIREBASE_DEPLOY_AGENT: 'true' },
+      command: 'firebasestudio',
       expected: DetectedIde.FirebaseStudio,
     },
     {
-      env: { MONOSPACE_ENV: 'true' },
+      command: 'monospace',
       expected: DetectedIde.FirebaseStudio,
     },
-  ])('detects the IDE for $expected', ({ env, expected }) => {
+  ])('detects the IDE for $expected', async ({ command, expected }) => {
     vi.stubEnv('TERM_PROGRAM', 'vscode');
-    for (const [key, value] of Object.entries(env)) {
-      vi.stubEnv(key, value);
-    }
-    expect(detectIde()).toBe(expected);
+    const mockedGetIdeProcessInfo = vi.mocked(processUtils.getIdeProcessInfo);
+    mockedGetIdeProcessInfo.mockResolvedValue({ pid: 123, command });
+    expect(await detectIde()).toBe(expected);
   });
 
-  it('returns undefined for non-vscode', () => {
+  it('returns undefined for non-vscode', async () => {
     vi.stubEnv('TERM_PROGRAM', 'definitely-not-vscode');
-    expect(detectIde()).toBeUndefined();
+    expect(await detectIde()).toBeUndefined();
   });
 });

@@ -10,15 +10,20 @@ import os from 'os';
 
 const execAsync = promisify(exec);
 
+export interface IDEProcess {
+  pid: number;
+  command: string;
+}
+
 /**
- * Traverses up the process tree from the current process to find the top-level ancestor process ID.
+ * Traverses up the process tree to find the top-level ancestor process and its command.
  * This is useful for identifying the main application process that spawned the current script,
  * such as the main VS Code window process.
  *
- * @returns A promise that resolves to the numeric PID of the top-level process.
+ * @returns A promise that resolves to an object containing the PID and command of the top-level process.
  * @throws Will throw an error if the underlying shell commands fail unexpectedly.
  */
-export async function getIdeProcessId(): Promise<number> {
+export async function getIdeProcessInfo(): Promise<IDEProcess> {
   const platform = os.platform();
   let currentPid = process.pid;
 
@@ -58,5 +63,23 @@ export async function getIdeProcessId(): Promise<number> {
     // Move one level up the tree for the next iteration.
     currentPid = parentPid;
   }
-  return currentPid;
+
+  // Now get the command for the top-level PID we found.
+  let command = '';
+  try {
+    if (platform === 'win32') {
+      const cmd = `wmic process where "ProcessId=${currentPid}" get CommandLine /value`;
+      const { stdout } = await execAsync(cmd);
+      const match = stdout.match(/CommandLine=(.*)/);
+      command = match ? match[1].trim() : '';
+    } else {
+      const cmd = `ps -o command= -p ${currentPid}`;
+      const { stdout } = await execAsync(cmd);
+      command = stdout.trim();
+    }
+  } catch (_) {
+    // Ignore errors here, we'll just return an empty command.
+  }
+
+  return { pid: currentPid, command };
 }

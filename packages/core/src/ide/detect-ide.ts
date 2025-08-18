@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { getIdeProcessInfo } from './process-utils.js';
+
 export enum DetectedIde {
   Devin = 'devin',
   Replit = 'replit',
   VSCode = 'vscode',
+  VSCodeFork = 'vscode-fork',
   Cursor = 'cursor',
   CloudShell = 'cloudshell',
   Codespaces = 'codespaces',
@@ -32,6 +35,10 @@ export function getIdeInfo(ide: DetectedIde): IdeInfo {
     case DetectedIde.VSCode:
       return {
         displayName: 'VS Code',
+      };
+    case DetectedIde.VSCodeFork:
+      return {
+        displayName: 'IDE',
       };
     case DetectedIde.Cursor:
       return {
@@ -61,31 +68,50 @@ export function getIdeInfo(ide: DetectedIde): IdeInfo {
   }
 }
 
-export function detectIde(): DetectedIde | undefined {
+export async function detectIde(): Promise<DetectedIde | undefined> {
   // Only VSCode-based integrations are currently supported.
   if (process.env['TERM_PROGRAM'] !== 'vscode') {
     return undefined;
   }
-  if (process.env['__COG_BASHRC_SOURCED']) {
-    return DetectedIde.Devin;
+
+  try {
+    const { command } = await getIdeProcessInfo();
+    const lowerCaseCommand = command.toLowerCase();
+
+    // Check for IDEs based on the command string.
+    // The order is important as some commands might be substrings of others.
+    if (lowerCaseCommand.includes('devin')) {
+      return DetectedIde.Devin;
+    }
+    if (lowerCaseCommand.includes('replit')) {
+      return DetectedIde.Replit;
+    }
+    if (lowerCaseCommand.includes('cursor')) {
+      return DetectedIde.Cursor;
+    }
+    if (lowerCaseCommand.includes('codespaces')) {
+      return DetectedIde.Codespaces;
+    }
+    if (lowerCaseCommand.includes('cloudshell')) {
+      return DetectedIde.CloudShell;
+    }
+    if (lowerCaseCommand.includes('trae')) {
+      return DetectedIde.Trae;
+    }
+    if (
+      lowerCaseCommand.includes('firebasestudio') ||
+      lowerCaseCommand.includes('monospace')
+    ) {
+      return DetectedIde.FirebaseStudio;
+    }
+    if (lowerCaseCommand.includes('code')) {
+      return DetectedIde.VSCode;
+    }
+  } catch (_error) {
+    // Fallback to a generic fork if we can't get the process info
+    return DetectedIde.VSCodeFork;
   }
-  if (process.env['REPLIT_USER']) {
-    return DetectedIde.Replit;
-  }
-  if (process.env['CURSOR_TRACE_ID']) {
-    return DetectedIde.Cursor;
-  }
-  if (process.env['CODESPACES']) {
-    return DetectedIde.Codespaces;
-  }
-  if (process.env['EDITOR_IN_CLOUD_SHELL'] || process.env['CLOUD_SHELL']) {
-    return DetectedIde.CloudShell;
-  }
-  if (process.env['TERM_PRODUCT'] === 'Trae') {
-    return DetectedIde.Trae;
-  }
-  if (process.env['FIREBASE_DEPLOY_AGENT'] || process.env['MONOSPACE_ENV']) {
-    return DetectedIde.FirebaseStudio;
-  }
-  return DetectedIde.VSCode;
+
+  // If no specific IDE is detected, default to a generic fork.
+  return DetectedIde.VSCodeFork;
 }

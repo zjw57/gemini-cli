@@ -22,7 +22,16 @@ import { EventMetadataKey } from './event-metadata-key.js';
 import { makeFakeConfig } from '../../test-utils/config.js';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../mocks/msw.js';
+import { DetectedIde, detectIde } from '../../ide/detect-ide.js';
 
+vi.mock('../../ide/detect-ide.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../ide/detect-ide.js')>();
+  return {
+    ...actual,
+    detectIde: vi.fn(),
+  };
+});
 vi.mock('../../utils/user_account');
 vi.mock('../../utils/user_id');
 
@@ -125,12 +134,12 @@ describe('ClearcutLogger', () => {
   });
 
   describe('createLogEvent', () => {
-    it('logs the total number of google accounts', () => {
+    it('logs the total number of google accounts', async () => {
       const { logger } = setup({
         lifetimeGoogleAccounts: 9001,
       });
 
-      const event = logger?.createLogEvent('abc', []);
+      const event = await logger?.createLogEvent('abc', []);
 
       expect(event?.event_metadata[0][0]).toEqual({
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_GOOGLE_ACCOUNTS_COUNT,
@@ -138,12 +147,12 @@ describe('ClearcutLogger', () => {
       });
     });
 
-    it('logs the current surface from a github action', () => {
+    it('logs the current surface from a github action', async () => {
       const { logger } = setup({});
 
       vi.stubEnv('GITHUB_SHA', '8675309');
 
-      const event = logger?.createLogEvent('abc', []);
+      const event = await logger?.createLogEvent('abc', []);
 
       expect(event?.event_metadata[0][1]).toEqual({
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
@@ -151,13 +160,13 @@ describe('ClearcutLogger', () => {
       });
     });
 
-    it('honors the value from env.SURFACE over all others', () => {
+    it('honors the value from env.SURFACE over all others', async () => {
       const { logger } = setup({});
 
       vi.stubEnv('TERM_PROGRAM', 'vscode');
       vi.stubEnv('SURFACE', 'ide-1234');
 
-      const event = logger?.createLogEvent('abc', []);
+      const event = await logger?.createLogEvent('abc', []);
 
       expect(event?.event_metadata[0][1]).toEqual({
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
@@ -203,13 +212,15 @@ describe('ClearcutLogger', () => {
       },
     ])(
       'logs the current surface for as $expectedValue, preempting vscode detection',
-      ({ env, expectedValue }) => {
+      async ({ env, expectedValue }) => {
         const { logger } = setup({});
         for (const [key, value] of Object.entries(env)) {
           vi.stubEnv(key, value);
         }
         vi.stubEnv('TERM_PROGRAM', 'vscode');
-        const event = logger?.createLogEvent('abc', []);
+        const mockedDetectIde = vi.mocked(detectIde);
+        mockedDetectIde.mockResolvedValue(expectedValue as DetectedIde);
+        const event = await logger?.createLogEvent('abc', []);
         expect(event?.event_metadata[0][1]).toEqual({
           gemini_cli_key: EventMetadataKey.GEMINI_CLI_SURFACE,
           value: expectedValue,
