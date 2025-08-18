@@ -15,33 +15,31 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
-          # Step 1: Check if only documentation files were changed.
+          # Step 1: If only markdown or files in 'docs' are changed, no review is needed.
           changed_files=$(gh pr diff "$PR_NUMBER" --name-only)
           needs_review=false
-          echo "Changed files:"
-          echo "$changed_files"
-
           while IFS= read -r file; do
             if [[ -n "$file" && ! "$file" == *.md && ! "$file" == docs/* ]]; then
-              echo "File requiring review: $file"
               needs_review=true
               break
             fi
           done <<< "$changed_files"
 
           if [ "$needs_review" = false ]; then
-            echo "Only documentation files were changed. No review required by this workflow."
+            echo "Only documentation files were changed. No review required."
             exit 0
           fi
-
           echo "Code changes detected. Proceeding with approval check."
 
-          # Step 2: Check for approvals based on author.
-          echo "PR Author: $PR_AUTHOR"
-          CORE_TEAM=('skeshive' 'chrstnb')
+          # Get all approving users once to minimize API calls
+          approvers=$(gh pr review list "$PR_NUMBER" --json author,state | jq -r '.[] | select(.state=="APPROVED") | .author.login')
+          echo "Approving users: $approvers"
+
+          # Step 2: Determine which approval rule to apply based on the PR author.
+          CORE_TEAM_LOGINS=("skeshive" "chrsthnb")
           
           is_core_author=false
-          for member in "${CORE_TEAM[@]}"; do
+          for member in "${CORE_TEAM_LOGINS[@]}"; do
             if [ "$PR_AUTHOR" == "$member" ]; then
               is_core_author=true
               break
@@ -49,49 +47,38 @@ jobs:
           done
 
           if [ "$is_core_author" = true ]; then
-            echo "Author is a core team member. Checking for core team approval."
+            # Rule for Core Team authors: requires approval from another core team member.
+            echo "Author is a core team member. Checking for approval from another core team member."
             approved=false
-            reviews=$(gh pr review list "$PR_NUMBER" --json author,state)
-            echo "Reviews: $reviews"
-            for member in "${CORE_TEAM[@]}"; do
-              if echo "$reviews" | grep -q "\"author\":{\"login\":\"$member\"},\"state\":\"APPROVED\""""; then
+            for member in "${CORE_TEAM_LOGINS[@]}"; do
+              if [ "$member" != "$PR_AUTHOR" ] && echo "$approvers" | grep -q -w "^$member$"; then
+                echo "Approval found from core team member: $member"
                 approved=true
                 break
               fi
             done
+
             if [ "$approved" = false ]; then
-              echo "Missing approval from a core team member."
+              echo "Missing approval from another core team member."
               exit 1
-            else
-              echo "Core team approval found."
             fi
           else
-            echo "Author is not a core team member. Checking for @google-gemini/gemini-cli-askmode-approvers team approval."
-            approved=false
-            
-            # Get logins of users who have approved
-            approvers=$(gh pr review list "$PR_NUMBER" --json author,state | jq -r '.[] | select(.state=="APPROVED") | .author.login')
-            echo "Approving users: $approvers"
-
-            # Get team members
+            # Rule for external authors: requires approval from the approvers team.
+            echo "Author is not a core team member. Checking for approval from @google-gemini/gemini-cli-askmode-approvers."
             team_members=$(gh api orgs/google-gemini/teams/gemini-cli-askmode-approvers/members --jq '.[].login')
-            echo "Team members: $team_members"
-
-            # Check for intersection
+            approved=false
             for approver in $approvers; do
-              for member in $team_members; do
-                if [ "$approver" == "$member" ]; then
-                  echo "Approval found from team member: $approver"
-                  approved=true
-                  break 2 # break out of both loops
-                fi
-              done
+              if echo "$team_members" | grep -q -w "^$approver$"; then
+                echo "Approval found from team member: $approver"
+                approved=true
+                break
+              fi
             done
 
             if [ "$approved" = false ]; then
               echo "Missing approval from a member of @google-gemini/gemini-cli-askmode-approvers."
               exit 1
-            else
-              echo "Team approval found."
             fi
           fi
+
+          echo "All approval checks passed."
