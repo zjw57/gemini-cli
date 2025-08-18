@@ -1,12 +1,16 @@
 name: PR Review
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   enforce-review:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+      organization: read
     steps:
       - uses: actions/checkout@v4
       - name: Check for correct approval
