@@ -41,7 +41,7 @@ jobs:
 
           # Step 2: Determine which approval rule to apply based on the PR author.
           CORE_TEAM_LOGINS=("skeshive" "chrsthnb")
-          
+
           is_core_author=false
           for member in "${CORE_TEAM_LOGINS[@]}"; do
             if [ "$PR_AUTHOR" == "$member" ]; then
