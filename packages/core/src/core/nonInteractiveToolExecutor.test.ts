@@ -217,17 +217,14 @@ describe('executeToolCall', () => {
     );
 
     expect(response.resultDisplay).toBe('Image processed');
-    expect(response.responseParts).toEqual([
-      {
-        functionResponse: {
-          name: 'testTool',
-          id: 'call5',
-          response: {
-            output: 'Binary content of type image/png was processed.',
-          },
+    expect(response.responseParts).toEqual({
+      functionResponse: {
+        name: 'testTool',
+        id: 'call5',
+        response: {
+          output: 'Binary content of type image/png was processed.',
         },
       },
-      imageDataPart,
-    ]);
+    });
   });
 });

@@ -206,18 +206,15 @@ describe('convertToFunctionResponse', () => {
       inlineData: { mimeType: 'image/png', data: 'base64...' },
     };
     const result = convertToFunctionResponse(toolName, callId, llmContent);
-    expect(result).toEqual([
-      {
-        functionResponse: {
-          name: toolName,
-          id: callId,
-          response: {
-            output: 'Binary content of type image/png was processed.',
-          },
+    expect(result).toEqual({
+      functionResponse: {
+        name: toolName,
+        id: callId,
+        response: {
+          output: 'Binary content of type image/png was processed.',
         },
       },
-      llmContent,
-    ]);
+    });
   });
 
   it('should handle llmContent with fileData', () => {
@@ -225,18 +222,15 @@ describe('convertToFunctionResponse', () => {
       fileData: { mimeType: 'application/pdf', fileUri: 'gs://...' },
     };
     const result = convertToFunctionResponse(toolName, callId, llmContent);
-    expect(result).toEqual([
-      {
-        functionResponse: {
-          name: toolName,
-          id: callId,
-          response: {
-            output: 'Binary content of type application/pdf was processed.',
-          },
+    expect(result).toEqual({
+      functionResponse: {
+        name: toolName,
+        id: callId,
+        response: {
+          output: 'Binary content of type application/pdf was processed.',
         },
       },
-      llmContent,
-    ]);
+    });
   });
 
   it('should handle llmContent as an array of multiple Parts (text and inlineData)', () => {
@@ -246,16 +240,13 @@ describe('convertToFunctionResponse', () => {
       { text: 'Another text part' },
     ];
     const result = convertToFunctionResponse(toolName, callId, llmContent);
-    expect(result).toEqual([
-      {
-        functionResponse: {
-          name: toolName,
-          id: callId,
-          response: { output: 'Tool execution succeeded.' },
-        },
+    expect(result).toEqual({
+      functionResponse: {
+        name: toolName,
+        id: callId,
+        response: { output: 'Some textual descriptionAnother text part' },
       },
-      ...llmContent,
-    ]);
+    });
   });
 
   it('should handle llmContent as an array with a single inlineData Part', () => {
@@ -263,18 +254,15 @@ describe('convertToFunctionResponse', () => {
       { inlineData: { mimeType: 'image/gif', data: 'gifdata...' } },
     ];
     const result = convertToFunctionResponse(toolName, callId, llmContent);
-    expect(result).toEqual([
-      {
-        functionResponse: {
-          name: toolName,
-          id: callId,
-          response: {
-            output: 'Binary content of type image/gif was processed.',
-          },
+    expect(result).toEqual({
+      functionResponse: {
+        name: toolName,
+        id: callId,
+        response: {
+          output: 'Binary content of type image/gif was processed.',
         },
       },
-      ...llmContent,
-    ]);
+    });
   });
 
   it('should handle llmContent as a generic Part (not text, inlineData, or fileData)', () => {
@@ -304,15 +292,13 @@ describe('convertToFunctionResponse', () => {
   it('should handle llmContent as an empty array', () => {
     const llmContent: PartListUnion = [];
     const result = convertToFunctionResponse(toolName, callId, llmContent);
-    expect(result).toEqual([
-      {
-        functionResponse: {
-          name: toolName,
-          id: callId,
-          response: { output: 'Tool execution succeeded.' },
-        },
+    expect(result).toEqual({
+      functionResponse: {
+        name: toolName,
+        id: callId,
+        response: { output: 'Tool execution succeeded.' },
       },
-    ]);
+    });
   });
 
   it('should handle llmContent as a Part with undefined inlineData/fileData/text', () => {

@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { GenerateContentResponse, Part, FunctionCall } from '@google/genai';
+import {
+  GenerateContentResponse,
+  Part,
+  FunctionCall,
+  PartListUnion,
+} from '@google/genai';
 
 export function getResponseText(
   response: GenerateContentResponse,
@@ -23,12 +28,14 @@ export function getResponseText(
   return textSegments.join('');
 }
 
-export function getResponseTextFromParts(parts: Part[]): string | undefined {
+export function getResponseTextFromParts(
+  parts: PartListUnion,
+): string | undefined {
   if (!parts) {
     return undefined;
   }
-  const textSegments = parts
-    .map((part) => part.text)
+  const textSegments = (Array.isArray(parts) ? parts : [parts])
+    .map((part) => (typeof part === 'string' ? part : part.text))
     .filter((text): text is string => typeof text === 'string');
 
   if (textSegments.length === 0) {
@@ -51,13 +58,15 @@ export function getFunctionCalls(
 }
 
 export function getFunctionCallsFromParts(
-  parts: Part[],
+  parts: PartListUnion,
 ): FunctionCall[] | undefined {
   if (!parts) {
     return undefined;
   }
-  const functionCallParts = parts
-    .filter((part) => !!part.functionCall)
+  const functionCallParts = (Array.isArray(parts) ? parts : [parts])
+    .filter(
+      (part): part is Part => typeof part !== 'string' && !!part.functionCall,
+    )
     .map((part) => part.functionCall as FunctionCall);
   return functionCallParts.length > 0 ? functionCallParts : undefined;
 }
@@ -73,7 +82,7 @@ export function getFunctionCallsAsJson(
 }
 
 export function getFunctionCallsFromPartsAsJson(
-  parts: Part[],
+  parts: PartListUnion,
 ): string | undefined {
   const functionCalls = getFunctionCallsFromParts(parts);
   if (!functionCalls) {
@@ -101,7 +110,7 @@ export function getStructuredResponse(
 }
 
 export function getStructuredResponseFromParts(
-  parts: Part[],
+  parts: PartListUnion,
 ): string | undefined {
   const textContent = getResponseTextFromParts(parts);
   const functionCallsJson = getFunctionCallsFromPartsAsJson(parts);

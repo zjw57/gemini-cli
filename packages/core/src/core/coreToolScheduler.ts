@@ -161,12 +161,9 @@ export function convertToFunctionResponse(
   }
 
   if (Array.isArray(contentToProcess)) {
-    const functionResponse = createFunctionResponsePart(
-      callId,
-      toolName,
-      'Tool execution succeeded.',
-    );
-    return [functionResponse, ...contentToProcess];
+    const stringifiedOutput =
+      getResponseTextFromParts(contentToProcess) || 'Tool execution succeeded.';
+    return createFunctionResponsePart(callId, toolName, stringifiedOutput);
   }
 
   // After this point, contentToProcess is a single Part object.
@@ -187,12 +184,11 @@ export function convertToFunctionResponse(
       contentToProcess.inlineData?.mimeType ||
       contentToProcess.fileData?.mimeType ||
       'unknown';
-    const functionResponse = createFunctionResponsePart(
+    return createFunctionResponsePart(
       callId,
       toolName,
       `Binary content of type ${mimeType} was processed.`,
     );
-    return [functionResponse, contentToProcess];
   }
 
   if (contentToProcess.text !== undefined) {
