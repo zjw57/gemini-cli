@@ -19,50 +19,64 @@ vi.mock('./process-utils.js', async (importOriginal) => {
 describe('detectIde', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.resetAllMocks();
   });
 
   it.each([
     {
-      command: 'code',
-      expected: DetectedIde.VSCode,
-    },
-    {
-      command: 'devin',
+      env: { __COG_BASHRC_SOURCED: '1' },
       expected: DetectedIde.Devin,
     },
     {
-      command: 'replit',
+      env: { REPLIT_USER: 'test' },
       expected: DetectedIde.Replit,
     },
     {
-      command: 'cursor',
+      env: { CURSOR_TRACE_ID: 'test' },
       expected: DetectedIde.Cursor,
     },
     {
-      command: 'codespaces',
+      env: { CODESPACES: 'true' },
       expected: DetectedIde.Codespaces,
     },
     {
-      command: 'cloudshell',
+      env: { EDITOR_IN_CLOUD_SHELL: 'true' },
       expected: DetectedIde.CloudShell,
     },
     {
-      command: 'trae',
+      env: { CLOUD_SHELL: 'true' },
+      expected: DetectedIde.CloudShell,
+    },
+    {
+      env: { TERM_PRODUCT: 'Trae' },
       expected: DetectedIde.Trae,
     },
     {
-      command: 'firebasestudio',
+      env: { FIREBASE_DEPLOY_AGENT: 'true' },
       expected: DetectedIde.FirebaseStudio,
     },
     {
-      command: 'monospace',
+      env: { MONOSPACE_ENV: 'true' },
       expected: DetectedIde.FirebaseStudio,
     },
-  ])('detects the IDE for $expected', async ({ command, expected }) => {
+  ])('detects the IDE for $expected', async ({ env, expected }) => {
     vi.stubEnv('TERM_PROGRAM', 'vscode');
     const mockedGetIdeProcessInfo = vi.mocked(processUtils.getIdeProcessInfo);
-    mockedGetIdeProcessInfo.mockResolvedValue({ pid: 123, command });
+    mockedGetIdeProcessInfo.mockResolvedValue({ pid: 123, command: '' });
+    for (const key in env) {
+      vi.stubEnv(key, env[key as keyof typeof env]);
+    }
     expect(await detectIde()).toBe(expected);
+  });
+
+  it('detects vscode', async () => {
+    vi.stubEnv('TERM_PROGRAM', 'vscode');
+    const mockedGetIdeProcessInfo = vi.mocked(processUtils.getIdeProcessInfo);
+    mockedGetIdeProcessInfo.mockResolvedValue({
+      pid: 123,
+      command: 'code',
+    });
+    expect(await detectIde()).toBe(DetectedIde.VSCode);
   });
 
   it('returns undefined for non-vscode', async () => {
