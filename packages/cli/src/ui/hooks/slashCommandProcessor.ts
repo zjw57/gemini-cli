@@ -11,6 +11,7 @@ import { UseHistoryManagerReturn } from './useHistoryManager.js';
 import {
   Config,
   GitService,
+  IdeClient,
   Logger,
   logSlashCommand,
   makeSlashCommandEvent,
@@ -206,8 +207,6 @@ export const useSlashCommandProcessor = (
     ],
   );
 
-  const ideMode = config?.getIdeMode();
-
   useEffect(() => {
     const controller = new AbortController();
     const load = async () => {
@@ -225,10 +224,17 @@ export const useSlashCommandProcessor = (
 
     load();
 
+    const ideClient = IdeClient.getInstance();
+    const listener = () => {
+      reloadCommands();
+    };
+    ideClient.addConnectionStatusListener(listener);
+
     return () => {
       controller.abort();
+      ideClient.removeConnectionStatusListener(listener);
     };
-  }, [config, ideMode, reloadTrigger]);
+  }, [config, reloadCommands, reloadTrigger]);
 
   const handleSlashCommand = useCallback(
     async (

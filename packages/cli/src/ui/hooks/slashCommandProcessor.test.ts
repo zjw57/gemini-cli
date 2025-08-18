@@ -4,8 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-const { logSlashCommand } = vi.hoisted(() => ({
+const { logSlashCommand, IdeClient } = vi.hoisted(() => ({
   logSlashCommand: vi.fn(),
+  IdeClient: {
+    getInstance: vi.fn().mockReturnValue({
+      addConnectionStatusListener: vi.fn(),
+      removeConnectionStatusListener: vi.fn(),
+    }),
+  },
 }));
 
 vi.mock('@google/gemini-cli-core', async (importOriginal) => {
@@ -15,6 +21,7 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   return {
     ...original,
     logSlashCommand,
+    IdeClient,
     getIdeInstaller: vi.fn().mockReturnValue(null),
   };
 });
@@ -147,6 +154,7 @@ describe('useSlashCommandProcessor', () => {
         vi.fn(), // openSettingsDialog
         vi.fn(), // toggleVimEnabled
         setIsProcessing,
+        vi.fn(), // setGeminiMdFileCount
       ),
     );
 
@@ -900,6 +908,7 @@ describe('useSlashCommandProcessor', () => {
           vi.fn(), // toggleVimEnabled
           vi.fn().mockResolvedValue(false), // toggleVimEnabled
           vi.fn(), // setIsProcessing
+          vi.fn(), // setGeminiMdFileCount
         ),
       );
 

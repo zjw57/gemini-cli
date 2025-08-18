@@ -63,6 +63,9 @@ export class IdeClient {
   private readonly currentIde: DetectedIde | undefined;
   private readonly currentIdeDisplayName: string | undefined;
   private diffResponses = new Map<string, (result: DiffUpdateResult) => void>();
+  private connectionStatusListeners = new Set<
+    (state: IDEConnectionState) => void
+  >();
 
   private constructor() {
     this.currentIde = detectIde();
@@ -78,7 +81,28 @@ export class IdeClient {
     return IdeClient.instance;
   }
 
+  addConnectionStatusListener(listener: (state: IDEConnectionState) => void) {
+    this.connectionStatusListeners.add(listener);
+    // Immediately notify the new listener with the current state.
+    listener(this.state);
+  }
+
+  removeConnectionStatusListener(
+    listener: (state: IDEConnectionState) => void,
+  ) {
+    this.connectionStatusListeners.delete(listener);
+  }
+
+  private notifyConnectionStatusListeners() {
+    for (const listener of this.connectionStatusListeners) {
+      listener(this.state);
+    }
+  }
+
   async connect(): Promise<void> {
+    if (this.state.status === IDEConnectionStatus.Connected) {
+      return;
+    }
     if (!this.currentIde || !this.currentIdeDisplayName) {
       this.setState(
         IDEConnectionStatus.Disconnected,
@@ -201,15 +225,11 @@ export class IdeClient {
     if (this.state.status === IDEConnectionStatus.Disconnected) {
       return;
     }
-    for (const filePath of this.diffResponses.keys()) {
-      await this.closeDiff(filePath);
-    }
-    this.diffResponses.clear();
     this.setState(
       IDEConnectionStatus.Disconnected,
       'IDE integration disabled. To enable it again, run /ide enable.',
     );
-    this.client?.close();
+    this.cleanupConnection();
   }
 
   getCurrentIde(): DetectedIde | undefined {
@@ -229,28 +249,39 @@ export class IdeClient {
     details?: string,
     logToConsole = false,
   ) {
+    const oldStatus = this.state.status;
     const isAlreadyDisconnected =
-      this.state.status === IDEConnectionStatus.Disconnected &&
+      oldStatus === IDEConnectionStatus.Disconnected &&
       status === IDEConnectionStatus.Disconnected;
 
-    // Only update details & log to console if the state wasn't already
-    // disconnected, so that the first detail message is preserved.
     if (!isAlreadyDisconnected) {
+      // Only update details if the state wasn't already
+      // disconnected, so that the first detail message is preserved.
       this.state = { status, details };
       if (details) {
         if (logToConsole) {
           logger.error(details);
         } else {
-          // We only want to log disconnect messages to debug
-          // if they are not already being logged to the console.
           logger.debug(details);
         }
       }
+      if (this.state.status === IDEConnectionStatus.Disconnected) {
+        this.cleanupConnection();
+      }
     }
 
-    if (status === IDEConnectionStatus.Disconnected) {
-      ideContext.clearIdeContext();
+    if (this.state.status !== oldStatus) {
+      this.notifyConnectionStatusListeners();
     }
+  }
+
+  private async cleanupConnection() {
+    for (const filePath of this.diffResponses.keys()) {
+      await this.closeDiff(filePath);
+    }
+    this.diffResponses.clear();
+    ideContext.clearIdeContext();
+    this.client?.close();
   }
 
   static validateWorkspacePath(
