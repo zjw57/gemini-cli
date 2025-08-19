@@ -503,13 +503,6 @@ export const SETTINGS_SCHEMA = {
     description: 'Show line numbers in the chat.',
     showInDialog: true,
   },
-  launchTarget: {
-    type: 'string',
-    label: 'Launch Target',
-    category: 'General',
-    requiresRestart: true,
-    default: undefined as string | undefined,
-  },
 } as const;
 
 type InferSettings<T extends SettingsSchema> = {

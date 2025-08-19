@@ -91,7 +91,7 @@ async function getTerminalCwd() {
   const { loadSettings } = await import(
     '@google/gemini-cli/dist/src/config/settings.js'
   );
-  const { merged: settings } = await loadSettings(process.cwd());
+  const { merged: settings } = await loadSettings(os.homedir());
   if (settings.terminalCwd && typeof settings.terminalCwd === 'string') {
     return settings.terminalCwd;
   }
@@ -129,6 +129,23 @@ async function startPtyProcess(mainWindow: BrowserWindow) {
 
   const terminalCwd = await getTerminalCwd();
 
+  const { loadSettings } = await import(
+    '@google/gemini-cli/dist/src/config/settings.js'
+  );
+  const { merged: settings } = await loadSettings(os.homedir());
+
+  const env: Record<string, string> = {};
+  if (typeof settings.env === 'string') {
+    for (const line of settings.env.split('\n')) {
+      const parts = line.split('=');
+      const key = parts.shift();
+      const value = parts.join('=');
+      if (key) {
+        env[key] = value;
+      }
+    }
+  }
+
   try {
     ptyProcess = pty.spawn(process.execPath, [cliPath], {
       name: 'xterm-color',
@@ -137,6 +154,7 @@ async function startPtyProcess(mainWindow: BrowserWindow) {
       cwd: terminalCwd,
       env: {
         ...process.env,
+        ...env,
         ELECTRON_RUN_AS_NODE: '1',
         GEMINI_CLI_CONTEXT: 'electron',
         GEMINI_SESSION_ID: sessionId,
@@ -168,7 +186,6 @@ async function startPtyProcess(mainWindow: BrowserWindow) {
 
     ptyOnDataDisposable = ptyProcess.onData((data) => {
       outputBuffer.push(data);
-      console.log('[PTY] Data:', data);
       if (!mainWindow.isDestroyed()) {
         mainWindow.webContents.send('terminal.incomingData', data);
       }
@@ -214,7 +231,7 @@ async function getThemeFromSettings() {
   const { themeManager } = await import(
     '@google/gemini-cli/dist/src/ui/themes/theme-manager.js'
   );
-  const { merged: settings } = await loadSettings(process.cwd());
+  const { merged: settings } = await loadSettings(os.homedir());
   const themeName = settings.theme;
   if (!themeName) {
     return undefined;
@@ -323,7 +340,15 @@ async function createWindow() {
       const { loadSettings } = await import(
         '@google/gemini-cli/dist/src/config/settings.js'
       );
-      const settings = loadSettings(process.cwd());
+      const settings = await loadSettings(os.homedir());
+      const merged = settings.merged;
+
+      if (typeof merged.env === 'object' && merged.env !== null) {
+        merged.env = Object.entries(merged.env)
+          .map(([key, value]) => `${key}=${value}`)
+          .join('\n');
+      }
+
       // We need to convert the class instance to a plain object to send over IPC
       // so that the `merged` getter is resolved.
       return {
@@ -331,7 +356,7 @@ async function createWindow() {
         user: settings.user,
         workspace: settings.workspace,
         errors: settings.errors,
-        merged: settings.merged,
+        merged,
       };
     });
 
@@ -342,7 +367,7 @@ async function createWindow() {
       const { themeManager } = await import(
         '@google/gemini-cli/dist/src/ui/themes/theme-manager.js'
       );
-      const { merged: settings } = await loadSettings(process.cwd());
+      const { merged: settings } = await loadSettings(os.homedir());
       themeManager.loadCustomThemes(settings.customThemes);
       return themeManager.getAvailableThemes();
     });
@@ -354,7 +379,7 @@ async function createWindow() {
           '@google/gemini-cli/dist/src/config/settings.js'
         );
         try {
-          const loadedSettings = await loadSettings(process.cwd());
+          const loadedSettings = await loadSettings(os.homedir());
 
           let scopeEnum: SettingScope;
           if (scope === 'Workspace') {
@@ -375,6 +400,11 @@ async function createWindow() {
           if (changes.mcpServers) {
             newSettings.mcpServers = changes.mcpServers;
             delete changes.mcpServers;
+          }
+
+          if (changes.env) {
+            newSettings.env = changes.env;
+            delete changes.env;
           }
 
           const mergedSettings = deepMerge(newSettings, changes);

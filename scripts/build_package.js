@@ -52,8 +52,8 @@ const __dirname = dirname(__internalFileURLToPath(import.meta.url));
   } else if (packageJson.name === '@google/gemini-cli-core') {
     buildOptions.banner = {
       js: `
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { createRequire as __internalCreateRequireCore } from 'module';
+const require = __internalCreateRequireCore(import.meta.url);
 `,
     };
   }

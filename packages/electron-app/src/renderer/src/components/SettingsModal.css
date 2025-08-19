@@ -128,11 +128,18 @@
 
 .setting-control input[type='number'],
 .setting-control input[type='text'],
-.setting-control select {
+.setting-control select,
+.setting-control textarea {
   width: 100%;
   padding: 8px;
   background-color: #3c3c3c;
   color: #d4d4d4;
   border: 1px solid #3c3c3c;
   border-radius: 4px;
+  font-family: inherit;
+}
+
+.setting-control textarea {
+  min-height: 100px;
+  resize: vertical;
 }

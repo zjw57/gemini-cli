@@ -32,6 +32,7 @@ const defaultSettings: Partial<Settings> = {
   memoryImportFormat: 'tree',
   disableAutoUpdate: false,
   mcpServers: {},
+  env: '',
 };
 
 // Helper to get nested properties safely
@@ -136,14 +137,6 @@ const SETTINGS_CONFIG = [
     description:
       'The starting directory for the integrated terminal. Defaults to your Documents folder if not set.',
     type: 'text',
-    category: 'Behavior',
-  },
-  {
-    key: 'launchTarget',
-    label: 'Launch Target',
-    description: 'The target to launch when starting the application.',
-    type: 'select',
-    options: ['terminal', 'electron'],
     category: 'Behavior',
   },
   {
@@ -309,6 +302,14 @@ const SETTINGS_CONFIG = [
     type: 'text',
     category: 'Advanced',
   },
+  {
+    key: 'env',
+    label: 'Environment Variables',
+    description:
+      'Set environment variables for the application, one per line, in the format KEY=VALUE.',
+    type: 'textarea',
+    category: 'Advanced',
+  },
 ];
 
 const CATEGORIES = [
@@ -354,19 +355,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       const newSettings = { ...settings };
       set(newSettings, field, value);
       setSettings(newSettings);
-
-      const changes: Partial<Settings> = {};
-      set(
-        changes as Record<string, unknown>,
-        field,
-        value as Record<string, unknown>,
-      );
-      window.electron.settings.set({ changes, scope });
     },
-    [settings, scope],
+    [settings],
   );
 
   const handleClose = () => {
+    window.electron.settings.set({ changes: settings, scope });
     window.electron.settings.restartTerminal();
     onClose();
   };
@@ -398,6 +392,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             type="text"
             id={key}
             value={value}
+            onChange={(e) => handleChange(key, e.target.value)}
+          />
+        );
+      case 'textarea':
+        return (
+          <textarea
+            id={key}
+            value={value as string}
             onChange={(e) => handleChange(key, e.target.value)}
           />
         );
@@ -486,7 +488,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <label>{config.label}</label>
                   <p>{config.description}</p>
                 </div>
-                <div className="setting-control">{config.render?.()}</div>
+                <div className="setting-control">
+                  {config.render?.(settings, handleChange)}
+                </div>
               </div>
             ) : (
               <div className="setting-item" key={config.key}>

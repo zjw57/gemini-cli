@@ -252,29 +252,6 @@ export async function main() {
     ...(await getUserStartupWarnings(workspaceRoot)),
   ];
 
-  if (argv.startGui || argv._[0] === 'gui') {
-    const child = spawn('npm', ['run', 'dev'], {
-      cwd: 'packages/electron-app',
-      detached: true,
-      stdio: 'inherit',
-    });
-    child.unref();
-    process.exit(0);
-  }
-
-  if (
-    settings.merged.launchTarget === 'electron' &&
-    process.env.GEMINI_CLI_CONTEXT !== 'electron'
-  ) {
-    const child = spawn('npm', ['run', 'dev'], {
-      cwd: 'packages/electron-app',
-      detached: true,
-      stdio: 'inherit',
-    });
-    child.unref();
-    process.exit(0);
-  }
-
   // Render UI, passing necessary config values. Check that there is no command line question.
   if (config.isInteractive()) {
     const version = await getCliVersion();
