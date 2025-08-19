@@ -127,6 +127,7 @@ export default tseslint.config(
             'yargs/**',
             'react-dom/client',
             '@xterm/xterm/css/xterm.css',
+            'msw/node',
           ],
         },
       ],

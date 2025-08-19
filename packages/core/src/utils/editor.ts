@@ -72,7 +72,7 @@ const editorCommands: Record<
 
 export function checkHasEditorType(editor: EditorType): boolean {
   if (editor === 'GeminiEditor') {
-    return process.env.GEMINI_CLI_CONTEXT === 'electron';
+    return process.env['GEMINI_CLI_CONTEXT'] === 'electron';
   }
   const commandConfig = editorCommands[editor];
   const commands =
@@ -81,7 +81,7 @@ export function checkHasEditorType(editor: EditorType): boolean {
 }
 
 export function allowEditorTypeInSandbox(editor: EditorType): boolean {
-  const notUsingSandbox = !process.env.SANDBOX;
+  const notUsingSandbox = !process.env['SANDBOX'];
   if (['vscode', 'vscodium', 'windsurf', 'cursor', 'zed'].includes(editor)) {
     return notUsingSandbox;
   }
@@ -168,7 +168,7 @@ async function openDiffGeminiEditor(
   oldPath: string,
   newPath: string,
 ): Promise<void> {
-  const diffId = process.env.GEMINI_SESSION_ID;
+  const diffId = process.env['GEMINI_SESSION_ID'];
   if (!diffId) {
     throw new Error('GEMINI_SESSION_ID environment variable not set.');
   }
@@ -258,11 +258,11 @@ export async function openDiff(
   onEditorClose: () => void,
 ): Promise<void> {
   if (editor === 'GeminiEditor') {
-    if (process.env.GEMINI_CLI_CONTEXT === 'electron') {
+    if (process.env['GEMINI_CLI_CONTEXT'] === 'electron') {
       return openDiffGeminiEditor(oldPath, newPath);
     } else {
       // Fallback for non-electron environments
-      const fallbackEditor = process.env.EDITOR || 'vim';
+      const fallbackEditor = process.env['EDITOR'] || 'vim';
       if (isValidEditorType(fallbackEditor)) {
         return openDiff(oldPath, newPath, fallbackEditor, onEditorClose);
       } else {

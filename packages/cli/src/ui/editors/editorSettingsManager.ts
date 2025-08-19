@@ -36,7 +36,7 @@ class EditorSettingsManager {
       EDITOR_DISPLAY_NAMES,
     ).sort() as EditorType[];
 
-    if (process.env.GEMINI_CLI_CONTEXT === 'electron') {
+    if (process.env['GEMINI_CLI_CONTEXT'] === 'electron') {
       editorTypes.unshift('GeminiEditor');
     }
     this.availableEditors = [
