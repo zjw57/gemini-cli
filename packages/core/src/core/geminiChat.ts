@@ -67,6 +67,74 @@ function validateHistory(history: Content[]) {
   }
 }
 
+export function concatenateHistory(history: Content[]): Content[] {
+  if (history.length === 0) {
+    return [];
+  }
+
+  const concatenatedHistory: Content[] = [];
+  let currentGroup: Content[] = [];
+
+  const processGroup = (group: Content[]) => {
+    if (group.length === 0) {
+      return;
+    }
+
+    const role = group[0].role;
+    const allParts = group.flatMap(c => c.parts);
+
+    // Separate parts with text from other types of parts (e.g., function calls)
+    const textParts = allParts.filter(p => p.text !== undefined && p.text !== '');
+    const otherParts = allParts.filter(p => p.text === undefined || p.text === '');
+
+    const newParts: Part[] = [];
+
+    // If there are text parts to combine, process them
+    if (textParts.length > 0) {
+      let combinedText: string;
+      if (textParts.length === 1) {
+        // If there's only one text part, no separator is needed
+        combinedText = textParts[0].text!;
+      } else {
+        // If multiple, map them with a header and join
+        const processedTexts = textParts.map((part, index) => {
+          return `## Part ${index + 1}\n\n${part.text!}`;
+        });
+        combinedText = processedTexts.join('\n\n');
+      }
+      newParts.push({ text: combinedText });
+    }
+
+    // Add back any non-text parts
+    newParts.push(...otherParts);
+    
+    // Add the fully processed Content object to our results
+    if (newParts.length > 0) {
+      concatenatedHistory.push({
+        role: role,
+        parts: newParts,
+      });
+    }
+  };
+
+  for (const content of history) {
+    if (currentGroup.length > 0 && currentGroup[0].role !== content.role) {
+      // The role has changed, so process the completed group
+      processGroup(currentGroup);
+      // Start a new group
+      currentGroup = [content];
+    } else {
+      // The role is the same, so add to the current group
+      currentGroup.push(content);
+    }
+  }
+
+  // Process the last remaining group after the loop finishes
+  processGroup(currentGroup);
+
+  return concatenatedHistory;
+}
+
 /**
  * Extracts the curated (valid) history from a comprehensive history.
  *
@@ -204,7 +272,9 @@ export class GeminiChat {
   ): Promise<GenerateContentResponse> {
     await this.sendPromise;
     const userContent = createUserContent(params.message);
-    const requestContents = this.getHistory(true).concat(userContent);
+    const requestContents = concatenateHistory(
+      this.getHistory(true).concat(userContent),
+    );
 
     let response: GenerateContentResponse;
 
@@ -306,7 +376,9 @@ export class GeminiChat {
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
     await this.sendPromise;
     const userContent = createUserContent(params.message);
-    const requestContents = this.getHistory(true).concat(userContent);
+    const requestContents = concatenateHistory(
+      this.getHistory(true).concat(userContent),
+    );
 
     try {
       const apiCall = () => {
