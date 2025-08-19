@@ -134,6 +134,7 @@ export async function main() {
   setupUnhandledRejectionHandler();
   const workspaceRoot = process.cwd();
   const settings = loadSettings(workspaceRoot);
+  console.log('main Loaded settings');
 
   await cleanupCheckpoints();
   if (settings.errors.length > 0) {

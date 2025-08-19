@@ -355,7 +355,6 @@ describe('App UI', () => {
       const { spawn } = await import('node:child_process');
       spawnEmitter = new EventEmitter();
       spawnEmitter.stdout = new EventEmitter();
-      spawnEmitter.stderr = new EventEmitter();
       (spawn as vi.Mock).mockReturnValue(spawnEmitter);
     });
 
@@ -1272,9 +1271,9 @@ describe('App UI', () => {
       const { unmount } = renderWithProviders(
         <App
           config={mockConfig as unknown as ServerConfig}
-          settings={mockSettings}
           version={mockVersion}
         />,
+        mockSettings,
       );
       currentUnmount = unmount;
 
@@ -1297,9 +1296,9 @@ describe('App UI', () => {
       const { unmount, rerender } = renderWithProviders(
         <App
           config={mockConfig as unknown as ServerConfig}
-          settings={mockSettings}
           version={mockVersion}
         />,
+        mockSettings,
       );
       currentUnmount = unmount;
 
@@ -1316,9 +1315,9 @@ describe('App UI', () => {
       rerender(
         <App
           config={mockConfig as unknown as ServerConfig}
-          settings={mockSettings}
           version={mockVersion}
         />,
+        mockSettings,
       );
 
       // The effect uses setTimeout(100ms) before sending
@@ -1344,9 +1343,9 @@ describe('App UI', () => {
       const { unmount, lastFrame } = renderWithProviders(
         <App
           config={mockConfig as unknown as ServerConfig}
-          settings={mockSettings}
           version={mockVersion}
         />,
+        mockSettings,
       );
       currentUnmount = unmount;
 
@@ -1371,9 +1370,9 @@ describe('App UI', () => {
       const { unmount, lastFrame } = renderWithProviders(
         <App
           config={mockConfig as unknown as ServerConfig}
-          settings={mockSettings}
           version={mockVersion}
         />,
+        mockSettings,
       );
       currentUnmount = unmount;
 
@@ -1400,9 +1399,9 @@ describe('App UI', () => {
       const { unmount } = renderWithProviders(
         <App
           config={mockConfig as unknown as ServerConfig}
-          settings={mockSettings}
           version={mockVersion}
         />,
+        mockSettings,
       );
       currentUnmount = unmount;
 
@@ -1428,9 +1427,9 @@ describe('App UI', () => {
       const { unmount, lastFrame } = renderWithProviders(
         <App
           config={mockConfig as unknown as ServerConfig}
-          settings={mockSettings}
           version={mockVersion}
         />,
+        mockSettings,
       );
       currentUnmount = unmount;
 
@@ -1456,9 +1455,9 @@ describe('App UI', () => {
       const { lastFrame, unmount } = renderWithProviders(
         <App
           config={mockConfig as unknown as ServerConfig}
-          settings={mockSettings}
           version={mockVersion}
         />,
+        mockSettings,
       );
       currentUnmount = unmount;
 

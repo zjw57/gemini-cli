@@ -53,6 +53,7 @@ export const useFolderTrust = (
         default:
           return;
       }
+      console.log('Got new trust value');
 
       trustedFolders.setValue(cwd, trustLevel);
       const trusted = isWorkspaceTrusted({

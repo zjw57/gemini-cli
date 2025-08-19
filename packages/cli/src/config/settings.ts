@@ -354,6 +354,7 @@ export function loadEnvironment(settings?: Settings): void {
  * Project settings override user settings.
  */
 export function loadSettings(workspaceDir: string): LoadedSettings {
+  console.log('In loadSettings');
   let systemSettings: Settings = {};
   let userSettings: Settings = {};
   let workspaceSettings: Settings = {};
