@@ -63,9 +63,16 @@ export class IdeClient {
   private readonly currentIde: DetectedIde | undefined;
   private readonly currentIdeDisplayName: string | undefined;
   private diffResponses = new Map<string, (result: DiffUpdateResult) => void>();
+  private readonly ideProcessInfo:
+    | Awaited<ReturnType<typeof getIdeProcessInfo>>
+    | undefined;
 
-  private constructor(currentIde: DetectedIde | undefined) {
+  private constructor(
+    currentIde: DetectedIde | undefined,
+    ideProcessInfo: Awaited<ReturnType<typeof getIdeProcessInfo>> | undefined,
+  ) {
     this.currentIde = currentIde;
+    this.ideProcessInfo = ideProcessInfo;
     if (this.currentIde) {
       this.currentIdeDisplayName = getIdeInfo(this.currentIde).displayName;
     }
@@ -79,8 +86,9 @@ export class IdeClient {
   }
 
   private static async create(): Promise<IdeClient> {
-    const currentIde = await detectIde();
-    return new IdeClient(currentIde);
+    const ideProcessInfo = await getIdeProcessInfo();
+    const currentIde = await detectIde(ideProcessInfo);
+    return new IdeClient(currentIde, ideProcessInfo);
   }
 
   async connect(): Promise<void> {
@@ -230,6 +238,12 @@ export class IdeClient {
     return this.currentIdeDisplayName;
   }
 
+  getIdeProcessInfo():
+    | Awaited<ReturnType<typeof getIdeProcessInfo>>
+    | undefined {
+    return this.ideProcessInfo;
+  }
+
   private setState(
     status: IDEConnectionStatus,
     details?: string,
@@ -305,8 +319,11 @@ export class IdeClient {
   }
 
   private async getPortFromFile(): Promise<string | undefined> {
+    if (!this.ideProcessInfo) {
+      return undefined;
+    }
     try {
-      const { pid } = await getIdeProcessInfo();
+      const { pid } = this.ideProcessInfo;
       const portFile = path.join(os.tmpdir(), `gemini-ide-server-${pid}.json`);
       const portFileContents = await fs.promises.readFile(portFile, 'utf8');
       const port = JSON.parse(portFileContents).port;

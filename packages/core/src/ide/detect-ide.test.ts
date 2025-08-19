@@ -16,6 +16,8 @@ vi.mock('./process-utils.js', async (importOriginal) => {
   };
 });
 
+const mockIdeProcessInfo = { pid: 123, command: '' };
+
 describe('detectIde', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -66,7 +68,7 @@ describe('detectIde', () => {
     for (const key in env) {
       vi.stubEnv(key, env[key as keyof typeof env]);
     }
-    expect(await detectIde()).toBe(expected);
+    expect(await detectIde(mockIdeProcessInfo)).toBe(expected);
   });
 
   it('detects vscode', async () => {
@@ -76,11 +78,13 @@ describe('detectIde', () => {
       pid: 123,
       command: 'code',
     });
-    expect(await detectIde()).toBe(DetectedIde.VSCode);
+    expect(await detectIde({ pid: 123, command: 'code' })).toBe(
+      DetectedIde.VSCode,
+    );
   });
 
   it('returns undefined for non-vscode', async () => {
     vi.stubEnv('TERM_PROGRAM', 'definitely-not-vscode');
-    expect(await detectIde()).toBeUndefined();
+    expect(await detectIde(mockIdeProcessInfo)).toBeUndefined();
   });
 });

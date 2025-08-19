@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getIdeProcessInfo } from './process-utils.js';
+import { IDEProcess } from './process-utils.js';
 
 export enum DetectedIde {
   Devin = 'devin',
@@ -68,7 +68,9 @@ export function getIdeInfo(ide: DetectedIde): IdeInfo {
   }
 }
 
-export async function detectIde(): Promise<DetectedIde | undefined> {
+export function detectIde(
+  ideProcessInfo: IDEProcess,
+): DetectedIde | undefined {
   // Only VSCode-based integrations are currently supported.
   if (process.env['TERM_PROGRAM'] !== 'vscode') {
     return undefined;
@@ -96,7 +98,7 @@ export async function detectIde(): Promise<DetectedIde | undefined> {
   }
 
   try {
-    const { command } = await getIdeProcessInfo();
+    const { command } = ideProcessInfo;
     const lowerCaseCommand = command.toLowerCase();
     if (lowerCaseCommand.includes('code')) {
       return DetectedIde.VSCode;

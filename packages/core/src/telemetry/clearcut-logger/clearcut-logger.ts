@@ -86,13 +86,18 @@ export interface LogRequest {
  * This is computed based upon a series of environment variables these distribution
  * methods might have in their runtimes.
  */
-async function determineSurface(): Promise<string> {
+async function determineSurface(config: Config): Promise<string> {
   if (process.env['SURFACE']) {
     return process.env['SURFACE'];
   } else if (process.env['GITHUB_SHA']) {
     return 'GitHub';
   } else if (process.env['TERM_PROGRAM'] === 'vscode') {
-    return (await detectIde()) || DetectedIde.VSCode;
+    const ideClient = config.getIdeClient();
+    const ideProcessInfo = ideClient.getIdeProcessInfo();
+    if (!ideProcessInfo) {
+      return DetectedIde.VSCode;
+    }
+    return (detectIde(ideProcessInfo)) || DetectedIde.VSCode;
   } else {
     return 'SURFACE_NOT_SET';
   }
