@@ -103,9 +103,9 @@ export function concatenateHistory(history: Content[]): Content[] {
         combinedText = textParts[0].text;
       } else {
         // `part` here is also correctly typed.
-        const processedTexts = textParts.map((part, index) => {
-          return `## Part ${index + 1}\n\n${part.text}`;
-        });
+        const processedTexts = textParts.map(
+          (part, index) => `## Part ${index + 1}\n\n${part.text}`,
+        );
         combinedText = processedTexts.join('\n\n');
       }
       newParts.push({ text: combinedText });
@@ -117,7 +117,7 @@ export function concatenateHistory(history: Content[]): Content[] {
     // Add the fully processed Content object to our results
     if (newParts.length > 0) {
       concatenatedHistory.push({
-        role: role,
+        role,
         parts: newParts,
       });
     }
