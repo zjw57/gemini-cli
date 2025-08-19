@@ -81,15 +81,17 @@ export function concatenateHistory(history: Content[]): Content[] {
     }
 
     const role = group[0].role;
-    const allParts = group.flatMap((c) => c.parts);
+    // Ensure parts array exists before trying to flatMap
+    const allParts = group.flatMap((c) => c.parts || []);
 
-    // Separate parts with text from other types of parts (e.g., function calls)
-    const textParts = allParts.filter(
-      (p) => p.text !== undefined && p.text !== '',
-    );
-    const otherParts = allParts.filter(
-      (p) => p.text === undefined || p.text === '',
-    );
+    // A type guard to safely check if a part is a non-empty text part.
+    // This tells TypeScript that if this function returns true, the part is of type { text: string }.
+    const isTextPart = (part: Part): part is { text: string } =>
+      'text' in part && typeof part.text === 'string' && part.text !== '';
+
+    // Use the type guard in the filter. `textParts` is now correctly typed.
+    const textParts = allParts.filter(isTextPart);
+    const otherParts = allParts.filter((part) => !isTextPart(part));
 
     const newParts: Part[] = [];
 
@@ -97,19 +99,19 @@ export function concatenateHistory(history: Content[]): Content[] {
     if (textParts.length > 0) {
       let combinedText: string;
       if (textParts.length === 1) {
-        // If there's only one text part, no separator is needed
-        combinedText = textParts[0].text!;
+        // No need for '!' because TypeScript now knows `text` exists.
+        combinedText = textParts[0].text;
       } else {
-        // If multiple, map them with a header and join
+        // `part` here is also correctly typed.
         const processedTexts = textParts.map((part, index) => {
-          return `## Part ${index + 1}\n\n${part.text!}`;
+          return `## Part ${index + 1}\n\n${part.text}`;
         });
         combinedText = processedTexts.join('\n\n');
       }
       newParts.push({ text: combinedText });
     }
 
-    // Add back any non-text parts
+    // This is now safe as both arrays are correctly typed as Part[].
     newParts.push(...otherParts);
 
     // Add the fully processed Content object to our results
@@ -123,17 +125,13 @@ export function concatenateHistory(history: Content[]): Content[] {
 
   for (const content of history) {
     if (currentGroup.length > 0 && currentGroup[0].role !== content.role) {
-      // The role has changed, so process the completed group
       processGroup(currentGroup);
-      // Start a new group
       currentGroup = [content];
     } else {
-      // The role is the same, so add to the current group
       currentGroup.push(content);
     }
   }
 
-  // Process the last remaining group after the loop finishes
   processGroup(currentGroup);
 
   return concatenatedHistory;
