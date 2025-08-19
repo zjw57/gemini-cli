@@ -81,11 +81,15 @@ export function concatenateHistory(history: Content[]): Content[] {
     }
 
     const role = group[0].role;
-    const allParts = group.flatMap(c => c.parts);
+    const allParts = group.flatMap((c) => c.parts);
 
     // Separate parts with text from other types of parts (e.g., function calls)
-    const textParts = allParts.filter(p => p.text !== undefined && p.text !== '');
-    const otherParts = allParts.filter(p => p.text === undefined || p.text === '');
+    const textParts = allParts.filter(
+      (p) => p.text !== undefined && p.text !== '',
+    );
+    const otherParts = allParts.filter(
+      (p) => p.text === undefined || p.text === '',
+    );
 
     const newParts: Part[] = [];
 
@@ -107,7 +111,7 @@ export function concatenateHistory(history: Content[]): Content[] {
 
     // Add back any non-text parts
     newParts.push(...otherParts);
-    
+
     // Add the fully processed Content object to our results
     if (newParts.length > 0) {
       concatenatedHistory.push({

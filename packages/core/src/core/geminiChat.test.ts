@@ -477,7 +477,6 @@ describe('GeminiChat', () => {
     });
   });
 
-  
   describe('concatenateHistory', () => {
     it('should return an empty array if history is empty', () => {
       const history: Content[] = [];
@@ -560,10 +559,15 @@ describe('GeminiChat', () => {
     });
 
     it('should preserve non-text parts and append them after the merged text', () => {
-      const functionCallPart = { functionCall: { name: 'tool_code', args: {} } };
+      const functionCallPart = {
+        functionCall: { name: 'tool_code', args: {} },
+      };
       const history: Content[] = [
         { role: 'model', parts: [{ text: 'Thinking...' }] },
-        { role: 'model', parts: [functionCallPart, { text: 'OK, using tool.' }] },
+        {
+          role: 'model',
+          parts: [functionCallPart, { text: 'OK, using tool.' }],
+        },
       ];
       const result = concatenateHistory(history);
       const expected: Content[] = [
@@ -581,7 +585,9 @@ describe('GeminiChat', () => {
     });
 
     it('should not add headers if only one text part exists in a group', () => {
-      const functionCallPart = { functionCall: { name: 'tool_code', args: {} } };
+      const functionCallPart = {
+        functionCall: { name: 'tool_code', args: {} },
+      };
       const history: Content[] = [
         { role: 'user', parts: [{ text: 'Please use the tool.' }] },
         { role: 'user', parts: [functionCallPart] },
