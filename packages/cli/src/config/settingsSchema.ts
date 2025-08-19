@@ -277,6 +277,16 @@ export const SETTINGS_SCHEMA = {
     description: 'The currently selected authentication type.',
     showInDialog: false,
   },
+  enforcedAuthType: {
+    type: 'string',
+    label: 'Enforced Auth Type',
+    category: 'Advanced',
+    requiresRestart: true,
+    default: undefined as AuthType | undefined,
+    description:
+      'An authentication type that is enforced system-wide by an administrator.',
+    showInDialog: false,
+  },
   useExternalAuth: {
     type: 'boolean',
     label: 'Use External Auth',

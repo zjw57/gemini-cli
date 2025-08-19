@@ -330,6 +330,7 @@ export async function main() {
     settings.merged.selectedAuthType,
     settings.merged.useExternalAuth,
     config,
+    settings,
   );
 
   await runNonInteractive(nonInteractiveConfig, input, prompt_id);

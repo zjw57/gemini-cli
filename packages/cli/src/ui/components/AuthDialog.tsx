@@ -12,6 +12,7 @@ import { LoadedSettings, SettingScope } from '../../config/settings.js';
 import { AuthType } from '@google/gemini-cli-core';
 import { validateAuthMethod } from '../../config/auth.js';
 import { useKeypress } from '../hooks/useKeypress.js';
+import { Button } from './shared/Button.js';
 
 interface AuthDialogProps {
   onSelect: (authMethod: AuthType | undefined, scope: SettingScope) => void;
@@ -129,6 +130,40 @@ export function AuthDialog({
     },
     { isActive: true },
   );
+
+  if (settings.merged.enforcedAuthType) {
+    return (
+      <Box
+        borderStyle="round"
+        borderColor={Colors.Gray}
+        flexDirection="column"
+        padding={1}
+        width="100%"
+      >
+        <Text bold>Authentication Enforced</Text>
+        <Box marginTop={1}>
+          <Text>
+            Your system administrator has enforced a specific authentication
+            method.
+          </Text>
+        </Box>
+        <Box marginTop={1}>
+          <Button
+            onSelect={() =>
+              onSelect(settings.merged.enforcedAuthType!, SettingScope.System)
+            }
+          >
+            Switch to {settings.merged.enforcedAuthType}
+          </Button>
+        </Box>
+        {errorMessage && (
+          <Box marginTop={1}>
+            <Text color={Colors.AccentRed}>{errorMessage}</Text>
+          </Box>
+        )}
+      </Box>
+    );
+  }
 
   return (
     <Box
