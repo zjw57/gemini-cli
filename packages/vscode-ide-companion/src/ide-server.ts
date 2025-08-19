@@ -18,6 +18,7 @@ import * as os from 'node:os';
 import { z } from 'zod';
 import { DiffManager } from './diff-manager.js';
 import { OpenFilesManager } from './open-files-manager.js';
+import { LanguageModelTools } from './lm-tools.js';
 
 const MCP_SESSION_ID_HEADER = 'mcp-session-id';
 const IDE_SERVER_PORT_ENV_VAR = 'GEMINI_CLI_IDE_SERVER_PORT';
@@ -69,7 +70,7 @@ export class IDEServer {
 
     const app = express();
     app.use(express.json());
-    const mcpServer = createMcpServer(this.diffManager);
+    const mcpServer = createMcpServer(this.diffManager, this.log.bind(this));
 
     const openFilesManager = new OpenFilesManager(context);
     const onDidChangeSubscription = openFilesManager.onDidChange(() => {
@@ -239,7 +240,10 @@ export class IDEServer {
   }
 }
 
-const createMcpServer = (diffManager: DiffManager) => {
+const createMcpServer = (
+  diffManager: DiffManager,
+  log: (message: string) => void,
+) => {
   const server = new McpServer(
     {
       name: 'gemini-cli-companion-mcp-server',
@@ -247,6 +251,10 @@ const createMcpServer = (diffManager: DiffManager) => {
     },
     { capabilities: { logging: {} } },
   );
+
+  const lmTools = new LanguageModelTools(log);
+  lmTools.registerTools(server);
+
   server.registerTool(
     'openDiff',
     {
