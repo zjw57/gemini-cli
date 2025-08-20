@@ -21,18 +21,13 @@
     "@google/gemini-cli": "file:../cli",
     "@google/gemini-cli-core": "file:../core",
     "@monaco-editor/react": "^4.7.0",
-    "@radix-ui/react-dialog": "^1.0.5",
     "@xterm/xterm": "^5.5.0",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.0",
     "lucide-react": "^0.539.0",
     "monaco-editor": "^0.52.2",
     "node-pty": "^1.1.0-beta34",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "tailwind-merge": "^2.2.1",
-    "xterm-addon-fit": "^0.8.0",
-    "ws": "^8.17.0"
+    "xterm-addon-fit": "^0.8.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.2",
