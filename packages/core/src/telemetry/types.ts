@@ -152,6 +152,7 @@ export class ToolCallEvent implements BaseTelemetryEvent {
       typeof call.tool !== 'undefined' && call.tool instanceof DiscoveredMCPTool
         ? 'mcp'
         : 'native';
+    this.metadata = {};
 
     if (
       call.status === 'success' &&
