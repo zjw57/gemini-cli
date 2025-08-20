@@ -205,7 +205,13 @@ export class IDEServer {
           port.toString(),
         );
         this.log(`IDE server listening on port ${port}`);
-        fs.writeFile(this.portFile, JSON.stringify({ port })).catch((err) => {
+        const workspacePaths =
+          vscode.workspace.workspaceFolders?.map((wf) => wf.uri.fsPath) || [];
+        const workspacePath = workspacePaths.join(path.delimiter);
+        fs.writeFile(
+          this.portFile,
+          JSON.stringify({ port, workspacePath }),
+        ).catch((err) => {
           this.log(`Failed to write port to file: ${err}`);
         });
         this.log(this.portFile);
