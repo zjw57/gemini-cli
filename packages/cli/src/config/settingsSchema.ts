@@ -6,6 +6,7 @@
 
 import {
   MCPServerConfig,
+  A2AAgentConfig,
   BugCommandSettings,
   TelemetrySettings,
   AuthType,
@@ -368,6 +369,15 @@ export const SETTINGS_SCHEMA = {
     requiresRestart: true,
     default: {} as Record<string, MCPServerConfig>,
     description: 'Configuration for MCP servers.',
+    showInDialog: false,
+  },
+  a2aAgents: {
+    type: 'object',
+    label: 'A2A Agents',
+    category: 'Advanced',
+    requiresRestart: true,
+    default: {} as Record<string, A2AAgentConfig>,
+    description: 'Configuration for A2A agents.',
     showInDialog: false,
   },
   allowMCPServers: {

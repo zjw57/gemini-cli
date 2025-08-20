@@ -92,6 +92,11 @@ function mergeSettings(
       ...(workspace.mcpServers || {}),
       ...(system.mcpServers || {}),
     },
+    a2aAgents: {
+      ...(user.a2aAgents || {}),
+      ...(workspace.a2aAgents || {}),
+      ...(system.a2aAgents || {}),
+    },
     includeDirectories: [
       ...(system.includeDirectories || []),
       ...(user.includeDirectories || []),

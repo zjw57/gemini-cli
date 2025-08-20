@@ -21,6 +21,7 @@ import { McpClientManager } from './mcp-client-manager.js';
 import { DiscoveredMCPTool } from './mcp-tool.js';
 import { parse } from 'shell-quote';
 import { safeJsonStringify } from '../utils/safeJsonStringify.js';
+import { A2AToolManager } from '../a2a/a2a-tool-manager.js';
 
 type ToolParams = Record<string, unknown>;
 
@@ -166,6 +167,7 @@ export class ToolRegistry {
   private tools: Map<string, AnyDeclarativeTool> = new Map();
   private config: Config;
   private mcpClientManager: McpClientManager;
+  private a2aToolManager: A2AToolManager;
 
   constructor(config: Config) {
     this.config = config;
@@ -177,6 +179,7 @@ export class ToolRegistry {
       this.config.getDebugMode(),
       this.config.getWorkspaceContext(),
     );
+    this.a2aToolManager = new A2AToolManager(this.config, this);
   }
 
   /**
@@ -232,6 +235,8 @@ export class ToolRegistry {
 
     // discover tools using MCP servers, if configured
     await this.mcpClientManager.discoverAllMcpTools();
+
+    await this.a2aToolManager.initialize();
   }
 
   /**
