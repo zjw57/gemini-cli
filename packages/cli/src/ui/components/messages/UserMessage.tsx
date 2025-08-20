@@ -31,7 +31,9 @@ export const UserMessage: React.FC<UserMessageProps> = ({ text }) => {
       alignSelf="flex-start"
     >
       <Box width={prefixWidth}>
-        <Text color={textColor}>{prefix}</Text>
+        <Text color={textColor} aria-label="User: ">
+          {prefix}
+        </Text>
       </Box>
       <Box flexGrow={1}>
         <Text wrap="wrap" color={textColor}>

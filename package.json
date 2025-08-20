@@ -91,6 +91,7 @@
     "yargs": "^17.7.2"
   },
   "dependencies": {
+    "ink": "github:chrstnb/ink#screenreader-fixes",
     "node-fetch": "^3.3.2"
   }
 }

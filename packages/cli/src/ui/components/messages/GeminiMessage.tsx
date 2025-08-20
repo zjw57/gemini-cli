@@ -28,7 +28,9 @@ export const GeminiMessage: React.FC<GeminiMessageProps> = ({
   return (
     <Box flexDirection="row">
       <Box width={prefixWidth}>
-        <Text color={Colors.AccentPurple}>{prefix}</Text>
+        <Text color={Colors.AccentPurple} aria-label="Model:">
+          {prefix}
+        </Text>
       </Box>
       <Box flexGrow={1} flexDirection="column">
         <MarkdownDisplay

@@ -32,7 +32,9 @@ export const CompressionMessage: React.FC<CompressionDisplayProps> = ({
         {compression.isPending ? (
           <Spinner type="dots" />
         ) : (
-          <Text color={Colors.AccentPurple}>✦</Text>
+          <Text color={Colors.AccentPurple} aria-label="Model:">
+            ✦
+          </Text>
         )}
       </Box>
       <Box>
