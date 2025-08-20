@@ -6,7 +6,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { glob, escape } from 'glob';
+import { glob } from 'glob';
+import { SchemaValidator } from '../utils/schemaValidator.js';
 import {
   BaseDeclarativeTool,
   BaseToolInvocation,
@@ -136,13 +137,7 @@ class GlobToolInvocation extends BaseToolInvocation<
       let allEntries: GlobPath[] = [];
 
       for (const searchDir of searchDirectories) {
-        let pattern = this.params.pattern;
-        const fullPath = path.join(searchDir, pattern);
-        if (fs.existsSync(fullPath)) {
-          pattern = escape(pattern);
-        }
-
-        const entries = (await glob(pattern, {
+        const entries = (await glob(this.params.pattern, {
           cwd: searchDir,
           withFileTypes: true,
           nodir: true,
@@ -286,9 +281,15 @@ export class GlobTool extends BaseDeclarativeTool<GlobToolParams, ToolResult> {
   /**
    * Validates the parameters for the tool.
    */
-  protected override validateToolParamValues(
-    params: GlobToolParams,
-  ): string | null {
+  override validateToolParams(params: GlobToolParams): string | null {
+    const errors = SchemaValidator.validate(
+      this.schema.parametersJsonSchema,
+      params,
+    );
+    if (errors) {
+      return errors;
+    }
+
     const searchDirAbsolute = path.resolve(
       this.config.getTargetDir(),
       params.path || '.',

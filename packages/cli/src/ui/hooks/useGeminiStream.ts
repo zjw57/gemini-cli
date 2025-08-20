@@ -105,14 +105,13 @@ export const useGeminiStream = (
     useStateAndRef<HistoryItemWithoutId | null>(null);
   const processedMemoryToolsRef = useRef<Set<string>>(new Set());
   const { startNewPrompt, getPromptCount } = useSessionStats();
-  const storage = config.storage;
-  const logger = useLogger(storage);
+  const logger = useLogger();
   const gitService = useMemo(() => {
     if (!config.getProjectRoot()) {
       return;
     }
-    return new GitService(config.getProjectRoot(), storage);
-  }, [config, storage]);
+    return new GitService(config.getProjectRoot());
+  }, [config]);
 
   const [toolCalls, scheduleToolCalls, markToolsAsSubmitted] =
     useReactToolScheduler(
@@ -878,7 +877,9 @@ export const useGeminiStream = (
       );
 
       if (restorableToolCalls.length > 0) {
-        const checkpointDir = storage.getProjectTempCheckpointsDir();
+        const checkpointDir = config.getProjectTempDir()
+          ? path.join(config.getProjectTempDir(), 'checkpoints')
+          : undefined;
 
         if (!checkpointDir) {
           return;
@@ -961,15 +962,7 @@ export const useGeminiStream = (
       }
     };
     saveRestorableToolCalls();
-  }, [
-    toolCalls,
-    config,
-    onDebugMessage,
-    gitService,
-    history,
-    geminiClient,
-    storage,
-  ]);
+  }, [toolCalls, config, onDebugMessage, gitService, history, geminiClient]);
 
   return {
     streamingState,

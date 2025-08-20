@@ -147,7 +147,6 @@ export const defaultKeyBindings: KeyBindingConfig = {
     { key: 'return', command: true },
     { key: 'return', paste: true },
     { key: 'return', shift: true },
-    { key: 'j', ctrl: true },
   ],
 
   // External tools

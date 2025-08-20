@@ -19,6 +19,7 @@ import {
   ToolResultDisplay,
 } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
+import { SchemaValidator } from '../utils/schemaValidator.js';
 import { makeRelative, shortenPath } from '../utils/paths.js';
 import { isNodeError } from '../utils/errors.js';
 import { Config, ApprovalMode } from '../config/config.js';
@@ -124,9 +125,7 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
       | undefined = undefined;
 
     try {
-      currentContent = await this.config
-        .getFileSystemService()
-        .readTextFile(params.file_path);
+      currentContent = fs.readFileSync(params.file_path, 'utf8');
       // Normalize line endings to LF for consistent processing.
       currentContent = currentContent.replace(/\r\n/g, '\n');
       fileExists = true;
@@ -340,9 +339,7 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
 
     try {
       this.ensureParentDirectoriesExist(this.params.file_path);
-      await this.config
-        .getFileSystemService()
-        .writeTextFile(this.params.file_path, editData.newContent);
+      fs.writeFileSync(this.params.file_path, editData.newContent, 'utf8');
 
       let displayResult: ToolResultDisplay;
       if (editData.isNewFile) {
@@ -474,11 +471,13 @@ Expectation for required parameters:
    * @param params Parameters to validate
    * @returns Error message string or null if valid
    */
-  protected override validateToolParamValues(
-    params: EditToolParams,
-  ): string | null {
-    if (!params.file_path) {
-      return "The 'file_path' parameter must be non-empty.";
+  override validateToolParams(params: EditToolParams): string | null {
+    const errors = SchemaValidator.validate(
+      this.schema.parametersJsonSchema,
+      params,
+    );
+    if (errors) {
+      return errors;
     }
 
     if (!path.isAbsolute(params.file_path)) {
@@ -505,9 +504,7 @@ Expectation for required parameters:
       getFilePath: (params: EditToolParams) => params.file_path,
       getCurrentContent: async (params: EditToolParams): Promise<string> => {
         try {
-          return this.config
-            .getFileSystemService()
-            .readTextFile(params.file_path);
+          return fs.readFileSync(params.file_path, 'utf8');
         } catch (err) {
           if (!isNodeError(err) || err.code !== 'ENOENT') throw err;
           return '';
@@ -515,9 +512,7 @@ Expectation for required parameters:
       },
       getProposedContent: async (params: EditToolParams): Promise<string> => {
         try {
-          const currentContent = await this.config
-            .getFileSystemService()
-            .readTextFile(params.file_path);
+          const currentContent = fs.readFileSync(params.file_path, 'utf8');
           return applyReplacement(
             currentContent,
             params.old_string,

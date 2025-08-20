@@ -86,15 +86,6 @@ export const SETTINGS_SCHEMA = {
     description: 'Hide the application banner',
     showInDialog: true,
   },
-  hideFooter: {
-    type: 'boolean',
-    label: 'Hide Footer',
-    category: 'UI',
-    requiresRestart: false,
-    default: false,
-    description: 'Hide the footer from the UI',
-    showInDialog: true,
-  },
   showMemoryUsage: {
     type: 'boolean',
     label: 'Show Memory Usage',
@@ -112,7 +103,7 @@ export const SETTINGS_SCHEMA = {
     requiresRestart: true,
     default: true,
     description: 'Enable collection of usage statistics',
-    showInDialog: false, // All details are shown in /privacy and dependent on auth type
+    showInDialog: true,
   },
   autoConfigureMaxOldSpaceSize: {
     type: 'boolean',
@@ -137,10 +128,10 @@ export const SETTINGS_SCHEMA = {
     label: 'Max Session Turns',
     category: 'General',
     requiresRestart: false,
-    default: -1,
+    default: undefined as number | undefined,
     description:
-      'Maximum number of user/model/tool turns to keep in a session. -1 means unlimited.',
-    showInDialog: true,
+      'Maximum number of user/model/tool turns to keep in a session.',
+    showInDialog: false,
   },
   memoryImportFormat: {
     type: 'string',
@@ -156,9 +147,9 @@ export const SETTINGS_SCHEMA = {
     label: 'Memory Discovery Max Dirs',
     category: 'General',
     requiresRestart: false,
-    default: 200,
+    default: undefined as number | undefined,
     description: 'Maximum number of directories to search for memory.',
-    showInDialog: true,
+    showInDialog: false,
   },
   contextFileName: {
     type: 'object',
@@ -274,17 +265,6 @@ export const SETTINGS_SCHEMA = {
     requiresRestart: false,
     default: false,
     description: 'Disable automatic updates',
-    showInDialog: true,
-  },
-
-  shouldUseNodePtyShell: {
-    type: 'boolean',
-    label: 'Use node-pty for Shell Execution',
-    category: 'Shell',
-    requiresRestart: true,
-    default: false,
-    description:
-      'Use node-pty for shell command execution. Fallback to child_process still applies.',
     showInDialog: true,
   },
 
@@ -513,15 +493,6 @@ export const SETTINGS_SCHEMA = {
     requiresRestart: false,
     default: false,
     description: 'Show line numbers in the chat.',
-    showInDialog: true,
-  },
-  skipNextSpeakerCheck: {
-    type: 'boolean',
-    label: 'Skip Next Speaker Check',
-    category: 'General',
-    requiresRestart: false,
-    default: false,
-    description: 'Skip the next speaker check.',
     showInDialog: true,
   },
 } as const;

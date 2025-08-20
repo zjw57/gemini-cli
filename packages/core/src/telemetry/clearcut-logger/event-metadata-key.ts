@@ -223,27 +223,22 @@ export enum EventMetadataKey {
   // Kitty Sequence Overflow Event Keys
   // ===========================================================================
 
-  // Logs the truncated kitty sequence.
-  GEMINI_CLI_KITTY_TRUNCATED_SEQUENCE = 52,
-
   // Logs the length of the kitty sequence that overflowed.
   GEMINI_CLI_KITTY_SEQUENCE_LENGTH = 53,
 
-  // Logs the number of tokens before context window compression.
-  GEMINI_CLI_COMPRESSION_TOKENS_BEFORE = 60,
+  // Logs the truncated kitty sequence.
+  GEMINI_CLI_KITTY_TRUNCATED_SEQUENCE = 52,
+}
 
-  // Logs the number of tokens after context window compression.
-  GEMINI_CLI_COMPRESSION_TOKENS_AFTER = 61,
+export function getEventMetadataKey(
+  keyName: string,
+): EventMetadataKey | undefined {
+  // Access the enum member by its string name
+  const key = EventMetadataKey[keyName as keyof typeof EventMetadataKey];
 
-  // Logs tool type whether it is mcp or native.
-  GEMINI_CLI_TOOL_TYPE = 62,
-
-  // Logs count of MCP servers in Start Session Event
-  GEMINI_CLI_START_SESSION_MCP_SERVERS_COUNT = 63,
-
-  // Logs count of MCP tools in Start Session Event
-  GEMINI_CLI_START_SESSION_MCP_TOOLS_COUNT = 64,
-
-  // Logs name of MCP tools as comma seperated string
-  GEMINI_CLI_START_SESSION_MCP_TOOLS = 65,
+  // Check if the result is a valid enum member (not undefined and is a number)
+  if (typeof key === 'number') {
+    return key;
+  }
+  return undefined;
 }

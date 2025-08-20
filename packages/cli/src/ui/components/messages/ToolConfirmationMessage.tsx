@@ -8,7 +8,6 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import { DiffRenderer } from './DiffRenderer.js';
 import { Colors } from '../../colors.js';
-import { RenderInline } from '../../utils/InlineMarkdownRenderer.js';
 import {
   ToolCallConfirmationDetails,
   ToolConfirmationOutcome,
@@ -223,17 +222,12 @@ export const ToolConfirmationMessage: React.FC<
 
     bodyContent = (
       <Box flexDirection="column" paddingX={1} marginLeft={1}>
-        <Text color={Colors.AccentCyan}>
-          <RenderInline text={infoProps.prompt} />
-        </Text>
+        <Text color={Colors.AccentCyan}>{infoProps.prompt}</Text>
         {displayUrls && infoProps.urls && infoProps.urls.length > 0 && (
           <Box flexDirection="column" marginTop={1}>
             <Text>URLs to fetch:</Text>
             {infoProps.urls.map((url) => (
-              <Text key={url}>
-                {' '}
-                - <RenderInline text={url} />
-              </Text>
+              <Text key={url}> - {url}</Text>
             ))}
           </Box>
         )}

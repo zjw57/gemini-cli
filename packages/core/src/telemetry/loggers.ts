@@ -19,7 +19,6 @@ import {
   EVENT_NEXT_SPEAKER_CHECK,
   SERVICE_NAME,
   EVENT_SLASH_COMMAND,
-  EVENT_CHAT_COMPRESSION,
 } from './constants.js';
 import {
   ApiErrorEvent,
@@ -34,14 +33,12 @@ import {
   LoopDetectedEvent,
   SlashCommandEvent,
   KittySequenceOverflowEvent,
-  ChatCompressionEvent,
 } from './types.js';
 import {
   recordApiErrorMetrics,
   recordTokenUsageMetrics,
   recordApiResponseMetrics,
   recordToolCallMetrics,
-  recordChatCompressionMetrics,
 } from './metrics.js';
 import { isTelemetrySdkInitialized } from './sdk.js';
 import { uiTelemetryService, UiEvent } from './uiTelemetry.js';
@@ -79,9 +76,6 @@ export function logCliConfiguration(
     file_filtering_respect_git_ignore: event.file_filtering_respect_git_ignore,
     debug_mode: event.debug_enabled,
     mcp_servers: event.mcp_servers,
-    mcp_servers_count: event.mcp_servers_count,
-    mcp_tools: event.mcp_tools,
-    mcp_tools_count: event.mcp_tools_count,
   };
 
   const logger = logs.getLogger(SERVICE_NAME);
@@ -104,7 +98,7 @@ export function logUserPrompt(config: Config, event: UserPromptEvent): void {
   };
 
   if (shouldLogUserPrompts(config)) {
-    attributes['prompt'] = event.prompt;
+    attributes.prompt = event.prompt;
   }
 
   const logger = logs.getLogger(SERVICE_NAME);
@@ -151,7 +145,6 @@ export function logToolCall(config: Config, event: ToolCallEvent): void {
     event.duration_ms,
     event.success,
     event.decision,
-    event.tool_type,
   );
 }
 
@@ -178,7 +171,7 @@ export function logFlashFallback(
   config: Config,
   event: FlashFallbackEvent,
 ): void {
-  ClearcutLogger.getInstance(config)?.logFlashFallbackEvent();
+  ClearcutLogger.getInstance(config)?.logFlashFallbackEvent(event);
   if (!isTelemetrySdkInitialized()) return;
 
   const attributes: LogAttributes = {
@@ -254,7 +247,7 @@ export function logApiResponse(config: Config, event: ApiResponseEvent): void {
     'event.timestamp': new Date().toISOString(),
   };
   if (event.response_text) {
-    attributes['response_text'] = event.response_text;
+    attributes.response_text = event.response_text;
   }
   if (event.error) {
     attributes['error.message'] = event.error;
@@ -385,31 +378,6 @@ export function logIdeConnection(
     attributes,
   };
   logger.emit(logRecord);
-}
-
-export function logChatCompression(
-  config: Config,
-  event: ChatCompressionEvent,
-): void {
-  ClearcutLogger.getInstance(config)?.logChatCompressionEvent(event);
-
-  const attributes: LogAttributes = {
-    ...getCommonAttributes(config),
-    ...event,
-    'event.name': EVENT_CHAT_COMPRESSION,
-  };
-
-  const logger = logs.getLogger(SERVICE_NAME);
-  const logRecord: LogRecord = {
-    body: `Chat compression (Saved ${event.tokens_before - event.tokens_after} tokens)`,
-    attributes,
-  };
-  logger.emit(logRecord);
-
-  recordChatCompressionMetrics(config, {
-    tokens_before: event.tokens_before,
-    tokens_after: event.tokens_after,
-  });
 }
 
 export function logKittySequenceOverflow(

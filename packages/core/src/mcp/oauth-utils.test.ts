@@ -28,49 +28,13 @@ describe('OAuthUtils', () => {
   });
 
   describe('buildWellKnownUrls', () => {
-    it('should build standard root-based URLs by default', () => {
-      const urls = OAuthUtils.buildWellKnownUrls('https://example.com/mcp');
+    it('should build correct well-known URLs', () => {
+      const urls = OAuthUtils.buildWellKnownUrls('https://example.com/path');
       expect(urls.protectedResource).toBe(
         'https://example.com/.well-known/oauth-protected-resource',
       );
       expect(urls.authorizationServer).toBe(
         'https://example.com/.well-known/oauth-authorization-server',
-      );
-    });
-
-    it('should build path-based URLs when includePathSuffix is true', () => {
-      const urls = OAuthUtils.buildWellKnownUrls(
-        'https://example.com/mcp',
-        true,
-      );
-      expect(urls.protectedResource).toBe(
-        'https://example.com/.well-known/oauth-protected-resource/mcp',
-      );
-      expect(urls.authorizationServer).toBe(
-        'https://example.com/.well-known/oauth-authorization-server/mcp',
-      );
-    });
-
-    it('should handle root path correctly', () => {
-      const urls = OAuthUtils.buildWellKnownUrls('https://example.com', true);
-      expect(urls.protectedResource).toBe(
-        'https://example.com/.well-known/oauth-protected-resource',
-      );
-      expect(urls.authorizationServer).toBe(
-        'https://example.com/.well-known/oauth-authorization-server',
-      );
-    });
-
-    it('should handle trailing slash in path', () => {
-      const urls = OAuthUtils.buildWellKnownUrls(
-        'https://example.com/mcp/',
-        true,
-      );
-      expect(urls.protectedResource).toBe(
-        'https://example.com/.well-known/oauth-protected-resource/mcp',
-      );
-      expect(urls.authorizationServer).toBe(
-        'https://example.com/.well-known/oauth-authorization-server/mcp',
       );
     });
   });

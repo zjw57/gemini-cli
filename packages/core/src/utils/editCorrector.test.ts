@@ -27,7 +27,6 @@ let mockSendMessageStream: any;
 
 vi.mock('fs', () => ({
   statSync: vi.fn(),
-  mkdirSync: vi.fn(),
 }));
 
 vi.mock('../core/client.js', () => ({

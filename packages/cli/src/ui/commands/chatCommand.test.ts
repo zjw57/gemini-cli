@@ -67,14 +67,11 @@ describe('chatCommand', () => {
     mockContext = createMockCommandContext({
       services: {
         config: {
-          getProjectRoot: () => '/project/root',
+          getProjectTempDir: () => '/tmp/gemini',
           getGeminiClient: () =>
             ({
               getChat: mockGetChat,
             }) as unknown as GeminiClient,
-          storage: {
-            getProjectTempDir: () => '/project/root/.gemini/tmp/mockhash',
-          },
         },
         logger: {
           saveCheckpoint: mockSaveCheckpoint,

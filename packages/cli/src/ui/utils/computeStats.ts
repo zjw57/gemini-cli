@@ -34,7 +34,7 @@ export function calculateCacheHitRate(metrics: ModelMetrics): number {
 export const computeSessionStats = (
   metrics: SessionMetrics,
 ): ComputedSessionStats => {
-  const { models, tools, files } = metrics;
+  const { models, tools } = metrics;
   const totalApiTime = Object.values(models).reduce(
     (acc, model) => acc + model.api.totalLatencyMs,
     0,
@@ -80,7 +80,5 @@ export const computeSessionStats = (
     agreementRate,
     totalCachedTokens,
     totalPromptTokens,
-    totalLinesAdded: files.totalLinesAdded,
-    totalLinesRemoved: files.totalLinesRemoved,
   };
 };

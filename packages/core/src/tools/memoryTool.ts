@@ -15,11 +15,12 @@ import {
 import { FunctionDeclaration } from '@google/genai';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { Storage } from '../config/storage.js';
+import { homedir } from 'os';
 import * as Diff from 'diff';
 import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
 import { tildeifyPath } from '../utils/paths.js';
 import { ModifiableDeclarativeTool, ModifyContext } from './modifiable-tool.js';
+import { SchemaValidator } from '../utils/schemaValidator.js';
 
 const memoryToolSchemaData: FunctionDeclaration = {
   name: 'save_memory',
@@ -96,7 +97,7 @@ interface SaveMemoryParams {
 }
 
 function getGlobalMemoryFilePath(): string {
-  return path.join(Storage.getGlobalGeminiDir(), getCurrentGeminiMdFilename());
+  return path.join(homedir(), GEMINI_CONFIG_DIR, getCurrentGeminiMdFilename());
 }
 
 /**
@@ -293,9 +294,15 @@ export class MemoryTool
     );
   }
 
-  protected override validateToolParamValues(
-    params: SaveMemoryParams,
-  ): string | null {
+  override validateToolParams(params: SaveMemoryParams): string | null {
+    const errors = SchemaValidator.validate(
+      this.schema.parametersJsonSchema,
+      params,
+    );
+    if (errors) {
+      return errors;
+    }
+
     if (params.fact.trim() === '') {
       return 'Parameter "fact" must be a non-empty string.';
     }

@@ -4,386 +4,280 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
 import { WorkspaceContext } from './workspaceContext.js';
 
-describe('WorkspaceContext with real filesystem', () => {
-  let tempDir: string;
-  let cwd: string;
-  let otherDir: string;
+vi.mock('fs');
+
+describe('WorkspaceContext', () => {
+  let workspaceContext: WorkspaceContext;
+  // Use path module to create platform-agnostic paths
+  const mockCwd = path.resolve(path.sep, 'home', 'user', 'project');
+  const mockExistingDir = path.resolve(
+    path.sep,
+    'home',
+    'user',
+    'other-project',
+  );
+  const mockNonExistentDir = path.resolve(
+    path.sep,
+    'home',
+    'user',
+    'does-not-exist',
+  );
+  const mockSymlinkDir = path.resolve(path.sep, 'home', 'user', 'symlink');
+  const mockRealPath = path.resolve(path.sep, 'home', 'user', 'real-directory');
 
   beforeEach(() => {
-    // os.tmpdir() can return a path using a symlink (this is standard on macOS)
-    // Use fs.realpathSync to fully resolve the absolute path.
-    tempDir = fs.realpathSync(
-      fs.mkdtempSync(path.join(os.tmpdir(), 'workspace-context-test-')),
-    );
+    vi.resetAllMocks();
 
-    cwd = path.join(tempDir, 'project');
-    otherDir = path.join(tempDir, 'other-project');
+    // Mock fs.existsSync
+    vi.mocked(fs.existsSync).mockImplementation((path) => {
+      const pathStr = path.toString();
+      return (
+        pathStr === mockCwd ||
+        pathStr === mockExistingDir ||
+        pathStr === mockSymlinkDir ||
+        pathStr === mockRealPath
+      );
+    });
 
-    fs.mkdirSync(cwd, { recursive: true });
-    fs.mkdirSync(otherDir, { recursive: true });
-  });
+    // Mock fs.statSync
+    vi.mocked(fs.statSync).mockImplementation((path) => {
+      const pathStr = path.toString();
+      if (pathStr === mockNonExistentDir) {
+        throw new Error('ENOENT');
+      }
+      return {
+        isDirectory: () => true,
+      } as fs.Stats;
+    });
 
-  afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    // Mock fs.realpathSync
+    vi.mocked(fs.realpathSync).mockImplementation((path) => {
+      const pathStr = path.toString();
+      if (pathStr === mockSymlinkDir) {
+        return mockRealPath;
+      }
+      return pathStr;
+    });
   });
 
   describe('initialization', () => {
     it('should initialize with a single directory (cwd)', () => {
-      const workspaceContext = new WorkspaceContext(cwd);
+      workspaceContext = new WorkspaceContext(mockCwd);
       const directories = workspaceContext.getDirectories();
-
-      expect(directories).toEqual([cwd]);
+      expect(directories).toHaveLength(1);
+      expect(directories[0]).toBe(mockCwd);
     });
 
     it('should validate and resolve directories to absolute paths', () => {
-      const workspaceContext = new WorkspaceContext(cwd, [otherDir]);
-      const directories = workspaceContext.getDirectories();
+      const absolutePath = path.join(mockCwd, 'subdir');
+      vi.mocked(fs.existsSync).mockImplementation(
+        (p) => p === mockCwd || p === absolutePath,
+      );
+      vi.mocked(fs.realpathSync).mockImplementation((p) => p.toString());
 
-      expect(directories).toEqual([cwd, otherDir]);
+      workspaceContext = new WorkspaceContext(mockCwd, [absolutePath]);
+      const directories = workspaceContext.getDirectories();
+      expect(directories).toContain(absolutePath);
     });
 
     it('should reject non-existent directories', () => {
-      const nonExistentDir = path.join(tempDir, 'does-not-exist');
       expect(() => {
-        new WorkspaceContext(cwd, [nonExistentDir]);
+        new WorkspaceContext(mockCwd, [mockNonExistentDir]);
       }).toThrow('Directory does not exist');
     });
 
     it('should handle empty initialization', () => {
-      const workspaceContext = new WorkspaceContext(cwd, []);
+      workspaceContext = new WorkspaceContext(mockCwd, []);
       const directories = workspaceContext.getDirectories();
       expect(directories).toHaveLength(1);
-      expect(fs.realpathSync(directories[0])).toBe(cwd);
+      expect(directories[0]).toBe(mockCwd);
     });
   });
 
   describe('adding directories', () => {
-    it('should add valid directories', () => {
-      const workspaceContext = new WorkspaceContext(cwd);
-      workspaceContext.addDirectory(otherDir);
-      const directories = workspaceContext.getDirectories();
+    beforeEach(() => {
+      workspaceContext = new WorkspaceContext(mockCwd);
+    });
 
-      expect(directories).toEqual([cwd, otherDir]);
+    it('should add valid directories', () => {
+      workspaceContext.addDirectory(mockExistingDir);
+      const directories = workspaceContext.getDirectories();
+      expect(directories).toHaveLength(2);
+      expect(directories).toContain(mockExistingDir);
     });
 
     it('should resolve relative paths to absolute', () => {
-      const workspaceContext = new WorkspaceContext(cwd);
-      const relativePath = path.relative(cwd, otherDir);
-      workspaceContext.addDirectory(relativePath, cwd);
+      // Since we can't mock path.resolve, we'll test with absolute paths
+      workspaceContext.addDirectory(mockExistingDir);
       const directories = workspaceContext.getDirectories();
-
-      expect(directories).toEqual([cwd, otherDir]);
+      expect(directories).toContain(mockExistingDir);
     });
 
     it('should reject non-existent directories', () => {
-      const nonExistentDir = path.join(tempDir, 'does-not-exist');
-      const workspaceContext = new WorkspaceContext(cwd);
-
       expect(() => {
-        workspaceContext.addDirectory(nonExistentDir);
+        workspaceContext.addDirectory(mockNonExistentDir);
       }).toThrow('Directory does not exist');
     });
 
     it('should prevent duplicate directories', () => {
-      const workspaceContext = new WorkspaceContext(cwd);
-      workspaceContext.addDirectory(otherDir);
-      workspaceContext.addDirectory(otherDir);
+      workspaceContext.addDirectory(mockExistingDir);
+      workspaceContext.addDirectory(mockExistingDir);
       const directories = workspaceContext.getDirectories();
-
-      expect(directories).toHaveLength(2);
+      expect(directories.filter((d) => d === mockExistingDir)).toHaveLength(1);
     });
 
     it('should handle symbolic links correctly', () => {
-      const realDir = path.join(tempDir, 'real');
-      fs.mkdirSync(realDir, { recursive: true });
-      const symlinkDir = path.join(tempDir, 'symlink-to-real');
-      fs.symlinkSync(realDir, symlinkDir, 'dir');
-      const workspaceContext = new WorkspaceContext(cwd);
-      workspaceContext.addDirectory(symlinkDir);
-
+      workspaceContext.addDirectory(mockSymlinkDir);
       const directories = workspaceContext.getDirectories();
-
-      expect(directories).toEqual([cwd, realDir]);
+      expect(directories).toContain(mockRealPath);
+      expect(directories).not.toContain(mockSymlinkDir);
     });
   });
 
   describe('path validation', () => {
-    it('should accept paths within workspace directories', () => {
-      const workspaceContext = new WorkspaceContext(cwd, [otherDir]);
-      const validPath1 = path.join(cwd, 'src', 'file.ts');
-      const validPath2 = path.join(otherDir, 'lib', 'module.js');
-
-      fs.mkdirSync(path.dirname(validPath1), { recursive: true });
-      fs.writeFileSync(validPath1, 'content');
-      fs.mkdirSync(path.dirname(validPath2), { recursive: true });
-      fs.writeFileSync(validPath2, 'content');
-
-      expect(workspaceContext.isPathWithinWorkspace(validPath1)).toBe(true);
-      expect(workspaceContext.isPathWithinWorkspace(validPath2)).toBe(true);
+    beforeEach(() => {
+      workspaceContext = new WorkspaceContext(mockCwd, [mockExistingDir]);
     });
 
-    it('should accept non-existent paths within workspace directories', () => {
-      const workspaceContext = new WorkspaceContext(cwd, [otherDir]);
-      const validPath1 = path.join(cwd, 'src', 'file.ts');
-      const validPath2 = path.join(otherDir, 'lib', 'module.js');
+    it('should accept paths within workspace directories', () => {
+      const validPath1 = path.join(mockCwd, 'src', 'file.ts');
+      const validPath2 = path.join(mockExistingDir, 'lib', 'module.js');
 
       expect(workspaceContext.isPathWithinWorkspace(validPath1)).toBe(true);
       expect(workspaceContext.isPathWithinWorkspace(validPath2)).toBe(true);
     });
 
     it('should reject paths outside workspace', () => {
-      const workspaceContext = new WorkspaceContext(cwd, [otherDir]);
-      const invalidPath = path.join(tempDir, 'outside-workspace', 'file.txt');
-
+      const invalidPath = path.resolve(
+        path.dirname(mockCwd),
+        'outside-workspace',
+        'file.txt',
+      );
       expect(workspaceContext.isPathWithinWorkspace(invalidPath)).toBe(false);
     });
 
-    it('should reject non-existent paths outside workspace', () => {
-      const workspaceContext = new WorkspaceContext(cwd, [otherDir]);
-      const invalidPath = path.join(tempDir, 'outside-workspace', 'file.txt');
+    it('should resolve symbolic links before validation', () => {
+      const symlinkPath = path.join(mockCwd, 'symlink-file');
+      const realPath = path.join(mockCwd, 'real-file');
 
-      expect(workspaceContext.isPathWithinWorkspace(invalidPath)).toBe(false);
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.realpathSync).mockImplementation((p) => {
+        if (p === symlinkPath) {
+          return realPath;
+        }
+        return p.toString();
+      });
+
+      expect(workspaceContext.isPathWithinWorkspace(symlinkPath)).toBe(true);
     });
 
     it('should handle nested directories correctly', () => {
-      const workspaceContext = new WorkspaceContext(cwd, [otherDir]);
-      const nestedPath = path.join(cwd, 'deeply', 'nested', 'path', 'file.txt');
+      const nestedPath = path.join(
+        mockCwd,
+        'deeply',
+        'nested',
+        'path',
+        'file.txt',
+      );
       expect(workspaceContext.isPathWithinWorkspace(nestedPath)).toBe(true);
     });
 
     it('should handle edge cases (root, parent references)', () => {
-      const workspaceContext = new WorkspaceContext(cwd, [otherDir]);
-      const rootPath = path.parse(tempDir).root;
-      const parentPath = path.dirname(cwd);
+      const rootPath = '/';
+      const parentPath = path.dirname(mockCwd);
 
       expect(workspaceContext.isPathWithinWorkspace(rootPath)).toBe(false);
       expect(workspaceContext.isPathWithinWorkspace(parentPath)).toBe(false);
     });
 
     it('should handle non-existent paths correctly', () => {
-      const workspaceContext = new WorkspaceContext(cwd, [otherDir]);
-      const nonExistentPath = path.join(cwd, 'does-not-exist.txt');
+      const nonExistentPath = path.join(mockCwd, 'does-not-exist.txt');
+      vi.mocked(fs.existsSync).mockImplementation((p) => p !== nonExistentPath);
+
+      // Should still validate based on path structure
       expect(workspaceContext.isPathWithinWorkspace(nonExistentPath)).toBe(
         true,
       );
-    });
-
-    describe('with symbolic link', () => {
-      describe('in the workspace', () => {
-        let realDir: string;
-        let symlinkDir: string;
-        beforeEach(() => {
-          realDir = path.join(cwd, 'real-dir');
-          fs.mkdirSync(realDir, { recursive: true });
-
-          symlinkDir = path.join(cwd, 'symlink-file');
-          fs.symlinkSync(realDir, symlinkDir, 'dir');
-        });
-
-        it('should accept dir paths', () => {
-          const workspaceContext = new WorkspaceContext(cwd);
-
-          expect(workspaceContext.isPathWithinWorkspace(symlinkDir)).toBe(true);
-        });
-
-        it('should accept non-existent paths', () => {
-          const filePath = path.join(symlinkDir, 'does-not-exist.txt');
-
-          const workspaceContext = new WorkspaceContext(cwd);
-
-          expect(workspaceContext.isPathWithinWorkspace(filePath)).toBe(true);
-        });
-
-        it('should accept non-existent deep paths', () => {
-          const filePath = path.join(symlinkDir, 'deep', 'does-not-exist.txt');
-
-          const workspaceContext = new WorkspaceContext(cwd);
-
-          expect(workspaceContext.isPathWithinWorkspace(filePath)).toBe(true);
-        });
-      });
-
-      describe('outside the workspace', () => {
-        let realDir: string;
-        let symlinkDir: string;
-        beforeEach(() => {
-          realDir = path.join(tempDir, 'real-dir');
-          fs.mkdirSync(realDir, { recursive: true });
-
-          symlinkDir = path.join(cwd, 'symlink-file');
-          fs.symlinkSync(realDir, symlinkDir, 'dir');
-        });
-
-        it('should reject dir paths', () => {
-          const workspaceContext = new WorkspaceContext(cwd);
-
-          expect(workspaceContext.isPathWithinWorkspace(symlinkDir)).toBe(
-            false,
-          );
-        });
-
-        it('should reject non-existent paths', () => {
-          const filePath = path.join(symlinkDir, 'does-not-exist.txt');
-
-          const workspaceContext = new WorkspaceContext(cwd);
-
-          expect(workspaceContext.isPathWithinWorkspace(filePath)).toBe(false);
-        });
-
-        it('should reject non-existent deep paths', () => {
-          const filePath = path.join(symlinkDir, 'deep', 'does-not-exist.txt');
-
-          const workspaceContext = new WorkspaceContext(cwd);
-
-          expect(workspaceContext.isPathWithinWorkspace(filePath)).toBe(false);
-        });
-
-        it('should reject partially non-existent deep paths', () => {
-          const deepDir = path.join(symlinkDir, 'deep');
-          fs.mkdirSync(deepDir, { recursive: true });
-          const filePath = path.join(deepDir, 'does-not-exist.txt');
-
-          const workspaceContext = new WorkspaceContext(cwd);
-
-          expect(workspaceContext.isPathWithinWorkspace(filePath)).toBe(false);
-        });
-      });
-
-      it('should reject symbolic file links outside the workspace', () => {
-        const realFile = path.join(tempDir, 'real-file.txt');
-        fs.writeFileSync(realFile, 'content');
-
-        const symlinkFile = path.join(cwd, 'symlink-to-real-file');
-        fs.symlinkSync(realFile, symlinkFile, 'file');
-
-        const workspaceContext = new WorkspaceContext(cwd);
-
-        expect(workspaceContext.isPathWithinWorkspace(symlinkFile)).toBe(false);
-      });
-
-      it('should reject non-existent symbolic file links outside the workspace', () => {
-        const realFile = path.join(tempDir, 'real-file.txt');
-
-        const symlinkFile = path.join(cwd, 'symlink-to-real-file');
-        fs.symlinkSync(realFile, symlinkFile, 'file');
-
-        const workspaceContext = new WorkspaceContext(cwd);
-
-        expect(workspaceContext.isPathWithinWorkspace(symlinkFile)).toBe(false);
-      });
-
-      it('should handle circular symlinks gracefully', () => {
-        const workspaceContext = new WorkspaceContext(cwd);
-        const linkA = path.join(cwd, 'link-a');
-        const linkB = path.join(cwd, 'link-b');
-        // Create a circular dependency: linkA -> linkB -> linkA
-        fs.symlinkSync(linkB, linkA, 'dir');
-        fs.symlinkSync(linkA, linkB, 'dir');
-
-        // fs.realpathSync should throw ELOOP, and isPathWithinWorkspace should
-        // handle it gracefully and return false.
-        expect(workspaceContext.isPathWithinWorkspace(linkA)).toBe(false);
-        expect(workspaceContext.isPathWithinWorkspace(linkB)).toBe(false);
-      });
-    });
-  });
-
-  describe('onDirectoriesChanged', () => {
-    it('should call listener when adding a directory', () => {
-      const workspaceContext = new WorkspaceContext(cwd);
-      const listener = vi.fn();
-      workspaceContext.onDirectoriesChanged(listener);
-
-      workspaceContext.addDirectory(otherDir);
-
-      expect(listener).toHaveBeenCalledOnce();
-    });
-
-    it('should not call listener when adding a duplicate directory', () => {
-      const workspaceContext = new WorkspaceContext(cwd);
-      workspaceContext.addDirectory(otherDir);
-      const listener = vi.fn();
-      workspaceContext.onDirectoriesChanged(listener);
-
-      workspaceContext.addDirectory(otherDir);
-
-      expect(listener).not.toHaveBeenCalled();
-    });
-
-    it('should call listener when setting different directories', () => {
-      const workspaceContext = new WorkspaceContext(cwd);
-      const listener = vi.fn();
-      workspaceContext.onDirectoriesChanged(listener);
-
-      workspaceContext.setDirectories([otherDir]);
-
-      expect(listener).toHaveBeenCalledOnce();
-    });
-
-    it('should not call listener when setting same directories', () => {
-      const workspaceContext = new WorkspaceContext(cwd);
-      const listener = vi.fn();
-      workspaceContext.onDirectoriesChanged(listener);
-
-      workspaceContext.setDirectories([cwd]);
-
-      expect(listener).not.toHaveBeenCalled();
-    });
-
-    it('should support multiple listeners', () => {
-      const workspaceContext = new WorkspaceContext(cwd);
-      const listener1 = vi.fn();
-      const listener2 = vi.fn();
-      workspaceContext.onDirectoriesChanged(listener1);
-      workspaceContext.onDirectoriesChanged(listener2);
-
-      workspaceContext.addDirectory(otherDir);
-
-      expect(listener1).toHaveBeenCalledOnce();
-      expect(listener2).toHaveBeenCalledOnce();
-    });
-
-    it('should allow unsubscribing a listener', () => {
-      const workspaceContext = new WorkspaceContext(cwd);
-      const listener = vi.fn();
-      const unsubscribe = workspaceContext.onDirectoriesChanged(listener);
-
-      unsubscribe();
-      workspaceContext.addDirectory(otherDir);
-
-      expect(listener).not.toHaveBeenCalled();
-    });
-
-    it('should not fail if a listener throws an error', () => {
-      const workspaceContext = new WorkspaceContext(cwd);
-      const errorListener = () => {
-        throw new Error('test error');
-      };
-      const listener = vi.fn();
-      workspaceContext.onDirectoriesChanged(errorListener);
-      workspaceContext.onDirectoriesChanged(listener);
-
-      expect(() => {
-        workspaceContext.addDirectory(otherDir);
-      }).not.toThrow();
-      expect(listener).toHaveBeenCalledOnce();
     });
   });
 
   describe('getDirectories', () => {
     it('should return a copy of directories array', () => {
-      const workspaceContext = new WorkspaceContext(cwd);
+      workspaceContext = new WorkspaceContext(mockCwd);
       const dirs1 = workspaceContext.getDirectories();
       const dirs2 = workspaceContext.getDirectories();
 
-      expect(dirs1).not.toBe(dirs2);
-      expect(dirs1).toEqual(dirs2);
+      expect(dirs1).not.toBe(dirs2); // Different array instances
+      expect(dirs1).toEqual(dirs2); // Same content
+    });
+  });
+
+  describe('symbolic link security', () => {
+    beforeEach(() => {
+      workspaceContext = new WorkspaceContext(mockCwd);
+    });
+
+    it('should follow symlinks but validate resolved path', () => {
+      const symlinkInsideWorkspace = path.join(mockCwd, 'link-to-subdir');
+      const resolvedInsideWorkspace = path.join(mockCwd, 'subdir');
+
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.realpathSync).mockImplementation((p) => {
+        if (p === symlinkInsideWorkspace) {
+          return resolvedInsideWorkspace;
+        }
+        return p.toString();
+      });
+
+      expect(
+        workspaceContext.isPathWithinWorkspace(symlinkInsideWorkspace),
+      ).toBe(true);
+    });
+
+    it('should prevent sandbox escape via symlinks', () => {
+      const symlinkEscape = path.join(mockCwd, 'escape-link');
+      const resolvedOutside = path.resolve(mockCwd, '..', 'outside-file');
+
+      vi.mocked(fs.existsSync).mockImplementation((p) => {
+        const pathStr = p.toString();
+        return (
+          pathStr === symlinkEscape ||
+          pathStr === resolvedOutside ||
+          pathStr === mockCwd
+        );
+      });
+      vi.mocked(fs.realpathSync).mockImplementation((p) => {
+        if (p.toString() === symlinkEscape) {
+          return resolvedOutside;
+        }
+        return p.toString();
+      });
+      vi.mocked(fs.statSync).mockImplementation(
+        (p) =>
+          ({
+            isDirectory: () => p.toString() !== resolvedOutside,
+          }) as fs.Stats,
+      );
+
+      workspaceContext = new WorkspaceContext(mockCwd);
+      expect(workspaceContext.isPathWithinWorkspace(symlinkEscape)).toBe(false);
+    });
+
+    it('should handle circular symlinks', () => {
+      const circularLink = path.join(mockCwd, 'circular');
+
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.realpathSync).mockImplementation(() => {
+        throw new Error('ELOOP: too many symbolic links encountered');
+      });
+
+      // Should handle the error gracefully
+      expect(workspaceContext.isPathWithinWorkspace(circularLink)).toBe(false);
     });
   });
 });

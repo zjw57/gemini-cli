@@ -21,7 +21,6 @@ vi.mock('node:fs', () => ({
     mkdir: vi.fn(),
     unlink: vi.fn(),
   },
-  mkdirSync: vi.fn(),
 }));
 
 vi.mock('node:os', () => ({

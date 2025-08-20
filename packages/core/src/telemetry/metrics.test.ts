@@ -14,7 +14,6 @@ import type {
 } from '@opentelemetry/api';
 import { Config } from '../config/config.js';
 import { FileOperation } from './metrics.js';
-import { makeFakeConfig } from '../test-utils/config.js';
 
 const mockCounterAddFn: Mock<
   (value: number, attributes?: Attributes, context?: Context) => void
@@ -29,18 +28,18 @@ const mockCreateHistogramFn: Mock<
   (name: string, options?: unknown) => Histogram
 > = vi.fn();
 
-const mockCounterInstance: Counter = {
+const mockCounterInstance = {
   add: mockCounterAddFn,
-} as Partial<Counter> as Counter;
+} as unknown as Counter;
 
-const mockHistogramInstance: Histogram = {
+const mockHistogramInstance = {
   record: mockHistogramRecordFn,
-} as Partial<Histogram> as Histogram;
+} as unknown as Histogram;
 
-const mockMeterInstance: Meter = {
+const mockMeterInstance = {
   createCounter: mockCreateCounterFn.mockReturnValue(mockCounterInstance),
   createHistogram: mockCreateHistogramFn.mockReturnValue(mockHistogramInstance),
-} as Partial<Meter> as Meter;
+} as unknown as Meter;
 
 function originalOtelMockFactory() {
   return {
@@ -50,19 +49,15 @@ function originalOtelMockFactory() {
     ValueType: {
       INT: 1,
     },
-    diag: {
-      setLogger: vi.fn(),
-    },
   };
 }
 
-vi.mock('@opentelemetry/api');
+vi.mock('@opentelemetry/api', originalOtelMockFactory);
 
 describe('Telemetry Metrics', () => {
   let initializeMetricsModule: typeof import('./metrics.js').initializeMetrics;
   let recordTokenUsageMetricsModule: typeof import('./metrics.js').recordTokenUsageMetrics;
   let recordFileOperationMetricModule: typeof import('./metrics.js').recordFileOperationMetric;
-  let recordChatCompressionMetricsModule: typeof import('./metrics.js').recordChatCompressionMetrics;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -76,8 +71,6 @@ describe('Telemetry Metrics', () => {
     initializeMetricsModule = metricsJsModule.initializeMetrics;
     recordTokenUsageMetricsModule = metricsJsModule.recordTokenUsageMetrics;
     recordFileOperationMetricModule = metricsJsModule.recordFileOperationMetric;
-    recordChatCompressionMetricsModule =
-      metricsJsModule.recordChatCompressionMetrics;
 
     const otelApiModule = await import('@opentelemetry/api');
 
@@ -90,35 +83,6 @@ describe('Telemetry Metrics', () => {
     (otelApiModule.metrics.getMeter as Mock).mockReturnValue(mockMeterInstance);
     mockCreateCounterFn.mockReturnValue(mockCounterInstance);
     mockCreateHistogramFn.mockReturnValue(mockHistogramInstance);
-  });
-
-  describe('recordChatCompressionMetrics', () => {
-    it('does not record metrics if not initialized', () => {
-      const lol = makeFakeConfig({});
-
-      recordChatCompressionMetricsModule(lol, {
-        tokens_after: 100,
-        tokens_before: 200,
-      });
-
-      expect(mockCounterAddFn).not.toHaveBeenCalled();
-    });
-
-    it('records token compression with the correct attributes', () => {
-      const config = makeFakeConfig({});
-      initializeMetricsModule(config);
-
-      recordChatCompressionMetricsModule(config, {
-        tokens_after: 100,
-        tokens_before: 200,
-      });
-
-      expect(mockCounterAddFn).toHaveBeenCalledWith(1, {
-        'session.id': 'test-session-id',
-        tokens_after: 100,
-        tokens_before: 200,
-      });
-    });
   });
 
   describe('recordTokenUsageMetrics', () => {

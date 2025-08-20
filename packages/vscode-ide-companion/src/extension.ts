@@ -5,7 +5,6 @@
  */
 
 import * as vscode from 'vscode';
-import * as path from 'path';
 import { IDEServer } from './ide-server.js';
 import { DiffContentProvider, DiffManager } from './diff-manager.js';
 import { createLogger } from './utils/logger.js';
@@ -21,13 +20,11 @@ let log: (message: string) => void = () => {};
 
 function updateWorkspacePath(context: vscode.ExtensionContext) {
   const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (workspaceFolders && workspaceFolders.length > 0) {
-    const workspacePaths = workspaceFolders
-      .map((folder) => folder.uri.fsPath)
-      .join(path.delimiter);
+  if (workspaceFolders && workspaceFolders.length === 1) {
+    const workspaceFolder = workspaceFolders[0];
     context.environmentVariableCollection.replace(
       IDE_WORKSPACE_PATH_ENV_VAR,
-      workspacePaths,
+      workspaceFolder.uri.fsPath,
     );
   } else {
     context.environmentVariableCollection.replace(
@@ -86,9 +83,21 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   if (!context.globalState.get(INFO_MESSAGE_SHOWN_KEY)) {
-    void vscode.window.showInformationMessage(
-      'Gemini CLI Companion extension successfully installed.',
-    );
+    void vscode.window
+      .showInformationMessage(
+        'Gemini CLI Companion extension successfully installed. Please restart your terminal to enable full IDE integration.',
+        'Re-launch Gemini CLI',
+      )
+      .then(
+        (selection) => {
+          if (selection === 'Re-launch Gemini CLI') {
+            void vscode.commands.executeCommand('gemini-cli.runGeminiCLI');
+          }
+        },
+        (err) => {
+          log(`Failed to show information message: ${String(err)}`);
+        },
+      );
     context.globalState.update(INFO_MESSAGE_SHOWN_KEY, true);
   }
 
@@ -96,33 +105,11 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       updateWorkspacePath(context);
     }),
-    vscode.commands.registerCommand('gemini-cli.runGeminiCLI', async () => {
-      const workspaceFolders = vscode.workspace.workspaceFolders;
-      if (!workspaceFolders || workspaceFolders.length === 0) {
-        vscode.window.showInformationMessage(
-          'No folder open. Please open a folder to run Gemini CLI.',
-        );
-        return;
-      }
-
-      let selectedFolder: vscode.WorkspaceFolder | undefined;
-      if (workspaceFolders.length === 1) {
-        selectedFolder = workspaceFolders[0];
-      } else {
-        selectedFolder = await vscode.window.showWorkspaceFolderPick({
-          placeHolder: 'Select a folder to run Gemini CLI in',
-        });
-      }
-
-      if (selectedFolder) {
-        const geminiCmd = 'gemini';
-        const terminal = vscode.window.createTerminal({
-          name: `Gemini CLI (${selectedFolder.name})`,
-          cwd: selectedFolder.uri.fsPath,
-        });
-        terminal.show();
-        terminal.sendText(geminiCmd);
-      }
+    vscode.commands.registerCommand('gemini-cli.runGeminiCLI', () => {
+      const geminiCmd = 'gemini';
+      const terminal = vscode.window.createTerminal(`Gemini CLI`);
+      terminal.show();
+      terminal.sendText(geminiCmd);
     }),
     vscode.commands.registerCommand('gemini-cli.showNotices', async () => {
       const noticePath = vscode.Uri.joinPath(

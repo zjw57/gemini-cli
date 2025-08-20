@@ -6,7 +6,7 @@
 
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import { Storage } from '@google/gemini-cli-core';
+import { getProjectTempDir } from '@google/gemini-cli-core';
 
 const cleanupFunctions: Array<(() => void) | (() => Promise<void>)> = [];
 
@@ -26,8 +26,7 @@ export async function runExitCleanup() {
 }
 
 export async function cleanupCheckpoints() {
-  const storage = new Storage(process.cwd());
-  const tempDir = storage.getProjectTempDir();
+  const tempDir = getProjectTempDir(process.cwd());
   const checkpointsDir = join(tempDir, 'checkpoints');
   try {
     await fs.rm(checkpointsDir, { recursive: true, force: true });

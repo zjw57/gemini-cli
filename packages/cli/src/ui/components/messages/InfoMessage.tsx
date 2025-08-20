@@ -7,7 +7,6 @@
 import React from 'react';
 import { Text, Box } from 'ink';
 import { Colors } from '../../colors.js';
-import { RenderInline } from '../../utils/InlineMarkdownRenderer.js';
 
 interface InfoMessageProps {
   text: string;
@@ -24,7 +23,7 @@ export const InfoMessage: React.FC<InfoMessageProps> = ({ text }) => {
       </Box>
       <Box flexGrow={1}>
         <Text wrap="wrap" color={Colors.AccentYellow}>
-          <RenderInline text={text} />
+          {text}
         </Text>
       </Box>
     </Box>

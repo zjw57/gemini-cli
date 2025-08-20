@@ -55,7 +55,7 @@ export function RadioButtonSelect<T>({
   initialIndex = 0,
   onSelect,
   onHighlight,
-  isFocused = true,
+  isFocused,
   showScrollArrows = false,
   maxItemsToShow = 10,
   showNumbers = true,

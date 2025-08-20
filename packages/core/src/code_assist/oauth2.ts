@@ -17,14 +17,16 @@ import * as net from 'net';
 import open from 'open';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
+import * as os from 'os';
 import { Config } from '../config/config.js';
 import { getErrorMessage } from '../utils/errors.js';
-import { UserAccountManager } from '../utils/userAccountManager.js';
+import {
+  cacheGoogleAccount,
+  getCachedGoogleAccount,
+  clearCachedGoogleAccount,
+} from '../utils/user_account.js';
 import { AuthType } from '../core/contentGenerator.js';
 import readline from 'node:readline';
-import { Storage } from '../config/storage.js';
-
-const userAccountManager = new UserAccountManager();
 
 //  OAuth Client ID used to initiate OAuth2Client class.
 const OAUTH_CLIENT_ID =
@@ -51,6 +53,9 @@ const SIGN_IN_SUCCESS_URL =
 const SIGN_IN_FAILURE_URL =
   'https://developers.google.com/gemini-code-assist/auth_failure_gemini';
 
+const GEMINI_DIR = '.gemini';
+const CREDENTIAL_FILENAME = 'oauth_creds.json';
+
 /**
  * An Authentication URL for updating the credentials of a Oauth2Client
  * as well as a promise that will resolve when the credentials have
@@ -61,9 +66,7 @@ export interface OauthWebLogin {
   loginCompletePromise: Promise<void>;
 }
 
-const oauthClientPromises = new Map<AuthType, Promise<OAuth2Client>>();
-
-async function initOauthClient(
+export async function getOauthClient(
   authType: AuthType,
   config: Config,
 ): Promise<OAuth2Client> {
@@ -76,11 +79,11 @@ async function initOauthClient(
   });
 
   if (
-    process.env['GOOGLE_GENAI_USE_GCA'] &&
-    process.env['GOOGLE_CLOUD_ACCESS_TOKEN']
+    process.env.GOOGLE_GENAI_USE_GCA &&
+    process.env.GOOGLE_CLOUD_ACCESS_TOKEN
   ) {
     client.setCredentials({
-      access_token: process.env['GOOGLE_CLOUD_ACCESS_TOKEN'],
+      access_token: process.env.GOOGLE_CLOUD_ACCESS_TOKEN,
     });
     await fetchAndCacheUserInfo(client);
     return client;
@@ -94,7 +97,7 @@ async function initOauthClient(
   if (await loadCachedCredentials(client)) {
     // Found valid cached credentials.
     // Check if we need to retrieve Google Account ID or Email
-    if (!userAccountManager.getCachedGoogleAccount()) {
+    if (!getCachedGoogleAccount()) {
       try {
         await fetchAndCacheUserInfo(client);
       } catch {
@@ -184,16 +187,6 @@ async function initOauthClient(
   return client;
 }
 
-export async function getOauthClient(
-  authType: AuthType,
-  config: Config,
-): Promise<OAuth2Client> {
-  if (!oauthClientPromises.has(authType)) {
-    oauthClientPromises.set(authType, initOauthClient(authType, config));
-  }
-  return oauthClientPromises.get(authType)!;
-}
-
 async function authWithUserCode(client: OAuth2Client): Promise<boolean> {
   const redirectUri = 'https://codeassist.google.com/authcode';
   const codeVerifier = await client.generateCodeVerifierAsync();
@@ -243,7 +236,7 @@ async function authWithUserCode(client: OAuth2Client): Promise<boolean> {
 async function authWithWeb(client: OAuth2Client): Promise<OauthWebLogin> {
   const port = await getAvailablePort();
   // The hostname used for the HTTP server binding (e.g., '0.0.0.0' in Docker).
-  const host = process.env['OAUTH_CALLBACK_HOST'] || 'localhost';
+  const host = process.env.OAUTH_CALLBACK_HOST || 'localhost';
   // The `redirectUri` sent to Google's authorization server MUST use a loopback IP literal
   // (i.e., 'localhost' or '127.0.0.1'). This is a strict security policy for credentials of
   // type 'Desktop app' or 'Web application' (when using loopback flow) to mitigate
@@ -318,7 +311,7 @@ export function getAvailablePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     let port = 0;
     try {
-      const portStr = process.env['OAUTH_CALLBACK_PORT'];
+      const portStr = process.env.OAUTH_CALLBACK_PORT;
       if (portStr) {
         port = parseInt(portStr, 10);
         if (isNaN(port) || port <= 0 || port > 65535) {
@@ -346,55 +339,47 @@ export function getAvailablePort(): Promise<number> {
 }
 
 async function loadCachedCredentials(client: OAuth2Client): Promise<boolean> {
-  const pathsToTry = [
-    Storage.getOAuthCredsPath(),
-    process.env['GOOGLE_APPLICATION_CREDENTIALS'],
-  ].filter((p): p is string => !!p);
+  try {
+    const keyFile =
+      process.env.GOOGLE_APPLICATION_CREDENTIALS || getCachedCredentialPath();
 
-  for (const keyFile of pathsToTry) {
-    try {
-      const creds = await fs.readFile(keyFile, 'utf-8');
-      client.setCredentials(JSON.parse(creds));
+    const creds = await fs.readFile(keyFile, 'utf-8');
+    client.setCredentials(JSON.parse(creds));
 
-      // This will verify locally that the credentials look good.
-      const { token } = await client.getAccessToken();
-      if (!token) {
-        continue;
-      }
-
-      // This will check with the server to see if it hasn't been revoked.
-      await client.getTokenInfo(token);
-
-      return true;
-    } catch (_) {
-      // Ignore and try next path.
+    // This will verify locally that the credentials look good.
+    const { token } = await client.getAccessToken();
+    if (!token) {
+      return false;
     }
-  }
 
-  return false;
+    // This will check with the server to see if it hasn't been revoked.
+    await client.getTokenInfo(token);
+
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 async function cacheCredentials(credentials: Credentials) {
-  const filePath = Storage.getOAuthCredsPath();
+  const filePath = getCachedCredentialPath();
   await fs.mkdir(path.dirname(filePath), { recursive: true });
 
   const credString = JSON.stringify(credentials, null, 2);
   await fs.writeFile(filePath, credString, { mode: 0o600 });
 }
 
-export function clearOauthClientCache() {
-  oauthClientPromises.clear();
+function getCachedCredentialPath(): string {
+  return path.join(os.homedir(), GEMINI_DIR, CREDENTIAL_FILENAME);
 }
 
 export async function clearCachedCredentialFile() {
   try {
-    await fs.rm(Storage.getOAuthCredsPath(), { force: true });
+    await fs.rm(getCachedCredentialPath(), { force: true });
     // Clear the Google Account ID cache when credentials are cleared
-    await userAccountManager.clearCachedGoogleAccount();
-    // Clear the in-memory OAuth client cache to force re-authentication
-    clearOauthClientCache();
-  } catch (e) {
-    console.error('Failed to clear cached credentials:', e);
+    await clearCachedGoogleAccount();
+  } catch (_) {
+    /* empty */
   }
 }
 
@@ -424,13 +409,10 @@ async function fetchAndCacheUserInfo(client: OAuth2Client): Promise<void> {
     }
 
     const userInfo = await response.json();
-    await userAccountManager.cacheGoogleAccount(userInfo.email);
+    if (userInfo.email) {
+      await cacheGoogleAccount(userInfo.email);
+    }
   } catch (error) {
     console.error('Error retrieving user info:', error);
   }
-}
-
-// Helper to ensure test isolation
-export function resetOauthClientForTesting() {
-  oauthClientPromises.clear();
 }

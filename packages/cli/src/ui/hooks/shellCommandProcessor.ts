@@ -101,11 +101,10 @@ export const useShellCommandProcessor = (
         commandToExecute = `{ ${command} }; __code=$?; pwd > "${pwdFilePath}"; exit $__code`;
       }
 
-      const executeCommand = async (
-        resolve: (value: void | PromiseLike<void>) => void,
-      ) => {
+      const execPromise = new Promise<void>((resolve) => {
         let lastUpdateTime = Date.now();
         let cumulativeStdout = '';
+        let cumulativeStderr = '';
         let isBinaryStream = false;
         let binaryBytesReceived = 0;
 
@@ -135,7 +134,7 @@ export const useShellCommandProcessor = (
         onDebugMessage(`Executing in ${targetDir}: ${commandToExecute}`);
 
         try {
-          const { pid, result } = await ShellExecutionService.execute(
+          const { pid, result } = ShellExecutionService.execute(
             commandToExecute,
             targetDir,
             (event) => {
@@ -143,7 +142,11 @@ export const useShellCommandProcessor = (
                 case 'data':
                   // Do not process text data if we've already switched to binary mode.
                   if (isBinaryStream) break;
-                  cumulativeStdout += event.chunk;
+                  if (event.stream === 'stdout') {
+                    cumulativeStdout += event.chunk;
+                  } else {
+                    cumulativeStderr += event.chunk;
+                  }
                   break;
                 case 'binary_detected':
                   isBinaryStream = true;
@@ -169,7 +172,9 @@ export const useShellCommandProcessor = (
                     '[Binary output detected. Halting stream...]';
                 }
               } else {
-                currentDisplayOutput = cumulativeStdout;
+                currentDisplayOutput =
+                  cumulativeStdout +
+                  (cumulativeStderr ? `\n${cumulativeStderr}` : '');
               }
 
               // Throttle pending UI updates to avoid excessive re-renders.
@@ -187,7 +192,6 @@ export const useShellCommandProcessor = (
               }
             },
             abortSignal,
-            config.getShouldUseNodePtyShell(),
           );
 
           executionPid = pid;
@@ -291,10 +295,6 @@ export const useShellCommandProcessor = (
 
           resolve(); // Resolve the promise to unblock `onExec`
         }
-      };
-
-      const execPromise = new Promise<void>((resolve) => {
-        executeCommand(resolve);
       });
 
       onExec(execPromise);

@@ -26,7 +26,6 @@ import {
   detectFileType,
   processSingleFileContent,
 } from './fileUtils.js';
-import { StandardFileSystemService } from '../services/fileSystemService.js';
 
 vi.mock('mime-types', () => ({
   default: { lookup: vi.fn() },
@@ -281,7 +280,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testTextFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
       );
       expect(result.llmContent).toBe(content);
       expect(result.returnDisplay).toBe('');
@@ -292,7 +290,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         nonexistentFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
       );
       expect(result.error).toContain('File not found');
       expect(result.returnDisplay).toContain('File not found');
@@ -306,7 +303,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testTextFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
       );
       expect(result.error).toContain('Simulated read error');
       expect(result.returnDisplay).toContain('Simulated read error');
@@ -321,7 +317,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testImageFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
       );
       expect(result.error).toContain('Simulated image read error');
       expect(result.returnDisplay).toContain('Simulated image read error');
@@ -334,7 +329,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testImageFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
       );
       expect(
         (result.llmContent as { inlineData: unknown }).inlineData,
@@ -356,7 +350,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testPdfFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
       );
       expect(
         (result.llmContent as { inlineData: unknown }).inlineData,
@@ -385,7 +378,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testSvgFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
       );
 
       expect(result.llmContent).toBe(svgContent);
@@ -403,7 +395,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testBinaryFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
       );
       expect(result.llmContent).toContain(
         'Cannot display content of binary file',
@@ -412,11 +403,7 @@ describe('fileUtils', () => {
     });
 
     it('should handle path being a directory', async () => {
-      const result = await processSingleFileContent(
-        directoryPath,
-        tempRootDir,
-        new StandardFileSystemService(),
-      );
+      const result = await processSingleFileContent(directoryPath, tempRootDir);
       expect(result.error).toContain('Path is a directory');
       expect(result.returnDisplay).toContain('Path is a directory');
     });
@@ -428,7 +415,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testTextFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
         5,
         5,
       ); // Read lines 6-10
@@ -449,7 +435,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testTextFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
         10,
         10,
       );
@@ -469,7 +454,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testTextFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
         0,
         10,
       );
@@ -492,7 +476,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testTextFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
       );
 
       expect(result.llmContent).toContain('Short line');
@@ -514,7 +497,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testTextFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
         0,
         5,
       );
@@ -533,7 +515,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testTextFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
         0,
         11,
       );
@@ -559,7 +540,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testTextFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
         0,
         10,
       );
@@ -578,7 +558,6 @@ describe('fileUtils', () => {
       const result = await processSingleFileContent(
         testTextFilePath,
         tempRootDir,
-        new StandardFileSystemService(),
       );
 
       expect(result.error).toContain('File size exceeds the 20MB limit');

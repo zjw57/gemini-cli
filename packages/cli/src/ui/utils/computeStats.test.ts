@@ -121,10 +121,6 @@ describe('computeSessionStats', () => {
         totalDecisions: { accept: 0, reject: 0, modify: 0 },
         byName: {},
       },
-      files: {
-        totalLinesAdded: 0,
-        totalLinesRemoved: 0,
-      },
     };
 
     const result = computeSessionStats(metrics);
@@ -141,8 +137,6 @@ describe('computeSessionStats', () => {
       agreementRate: 0,
       totalPromptTokens: 0,
       totalCachedTokens: 0,
-      totalLinesAdded: 0,
-      totalLinesRemoved: 0,
     });
   });
 
@@ -168,10 +162,6 @@ describe('computeSessionStats', () => {
         totalDurationMs: 250,
         totalDecisions: { accept: 0, reject: 0, modify: 0 },
         byName: {},
-      },
-      files: {
-        totalLinesAdded: 0,
-        totalLinesRemoved: 0,
       },
     };
 
@@ -207,10 +197,6 @@ describe('computeSessionStats', () => {
         totalDecisions: { accept: 0, reject: 0, modify: 0 },
         byName: {},
       },
-      files: {
-        totalLinesAdded: 0,
-        totalLinesRemoved: 0,
-      },
     };
 
     const result = computeSessionStats(metrics);
@@ -228,10 +214,6 @@ describe('computeSessionStats', () => {
         totalDurationMs: 1000,
         totalDecisions: { accept: 6, reject: 2, modify: 2 },
         byName: {},
-      },
-      files: {
-        totalLinesAdded: 0,
-        totalLinesRemoved: 0,
       },
     };
 
@@ -252,10 +234,6 @@ describe('computeSessionStats', () => {
         totalDecisions: { accept: 0, reject: 0, modify: 0 },
         byName: {},
       },
-      files: {
-        totalLinesAdded: 0,
-        totalLinesRemoved: 0,
-      },
     };
 
     const result = computeSessionStats(metrics);
@@ -265,28 +243,5 @@ describe('computeSessionStats', () => {
     expect(result.cacheEfficiency).toBe(0);
     expect(result.successRate).toBe(0);
     expect(result.agreementRate).toBe(0);
-  });
-
-  it('should correctly include line counts', () => {
-    const metrics: SessionMetrics = {
-      models: {},
-      tools: {
-        totalCalls: 0,
-        totalSuccess: 0,
-        totalFail: 0,
-        totalDurationMs: 0,
-        totalDecisions: { accept: 0, reject: 0, modify: 0 },
-        byName: {},
-      },
-      files: {
-        totalLinesAdded: 42,
-        totalLinesRemoved: 18,
-      },
-    };
-
-    const result = computeSessionStats(metrics);
-
-    expect(result.totalLinesAdded).toBe(42);
-    expect(result.totalLinesRemoved).toBe(18);
   });
 });

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { setupUser, ProjectIdRequiredError } from './setup.js';
 import { CodeAssistServer } from '../code_assist/server.js';
 import { OAuth2Client } from 'google-auth-library';
@@ -50,12 +50,8 @@ describe('setupUser for existing user', () => {
     );
   });
 
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
   it('should use GOOGLE_CLOUD_PROJECT when set and project from server is undefined', async () => {
-    vi.stubEnv('GOOGLE_CLOUD_PROJECT', 'test-project');
+    process.env.GOOGLE_CLOUD_PROJECT = 'test-project';
     mockLoad.mockResolvedValue({
       currentTier: mockPaidTier,
     });
@@ -70,7 +66,7 @@ describe('setupUser for existing user', () => {
   });
 
   it('should ignore GOOGLE_CLOUD_PROJECT when project from server is set', async () => {
-    vi.stubEnv('GOOGLE_CLOUD_PROJECT', 'test-project');
+    process.env.GOOGLE_CLOUD_PROJECT = 'test-project';
     mockLoad.mockResolvedValue({
       cloudaicompanionProject: 'server-project',
       currentTier: mockPaidTier,
@@ -90,7 +86,7 @@ describe('setupUser for existing user', () => {
   });
 
   it('should throw ProjectIdRequiredError when no project ID is available', async () => {
-    vi.stubEnv('GOOGLE_CLOUD_PROJECT', '');
+    delete process.env.GOOGLE_CLOUD_PROJECT;
     // And the server itself requires a project ID internally
     vi.mocked(CodeAssistServer).mockImplementation(() => {
       throw new ProjectIdRequiredError();
@@ -126,12 +122,8 @@ describe('setupUser for new user', () => {
     );
   });
 
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
   it('should use GOOGLE_CLOUD_PROJECT when set and onboard a new paid user', async () => {
-    vi.stubEnv('GOOGLE_CLOUD_PROJECT', 'test-project');
+    process.env.GOOGLE_CLOUD_PROJECT = 'test-project';
     mockLoad.mockResolvedValue({
       allowedTiers: [mockPaidTier],
     });
@@ -161,7 +153,7 @@ describe('setupUser for new user', () => {
   });
 
   it('should onboard a new free user when GOOGLE_CLOUD_PROJECT is not set', async () => {
-    vi.stubEnv('GOOGLE_CLOUD_PROJECT', '');
+    delete process.env.GOOGLE_CLOUD_PROJECT;
     mockLoad.mockResolvedValue({
       allowedTiers: [mockFreeTier],
     });
@@ -190,7 +182,7 @@ describe('setupUser for new user', () => {
   });
 
   it('should use GOOGLE_CLOUD_PROJECT when onboard response has no project ID', async () => {
-    vi.stubEnv('GOOGLE_CLOUD_PROJECT', 'test-project');
+    process.env.GOOGLE_CLOUD_PROJECT = 'test-project';
     mockLoad.mockResolvedValue({
       allowedTiers: [mockPaidTier],
     });
@@ -208,7 +200,7 @@ describe('setupUser for new user', () => {
   });
 
   it('should throw ProjectIdRequiredError when no project ID is available', async () => {
-    vi.stubEnv('GOOGLE_CLOUD_PROJECT', '');
+    delete process.env.GOOGLE_CLOUD_PROJECT;
     mockLoad.mockResolvedValue({
       allowedTiers: [mockPaidTier],
     });

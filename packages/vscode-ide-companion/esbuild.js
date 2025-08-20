@@ -47,7 +47,6 @@ async function main() {
       /* add to the end of plugins array */
       esbuildProblemMatcherPlugin,
     ],
-    loader: { '.node': 'file' },
   });
   if (watch) {
     await ctx.watch();

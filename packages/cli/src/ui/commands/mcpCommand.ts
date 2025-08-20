@@ -44,7 +44,7 @@ const getMcpStatus = async (
     };
   }
 
-  const toolRegistry = config.getToolRegistry();
+  const toolRegistry = await config.getToolRegistry();
   if (!toolRegistry) {
     return {
       type: 'message',
@@ -400,7 +400,7 @@ const authCommand: SlashCommand = {
       );
 
       // Trigger tool re-discovery to pick up authenticated server
-      const toolRegistry = config.getToolRegistry();
+      const toolRegistry = await config.getToolRegistry();
       if (toolRegistry) {
         context.ui.addItem(
           {
@@ -471,7 +471,7 @@ const listCommand: SlashCommand = {
 
 const refreshCommand: SlashCommand = {
   name: 'refresh',
-  description: 'Restarts MCP servers.',
+  description: 'Refresh the list of MCP servers and tools',
   kind: CommandKind.BUILT_IN,
   action: async (
     context: CommandContext,
@@ -485,7 +485,7 @@ const refreshCommand: SlashCommand = {
       };
     }
 
-    const toolRegistry = config.getToolRegistry();
+    const toolRegistry = await config.getToolRegistry();
     if (!toolRegistry) {
       return {
         type: 'message',
@@ -497,12 +497,12 @@ const refreshCommand: SlashCommand = {
     context.ui.addItem(
       {
         type: 'info',
-        text: 'Restarting MCP servers...',
+        text: 'Refreshing MCP servers and tools...',
       },
       Date.now(),
     );
 
-    await toolRegistry.restartMcpServers();
+    await toolRegistry.discoverMcpTools();
 
     // Update the client with the new tools
     const geminiClient = config.getGeminiClient();

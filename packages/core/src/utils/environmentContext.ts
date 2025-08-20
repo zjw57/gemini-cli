@@ -62,13 +62,13 @@ export async function getEnvironmentContext(config: Config): Promise<Part[]> {
 
   const context = `
 This is the Gemini CLI. We are setting up the context for our chat.
-Today's date is ${today} (formatted according to the user's locale).
+Today's date is ${today}.
 My operating system is: ${platform}
 ${directoryContext}
         `.trim();
 
   const initialParts: Part[] = [{ text: context }];
-  const toolRegistry = config.getToolRegistry();
+  const toolRegistry = await config.getToolRegistry();
 
   // Add full file context if the flag is set
   if (config.getFullContext()) {

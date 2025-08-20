@@ -5,12 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import {
-  Config,
-  CodeAssistServer,
-  UserTierId,
-  LoggingContentGenerator,
-} from '@google/gemini-cli-core';
+import { Config, CodeAssistServer, UserTierId } from '@google/gemini-cli-core';
 
 export interface PrivacyState {
   isLoading: boolean;
@@ -85,13 +80,7 @@ export const usePrivacySettings = (config: Config) => {
 };
 
 function getCodeAssistServer(config: Config): CodeAssistServer {
-  let server = config.getGeminiClient().getContentGenerator();
-
-  // Unwrap LoggingContentGenerator if present
-  if (server instanceof LoggingContentGenerator) {
-    server = server.getWrapped();
-  }
-
+  const server = config.getGeminiClient().getContentGenerator();
   // Neither of these cases should ever happen.
   if (!(server instanceof CodeAssistServer)) {
     throw new Error('Oauth not being used');

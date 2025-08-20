@@ -6,7 +6,6 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { isSubpath } from './paths.js';
 import { marked } from 'marked';
 
 // Simple console logger for import processing
@@ -412,7 +411,10 @@ export function validateImportPath(
 
   const resolvedPath = path.resolve(basePath, importPath);
 
-  return allowedDirectories.some((allowedDir) =>
-    isSubpath(allowedDir, resolvedPath),
-  );
+  return allowedDirectories.some((allowedDir) => {
+    const normalizedAllowedDir = path.resolve(allowedDir);
+    const isSamePath = resolvedPath === normalizedAllowedDir;
+    const isSubPath = resolvedPath.startsWith(normalizedAllowedDir + path.sep);
+    return isSamePath || isSubPath;
+  });
 }

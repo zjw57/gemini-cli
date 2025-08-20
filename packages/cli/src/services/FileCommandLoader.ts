@@ -9,7 +9,11 @@ import path from 'path';
 import toml from '@iarna/toml';
 import { glob } from 'glob';
 import { z } from 'zod';
-import { Config, Storage } from '@google/gemini-cli-core';
+import {
+  Config,
+  getProjectCommandsDir,
+  getUserCommandsDir,
+} from '@google/gemini-cli-core';
 import { ICommandLoader } from './types.js';
 import {
   CommandContext,
@@ -17,7 +21,10 @@ import {
   SlashCommand,
   SlashCommandActionReturn,
 } from '../ui/commands/types.js';
-import { DefaultArgumentProcessor } from './prompt-processors/argumentProcessor.js';
+import {
+  DefaultArgumentProcessor,
+  ShorthandArgumentProcessor,
+} from './prompt-processors/argumentProcessor.js';
 import {
   IPromptProcessor,
   SHORTHAND_ARGS_PLACEHOLDER,
@@ -126,13 +133,11 @@ export class FileCommandLoader implements ICommandLoader {
   private getCommandDirectories(): CommandDirectory[] {
     const dirs: CommandDirectory[] = [];
 
-    const storage = this.config?.storage ?? new Storage(this.projectRoot);
-
     // 1. User commands
-    dirs.push({ path: Storage.getUserCommandsDir() });
+    dirs.push({ path: getUserCommandsDir() });
 
     // 2. Project commands (override user commands)
-    dirs.push({ path: storage.getProjectCommandsDir() });
+    dirs.push({ path: getProjectCommandsDir(this.projectRoot) });
 
     // 3. Extension commands (processed last to detect all conflicts)
     if (this.config) {
@@ -219,21 +224,16 @@ export class FileCommandLoader implements ICommandLoader {
     }
 
     const processors: IPromptProcessor[] = [];
-    const usesArgs = validDef.prompt.includes(SHORTHAND_ARGS_PLACEHOLDER);
-    const usesShellInjection = validDef.prompt.includes(
-      SHELL_INJECTION_TRIGGER,
-    );
 
-    // Interpolation (Shell Execution and Argument Injection)
-    // If the prompt uses either shell injection OR argument placeholders,
-    // we must use the ShellProcessor.
-    if (usesShellInjection || usesArgs) {
+    // Add the Shell Processor if needed.
+    if (validDef.prompt.includes(SHELL_INJECTION_TRIGGER)) {
       processors.push(new ShellProcessor(baseCommandName));
     }
 
-    // Default Argument Handling
-    // If NO explicit argument injection ({{args}}) was used, we append the raw invocation.
-    if (!usesArgs) {
+    // The presence of '{{args}}' is the switch that determines the behavior.
+    if (validDef.prompt.includes(SHORTHAND_ARGS_PLACEHOLDER)) {
+      processors.push(new ShorthandArgumentProcessor());
+    } else {
       processors.push(new DefaultArgumentProcessor());
     }
 

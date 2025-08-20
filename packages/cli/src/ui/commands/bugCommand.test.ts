@@ -16,7 +16,6 @@ import { formatMemoryUsage } from '../utils/formatters.js';
 vi.mock('open');
 vi.mock('../../utils/version.js');
 vi.mock('../utils/formatters.js');
-vi.mock('@google/gemini-cli-core');
 vi.mock('node:process', () => ({
   default: {
     platform: 'test-platform',
@@ -31,9 +30,6 @@ describe('bugCommand', () => {
   beforeEach(() => {
     vi.mocked(getCliVersion).mockResolvedValue('0.1.0');
     vi.mocked(formatMemoryUsage).mockReturnValue('100 MB');
-    vi.mock('@google/gemini-cli-core', () => ({
-      sessionId: 'test-session-id',
-    }));
     vi.stubEnv('SANDBOX', 'gemini-test');
   });
 
@@ -48,10 +44,6 @@ describe('bugCommand', () => {
         config: {
           getModel: () => 'gemini-pro',
           getBugCommand: () => undefined,
-          getIdeClient: () => ({
-            getDetectedIdeDisplayName: () => 'VSCode',
-          }),
-          getIdeMode: () => true,
         },
       },
     });
@@ -62,12 +54,10 @@ describe('bugCommand', () => {
     const expectedInfo = `
 * **CLI Version:** 0.1.0
 * **Git Commit:** ${GIT_COMMIT_INFO}
-* **Session ID:** test-session-id
 * **Operating System:** test-platform v20.0.0
 * **Sandbox Environment:** test
 * **Model Version:** gemini-pro
 * **Memory Usage:** 100 MB
-* **IDE Client:** VSCode
 `;
     const expectedUrl =
       'https://github.com/google-gemini/gemini-cli/issues/new?template=bug_report.yml&title=A%20test%20bug&info=' +
@@ -84,10 +74,6 @@ describe('bugCommand', () => {
         config: {
           getModel: () => 'gemini-pro',
           getBugCommand: () => ({ urlTemplate: customTemplate }),
-          getIdeClient: () => ({
-            getDetectedIdeDisplayName: () => 'VSCode',
-          }),
-          getIdeMode: () => true,
         },
       },
     });
@@ -98,12 +84,10 @@ describe('bugCommand', () => {
     const expectedInfo = `
 * **CLI Version:** 0.1.0
 * **Git Commit:** ${GIT_COMMIT_INFO}
-* **Session ID:** test-session-id
 * **Operating System:** test-platform v20.0.0
 * **Sandbox Environment:** test
 * **Model Version:** gemini-pro
 * **Memory Usage:** 100 MB
-* **IDE Client:** VSCode
 `;
     const expectedUrl = customTemplate
       .replace('{title}', encodeURIComponent('A custom bug'))

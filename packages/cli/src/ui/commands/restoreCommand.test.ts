@@ -39,10 +39,7 @@ describe('restoreCommand', () => {
 
     mockConfig = {
       getCheckpointingEnabled: vi.fn().mockReturnValue(true),
-      storage: {
-        getProjectTempCheckpointsDir: vi.fn().mockReturnValue(checkpointsDir),
-        getProjectTempDir: vi.fn().mockReturnValue(geminiTempDir),
-      },
+      getProjectTempDir: vi.fn().mockReturnValue(geminiTempDir),
       getGeminiClient: vi.fn().mockReturnValue({
         setHistory: mockSetHistory,
       }),
@@ -80,9 +77,7 @@ describe('restoreCommand', () => {
 
   describe('action', () => {
     it('should return an error if temp dir is not found', async () => {
-      vi.mocked(
-        mockConfig.storage.getProjectTempCheckpointsDir,
-      ).mockReturnValue('');
+      vi.mocked(mockConfig.getProjectTempDir).mockReturnValue('');
 
       expect(
         await restoreCommand(mockConfig)?.action?.(mockContext, ''),
@@ -224,7 +219,7 @@ describe('restoreCommand', () => {
 
   describe('completion', () => {
     it('should return an empty array if temp dir is not found', async () => {
-      vi.mocked(mockConfig.storage.getProjectTempDir).mockReturnValue('');
+      vi.mocked(mockConfig.getProjectTempDir).mockReturnValue('');
       const command = restoreCommand(mockConfig);
 
       expect(await command?.completion?.(mockContext, '')).toEqual([]);

@@ -10,6 +10,7 @@ import {
   AuthType,
   Config,
   GeminiChat,
+  ToolRegistry,
   logToolCall,
   ToolResult,
   convertToFunctionResponse,
@@ -21,10 +22,8 @@ import {
   isWithinRoot,
   getErrorStatus,
   MCPServerConfig,
-  DiscoveredMCPTool,
 } from '@google/gemini-cli-core';
 import * as acp from './acp.js';
-import { AcpFileSystemService } from './fileSystemService.js';
 import { Readable, Writable } from 'node:stream';
 import { Content, Part, FunctionCall, PartListUnion } from '@google/genai';
 import { LoadedSettings, SettingScope } from '../config/settings.js';
@@ -61,7 +60,6 @@ export async function runZedIntegration(
 
 class GeminiAgent {
   private sessions: Map<string, Session> = new Map();
-  private clientCapabilities: acp.ClientCapabilities | undefined;
 
   constructor(
     private config: Config,
@@ -72,9 +70,8 @@ class GeminiAgent {
   ) {}
 
   async initialize(
-    args: acp.InitializeRequest,
+    _args: acp.InitializeRequest,
   ): Promise<acp.InitializeResponse> {
-    this.clientCapabilities = args.clientCapabilities;
     const authMethods = [
       {
         id: AuthType.LOGIN_WITH_GOOGLE,
@@ -130,16 +127,6 @@ class GeminiAgent {
 
     if (!isAuthenticated) {
       throw acp.RequestError.authRequired();
-    }
-
-    if (this.clientCapabilities?.fs) {
-      const acpFileSystemService = new AcpFileSystemService(
-        this.client,
-        sessionId,
-        this.clientCapabilities.fs,
-        config.getFileSystemService(),
-      );
-      config.setFileSystemService(acpFileSystemService);
     }
 
     const geminiClient = config.getGeminiClient();
@@ -344,10 +331,6 @@ class Session {
         duration_ms: durationMs,
         success: false,
         error: error.message,
-        tool_type:
-          typeof tool !== 'undefined' && tool instanceof DiscoveredMCPTool
-            ? 'mcp'
-            : 'native',
       });
 
       return [
@@ -365,7 +348,7 @@ class Session {
       return errorResponse(new Error('Missing function name'));
     }
 
-    const toolRegistry = this.config.getToolRegistry();
+    const toolRegistry: ToolRegistry = await this.config.getToolRegistry();
     const tool = toolRegistry.getTool(fc.name as string);
 
     if (!tool) {
@@ -461,10 +444,6 @@ class Session {
         duration_ms: durationMs,
         success: true,
         prompt_id: promptId,
-        tool_type:
-          typeof tool !== 'undefined' && tool instanceof DiscoveredMCPTool
-            ? 'mcp'
-            : 'native',
       });
 
       return convertToFunctionResponse(fc.name, callId, toolResult.llmContent);
@@ -530,7 +509,7 @@ class Session {
     const contentLabelsForDisplay: string[] = [];
     const ignoredPaths: string[] = [];
 
-    const toolRegistry = this.config.getToolRegistry();
+    const toolRegistry = await this.config.getToolRegistry();
     const readManyFilesTool = toolRegistry.getTool('read_many_files');
     const globTool = toolRegistry.getTool('glob');
 

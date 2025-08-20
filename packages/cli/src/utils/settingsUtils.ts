@@ -91,10 +91,7 @@ export function getRestartRequiredSettings(): string[] {
 /**
  * Recursively gets a value from a nested object using a key path array.
  */
-export function getNestedValue(
-  obj: Record<string, unknown>,
-  path: string[],
-): unknown {
+function getNestedValue(obj: Record<string, unknown>, path: string[]): unknown {
   const [first, ...rest] = path;
   if (!first || !(first in obj)) {
     return undefined;
@@ -336,20 +333,6 @@ export function setPendingSettingValue(
 }
 
 /**
- * Generic setter: Set a setting value (boolean, number, string, etc.) in the pending settings
- */
-export function setPendingSettingValueAny(
-  key: string,
-  value: unknown,
-  pendingSettings: Settings,
-): Settings {
-  const path = key.split('.');
-  const newSettings = structuredClone(pendingSettings);
-  setNestedValue(newSettings, path, value);
-  return newSettings;
-}
-
-/**
  * Check if any modified settings require a restart
  */
 export function hasRestartRequiredSettings(
@@ -399,9 +382,11 @@ export function saveModifiedSettings(
       // We need to set the whole parent object.
       const [parentKey] = path;
       if (parentKey) {
-        const newParentValue = setPendingSettingValueAny(
+        // Ensure value is a boolean for setPendingSettingValue
+        const booleanValue = typeof value === 'boolean' ? value : false;
+        const newParentValue = setPendingSettingValue(
           settingKey,
-          value,
+          booleanValue,
           loadedSettings.forScope(scope).settings,
         )[parentKey as keyof Settings];
 
@@ -446,12 +431,11 @@ export function getDisplayValue(
   const isChangedFromDefault =
     typeof defaultValue === 'boolean' ? value !== defaultValue : value === true;
   const isInModifiedSettings = modifiedSettings.has(key);
+  const hasPendingChanges =
+    pendingSettings && settingExistsInScope(key, pendingSettings);
 
-  // Mark as modified if setting exists in current scope OR is in modified settings
-  if (settingExistsInScope(key, settings) || isInModifiedSettings) {
-    return `${valueString}*`; // * indicates setting is set in current scope
-  }
-  if (isChangedFromDefault || isInModifiedSettings) {
+  // Add * indicator when value differs from default, is in modified settings, or has pending changes
+  if (isChangedFromDefault || isInModifiedSettings || hasPendingChanges) {
     return `${valueString}*`; // * indicates changed from default value
   }
 

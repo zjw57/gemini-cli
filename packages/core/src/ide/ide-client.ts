@@ -5,7 +5,6 @@
  */
 
 import * as fs from 'node:fs';
-import { isSubpath } from '../utils/paths.js';
 import { detectIde, DetectedIde, getIdeInfo } from '../ide/detect-ide.js';
 import {
   ideContext,
@@ -20,7 +19,6 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { EnvHttpProxyAgent } from 'undici';
 
 const logger = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,7 +62,6 @@ export class IdeClient {
   private readonly currentIde: DetectedIde | undefined;
   private readonly currentIdeDisplayName: string | undefined;
   private diffResponses = new Map<string, (result: DiffUpdateResult) => void>();
-  private statusListeners = new Set<(state: IDEConnectionState) => void>();
 
   private constructor() {
     this.currentIde = detectIde();
@@ -78,14 +75,6 @@ export class IdeClient {
       IdeClient.instance = new IdeClient();
     }
     return IdeClient.instance;
-  }
-
-  addStatusChangeListener(listener: (state: IDEConnectionState) => void) {
-    this.statusListeners.add(listener);
-  }
-
-  removeStatusChangeListener(listener: (state: IDEConnectionState) => void) {
-    this.statusListeners.delete(listener);
   }
 
   async connect(): Promise<void> {
@@ -104,14 +93,7 @@ export class IdeClient {
 
     this.setState(IDEConnectionStatus.Connecting);
 
-    const { isValid, error } = IdeClient.validateWorkspacePath(
-      process.env['GEMINI_CLI_IDE_WORKSPACE_PATH'],
-      this.currentIdeDisplayName,
-      process.cwd(),
-    );
-
-    if (!isValid) {
-      this.setState(IDEConnectionStatus.Disconnected, error, true);
+    if (!this.validateWorkspacePath()) {
       return;
     }
 
@@ -133,7 +115,7 @@ export class IdeClient {
 
     this.setState(
       IDEConnectionStatus.Disconnected,
-      `Failed to connect to IDE companion extension for ${this.currentIdeDisplayName}. Please ensure the extension is running. To install the extension, run /ide install.`,
+      `Failed to connect to IDE companion extension for ${this.currentIdeDisplayName}. Please ensure the extension is running and try restarting your terminal. To install the extension, run /ide install.`,
       true,
     );
   }
@@ -247,9 +229,6 @@ export class IdeClient {
     // disconnected, so that the first detail message is preserved.
     if (!isAlreadyDisconnected) {
       this.state = { status, details };
-      for (const listener of this.statusListeners) {
-        listener(this.state);
-      }
       if (details) {
         if (logToConsole) {
           logger.error(details);
@@ -266,41 +245,37 @@ export class IdeClient {
     }
   }
 
-  static validateWorkspacePath(
-    ideWorkspacePath: string | undefined,
-    currentIdeDisplayName: string | undefined,
-    cwd: string,
-  ): { isValid: boolean; error?: string } {
+  private validateWorkspacePath(): boolean {
+    const ideWorkspacePath = process.env['GEMINI_CLI_IDE_WORKSPACE_PATH'];
     if (ideWorkspacePath === undefined) {
-      return {
-        isValid: false,
-        error: `Failed to connect to IDE companion extension for ${currentIdeDisplayName}. Please ensure the extension is running. To install the extension, run /ide install.`,
-      };
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        `Failed to connect to IDE companion extension for ${this.currentIdeDisplayName}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
+        true,
+      );
+      return false;
     }
-
     if (ideWorkspacePath === '') {
-      return {
-        isValid: false,
-        error: `To use this feature, please open a workspace folder in ${currentIdeDisplayName} and try again.`,
-      };
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        `To use this feature, please open a single workspace folder in ${this.currentIdeDisplayName} and try again.`,
+        true,
+      );
+      return false;
     }
 
-    const ideWorkspacePaths = ideWorkspacePath.split(path.delimiter);
-    const realCwd = getRealPath(cwd);
-    const isWithinWorkspace = ideWorkspacePaths.some((workspacePath) => {
-      const idePath = getRealPath(workspacePath);
-      return isSubpath(idePath, realCwd);
-    });
-
-    if (!isWithinWorkspace) {
-      return {
-        isValid: false,
-        error: `Directory mismatch. Gemini CLI is running in a different location than the open workspace in ${currentIdeDisplayName}. Please run the CLI from one of the following directories: ${ideWorkspacePaths.join(
-          ', ',
-        )}`,
-      };
+    const idePath = getRealPath(ideWorkspacePath).toLocaleLowerCase();
+    const cwd = getRealPath(process.cwd()).toLocaleLowerCase();
+    const rel = path.relative(idePath, cwd);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        `Directory mismatch. Gemini CLI is running in a different location than the open workspace in ${this.currentIdeDisplayName}. Please run the CLI from the same directory as your project's root folder.`,
+        true,
+      );
+      return false;
     }
-    return { isValid: true };
+    return true;
   }
 
   private getPortFromEnv(): string | undefined {
@@ -324,29 +299,6 @@ export class IdeClient {
     } catch (_) {
       return undefined;
     }
-  }
-
-  private createProxyAwareFetch() {
-    // ignore proxy for 'localhost' by deafult to allow connecting to the ide mcp server
-    const existingNoProxy = process.env['NO_PROXY'] || '';
-    const agent = new EnvHttpProxyAgent({
-      noProxy: [existingNoProxy, 'localhost'].filter(Boolean).join(','),
-    });
-    const undiciPromise = import('undici');
-    return async (url: string | URL, init?: RequestInit): Promise<Response> => {
-      const { fetch: fetchFn } = await undiciPromise;
-      const fetchOptions: RequestInit & { dispatcher?: unknown } = {
-        ...init,
-        dispatcher: agent,
-      };
-      const options = fetchOptions as unknown as import('undici').RequestInit;
-      const response = await fetchFn(url, options);
-      return new Response(response.body as ReadableStream<unknown> | null, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: response.headers,
-      });
-    };
   }
 
   private registerClientHandlers() {
@@ -413,9 +365,6 @@ export class IdeClient {
       });
       transport = new StreamableHTTPClientTransport(
         new URL(`http://${getIdeServerHost()}:${port}/mcp`),
-        {
-          fetch: this.createProxyAwareFetch(),
-        },
       );
       await this.client.connect(transport);
       this.registerClientHandlers();

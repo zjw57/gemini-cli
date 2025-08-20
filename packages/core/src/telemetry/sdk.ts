@@ -8,13 +8,10 @@ import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-grpc';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc';
-import { OTLPTraceExporter as OTLPTraceExporterHttp } from '@opentelemetry/exporter-trace-otlp-http';
-import { OTLPLogExporter as OTLPLogExporterHttp } from '@opentelemetry/exporter-logs-otlp-http';
-import { OTLPMetricExporter as OTLPMetricExporterHttp } from '@opentelemetry/exporter-metrics-otlp-http';
 import { CompressionAlgorithm } from '@opentelemetry/otlp-exporter-base';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import { resourceFromAttributes } from '@opentelemetry/resources';
+import { Resource } from '@opentelemetry/resources';
 import {
   BatchSpanProcessor,
   ConsoleSpanExporter,
@@ -48,9 +45,8 @@ export function isTelemetrySdkInitialized(): boolean {
   return telemetryInitialized;
 }
 
-function parseOtlpEndpoint(
+function parseGrpcEndpoint(
   otlpEndpointSetting: string | undefined,
-  protocol: 'grpc' | 'http',
 ): string | undefined {
   if (!otlpEndpointSetting) {
     return undefined;
@@ -60,13 +56,9 @@ function parseOtlpEndpoint(
 
   try {
     const url = new URL(trimmedEndpoint);
-    if (protocol === 'grpc') {
-      // OTLP gRPC exporters expect an endpoint in the format scheme://host:port
-      // The `origin` property provides this, stripping any path, query, or hash.
-      return url.origin;
-    }
-    // For http, use the full href.
-    return url.href;
+    // OTLP gRPC exporters expect an endpoint in the format scheme://host:port
+    // The `origin` property provides this, stripping any path, query, or hash.
+    return url.origin;
   } catch (error) {
     diag.error('Invalid OTLP endpoint URL provided:', trimmedEndpoint, error);
     return undefined;
@@ -78,82 +70,55 @@ export function initializeTelemetry(config: Config): void {
     return;
   }
 
-  const resource = resourceFromAttributes({
+  const resource = new Resource({
     [SemanticResourceAttributes.SERVICE_NAME]: SERVICE_NAME,
     [SemanticResourceAttributes.SERVICE_VERSION]: process.version,
     'session.id': config.getSessionId(),
   });
 
   const otlpEndpoint = config.getTelemetryOtlpEndpoint();
-  const otlpProtocol = config.getTelemetryOtlpProtocol();
-  const parsedEndpoint = parseOtlpEndpoint(otlpEndpoint, otlpProtocol);
-  const useOtlp = !!parsedEndpoint;
+  const grpcParsedEndpoint = parseGrpcEndpoint(otlpEndpoint);
+  const useOtlp = !!grpcParsedEndpoint;
   const telemetryOutfile = config.getTelemetryOutfile();
 
-  let spanExporter:
-    | OTLPTraceExporter
-    | OTLPTraceExporterHttp
-    | FileSpanExporter
-    | ConsoleSpanExporter;
-  let logExporter:
-    | OTLPLogExporter
-    | OTLPLogExporterHttp
-    | FileLogExporter
-    | ConsoleLogRecordExporter;
-  let metricReader: PeriodicExportingMetricReader;
-
-  if (useOtlp) {
-    if (otlpProtocol === 'http') {
-      spanExporter = new OTLPTraceExporterHttp({
-        url: parsedEndpoint,
-      });
-      logExporter = new OTLPLogExporterHttp({
-        url: parsedEndpoint,
-      });
-      metricReader = new PeriodicExportingMetricReader({
-        exporter: new OTLPMetricExporterHttp({
-          url: parsedEndpoint,
-        }),
-        exportIntervalMillis: 10000,
-      });
-    } else {
-      // grpc
-      spanExporter = new OTLPTraceExporter({
-        url: parsedEndpoint,
+  const spanExporter = useOtlp
+    ? new OTLPTraceExporter({
+        url: grpcParsedEndpoint,
         compression: CompressionAlgorithm.GZIP,
-      });
-      logExporter = new OTLPLogExporter({
-        url: parsedEndpoint,
+      })
+    : telemetryOutfile
+      ? new FileSpanExporter(telemetryOutfile)
+      : new ConsoleSpanExporter();
+  const logExporter = useOtlp
+    ? new OTLPLogExporter({
+        url: grpcParsedEndpoint,
         compression: CompressionAlgorithm.GZIP,
-      });
-      metricReader = new PeriodicExportingMetricReader({
+      })
+    : telemetryOutfile
+      ? new FileLogExporter(telemetryOutfile)
+      : new ConsoleLogRecordExporter();
+  const metricReader = useOtlp
+    ? new PeriodicExportingMetricReader({
         exporter: new OTLPMetricExporter({
-          url: parsedEndpoint,
+          url: grpcParsedEndpoint,
           compression: CompressionAlgorithm.GZIP,
         }),
         exportIntervalMillis: 10000,
-      });
-    }
-  } else if (telemetryOutfile) {
-    spanExporter = new FileSpanExporter(telemetryOutfile);
-    logExporter = new FileLogExporter(telemetryOutfile);
-    metricReader = new PeriodicExportingMetricReader({
-      exporter: new FileMetricExporter(telemetryOutfile),
-      exportIntervalMillis: 10000,
-    });
-  } else {
-    spanExporter = new ConsoleSpanExporter();
-    logExporter = new ConsoleLogRecordExporter();
-    metricReader = new PeriodicExportingMetricReader({
-      exporter: new ConsoleMetricExporter(),
-      exportIntervalMillis: 10000,
-    });
-  }
+      })
+    : telemetryOutfile
+      ? new PeriodicExportingMetricReader({
+          exporter: new FileMetricExporter(telemetryOutfile),
+          exportIntervalMillis: 10000,
+        })
+      : new PeriodicExportingMetricReader({
+          exporter: new ConsoleMetricExporter(),
+          exportIntervalMillis: 10000,
+        });
 
   sdk = new NodeSDK({
     resource,
     spanProcessors: [new BatchSpanProcessor(spanExporter)],
-    logRecordProcessors: [new BatchLogRecordProcessor(logExporter)],
+    logRecordProcessor: new BatchLogRecordProcessor(logExporter),
     metricReader,
     instrumentations: [new HttpInstrumentation()],
   });

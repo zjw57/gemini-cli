@@ -7,8 +7,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { isNodeError, Storage } from '@google/gemini-cli-core';
+import { isNodeError, getProjectTempDir } from '@google/gemini-cli-core';
 
+const HISTORY_FILE = 'shell_history';
 const MAX_HISTORY_LENGTH = 100;
 
 export interface UseShellHistoryReturn {
@@ -19,12 +20,9 @@ export interface UseShellHistoryReturn {
   resetHistoryPosition: () => void;
 }
 
-async function getHistoryFilePath(
-  projectRoot: string,
-  configStorage?: Storage,
-): Promise<string> {
-  const storage = configStorage ?? new Storage(projectRoot);
-  return storage.getHistoryFilePath();
+async function getHistoryFilePath(projectRoot: string): Promise<string> {
+  const historyDir = getProjectTempDir(projectRoot);
+  return path.join(historyDir, HISTORY_FILE);
 }
 
 // Handle multiline commands
@@ -69,23 +67,20 @@ async function writeHistoryFile(
   }
 }
 
-export function useShellHistory(
-  projectRoot: string,
-  storage?: Storage,
-): UseShellHistoryReturn {
+export function useShellHistory(projectRoot: string): UseShellHistoryReturn {
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [historyFilePath, setHistoryFilePath] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadHistory() {
-      const filePath = await getHistoryFilePath(projectRoot, storage);
+      const filePath = await getHistoryFilePath(projectRoot);
       setHistoryFilePath(filePath);
       const loadedHistory = await readHistoryFile(filePath);
       setHistory(loadedHistory.reverse()); // Newest first
     }
     loadHistory();
-  }, [projectRoot, storage]);
+  }, [projectRoot]);
 
   const addCommandToHistory = useCallback(
     (command: string) => {

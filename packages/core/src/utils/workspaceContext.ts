@@ -4,11 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { isNodeError } from '../utils/errors.js';
 import * as fs from 'fs';
 import * as path from 'path';
-
-export type Unsubscribe = () => void;
 
 /**
  * WorkspaceContext manages multiple workspace directories and validates paths
@@ -16,45 +13,25 @@ export type Unsubscribe = () => void;
  * in a single session.
  */
 export class WorkspaceContext {
-  private directories = new Set<string>();
+  private directories: Set<string>;
+
   private initialDirectories: Set<string>;
-  private onDirectoriesChangedListeners = new Set<() => void>();
 
   /**
    * Creates a new WorkspaceContext with the given initial directory and optional additional directories.
-   * @param directory The initial working directory (usually cwd)
+   * @param initialDirectory The initial working directory (usually cwd)
    * @param additionalDirectories Optional array of additional directories to include
    */
-  constructor(directory: string, additionalDirectories: string[] = []) {
-    this.addDirectory(directory);
-    for (const additionalDirectory of additionalDirectories) {
-      this.addDirectory(additionalDirectory);
-    }
+  constructor(initialDirectory: string, additionalDirectories: string[] = []) {
+    this.directories = new Set<string>();
+    this.initialDirectories = new Set<string>();
 
-    this.initialDirectories = new Set(this.directories);
-  }
+    this.addDirectoryInternal(initialDirectory);
+    this.addInitialDirectoryInternal(initialDirectory);
 
-  /**
-   * Registers a listener that is called when the workspace directories change.
-   * @param listener The listener to call.
-   * @returns A function to unsubscribe the listener.
-   */
-  onDirectoriesChanged(listener: () => void): Unsubscribe {
-    this.onDirectoriesChangedListeners.add(listener);
-    return () => {
-      this.onDirectoriesChangedListeners.delete(listener);
-    };
-  }
-
-  private notifyDirectoriesChanged() {
-    // Iterate over a copy of the set in case a listener unsubscribes itself or others.
-    for (const listener of [...this.onDirectoriesChangedListeners]) {
-      try {
-        listener();
-      } catch (e) {
-        // Don't let one listener break others.
-        console.error('Error in WorkspaceContext listener:', e);
-      }
+    for (const dir of additionalDirectories) {
+      this.addDirectoryInternal(dir);
+      this.addInitialDirectoryInternal(dir);
     }
   }
 
@@ -64,18 +41,16 @@ export class WorkspaceContext {
    * @param basePath Optional base path for resolving relative paths (defaults to cwd)
    */
   addDirectory(directory: string, basePath: string = process.cwd()): void {
-    const resolved = this.resolveAndValidateDir(directory, basePath);
-    if (this.directories.has(resolved)) {
-      return;
-    }
-    this.directories.add(resolved);
-    this.notifyDirectoriesChanged();
+    this.addDirectoryInternal(directory, basePath);
   }
 
-  private resolveAndValidateDir(
+  /**
+   * Internal method to add a directory with validation.
+   */
+  private addDirectoryInternal(
     directory: string,
     basePath: string = process.cwd(),
-  ): string {
+  ): void {
     const absolutePath = path.isAbsolute(directory)
       ? directory
       : path.resolve(basePath, directory);
@@ -83,12 +58,47 @@ export class WorkspaceContext {
     if (!fs.existsSync(absolutePath)) {
       throw new Error(`Directory does not exist: ${absolutePath}`);
     }
+
     const stats = fs.statSync(absolutePath);
     if (!stats.isDirectory()) {
       throw new Error(`Path is not a directory: ${absolutePath}`);
     }
 
-    return fs.realpathSync(absolutePath);
+    let realPath: string;
+    try {
+      realPath = fs.realpathSync(absolutePath);
+    } catch (_error) {
+      throw new Error(`Failed to resolve path: ${absolutePath}`);
+    }
+
+    this.directories.add(realPath);
+  }
+
+  private addInitialDirectoryInternal(
+    directory: string,
+    basePath: string = process.cwd(),
+  ): void {
+    const absolutePath = path.isAbsolute(directory)
+      ? directory
+      : path.resolve(basePath, directory);
+
+    if (!fs.existsSync(absolutePath)) {
+      throw new Error(`Directory does not exist: ${absolutePath}`);
+    }
+
+    const stats = fs.statSync(absolutePath);
+    if (!stats.isDirectory()) {
+      throw new Error(`Path is not a directory: ${absolutePath}`);
+    }
+
+    let realPath: string;
+    try {
+      realPath = fs.realpathSync(absolutePath);
+    } catch (_error) {
+      throw new Error(`Failed to resolve path: ${absolutePath}`);
+    }
+
+    this.initialDirectories.add(realPath);
   }
 
   /**
@@ -104,17 +114,9 @@ export class WorkspaceContext {
   }
 
   setDirectories(directories: readonly string[]): void {
-    const newDirectories = new Set<string>();
+    this.directories.clear();
     for (const dir of directories) {
-      newDirectories.add(this.resolveAndValidateDir(dir));
-    }
-
-    if (
-      newDirectories.size !== this.directories.size ||
-      ![...newDirectories].every((d) => this.directories.has(d))
-    ) {
-      this.directories = newDirectories;
-      this.notifyDirectoriesChanged();
+      this.addDirectoryInternal(dir);
     }
   }
 
@@ -125,40 +127,26 @@ export class WorkspaceContext {
    */
   isPathWithinWorkspace(pathToCheck: string): boolean {
     try {
-      const fullyResolvedPath = this.fullyResolvedPath(pathToCheck);
+      const absolutePath = path.resolve(pathToCheck);
+
+      let resolvedPath = absolutePath;
+      if (fs.existsSync(absolutePath)) {
+        try {
+          resolvedPath = fs.realpathSync(absolutePath);
+        } catch (_error) {
+          return false;
+        }
+      }
 
       for (const dir of this.directories) {
-        if (this.isPathWithinRoot(fullyResolvedPath, dir)) {
+        if (this.isPathWithinRoot(resolvedPath, dir)) {
           return true;
         }
       }
+
       return false;
     } catch (_error) {
       return false;
-    }
-  }
-
-  /**
-   * Fully resolves a path, including symbolic links.
-   * If the path does not exist, it returns the fully resolved path as it would be
-   * if it did exist.
-   */
-  private fullyResolvedPath(pathToCheck: string): string {
-    try {
-      return fs.realpathSync(pathToCheck);
-    } catch (e: unknown) {
-      if (
-        isNodeError(e) &&
-        e.code === 'ENOENT' &&
-        e.path &&
-        // realpathSync does not set e.path correctly for symlinks to
-        // non-existent files.
-        !this.isFileSymlink(e.path)
-      ) {
-        // If it doesn't exist, e.path contains the fully resolved path.
-        return e.path;
-      }
-      throw e;
     }
   }
 
@@ -178,16 +166,5 @@ export class WorkspaceContext {
       relative !== '..' &&
       !path.isAbsolute(relative)
     );
-  }
-
-  /**
-   * Checks if a file path is a symbolic link that points to a file.
-   */
-  private isFileSymlink(filePath: string): boolean {
-    try {
-      return !fs.readlinkSync(filePath).endsWith('/');
-    } catch (_error) {
-      return false;
-    }
   }
 }

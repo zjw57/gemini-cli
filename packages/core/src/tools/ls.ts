@@ -13,6 +13,7 @@ import {
   ToolInvocation,
   ToolResult,
 } from './tools.js';
+import { SchemaValidator } from '../utils/schemaValidator.js';
 import { makeRelative, shortenPath } from '../utils/paths.js';
 import { Config, DEFAULT_FILE_FILTERING_OPTIONS } from '../config/config.js';
 
@@ -313,9 +314,14 @@ export class LSTool extends BaseDeclarativeTool<LSToolParams, ToolResult> {
    * @param params Parameters to validate
    * @returns An error message string if invalid, null otherwise
    */
-  protected override validateToolParamValues(
-    params: LSToolParams,
-  ): string | null {
+  override validateToolParams(params: LSToolParams): string | null {
+    const errors = SchemaValidator.validate(
+      this.schema.parametersJsonSchema,
+      params,
+    );
+    if (errors) {
+      return errors;
+    }
     if (!path.isAbsolute(params.path)) {
       return `Path must be absolute: ${params.path}`;
     }

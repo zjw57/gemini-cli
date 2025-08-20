@@ -8,6 +8,7 @@ import { useCallback, useMemo, useEffect, useState } from 'react';
 import { type PartListUnion } from '@google/genai';
 import process from 'node:process';
 import { UseHistoryManagerReturn } from './useHistoryManager.js';
+import { useStateAndRef } from './useStateAndRef.js';
 import {
   Config,
   GitService,
@@ -16,7 +17,6 @@ import {
   makeSlashCommandEvent,
   SlashCommandStatus,
   ToolConfirmationOutcome,
-  Storage,
 } from '@google/gemini-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import { runExitCleanup } from '../../utils/cleanup.js';
@@ -83,29 +83,26 @@ export const useSlashCommandProcessor = (
     if (!config?.getProjectRoot()) {
       return;
     }
-    return new GitService(config.getProjectRoot(), config.storage);
+    return new GitService(config.getProjectRoot());
   }, [config]);
 
   const logger = useMemo(() => {
-    const l = new Logger(
-      config?.getSessionId() || '',
-      config?.storage ?? new Storage(process.cwd()),
-    );
+    const l = new Logger(config?.getSessionId() || '');
     // The logger's initialize is async, but we can create the instance
     // synchronously. Commands that use it will await its initialization.
     return l;
   }, [config]);
 
-  const [pendingCompressionItem, setPendingCompressionItem] =
-    useState<HistoryItemWithoutId | null>(null);
+  const [pendingCompressionItemRef, setPendingCompressionItem] =
+    useStateAndRef<HistoryItemWithoutId | null>(null);
 
   const pendingHistoryItems = useMemo(() => {
     const items: HistoryItemWithoutId[] = [];
-    if (pendingCompressionItem != null) {
-      items.push(pendingCompressionItem);
+    if (pendingCompressionItemRef.current != null) {
+      items.push(pendingCompressionItemRef.current);
     }
     return items;
-  }, [pendingCompressionItem]);
+  }, [pendingCompressionItemRef]);
 
   const addMessage = useCallback(
     (message: Message) => {
@@ -120,7 +117,6 @@ export const useSlashCommandProcessor = (
           modelVersion: message.modelVersion,
           selectedAuthType: message.selectedAuthType,
           gcpProject: message.gcpProject,
-          ideClient: message.ideClient,
         };
       } else if (message.type === MessageType.HELP) {
         historyItemContent = {
@@ -177,7 +173,7 @@ export const useSlashCommandProcessor = (
         },
         loadHistory,
         setDebugMessage: onDebugMessage,
-        pendingItem: pendingCompressionItem,
+        pendingItem: pendingCompressionItemRef.current,
         setPendingItem: setPendingCompressionItem,
         toggleCorgiMode,
         toggleVimEnabled,
@@ -200,7 +196,7 @@ export const useSlashCommandProcessor = (
       refreshStatic,
       session.stats,
       onDebugMessage,
-      pendingCompressionItem,
+      pendingCompressionItemRef,
       setPendingCompressionItem,
       toggleCorgiMode,
       toggleVimEnabled,
@@ -210,22 +206,7 @@ export const useSlashCommandProcessor = (
     ],
   );
 
-  useEffect(() => {
-    if (!config) {
-      return;
-    }
-
-    const ideClient = config.getIdeClient();
-    const listener = () => {
-      reloadCommands();
-    };
-
-    ideClient.addStatusChangeListener(listener);
-
-    return () => {
-      ideClient.removeStatusChangeListener(listener);
-    };
-  }, [config, reloadCommands]);
+  const ideMode = config?.getIdeMode();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -247,7 +228,7 @@ export const useSlashCommandProcessor = (
     return () => {
       controller.abort();
     };
-  }, [config, reloadTrigger]);
+  }, [config, ideMode, reloadTrigger]);
 
   const handleSlashCommand = useCallback(
     async (

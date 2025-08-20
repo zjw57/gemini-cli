@@ -6,22 +6,22 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as os from 'os';
 import { isNodeError } from '../utils/errors.js';
 import { exec } from 'node:child_process';
 import { simpleGit, SimpleGit, CheckRepoActions } from 'simple-git';
-import { Storage } from '../config/storage.js';
+import { getProjectHash, GEMINI_DIR } from '../utils/paths.js';
 
 export class GitService {
   private projectRoot: string;
-  private storage: Storage;
 
-  constructor(projectRoot: string, storage: Storage) {
+  constructor(projectRoot: string) {
     this.projectRoot = path.resolve(projectRoot);
-    this.storage = storage;
   }
 
   private getHistoryDir(): string {
-    return this.storage.getHistoryDir();
+    const hash = getProjectHash(this.projectRoot);
+    return path.join(os.homedir(), GEMINI_DIR, 'history', hash);
   }
 
   async initialize(): Promise<void> {

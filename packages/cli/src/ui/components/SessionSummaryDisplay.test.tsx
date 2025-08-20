@@ -60,10 +60,6 @@ describe('<SessionSummaryDisplay />', () => {
         totalDecisions: { accept: 0, reject: 0, modify: 0 },
         byName: {},
       },
-      files: {
-        totalLinesAdded: 42,
-        totalLinesRemoved: 15,
-      },
     };
 
     const { lastFrame } = renderWithMockedStats(metrics);
