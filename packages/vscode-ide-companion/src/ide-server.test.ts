@@ -24,7 +24,7 @@ describe('IDEServer', () => {
     const log = vi.fn();
     const mockLanguageModelTools = vi.fn().mockImplementation(() => ({
       registerTools: registerToolsSpy,
-      log: log,
+      log,
     }));
     vi.mock('./lm-tools.js', () => ({
       LanguageModelTools: mockLanguageModelTools,

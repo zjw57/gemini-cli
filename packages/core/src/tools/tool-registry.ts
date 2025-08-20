@@ -231,6 +231,11 @@ export class ToolRegistry {
 
     // discover tools using MCP servers, if configured
     await this.mcpClientManager.discoverAllMcpTools();
+
+    // discover the VsCode language model tools if in IDE mode.
+    if (this.config.getIdeMode()) {
+      await this.config.getIdeClient().discoverTools(this);
+    }
   }
 
   /**

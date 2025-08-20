@@ -362,6 +362,11 @@ export class Config {
       await this.getGitService();
     }
     this.promptRegistry = new PromptRegistry();
+
+    if (this.getIdeMode()) {
+      await this.getIdeClient().connect();
+      logIdeConnection(this, new IdeConnectionEvent(IdeConnectionType.START));
+    }
     this.toolRegistry = await this.createToolRegistry();
     logCliConfiguration(this, new StartSessionEvent(this, this.toolRegistry));
   }
