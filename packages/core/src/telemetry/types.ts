@@ -162,16 +162,14 @@ export class ToolCallEvent implements BaseTelemetryEvent {
     ) {
       const diffStat = (call.response.resultDisplay as FileDiff).diffStat;
       if (diffStat) {
-        this.metadata = {
-          ai_added_lines: diffStat.ai_added_lines,
-          ai_removed_lines: diffStat.ai_removed_lines,
-          user_added_lines: diffStat.user_added_lines,
-          user_removed_lines: diffStat.user_removed_lines,
+          this.metadata['ai_added_lines'] = diffStat.ai_added_lines;
+          this.metadata['ai_removed_lines'] = diffStat.ai_removed_lines;
+          this.metadata['user_added_lines'] = diffStat.user_added_lines;
+          this.metadata['user_removed_lines'] = diffStat.user_removed_lines;
         };
       }
     }
   }
-}
 
 export class ApiRequestEvent implements BaseTelemetryEvent {
   'event.name': 'api_request';
