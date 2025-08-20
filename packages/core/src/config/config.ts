@@ -200,6 +200,7 @@ export interface ConfigParameters {
   trustedFolder?: boolean;
   shouldUseNodePtyShell?: boolean;
   skipNextSpeakerCheck?: boolean;
+  extensionManagement?: boolean;
 }
 
 export class Config {
@@ -267,6 +268,7 @@ export class Config {
   private readonly trustedFolder: boolean | undefined;
   private readonly shouldUseNodePtyShell: boolean;
   private readonly skipNextSpeakerCheck: boolean;
+  private readonly extensionManagement: boolean;
   private initialized: boolean = false;
   readonly storage: Storage;
 
@@ -337,6 +339,7 @@ export class Config {
     this.trustedFolder = params.trustedFolder;
     this.shouldUseNodePtyShell = params.shouldUseNodePtyShell ?? false;
     this.skipNextSpeakerCheck = params.skipNextSpeakerCheck ?? false;
+    this.extensionManagement = params.extensionManagement ?? false;
     this.storage = new Storage(this.targetDir);
 
     if (params.contextFileName) {
@@ -643,6 +646,10 @@ export class Config {
 
   getListExtensions(): boolean {
     return this.listExtensions;
+  }
+
+  getExtensionManagement(): boolean {
+    return this.extensionManagement;
   }
 
   getExtensions(): GeminiCLIExtension[] {

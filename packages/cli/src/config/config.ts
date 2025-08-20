@@ -73,6 +73,7 @@ export interface CliArgs {
   listExtensions: boolean | undefined;
   proxy: string | undefined;
   includeDirectories: string[] | undefined;
+  extensionManagement: boolean | undefined;
 }
 
 export async function parseArguments(): Promise<CliArgs> {
@@ -228,6 +229,11 @@ export async function parseArguments(): Promise<CliArgs> {
           coerce: (dirs: string[]) =>
             // Handle comma-separated values
             dirs.flatMap((dir) => dir.split(',').map((d) => d.trim())),
+        })
+        .option('extension-management', {
+          type: 'boolean',
+          description: 'Enable extension management features.',
+          default: false,
         })
 
         .check((argv) => {
@@ -542,6 +548,7 @@ export async function loadCliConfig(
     trustedFolder,
     shouldUseNodePtyShell: settings.shouldUseNodePtyShell,
     skipNextSpeakerCheck: settings.skipNextSpeakerCheck,
+    extensionManagement: argv.extensionManagement,
   });
 }
 
