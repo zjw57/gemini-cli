@@ -98,6 +98,7 @@ class ShellToolInvocation extends BaseToolInvocation<
     updateOutput?: (output: string) => void,
     terminalColumns?: number,
     terminalRows?: number,
+    onPid?: (pid: number) => void,
   ): Promise<ToolResult> {
     const strippedCommand = stripShellWrapper(this.params.command);
 
@@ -134,7 +135,8 @@ class ShellToolInvocation extends BaseToolInvocation<
       let lastUpdateTime = Date.now();
       let isBinaryStream = false;
 
-      const { result: resultPromise } = await ShellExecutionService.execute(
+      const { pid, result: resultPromise } =
+        await ShellExecutionService.execute(
         commandToExecute,
         cwd,
         (event: ShellOutputEvent) => {
@@ -150,9 +152,7 @@ class ShellToolInvocation extends BaseToolInvocation<
               if (isBinaryStream) break;
               cumulativeOutput = event.chunk;
               currentDisplayOutput = cumulativeOutput;
-              if (Date.now() - lastUpdateTime > OUTPUT_UPDATE_INTERVAL_MS) {
-                shouldUpdate = true;
-              }
+              shouldUpdate = true;
               break;
             case 'binary_detected':
               isBinaryStream = true;
@@ -184,6 +184,10 @@ class ShellToolInvocation extends BaseToolInvocation<
         terminalColumns,
         terminalRows,
       );
+
+      if (pid && onPid) {
+        onPid(pid);
+      }
 
       const result = await resultPromise;
 

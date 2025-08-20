@@ -137,6 +137,7 @@ describe('CoreToolScheduler', () => {
       onAllToolCallsComplete,
       onToolCallsUpdate,
       getPreferredEditor: () => 'vscode',
+      terminalSize: {columns: 90, rows: 30},
       onEditorClose: vi.fn(),
     });
 
@@ -197,6 +198,7 @@ describe('CoreToolScheduler with payload', () => {
       onAllToolCallsComplete,
       onToolCallsUpdate,
       getPreferredEditor: () => 'vscode',
+      terminalSize: {columns: 90, rows: 30},
       onEditorClose: vi.fn(),
     });
 
@@ -497,6 +499,7 @@ describe('CoreToolScheduler edit cancellation', () => {
       onAllToolCallsComplete,
       onToolCallsUpdate,
       getPreferredEditor: () => 'vscode',
+      terminalSize: {columns: 90, rows: 30},
       onEditorClose: vi.fn(),
     });
 
@@ -589,6 +592,7 @@ describe('CoreToolScheduler YOLO mode', () => {
       onAllToolCallsComplete,
       onToolCallsUpdate,
       getPreferredEditor: () => 'vscode',
+      terminalSize: {columns: 90, rows: 30},
       onEditorClose: vi.fn(),
     });
 
@@ -678,6 +682,7 @@ describe('CoreToolScheduler request queueing', () => {
       onAllToolCallsComplete,
       onToolCallsUpdate,
       getPreferredEditor: () => 'vscode',
+      terminalSize: {columns: 90, rows: 30},
       onEditorClose: vi.fn(),
     });
 
@@ -791,6 +796,7 @@ describe('CoreToolScheduler request queueing', () => {
       onAllToolCallsComplete,
       onToolCallsUpdate,
       getPreferredEditor: () => 'vscode',
+      terminalSize: {columns: 90, rows: 30},
       onEditorClose: vi.fn(),
     });
 
@@ -897,6 +903,7 @@ describe('CoreToolScheduler request queueing', () => {
       },
       getPreferredEditor: () => 'vscode',
       onEditorClose: vi.fn(),
+      terminalSize: {columns: 90, rows: 30},
     });
 
     const abortController = new AbortController();

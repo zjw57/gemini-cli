@@ -95,6 +95,10 @@ export const useGeminiStream = (
   setModelSwitchedFromQuotaError: React.Dispatch<React.SetStateAction<boolean>>,
   onEditorClose: () => void,
   onCancelSubmit: () => void,
+  setShellInputFocused: (value: boolean) => void,
+  terminalWidth?: number,
+  terminalHeight?: number,
+  isShellFocused?: boolean,
 ) => {
   const [initError, setInitError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -113,6 +117,11 @@ export const useGeminiStream = (
     }
     return new GitService(config.getProjectRoot(), storage);
   }, [config, storage]);
+
+  const getTerminalSize = () => ({
+    columns: terminalWidth ?? process.stdout.columns,
+    rows: terminalHeight ?? process.stdout.rows,
+  });
 
   const [toolCalls, scheduleToolCalls, markToolsAsSubmitted] =
     useReactToolScheduler(
@@ -134,9 +143,9 @@ export const useGeminiStream = (
         }
       },
       config,
-      setPendingHistoryItem,
       getPreferredEditor,
       onEditorClose,
+      getTerminalSize,
     );
 
   const pendingToolCallGroupDisplay = useMemo(
@@ -159,6 +168,22 @@ export const useGeminiStream = (
     onDebugMessage,
     config,
     geminiClient,
+    (pid) => {
+      setPendingHistoryItem((prevItem) => {
+        if (prevItem?.type === 'tool_group') {
+          return {
+            ...prevItem,
+            tools: prevItem.tools.map((tool) => ({
+              ...tool,
+              ptyId: pid,
+            })),
+          };
+        }
+        return prevItem;
+      });
+    },
+    terminalWidth,
+    terminalHeight,
   );
 
   const streamingState = useMemo(() => {
@@ -206,17 +231,19 @@ export const useGeminiStream = (
     setPendingHistoryItem(null);
     onCancelSubmit();
     setIsResponding(false);
+    setShellInputFocused(false);
   }, [
     streamingState,
     addItem,
     setPendingHistoryItem,
     onCancelSubmit,
     pendingHistoryItemRef,
+    setShellInputFocused,
   ]);
 
   useKeypress(
     (key) => {
-      if (key.name === 'escape') {
+      if (key.name === 'escape' && !isShellFocused) {
         cancelOngoingRequest();
       }
     },

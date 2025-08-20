@@ -49,7 +49,7 @@ describe('keyMatchers', () => {
     [Command.PASTE_CLIPBOARD_IMAGE]: (key: Key) => key.ctrl && key.name === 'v',
     [Command.SHOW_ERROR_DETAILS]: (key: Key) => key.ctrl && key.name === 'o',
     [Command.TOGGLE_TOOL_DESCRIPTIONS]: (key: Key) =>
-      key.ctrl && key.name === 't',
+      key.ctrl && key.name === 'i',
     [Command.TOGGLE_IDE_CONTEXT_DETAIL]: (key: Key) =>
       key.ctrl && key.name === 'g',
     [Command.QUIT]: (key: Key) => key.ctrl && key.name === 'c',
@@ -60,6 +60,7 @@ describe('keyMatchers', () => {
       key.name === 'return' && !key.ctrl,
     [Command.ACCEPT_SUGGESTION_REVERSE_SEARCH]: (key: Key) =>
       key.name === 'tab',
+    [Command.TOGGLE_SHELL_INPUT_FOCUS]: (key: Key) => key.name === 't',
   };
 
   // Test data for each command with positive and negative test cases
@@ -202,8 +203,8 @@ describe('keyMatchers', () => {
     },
     {
       command: Command.TOGGLE_TOOL_DESCRIPTIONS,
-      positive: [createKey('t', { ctrl: true })],
-      negative: [createKey('t'), createKey('s', { ctrl: true })],
+      positive: [createKey('i', { ctrl: true })],
+      negative: [createKey('i'), createKey('s', { ctrl: true })],
     },
     {
       command: Command.TOGGLE_IDE_CONTEXT_DETAIL,
