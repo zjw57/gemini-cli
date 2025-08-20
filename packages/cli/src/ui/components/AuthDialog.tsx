@@ -42,9 +42,9 @@ export function AuthDialog({
       return initialErrorMessage;
     }
 
-    const defaultAuthType = parseDefaultAuthType(
-      process.env['GEMINI_DEFAULT_AUTH_TYPE'],
-    );
+    const defaultAuthType = settings.merged.enforcedAuthType
+      ? settings.merged.enforcedAuthType
+      : parseDefaultAuthType(process.env['GEMINI_DEFAULT_AUTH_TYPE']);
 
     if (process.env['GEMINI_DEFAULT_AUTH_TYPE'] && defaultAuthType === null) {
       return (
@@ -143,19 +143,22 @@ export function AuthDialog({
         <Text bold>Authentication Enforced</Text>
         <Box marginTop={1}>
           <Text>
-            Your system administrator has enforced a specific authentication
-            method.
+            Your configuration is enforcing a specific authentication method:{' '}
+            {settings.merged.enforcedAuthType}
           </Text>
         </Box>
-        <Box marginTop={1}>
-          <Button
-            onSelect={() =>
-              onSelect(settings.merged.enforcedAuthType!, SettingScope.System)
-            }
-          >
-            Switch to {settings.merged.enforcedAuthType}
-          </Button>
-        </Box>
+        {settings.merged.enforcedAuthType !==
+          settings.merged.selectedAuthType && (
+          <Box marginTop={1}>
+            <Button
+              onSelect={() =>
+                onSelect(settings.merged.enforcedAuthType!, SettingScope.User)
+              }
+            >
+              Switch to {settings.merged.enforcedAuthType}
+            </Button>
+          </Box>
+        )}
         {errorMessage && (
           <Box marginTop={1}>
             <Text color={Colors.AccentRed}>{errorMessage}</Text>

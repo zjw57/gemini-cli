@@ -36,9 +36,6 @@ describe('validateNonInterActiveAuth', () => {
       user: { path: '', settings: {} },
       workspace: { path: '', settings: {} },
       errors: [],
-      // Add default values for other properties to satisfy LoadedSettings
-      // These are not directly relevant to the tests in this file,
-      // but are required by the LoadedSettings type.
       setValue: vi.fn(),
       merged: {
         enforcedAuthType: undefined,

@@ -304,7 +304,7 @@ export const SETTINGS_SCHEMA = {
     requiresRestart: true,
     default: undefined as AuthType | undefined,
     description:
-      'An authentication type that is enforced system-wide by an administrator.',
+      'The required auth type. If this does not match the selected auth type, the user will be prompted to re-authenticate.',
     showInDialog: false,
   },
   useExternalAuth: {
