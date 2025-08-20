@@ -27,7 +27,7 @@ import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
 import { ReadFileTool } from './read-file.js';
 import { ModifiableTool, ModifyContext } from './modifiable-tool.js';
 import { GeminiClient } from '../core/client.js';
-import { DEFAULT_GEMINI_MODEL } from '../config/models.js';
+import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 
 export enum ReplaceStrategy {
   FUZZY = 'fuzzy',
@@ -405,7 +405,7 @@ A good instruction should concisely answer:
       contents,
       SearchReplaceEditSchema,
       abortSignal,
-      DEFAULT_GEMINI_MODEL,
+      DEFAULT_GEMINI_FLASH_MODEL,
     )) as unknown as SearchReplaceEdit;
 
     return result;
