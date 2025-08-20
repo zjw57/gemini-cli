@@ -9,9 +9,6 @@
     "packages/*"
   ],
   "private": "true",
-  "overrides": {
-    "ajv": "6.12.6"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/google-gemini/gemini-cli.git"
@@ -64,7 +61,6 @@
     "LICENSE"
   ],
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^1.17.2",
     "@types/marked": "^5.0.2",
     "@types/micromatch": "^4.0.9",
     "@types/mime-types": "^3.0.1",

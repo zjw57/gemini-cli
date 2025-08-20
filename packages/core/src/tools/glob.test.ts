@@ -230,7 +230,7 @@ describe('GlobTool', () => {
       const params = { path: '.' };
       // @ts-expect-error - We're intentionally creating invalid params for testing
       expect(globTool.validateToolParams(params)).toBe(
-        `params should have required property 'pattern'`,
+        `params must have required property 'pattern'`,
       );
     });
 
@@ -255,7 +255,7 @@ describe('GlobTool', () => {
       };
       // @ts-expect-error - We're intentionally creating invalid params for testing
       expect(globTool.validateToolParams(params)).toBe(
-        'params.path should be string',
+        'params/path must be string',
       );
     });
 
@@ -266,7 +266,7 @@ describe('GlobTool', () => {
       };
       // @ts-expect-error - We're intentionally creating invalid params for testing
       expect(globTool.validateToolParams(params)).toBe(
-        'params.case_sensitive should be boolean',
+        'params/case_sensitive must be boolean',
       );
     });
 

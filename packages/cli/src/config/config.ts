@@ -73,8 +73,6 @@ export interface CliArgs {
   listExtensions: boolean | undefined;
   proxy: string | undefined;
   includeDirectories: string[] | undefined;
-  launchElectron: boolean | undefined;
-  startGui: boolean | undefined;
   _: Array<string | number>;
 }
 
@@ -232,16 +230,6 @@ export async function parseArguments(): Promise<CliArgs> {
             // Handle comma-separated values
             dirs.flatMap((dir) => dir.split(',').map((d) => d.trim())),
         })
-        .option('launch-electron', {
-          type: 'boolean',
-          description: 'Launch the Electron app.',
-          hidden: true,
-        })
-        .option('start-gui', {
-          type: 'boolean',
-          description: 'Launch the Electron GUI app.',
-        })
-        .command('gui', 'Launch the Electron GUI app.')
         .check((argv) => {
           if (argv.prompt && argv['promptInteractive']) {
             throw new Error(

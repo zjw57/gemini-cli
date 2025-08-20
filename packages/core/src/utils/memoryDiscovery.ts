@@ -305,10 +305,6 @@ export async function loadServerHierarchicalMemory(
   // For the server, homedir() refers to the server process's home.
   // This is consistent with how MemoryTool already finds the global path.
   const userHomePath = homedir();
-  const mergedFileFilteringOptions = {
-    ...DEFAULT_MEMORY_FILE_FILTERING_OPTIONS,
-    ...(fileFilteringOptions || {}),
-  };
   const filePaths = await getGeminiMdFilePathsInternal(
     currentWorkingDirectory,
     includeDirectoriesToReadGemini,
@@ -316,7 +312,7 @@ export async function loadServerHierarchicalMemory(
     debugMode,
     fileService,
     extensionContextFilePaths,
-    mergedFileFilteringOptions,
+    fileFilteringOptions || DEFAULT_MEMORY_FILE_FILTERING_OPTIONS,
     maxDirs,
   );
   if (filePaths.length === 0) {

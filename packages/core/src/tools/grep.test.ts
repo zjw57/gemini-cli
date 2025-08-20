@@ -88,7 +88,7 @@ describe('GrepTool', () => {
     it('should return error if pattern is missing', () => {
       const params = { path: '.' } as unknown as GrepToolParams;
       expect(grepTool.validateToolParams(params)).toBe(
-        `params should have required property 'pattern'`,
+        `params must have required property 'pattern'`,
       );
     });
 
@@ -220,7 +220,7 @@ describe('GrepTool', () => {
     it('should throw an error if params are invalid', async () => {
       const params = { path: '.' } as unknown as GrepToolParams; // Invalid: pattern missing
       expect(() => grepTool.build(params)).toThrow(
-        /params should have required property 'pattern'/,
+        /params must have required property 'pattern'/,
       );
     });
   });

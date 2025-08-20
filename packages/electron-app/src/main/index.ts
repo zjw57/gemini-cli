@@ -22,10 +22,7 @@ process.on('uncaughtException', (error) => {
   app.quit();
 });
 
-const isDev = !app.isPackaged;
-const iconPath = isDev
-  ? join(__dirname, '..', '..', 'src', 'resources', 'icon.png')
-  : join(process.resourcesPath, 'resources', 'icon.png');
+const iconPath = join(__dirname, '..', '..', 'src', 'resources', 'icon.png');
 let ptyProcess: pty.IPty | null = null;
 let ptyOnDataDisposable: pty.IDisposable | null = null;
 let fileWatcher: fs.FSWatcher | null = null;
@@ -113,10 +110,7 @@ async function startPtyProcess(mainWindow: BrowserWindow) {
   const sessionId = crypto.randomUUID();
   setupFileWatcher(mainWindow);
 
-  const isDev = !app.isPackaged;
-  const cliPath = isDev
-    ? join(__dirname, '..', '..', '..', 'cli', 'dist', 'index.js')
-    : join(process.resourcesPath, 'cli/index.js');
+  const cliPath = join(__dirname, '..', '..', '..', 'cli', 'dist', 'index.js');
 
   console.log(`[PTY] Starting PTY process with CLI path: ${cliPath}`);
 
