@@ -70,6 +70,9 @@ export const useShellCommandProcessor = (
   onDebugMessage: (message: string) => void,
   config: Config,
   geminiClient: GeminiClient,
+  onPid: (pid: number) => void,
+  terminalWidth?: number,
+  terminalHeight?: number,
 ) => {
   const handleShellCommand = useCallback(
     (rawQuery: PartListUnion, abortSignal: AbortSignal): boolean => {
@@ -139,11 +142,14 @@ export const useShellCommandProcessor = (
             commandToExecute,
             targetDir,
             (event) => {
+              let shouldUpdate = false;
               switch (event.type) {
                 case 'data':
                   // Do not process text data if we've already switched to binary mode.
                   if (isBinaryStream) break;
-                  cumulativeStdout += event.chunk;
+                  cumulativeStdout = event.chunk;
+                  // Force an immediate UI update to show the binary detection message.
+                  shouldUpdate = true;
                   break;
                 case 'binary_detected':
                   isBinaryStream = true;
@@ -172,25 +178,37 @@ export const useShellCommandProcessor = (
                 currentDisplayOutput = cumulativeStdout;
               }
 
-              // Throttle pending UI updates to avoid excessive re-renders.
-              if (Date.now() - lastUpdateTime > OUTPUT_UPDATE_INTERVAL_MS) {
-                setPendingHistoryItem({
-                  type: 'tool_group',
-                  tools: [
-                    {
-                      ...initialToolDisplay,
-                      resultDisplay: currentDisplayOutput,
-                    },
-                  ],
+              // Throttle pending UI updates, but allow forced updates.
+              if (
+                shouldUpdate ||
+                Date.now() - lastUpdateTime > OUTPUT_UPDATE_INTERVAL_MS
+              ) {
+                setPendingHistoryItem((prevItem) => {
+                  if (prevItem?.type === 'tool_group') {
+                    return {
+                      ...prevItem,
+                      tools: prevItem.tools.map((tool) =>
+                        tool.callId === callId
+                          ? { ...tool, resultDisplay: currentDisplayOutput }
+                          : tool,
+                      ),
+                    };
+                  }
+                  return prevItem;
                 });
                 lastUpdateTime = Date.now();
               }
             },
             abortSignal,
             config.getShouldUseNodePtyShell(),
+            terminalWidth,
+            terminalHeight,
           );
 
           executionPid = pid;
+          if (pid) {
+            onPid(pid);
+          }
 
           result
             .then((result: ShellExecutionResult) => {
@@ -307,6 +325,9 @@ export const useShellCommandProcessor = (
       setPendingHistoryItem,
       onExec,
       geminiClient,
+      onPid,
+      terminalHeight,
+      terminalWidth,
     ],
   );
 

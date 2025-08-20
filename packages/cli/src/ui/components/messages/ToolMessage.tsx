@@ -12,6 +12,9 @@ import { Colors } from '../../colors.js';
 import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
 import { GeminiRespondingSpinner } from '../GeminiRespondingSpinner.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
+import { ShellInputPrompt } from '../ShellInputPrompt.js';
+import { SHELL_COMMAND_NAME } from '../../constants.js';
+import { theme } from '../../semantic-colors.js';
 
 const STATIC_HEIGHT = 1;
 const RESERVED_LINE_COUNT = 5; // for tool name, status, padding etc.
@@ -28,6 +31,9 @@ export interface ToolMessageProps extends IndividualToolCallDisplay {
   terminalWidth: number;
   emphasis?: TextEmphasis;
   renderOutputAsMarkdown?: boolean;
+  activeShellPtyId?: number | null;
+  shellInputFocused?: boolean;
+  onShellInputSubmit?: (input: string) => void;
 }
 
 export const ToolMessage: React.FC<ToolMessageProps> = ({
@@ -39,7 +45,23 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
   terminalWidth,
   emphasis = 'medium',
   renderOutputAsMarkdown = true,
+  activeShellPtyId,
+  shellInputFocused,
+  onShellInputSubmit,
+  ptyId,
 }) => {
+  const handleShellInput = (input: string) => {
+    if (onShellInputSubmit) {
+      onShellInputSubmit(input);
+    }
+  };
+
+  const isThisShellFocused =
+    (name === SHELL_COMMAND_NAME || name === 'Shell') &&
+    status === ToolCallStatus.Executing &&
+    ptyId === activeShellPtyId &&
+    shellInputFocused;
+
   const availableHeight = availableTerminalHeight
     ? Math.max(
         availableTerminalHeight - STATIC_HEIGHT - RESERVED_LINE_COUNT,
@@ -72,6 +94,11 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
           description={description}
           emphasis={emphasis}
         />
+        {isThisShellFocused && (
+          <Box marginLeft={1}>
+            <Text color={theme.text.accent}>[Focused]</Text>
+          </Box>
+        )}
         {emphasis === 'high' && <TrailingIndicator />}
       </Box>
       {resultDisplay && (
@@ -103,6 +130,14 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
               />
             )}
           </Box>
+        </Box>
+      )}
+      {isThisShellFocused && (
+        <Box paddingLeft={STATUS_INDICATOR_WIDTH} marginTop={1}>
+          <ShellInputPrompt
+            onSubmit={handleShellInput}
+            focus={shellInputFocused}
+          />
         </Box>
       )}
     </Box>

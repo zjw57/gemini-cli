@@ -225,6 +225,8 @@ const createErrorResponse = (
   errorType,
 });
 
+export type PidUpdateHandler = (toolCallId: string, pid: number) => void;
+
 interface CoreToolSchedulerOptions {
   toolRegistry: ToolRegistry;
   outputUpdateHandler?: OutputUpdateHandler;
@@ -233,6 +235,11 @@ interface CoreToolSchedulerOptions {
   getPreferredEditor: () => EditorType | undefined;
   config: Config;
   onEditorClose: () => void;
+  terminalSize: {
+    columns: number;
+    rows: number;
+  };
+  pidUpdateHandler?: PidUpdateHandler;
 }
 
 export class CoreToolScheduler {
@@ -244,6 +251,7 @@ export class CoreToolScheduler {
   private getPreferredEditor: () => EditorType | undefined;
   private config: Config;
   private onEditorClose: () => void;
+  private pidUpdateHandler?: PidUpdateHandler;
   private isFinalizingToolCalls = false;
   private isScheduling = false;
   private requestQueue: Array<{
@@ -252,6 +260,10 @@ export class CoreToolScheduler {
     resolve: () => void;
     reject: (reason?: Error) => void;
   }> = [];
+  private terminalSize: {
+    columns: number;
+    rows: number;
+  };
 
   constructor(options: CoreToolSchedulerOptions) {
     this.config = options.config;
@@ -261,6 +273,8 @@ export class CoreToolScheduler {
     this.onToolCallsUpdate = options.onToolCallsUpdate;
     this.getPreferredEditor = options.getPreferredEditor;
     this.onEditorClose = options.onEditorClose;
+    this.pidUpdateHandler = options.pidUpdateHandler;
+    this.terminalSize = options.terminalSize;
   }
 
   private setStatusInternal(
@@ -832,7 +846,19 @@ export class CoreToolScheduler {
             : undefined;
 
         invocation
-          .execute(signal, liveOutputCallback)
+          .execute(
+            signal,
+            liveOutputCallback,
+            this.terminalSize.columns,
+            this.terminalSize.rows,
+            this.pidUpdateHandler
+              ? (pid: number) => {
+                  if (this.pidUpdateHandler) {
+                    this.pidUpdateHandler(callId, pid);
+                  }
+                }
+              : undefined,
+          )
           .then(async (toolResult: ToolResult) => {
             if (signal.aborted) {
               this.setStatusInternal(

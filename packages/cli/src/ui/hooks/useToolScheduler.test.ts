@@ -183,8 +183,8 @@ describe('useReactToolScheduler in YOLO Mode', () => {
         onComplete,
         mockConfig as unknown as Config,
         setPendingHistoryItem,
-        () => undefined,
         () => {},
+        () => ({ columns: 80, rows: 24 }),
       ),
     );
 
@@ -229,8 +229,8 @@ describe('useReactToolScheduler in YOLO Mode', () => {
       request.args,
       expect.any(AbortSignal),
       undefined,
-      undefined,
-      undefined,
+      80,
+      24,
     );
 
     // Check that onComplete was called with success
@@ -337,8 +337,8 @@ describe('useReactToolScheduler', () => {
         onComplete,
         mockConfig as unknown as Config,
         setPendingHistoryItem,
-        () => undefined,
         () => {},
+        () => ({ columns: 80, rows: 24 }),
       ),
     );
 
@@ -381,8 +381,8 @@ describe('useReactToolScheduler', () => {
       request.args,
       expect.any(AbortSignal),
       undefined,
-      undefined,
-      undefined,
+      80,
+      24,
     );
     expect(onComplete).toHaveBeenCalledWith([
       expect.objectContaining({

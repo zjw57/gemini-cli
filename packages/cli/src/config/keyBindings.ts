@@ -55,6 +55,7 @@ export enum Command {
   REVERSE_SEARCH = 'reverseSearch',
   SUBMIT_REVERSE_SEARCH = 'submitReverseSearch',
   ACCEPT_SUGGESTION_REVERSE_SEARCH = 'acceptSuggestionReverseSearch',
+  TOGGLE_SHELL_INPUT_FOCUS = 'toggleShellInputFocus',
 }
 
 /**
@@ -163,7 +164,7 @@ export const defaultKeyBindings: KeyBindingConfig = {
   // Original: key.ctrl && key.name === 'o'
   [Command.SHOW_ERROR_DETAILS]: [{ key: 'o', ctrl: true }],
   // Original: key.ctrl && key.name === 't'
-  [Command.TOGGLE_TOOL_DESCRIPTIONS]: [{ key: 't', ctrl: true }],
+  [Command.TOGGLE_TOOL_DESCRIPTIONS]: [{ key: 'i', ctrl: true }],
   // Original: key.ctrl && key.name === 'g'
   [Command.TOGGLE_IDE_CONTEXT_DETAIL]: [{ key: 'g', ctrl: true }],
   // Original: key.ctrl && (key.name === 'c' || key.name === 'C')
@@ -180,5 +181,7 @@ export const defaultKeyBindings: KeyBindingConfig = {
   // Note: original logic ONLY checked ctrl=false, ignored meta/shift/paste
   [Command.SUBMIT_REVERSE_SEARCH]: [{ key: 'return', ctrl: false }],
   // Original: key.name === 'tab'
+  // Original: key.name === 'tab'
   [Command.ACCEPT_SUGGESTION_REVERSE_SEARCH]: [{ key: 'tab' }],
+  [Command.TOGGLE_SHELL_INPUT_FOCUS]: [{ key: 't', ctrl: true }],
 };
