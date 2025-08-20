@@ -39,7 +39,7 @@ export async function validateNonInteractiveAuth(
   }
 
   const effectiveAuthType =
-    enforcedAuthType || configuredAuthType || getAuthTypeFromEnv();
+    enforcedAuthType || getAuthTypeFromEnv() || configuredAuthType;
 
   if (!effectiveAuthType) {
     console.error(
