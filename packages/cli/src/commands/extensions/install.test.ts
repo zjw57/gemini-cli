@@ -7,7 +7,7 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs/promises';
 import { execSync } from 'child_process';
-import { handleInstall } from './install';
+import { handleInstall } from './install.js';
 
 // Mock dependencies
 vi.mock('os', () => ({

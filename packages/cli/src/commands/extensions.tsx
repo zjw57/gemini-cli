@@ -36,9 +36,9 @@ const installCommand: CommandModule = {
       }),
   handler: async (argv) => {
     await handleInstall({
-      source: argv.source as string | undefined,
-      path: argv.path as string | undefined,
-      scope: argv.scope as SettingScope | undefined,
+      source: argv['source'] as string | undefined,
+      path: argv['path'] as string | undefined,
+      scope: argv['scope'] as SettingScope | undefined,
     });
   },
 };
