@@ -18,6 +18,7 @@ import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
 import { connectAndDiscover } from './mcp-client.js';
 import { McpClientManager } from './mcp-client-manager.js';
+import { A2AClientManager } from './a2a-client-manager.js';
 import { DiscoveredMCPTool } from './mcp-tool.js';
 import { parse } from 'shell-quote';
 import { safeJsonStringify } from '../utils/safeJsonStringify.js';
@@ -166,6 +167,7 @@ export class ToolRegistry {
   private tools: Map<string, AnyDeclarativeTool> = new Map();
   private config: Config;
   private mcpClientManager: McpClientManager;
+  private a2aClientManager: A2AClientManager
 
   constructor(config: Config) {
     this.config = config;
@@ -177,6 +179,7 @@ export class ToolRegistry {
       this.config.getDebugMode(),
       this.config.getWorkspaceContext(),
     );
+    this.a2aClientManager = new A2AClientManager();
   }
 
   /**
@@ -232,6 +235,8 @@ export class ToolRegistry {
 
     // discover tools using MCP servers, if configured
     await this.mcpClientManager.discoverAllMcpTools();
+
+    await this.a2aClientManager.initialize();
   }
 
   /**

@@ -690,6 +690,147 @@ describe('Settings Loading and Merging', () => {
       expect(settings.merged.mcpServers).toEqual({});
     });
 
+    it('should merge A2A agents correctly, with system taking precedence', () => {
+      (mockFsExistsSync as Mock).mockReturnValue(true);
+      const userSettingsContent = {
+        a2aAgents: {
+          'user-agent': {
+            url: 'http://user.agent',
+            accessToken: 'user-token',
+          },
+          'shared-agent': {
+            url: 'http://shared.agent.user',
+            accessToken: 'shared-token-user',
+          },
+        },
+      };
+      const workspaceSettingsContent = {
+        a2aAgents: {
+          'workspace-agent': {
+            url: 'http://workspace.agent',
+            accessToken: 'workspace-token',
+          },
+          'shared-agent': {
+            url: 'http://shared.agent.workspace',
+            accessToken: 'shared-token-workspace',
+          },
+        },
+      };
+      const systemSettingsContent = {
+        a2aAgents: {
+          'system-agent': {
+            url: 'http://system.agent',
+            accessToken: 'system-token',
+          },
+          'shared-agent': {
+            url: 'http://shared.agent.system',
+            accessToken: 'shared-token-system',
+          },
+        },
+      };
+
+      (fs.readFileSync as Mock).mockImplementation(
+        (p: fs.PathOrFileDescriptor) => {
+          if (p === USER_SETTINGS_PATH)
+            return JSON.stringify(userSettingsContent);
+          if (p === MOCK_WORKSPACE_SETTINGS_PATH)
+            return JSON.stringify(workspaceSettingsContent);
+          if (p === getSystemSettingsPath())
+            return JSON.stringify(systemSettingsContent);
+          return '';
+        },
+      );
+
+      const settings = loadSettings(MOCK_WORKSPACE_DIR);
+
+      expect(settings.user.settings).toEqual(userSettingsContent);
+      expect(settings.workspace.settings).toEqual(workspaceSettingsContent);
+      expect(settings.system.settings).toEqual(systemSettingsContent);
+      expect(settings.merged.a2aAgents).toEqual({
+        'user-agent': {
+          url: 'http://user.agent',
+          accessToken: 'user-token',
+        },
+        'workspace-agent': {
+          url: 'http://workspace.agent',
+          accessToken: 'workspace-token',
+        },
+        'system-agent': {
+          url: 'http://system.agent',
+          accessToken: 'system-token',
+        },
+        'shared-agent': {
+          url: 'http://shared.agent.system',
+          accessToken: 'shared-token-system',
+        },
+      });
+    });
+
+    it('should handle A2A agents when only in user settings', () => {
+      (mockFsExistsSync as Mock).mockImplementation(
+        (p: fs.PathLike) => p === USER_SETTINGS_PATH,
+      );
+      const userSettingsContent = {
+        a2aAgents: {
+          'user-only-agent': {
+            url: 'http://user.only.agent',
+            accessToken: 'user-only-token',
+          },
+        },
+      };
+      (fs.readFileSync as Mock).mockImplementation(
+        (p: fs.PathOrFileDescriptor) => {
+          if (p === USER_SETTINGS_PATH)
+            return JSON.stringify(userSettingsContent);
+          return '';
+        },
+      );
+
+      const settings = loadSettings(MOCK_WORKSPACE_DIR);
+      expect(settings.merged.a2aAgents).toEqual({
+        'user-only-agent': {
+          url: 'http://user.only.agent',
+          accessToken: 'user-only-token',
+        },
+      });
+    });
+
+    it('should handle A2A agents when only in workspace settings', () => {
+      (mockFsExistsSync as Mock).mockImplementation(
+        (p: fs.PathLike) => p === MOCK_WORKSPACE_SETTINGS_PATH,
+      );
+      const workspaceSettingsContent = {
+        a2aAgents: {
+          'workspace-only-agent': {
+            url: 'http://workspace.only.agent',
+            accessToken: 'workspace-only-token',
+          },
+        },
+      };
+      (fs.readFileSync as Mock).mockImplementation(
+        (p: fs.PathOrFileDescriptor) => {
+          if (p === MOCK_WORKSPACE_SETTINGS_PATH)
+            return JSON.stringify(workspaceSettingsContent);
+          return '';
+        },
+      );
+
+      const settings = loadSettings(MOCK_WORKSPACE_DIR);
+      expect(settings.merged.a2aAgents).toEqual({
+        'workspace-only-agent': {
+          url: 'http://workspace.only.agent',
+          accessToken: 'workspace-only-token',
+        },
+      });
+    });
+
+    it('should have a2aAgents as empty object if not in any settings file', () => {
+      (mockFsExistsSync as Mock).mockReturnValue(false); // No settings files exist
+      (fs.readFileSync as Mock).mockReturnValue('{}');
+      const settings = loadSettings(MOCK_WORKSPACE_DIR);
+      expect(settings.merged.a2aAgents).toEqual({});
+    });
+
     it('should merge chatCompression settings, with workspace taking precedence', () => {
       (mockFsExistsSync as Mock).mockReturnValue(true);
       const userSettingsContent = {
