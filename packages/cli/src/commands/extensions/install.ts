@@ -11,15 +11,10 @@ import { execSync } from 'child_process';
 import { URL } from 'url';
 import { SettingScope, loadSettings } from '../../config/settings.js';
 
-export enum Scope {
-  USER = 'user',
-  PROJECT = 'project',
-}
-
 interface InstallArgs {
   source?: string;
   path?: string;
-  scope?: Scope;
+  scope?: SettingScope;
 }
 
 async function directoryExists(path: string) {
@@ -47,9 +42,9 @@ async function fileExists(path: string) {
 }
 
 export async function handleInstall(args: InstallArgs) {
-  const { scope = Scope.USER } = args;
+  const { scope = SettingScope.User } = args;
 
-  if (scope !== Scope.USER && scope !== Scope.PROJECT) {
+  if (scope !== SettingScope.User && scope !== SettingScope.Workspace) {
     console.error(
       'Only user and project scopes are supported for installation.',
     );
@@ -124,13 +119,11 @@ export async function handleInstall(args: InstallArgs) {
   }
 
   const settings = loadSettings(process.cwd());
-  const settingScope =
-    scope === Scope.USER ? SettingScope.User : SettingScope.Workspace;
-  const settingsFile = settings.forScope(settingScope);
+  const settingsFile = settings.forScope(scope);
   const activatedExtensions = settingsFile.settings.activatedExtensions || [];
   if (!activatedExtensions.includes(extensionName)) {
     activatedExtensions.push(extensionName);
-    settings.setValue(settingScope, 'activatedExtensions', activatedExtensions);
+    settings.setValue(scope, 'activatedExtensions', activatedExtensions);
   }
 
   console.log(`Extension "${extensionName}" installed successfully.`);

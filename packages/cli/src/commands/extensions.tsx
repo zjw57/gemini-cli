@@ -5,7 +5,8 @@
  */
 
 import { CommandModule } from 'yargs';
-import { handleInstall, Scope } from './extensions/install.js';
+import { handleInstall } from './extensions/install.js';
+import { SettingScope } from '../config/settings.js';
 
 const installCommand: CommandModule = {
   command: 'install [source]',
@@ -21,10 +22,10 @@ const installCommand: CommandModule = {
         type: 'string',
       })
       .option('scope', {
-        describe: 'The scope to install the extension to.',
+        describe: 'The scope to activate the extension in.',
         type: 'string',
-        choices: [Scope.USER, Scope.PROJECT],
-        default: Scope.USER,
+        choices: [SettingScope.User, SettingScope.Workspace],
+        default: SettingScope.User,
       })
       .conflicts('source', 'path')
       .check((argv) => {
@@ -37,7 +38,7 @@ const installCommand: CommandModule = {
     await handleInstall({
       source: argv.source as string | undefined,
       path: argv.path as string | undefined,
-      scope: argv.scope as Scope | undefined,
+      scope: argv.scope as SettingScope | undefined,
     });
   },
 };
