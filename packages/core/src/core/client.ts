@@ -55,6 +55,13 @@ import {
 import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
 import { IdeContext, File } from '../ide/ideContext.js';
 
+import * as fs from 'fs';
+
+function writeToFile(raw_string: string) {
+  const filePath = 'output.json';
+  fs.writeFileSync(filePath, JSON.stringify(raw_string));
+}
+
 function isThinkingSupported(model: string) {
   if (model.startsWith('gemini-2.5')) return true;
   return false;
@@ -526,6 +533,31 @@ export class GeminiClient {
         // Don't continue with recursive call to prevent unwanted Flash execution
         return turn;
       }
+
+      writeToFile(JSON.stringify(this.getChat().getHistory()));
+
+      // TOOD: check for empty response and retry
+      let oldHistory = this.getChat().getHistory();
+      let newHistory = oldHistory.slice(0, oldHistory.length-1);
+      newHistory.push({
+        role: 'model',
+        parts: [{ text: '' }],
+      });
+      this.getChat().setHistory(newHistory);
+      // const history = this.getChat().getHistory();
+      // const lastMessage = history[history.length - 1];
+      // if (lastMessage?.parts?.length === 0) {
+      //   const nextRequest = [{ text: 'Please continue.' }];
+      //   // This recursive call's events will be yielded out, but the final
+      //   // turn object will be from the top-level call.
+      //   yield* this.sendMessageStream(
+      //     nextRequest,
+      //     signal,
+      //     prompt_id,
+      //     boundedTurns - 1,
+      //     initialModel,
+      //   );
+      // }
 
       if (this.config.getSkipNextSpeakerCheck()) {
         return turn;

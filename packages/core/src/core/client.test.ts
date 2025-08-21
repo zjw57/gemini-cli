@@ -210,6 +210,7 @@ describe('Gemini Client (client.ts)', () => {
       setFallbackMode: vi.fn(),
       getChatCompression: vi.fn().mockReturnValue(undefined),
       getSkipNextSpeakerCheck: vi.fn().mockReturnValue(false),
+      getMaxRetries: vi.fn().mockReturnValue(5),
     };
     const MockedConfig = vi.mocked(Config, true);
     MockedConfig.mockImplementation(
@@ -1174,6 +1175,50 @@ ${JSON.stringify(
       expect(events).toEqual([{ type: GeminiEventType.MaxSessionTurns }]);
       expect(mockTurnRunFn).toHaveBeenCalledTimes(MAX_SESSION_TURNS);
     });
+
+    // it('should retry when an empty response is received', async () => {
+    //   // Arrange
+    //   const MAX_RETRIES = 1;
+    //   vi.mocked(client['config'].getMaxRetries).mockReturnValue(MAX_RETRIES);
+
+    //   const mockStreamWithContent = (async function* () {
+    //     yield { type: 'content', value: 'Hello' };
+    //   })();
+
+    //   const mockEmptyStream = (async function* () {})();
+
+    //   mockTurnRunFn
+    //     .mockReturnValueOnce(mockEmptyStream)
+    //     .mockReturnValueOnce(mockStreamWithContent);
+
+    //   const mockChat: Partial<GeminiChat> = {
+    //     addHistory: vi.fn(),
+    //     getHistory: vi.fn().mockReturnValue([]),
+    //   };
+    //   client['chat'] = mockChat as GeminiChat;
+
+    //   const mockGenerator: Partial<ContentGenerator> = {
+    //     countTokens: vi.fn().mockResolvedValue({ totalTokens: 0 }),
+    //     generateContent: mockGenerateContentFn,
+    //   };
+    //   client['contentGenerator'] = mockGenerator as ContentGenerator;
+
+    //   // Act
+    //   const stream = client.sendMessageStream(
+    //     [{ text: 'Hi' }],
+    //     new AbortController().signal,
+    //     'prompt-id-1',
+    //   );
+
+    //   const events = [];
+    //   for await (const event of stream) {
+    //     events.push(event);
+    //   }
+
+    //   // Assert
+    //   expect(mockTurnRunFn).toHaveBeenCalledTimes(2);
+    //   expect(events).toEqual([{ type: 'content', value: 'Hello' }]);
+    // });
 
     it('should respect MAX_TURNS limit even when turns parameter is set to a large value', async () => {
       // This test verifies that the infinite loop protection works even when
