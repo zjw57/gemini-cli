@@ -22,7 +22,7 @@ const installCommand: CommandModule = {
         type: 'string',
       })
       .option('scope', {
-        describe: 'The scope to activate the extension in.',
+        describe: 'The scope to enable the extension in.',
         type: 'string',
         choices: [SettingScope.User, SettingScope.Workspace],
         default: SettingScope.User,

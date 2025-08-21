@@ -11,8 +11,12 @@ import * as path from 'path';
 import {
   EXTENSIONS_CONFIG_FILENAME,
   annotateActiveExtensions,
+  installExtension,
   loadExtensions,
 } from './extension.js';
+import { execSync } from 'child_process';
+import * as settings from './settings.js';
+import { LoadedSettings } from './settings.js';
 
 vi.mock('os', async (importOriginal) => {
   const os = await importOriginal<typeof import('os')>();
@@ -21,6 +25,22 @@ vi.mock('os', async (importOriginal) => {
     homedir: vi.fn(),
   };
 });
+
+vi.mock('child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('child_process')>();
+  return {
+    ...actual,
+    execSync: vi.fn(),
+  };
+});
+
+vi.mock('./settings.js', () => ({
+  loadSettings: vi.fn(),
+  SettingScope: {
+    User: 'user',
+    Workspace: 'workspace',
+  },
+}));
 
 const EXTENSIONS_DIRECTORY_NAME = path.join('.gemini', 'extensions');
 
@@ -160,6 +180,101 @@ describe('annotateActiveExtensions', () => {
     annotateActiveExtensions(extensions, ['ext4']);
     expect(consoleSpy).toHaveBeenCalledWith('Extension not found: ext4');
     consoleSpy.mockRestore();
+  });
+});
+
+describe('installExtension', () => {
+  let tempWorkspaceDir: string;
+  let tempHomeDir: string;
+  let userExtensionsDir: string;
+  const mockSettings = {
+    forScope: vi.fn(),
+    setValue: vi.fn(),
+  };
+  const mockSettingsFile = {
+    settings: {
+      activatedExtensions: [] as string[],
+    },
+  };
+
+  beforeEach(() => {
+    tempWorkspaceDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'gemini-cli-test-workspace-'),
+    );
+    tempHomeDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'gemini-cli-test-home-'),
+    );
+    vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
+    userExtensionsDir = path.join(tempHomeDir, '.gemini', 'extensions');
+
+    vi.mocked(settings.loadSettings).mockReturnValue(
+      mockSettings as unknown as LoadedSettings,
+    );
+    mockSettings.forScope.mockReturnValue(mockSettingsFile);
+    mockSettingsFile.settings.activatedExtensions = [];
+    vi.mocked(execSync).mockClear();
+    mockSettings.setValue.mockClear();
+    mockSettings.forScope.mockClear();
+  });
+
+  afterEach(() => {
+    fs.rmSync(tempWorkspaceDir, { recursive: true, force: true });
+    fs.rmSync(tempHomeDir, { recursive: true, force: true });
+  });
+
+  it('should install an extension from a local path', async () => {
+    const sourceExtDir = path.join(tempWorkspaceDir, 'my-local-extension');
+    fs.mkdirSync(sourceExtDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(sourceExtDir, EXTENSIONS_CONFIG_FILENAME),
+      JSON.stringify({ name: 'my-local-extension', version: '1.0.0' }),
+    );
+
+    await installExtension({ path: sourceExtDir });
+
+    const targetExtDir = path.join(userExtensionsDir, 'my-local-extension');
+    expect(fs.existsSync(targetExtDir)).toBe(true);
+    expect(
+      fs.existsSync(path.join(targetExtDir, EXTENSIONS_CONFIG_FILENAME)),
+    ).toBe(true);
+
+    expect(settings.loadSettings).toHaveBeenCalledWith(process.cwd());
+    expect(mockSettings.forScope).toHaveBeenCalledWith('user');
+    expect(mockSettings.setValue).toHaveBeenCalledWith(
+      'user',
+      'activatedExtensions',
+      ['my-local-extension'],
+    );
+  });
+
+  it('should throw an error if the extension already exists', async () => {
+    const sourceExtDir = path.join(tempWorkspaceDir, 'my-local-extension');
+    fs.mkdirSync(sourceExtDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(sourceExtDir, EXTENSIONS_CONFIG_FILENAME),
+      JSON.stringify({ name: 'my-local-extension', version: '1.0.0' }),
+    );
+
+    // "Install" it once by creating the directory
+    fs.mkdirSync(path.join(userExtensionsDir, 'my-local-extension'), {
+      recursive: true,
+    });
+
+    await expect(installExtension({ path: sourceExtDir })).rejects.toThrow(
+      'Extension "my-local-extension" already exists. Please uninstall it first.',
+    );
+  });
+
+  it('should throw an error and cleanup if gemini-extension.json is missing', async () => {
+    const sourceExtDir = path.join(tempWorkspaceDir, 'bad-extension');
+    fs.mkdirSync(sourceExtDir, { recursive: true }); // No manifest file
+
+    await expect(installExtension({ path: sourceExtDir })).rejects.toThrow(
+      'Installation failed: gemini-extension.json not found in the extension.',
+    );
+
+    const targetExtDir = path.join(userExtensionsDir, 'bad-extension');
+    expect(fs.existsSync(targetExtDir)).toBe(false);
   });
 });
 
