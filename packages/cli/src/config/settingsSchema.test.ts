@@ -39,6 +39,7 @@ describe('SettingsSchema', () => {
         'toolCallCommand',
         'mcpServerCommand',
         'mcpServers',
+        'a2aAgents',
         'allowMCPServers',
         'excludeMCPServers',
         'telemetry',
@@ -193,6 +194,7 @@ describe('SettingsSchema', () => {
       expect(SETTINGS_SCHEMA.selectedAuthType.showInDialog).toBe(false);
       expect(SETTINGS_SCHEMA.coreTools.showInDialog).toBe(false);
       expect(SETTINGS_SCHEMA.mcpServers.showInDialog).toBe(false);
+      expect(SETTINGS_SCHEMA.a2aAgents.showInDialog).toBe(false);
       expect(SETTINGS_SCHEMA.telemetry.showInDialog).toBe(false);
 
       // Check that some settings are appropriately hidden

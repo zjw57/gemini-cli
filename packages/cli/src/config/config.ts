@@ -379,6 +379,7 @@ export async function loadCliConfig(
   );
 
   let mcpServers = mergeMcpServers(settings, activeExtensions);
+  const a2aAgents = mergeA2aAgents(settings);
   const question = argv.promptInteractive || argv.prompt || '';
 
   // Determine approval mode with backward compatibility
@@ -482,6 +483,7 @@ export async function loadCliConfig(
     toolCallCommand: settings.toolCallCommand,
     mcpServerCommand: settings.mcpServerCommand,
     mcpServers,
+    a2aAgents,
     userMemory: memoryContent,
     geminiMdFileCount: fileCount,
     approvalMode,
@@ -595,6 +597,12 @@ function mergeMcpServers(settings: Settings, extensions: Extension[]) {
     );
   }
   return mcpServers;
+}
+
+function mergeA2aAgents(settings: Settings) {
+  const a2aAgents = { ...(settings.a2aAgents || {}) };
+  // Add functionality to merge agents from extensions, similar to mergeMcpServers
+  return a2aAgents;
 }
 
 function mergeExcludeTools(

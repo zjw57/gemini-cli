@@ -133,6 +133,11 @@ export class MCPServerConfig {
   ) {}
 }
 
+export interface A2AAgentConfig {
+  url: string;
+  accessToken: string; // Temporary, to help develop and prototype
+}
+
 export enum AuthProviderType {
   DYNAMIC_DISCOVERY = 'dynamic_discovery',
   GOOGLE_CREDENTIALS = 'google_credentials',
@@ -163,6 +168,7 @@ export interface ConfigParameters {
   toolCallCommand?: string;
   mcpServerCommand?: string;
   mcpServers?: Record<string, MCPServerConfig>;
+  a2aAgents?: Record<string, A2AAgentConfig>;
   userMemory?: string;
   geminiMdFileCount?: number;
   approvalMode?: ApprovalMode;
@@ -221,6 +227,7 @@ export class Config {
   private readonly toolCallCommand: string | undefined;
   private readonly mcpServerCommand: string | undefined;
   private readonly mcpServers: Record<string, MCPServerConfig> | undefined;
+  private readonly a2aAgents: Record<string, A2AAgentConfig> | undefined;
   private userMemory: string;
   private geminiMdFileCount: number;
   private approvalMode: ApprovalMode;
@@ -290,6 +297,7 @@ export class Config {
     this.toolCallCommand = params.toolCallCommand;
     this.mcpServerCommand = params.mcpServerCommand;
     this.mcpServers = params.mcpServers;
+    this.a2aAgents = params.a2aAgents;
     this.userMemory = params.userMemory ?? '';
     this.geminiMdFileCount = params.geminiMdFileCount ?? 0;
     this.approvalMode = params.approvalMode ?? ApprovalMode.DEFAULT;
@@ -526,6 +534,10 @@ export class Config {
 
   getMcpServers(): Record<string, MCPServerConfig> | undefined {
     return this.mcpServers;
+  }
+
+  getA2AAgents(): Record<string, A2AAgentConfig> | undefined {
+    return this.a2aAgents;
   }
 
   getUserMemory(): string {
