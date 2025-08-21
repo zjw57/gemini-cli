@@ -70,6 +70,14 @@ const DISALLOWED_IDE_TOOLS = new Set([
 ]);
 
 /**
+ * Patterns for tool names to disallow from the IDE companion MCP server.
+ */
+const DISALLOWED_IDE_TOOL_PATTERNS = [
+  // Ignore all copilot related tools
+  new RegExp('^copilot.*'),
+];
+
+/**
  * Manages the connection to and interaction with the IDE server.
  */
 export class IdeClient {
@@ -234,7 +242,12 @@ export class IdeClient {
             continue;
           }
 
-          if (DISALLOWED_IDE_TOOLS.has(funcDecl.name)) {
+          if (
+            DISALLOWED_IDE_TOOLS.has(funcDecl.name) ||
+            DISALLOWED_IDE_TOOL_PATTERNS.some((pattern) =>
+              pattern.test(funcDecl.name!),
+            )
+          ) {
             continue;
           }
 
