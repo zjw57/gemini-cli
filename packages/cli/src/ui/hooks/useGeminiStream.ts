@@ -27,7 +27,12 @@ import {
   DEFAULT_GEMINI_FLASH_MODEL,
   parseAndFormatApiError,
 } from '@google/gemini-cli-core';
-import { type Part, type PartListUnion, FinishReason } from '@google/genai';
+import {
+  type Part,
+  type PartListUnion,
+  FinishReason,
+  Content,
+} from '@google/genai';
 import {
   StreamingState,
   HistoryItem,
@@ -66,6 +71,21 @@ export function mergePartListUnions(list: PartListUnion[]): PartListUnion {
     }
   }
   return resultParts;
+}
+// TODO: this is duplicated
+function isValidContent(content: Content): boolean {
+  if (content.parts === undefined || content.parts.length === 0) {
+    return false;
+  }
+  for (const part of content.parts) {
+    if (part === undefined || Object.keys(part).length === 0) {
+      return false;
+    }
+    if (!part.thought && part.text !== undefined && part.text === '') {
+      return false;
+    }
+  }
+  return true;
 }
 
 enum StreamProcessingStatus {
@@ -558,8 +578,11 @@ export const useGeminiStream = (
     ): Promise<{
       status: StreamProcessingStatus;
       geminiMessageBuffer: string;
-    }> => { // CHANGE 1: Updated return type
+      isResponseInvalid: boolean;
+    }> => {
+      // CHANGE 1: Updated return type
       let geminiMessageBuffer = '';
+      let isResponseInvalid = false;
       const toolCallRequests: ToolCallRequestInfo[] = [];
       for await (const event of stream) {
         switch (event.type) {
@@ -567,6 +590,12 @@ export const useGeminiStream = (
             setThought(event.value);
             break;
           case ServerGeminiEventType.Content:
+            if (
+              !isValidContent({ role: 'model', parts: [{ text: event.value }] })
+            ) {
+              isResponseInvalid = true;
+            }
+
             geminiMessageBuffer = handleContentEvent(
               event.value,
               geminiMessageBuffer,
@@ -582,6 +611,7 @@ export const useGeminiStream = (
             return {
               status: StreamProcessingStatus.UserCancelled,
               geminiMessageBuffer: '',
+              isResponseInvalid: false
             };
           case ServerGeminiEventType.Error:
             handleErrorEvent(event.value, userMessageTimestamp);
@@ -589,17 +619,18 @@ export const useGeminiStream = (
             return {
               status: StreamProcessingStatus.Error,
               geminiMessageBuffer: '',
+              isResponseInvalid: false
             };
-            case ServerGeminiEventType.ChatCompressed:
-              handleChatCompressionEvent(event.value);
-              break;
-            case ServerGeminiEventType.ToolCallConfirmation:
-            case ServerGeminiEventType.ToolCallResponse:
-              // do nothing
-              break;
-            case ServerGeminiEventType.MaxSessionTurns:
-              handleMaxSessionTurnsEvent();
-              break;
+          case ServerGeminiEventType.ChatCompressed:
+            handleChatCompressionEvent(event.value);
+            break;
+          case ServerGeminiEventType.ToolCallConfirmation:
+          case ServerGeminiEventType.ToolCallResponse:
+            // do nothing
+            break;
+          case ServerGeminiEventType.MaxSessionTurns:
+            handleMaxSessionTurnsEvent();
+            break;
           case ServerGeminiEventType.Finished:
             handleFinishedEvent(
               event as ServerGeminiFinishedEvent,
@@ -622,7 +653,7 @@ export const useGeminiStream = (
         scheduleToolCalls(toolCallRequests, signal);
       }
       // CHANGE 4: Return the status and the final assembled buffer
-      return { status: StreamProcessingStatus.Completed, geminiMessageBuffer };
+      return { status: StreamProcessingStatus.Completed, geminiMessageBuffer, isResponseInvalid: isResponseInvalid };
     },
     [
       handleContentEvent,
@@ -694,11 +725,12 @@ export const useGeminiStream = (
             prompt_id!,
           );
 
-          const { geminiMessageBuffer, status } = await processGeminiStreamEvents(
-            stream,
-            userMessageTimestamp,
-            abortSignal,
-          );
+          const { geminiMessageBuffer, status } =
+            await processGeminiStreamEvents(
+              stream,
+              userMessageTimestamp,
+              abortSignal,
+            );
 
           // If the stream was cancelled by the user, stop immediately.
           if (status === StreamProcessingStatus.UserCancelled) {
@@ -718,7 +750,7 @@ export const useGeminiStream = (
             lastError = new Error('Model returned an empty response.');
             if (attempt < MAX_RETRIES) {
               // If we have retries left, wait and try again.
-              await new Promise(res => setTimeout(res, 500 * (attempt + 1)));
+              await new Promise((res) => setTimeout(res, 500 * (attempt + 1)));
               continue; // Go to the next iteration of the loop.
             }
           }
@@ -732,7 +764,7 @@ export const useGeminiStream = (
             return; // Don't retry if the user cancelled.
           }
           if (attempt < MAX_RETRIES) {
-            await new Promise(res => setTimeout(res, 500 * (attempt + 1)));
+            await new Promise((res) => setTimeout(res, 500 * (attempt + 1)));
             continue;
           }
         }
@@ -741,18 +773,18 @@ export const useGeminiStream = (
 
       // After the loop, if there's still an error, display it.
       if (lastError) {
-         if (pendingHistoryItemRef.current) {
-            addItem(pendingHistoryItemRef.current, userMessageTimestamp);
-         }
-         addItem(
-           {
-             type: MessageType.ERROR,
-             text: `The model failed to respond after multiple attempts. Error: ${getErrorMessage(lastError)}`,
-           },
-           userMessageTimestamp,
-         );
+        if (pendingHistoryItemRef.current) {
+          addItem(pendingHistoryItemRef.current, userMessageTimestamp);
+        }
+        addItem(
+          {
+            type: MessageType.ERROR,
+            text: `The model failed to respond after multiple attempts. Error: ${getErrorMessage(lastError)}`,
+          },
+          userMessageTimestamp,
+        );
       }
-      
+
       // Cleanup regardless of outcome
       setPendingHistoryItem(null);
       if (loopDetectedRef.current) {
@@ -760,7 +792,6 @@ export const useGeminiStream = (
         handleLoopDetectedEvent();
       }
       setIsResponding(false);
-
     },
     [
       streamingState,
