@@ -231,11 +231,6 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
             // Handle comma-separated values
             dirs.flatMap((dir) => dir.split(',').map((d) => d.trim())),
         })
-        .option('extension-management', {
-          type: 'boolean',
-          description: 'Enable extension management features.',
-          default: false,
-        })
 
         .check((argv) => {
           if (argv.prompt && argv['promptInteractive']) {
