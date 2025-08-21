@@ -205,7 +205,6 @@ export interface ConfigParameters {
   useRipgrep?: boolean;
   shouldUseNodePtyShell?: boolean;
   skipNextSpeakerCheck?: boolean;
-  enablePromptCompletion?: boolean;
   useSmartEdit?: boolean;
 }
 
