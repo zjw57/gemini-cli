@@ -32,7 +32,8 @@ import {
   GeminiClient,
   GeminiEventType as ServerGeminiEventType,
   AnyToolInvocation,
-  ToolErrorType, // <-- Import ToolErrorType
+  UserPromptEvent,
+  ToolErrorType, // FIX: Import ToolErrorType
 } from '@google/gemini-cli-core';
 import { Part, PartListUnion } from '@google/genai';
 import { UseHistoryManagerReturn } from './useHistoryManager.js';
