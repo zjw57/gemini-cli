@@ -34,11 +34,10 @@ vi.mock('node:os', async (importOriginal) => {
 
 const registerToolsSpy = vi.hoisted(() => vi.fn());
 const mockLanguageModelTools = vi.hoisted(() => ({
-    LanguageModelTools: vi.fn().mockImplementation(() => ({
-      registerTools: registerToolsSpy,
-    })),
-  })
-);
+  LanguageModelTools: vi.fn().mockImplementation(() => ({
+    registerTools: registerToolsSpy,
+  })),
+}));
 
 vi.mock('./lm-tools.js', () => mockLanguageModelTools);
 
@@ -303,7 +302,9 @@ describe('IDEServer', () => {
   it('registers the VsCode lm tools when creating the MCP server', async () => {
     const server = createMcpServer(mocks.diffManager, mockLog);
 
-    expect(mockLanguageModelTools.LanguageModelTools).toHaveBeenCalledWith(mockLog);
+    expect(mockLanguageModelTools.LanguageModelTools).toHaveBeenCalledWith(
+      mockLog,
+    );
     expect(registerToolsSpy).toHaveBeenCalledWith(server);
   });
 });

@@ -35,6 +35,7 @@ export class LanguageModelTools {
             inputSchema: tool.inputSchema
               ? // We can't cast directly to the Schema type or reference it
                 // because it is private, `any` is the only option here.
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (jsonSchemaObjectToZodRawShape(tool.inputSchema as any) as any)
               : undefined,
           },

@@ -8,7 +8,6 @@ import { vi, describe, it, expect, beforeEach, Mock } from 'vitest';
 import * as vscode from 'vscode';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { LanguageModelTools } from './lm-tools.js';
-import { any } from 'micromatch';
 
 vi.mock('vscode', () => ({
   window: {
@@ -52,7 +51,9 @@ describe('LanguageModelTools', () => {
         },
       },
     ];
-    vi.spyOn(vscode.lm, 'tools', 'get').mockReturnValue(mockTools as any);
+    vi.spyOn(vscode.lm, 'tools', 'get').mockReturnValue(
+      mockTools as vscode.LanguageModelToolInformation[],
+    );
 
     await lmTools.registerTools(server);
 
@@ -88,10 +89,12 @@ describe('LanguageModelTools', () => {
         },
       },
     ];
-    vi.spyOn(vscode.lm, 'tools', 'get').mockReturnValue(mockTools as any);
-    const invokeToolSpy = vi
-      .mocked(vscode.lm.invokeTool)
-      .mockResolvedValue({ content: [ { value: 'result' } as any] });
+    vi.spyOn(vscode.lm, 'tools', 'get').mockReturnValue(
+      mockTools as vscode.LanguageModelToolInformation[],
+    );
+    const invokeToolSpy = vi.mocked(vscode.lm.invokeTool).mockResolvedValue({
+      content: [{ value: 'result' } as vscode.LanguageModelTextPart],
+    });
 
     await lmTools.registerTools(server);
 
