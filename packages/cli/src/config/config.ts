@@ -555,7 +555,8 @@ export async function loadCliConfig(
     trustedFolder,
     shouldUseNodePtyShell: settings.shouldUseNodePtyShell,
     skipNextSpeakerCheck: settings.skipNextSpeakerCheck,
-    extensionManagement: argv.extensionManagement,
+    extensionManagement: settings.extensionManagement,
+    enablePromptCompletion: settings.enablePromptCompletion ?? false,
   });
 }
 
