@@ -371,15 +371,6 @@ export const SETTINGS_SCHEMA = {
     description: 'Configuration for MCP servers.',
     showInDialog: false,
   },
-  a2aAgents: {
-    type: 'object',
-    label: 'A2A Agents',
-    category: 'Advanced',
-    requiresRestart: true,
-    default: {} as Record<string, A2AAgentConfig>,
-    description: 'Configuration for A2A agents.',
-    showInDialog: false,
-  },
   allowMCPServers: {
     type: 'array',
     label: 'Allow MCP Servers',
@@ -396,6 +387,15 @@ export const SETTINGS_SCHEMA = {
     requiresRestart: true,
     default: undefined as string[] | undefined,
     description: 'A blacklist of MCP servers to exclude.',
+    showInDialog: false,
+  },
+  a2aAgents: {
+    type: 'object',
+    label: 'A2A Agents',
+    category: 'Advanced',
+    requiresRestart: true,
+    default: {} as Record<string, A2AAgentConfig>,
+    description: 'Configuration for A2A agents.',
     showInDialog: false,
   },
   telemetry: {

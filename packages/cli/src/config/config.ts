@@ -601,8 +601,7 @@ function mergeMcpServers(settings: Settings, extensions: Extension[]) {
 
 function mergeA2aAgents(settings: Settings) {
   const a2aAgents = { ...(settings.a2aAgents || {}) };
-  // In the future, we might add logic here to merge agents from extensions,
-  // similar to mergeMcpServers.
+  // Add functionality to merge agents from extensions, similar to mergeMcpServers
   return a2aAgents;
 }
 
