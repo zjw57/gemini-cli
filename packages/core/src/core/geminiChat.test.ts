@@ -123,6 +123,27 @@ describe('GeminiChat', () => {
         'prompt-id-1',
       );
     });
+
+    it('should not yield chunks for invalid stream responses', async () => {
+      const response = (async function* () {
+        // Yield an empty object, which is an invalid response
+        yield { candidates: [{ content: { parts: [{ text: "" }] } }] } as unknown as GenerateContentResponse;
+      })();
+      vi.mocked(mockModelsModule.generateContentStream).mockResolvedValue(
+        response,
+      );
+
+      const stream = await chat.sendMessageStream(
+        { message: 'hello' },
+        'prompt-id-1',
+      );
+      const chunks = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks.length).toBe(0);
+    });
   });
 
   describe('recordHistory', () => {
