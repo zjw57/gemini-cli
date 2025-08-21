@@ -4,18 +4,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { LSTool } from '../tools/ls.js';
-import { EditTool } from '../tools/edit.js';
-import { GlobTool } from '../tools/glob.js';
-import { GrepTool } from '../tools/grep.js';
-import { ReadFileTool } from '../tools/read-file.js';
-import { ReadManyFilesTool } from '../tools/read-many-files.js';
-import { ShellTool } from '../tools/shell.js';
-import { WriteFileTool } from '../tools/write-file.js';
-import { MemoryTool } from '../tools/memoryTool.js';
-import { BaseTool, Icon, ToolResult } from './tools.js';
-import { Type } from '@google/genai';
-import { Config } from '../config/config.js';
+import {
+  BaseDeclarativeTool,
+  BaseToolInvocation,
+  Kind,
+  ToolInvocation,
+  ToolResult,
+} from './tools.js';
+import { LSTool } from './ls.js';
+import { EditTool } from './edit.js';
+import { GlobTool } from './glob.js';
+import { GrepTool } from './grep.js';
+import { ReadFileTool } from './read-file.js';
+import { ReadManyFilesTool } from './read-many-files.js';
+import { ShellTool } from './shell.js';
+import { WriteFileTool } from './write-file.js';
+import { MemoryTool } from './memoryTool.js';
 
 // Define the order in which tools should be presented in the prompt.
 // We only list the primary tool for grouped entries.
@@ -38,20 +42,52 @@ export interface GetToolInfoParams {
   tool_name: string;
 }
 
-export class GetToolInfoTool extends BaseTool<GetToolInfoParams, ToolResult> {
+class GetToolInfoToolInvocation extends BaseToolInvocation<
+  GetToolInfoParams,
+  ToolResult
+> {
+  constructor(params: GetToolInfoParams) {
+    super(params);
+  }
+
+  getDescription(): string {
+    return `Get information about the ${this.params.tool_name} tool.`;
+  }
+
+  async execute(
+    _signal: AbortSignal,
+    _updateOutput?: (output: string) => void,
+  ): Promise<ToolResult> {
+    const toolName = this.params.tool_name;
+    const content =
+      TOOL_INFO[toolName] ||
+      `Error: Documentation not found for tool "${toolName}". Please ensure the tool name is correct.`;
+    return {
+      llmContent: [{ text: content }],
+      returnDisplay: '',
+      summary: `Displayed documentation for ${toolName}`,
+    };
+  }
+}
+
+export class GetToolInfoTool extends BaseDeclarativeTool<
+  GetToolInfoParams,
+  ToolResult
+> {
   static Name: string = 'get_tool_info';
 
-  constructor(private readonly config: Config) {
+  // Renamed config to _config to satisfy unused variable lint rules
+  constructor() {
     super(
       GetToolInfoTool.Name,
       'Get Tool Info',
       'Provides detailed documentation for a given tool.',
-      Icon.FileSearch,
+      Kind.Search,
       {
-        type: Type.OBJECT,
+        type: 'object',
         properties: {
           tool_name: {
-            type: Type.STRING,
+            type: 'string',
             description: 'The name of the tool to get information about.',
           },
         },
@@ -62,34 +98,10 @@ export class GetToolInfoTool extends BaseTool<GetToolInfoParams, ToolResult> {
     );
   }
 
-  getDescription(): string {
-    const description = `${this.description}`;
-    return description;
-  }
-
-  validateToolParams(): string | null {
-    return null;
-  }
-
-  async shouldConfirmExecute(
-    _params: GetToolInfoParams,
-    _abortSignal: AbortSignal,
-  ): Promise<false> {
-    return false;
-  }
-
-  async execute(
+  protected createInvocation(
     params: GetToolInfoParams,
-    _signal: AbortSignal,
-    _updateOutput?: (output: string) => void,
-  ): Promise<ToolResult> {
-    const toolName = params.tool_name;
-    const content = TOOL_INFO[toolName] || `Error: Documentation not found for tool "${toolName}". Please ensure the tool name is correct.`;
-    return {
-      llmContent: [{ text: content }],
-      returnDisplay: '',
-      summary: `Displayed documentation for ${toolName}`,
-    };
+  ): ToolInvocation<GetToolInfoParams, ToolResult> {
+    return new GetToolInfoToolInvocation(params);
   }
 }
 
@@ -105,7 +117,11 @@ const TOOL_INFO: Record<string, string> = {
 Use this tool to explore the immediate contents of a specific directory. It returns a list of files and subdirectories within the given path.
 
 ## Parameters
-- \`path\` (string, required): The absolute path of the directory to list.
+- \`path\` (string, required): The absolute path to the directory to list (must be absolute, not relative).
+- \`ignore\` (array of strings, optional): List of glob patterns to ignore.
+- \`file_filtering_options\` (object, optional): Optional: Whether to respect ignore patterns from .gitignore or .geminiignore.
+    - \`respect_git_ignore\` (boolean, optional): Optional: Whether to respect .gitignore patterns when listing files. Only available in git repositories. Defaults to true.
+    - \`respect_gemini_ignore\` (boolean, optional): Optional: Whether to respect .geminiignore patterns when listing files. Defaults to true.
 
 ## Guidelines
 - **Absolute Paths MANDATORY:** You MUST provide an absolute path. Relative paths (like '.') will fail.
@@ -132,7 +148,10 @@ I need the absolute path for src/utils.
 Use this tool to search for files matching specific patterns (globs) starting from the project root directory. This is crucial for discovering file locations, understanding project structure, and finding related files.
 
 ## Parameters
-- \`pattern\` (string, required): The glob pattern to search for, relative to the project root.
+- \`pattern\` (string, required): The glob pattern to match against (e.g., '**/*.py', 'docs/*.md').
+- \`path\` (string, optional): The absolute path to the directory to search within. If omitted, searches the root directory.
+- \`case_sensitive\` (boolean, optional): Whether the search should be case-sensitive. Defaults to false.
+- \`respect_git_ignore\` (boolean, optional): Whether to respect .gitignore patterns when finding files. Only available in git repositories. Defaults to true.
 
 ## Guidelines
 - **Relative to Root:** The pattern is applied relative to the project's root directory. You do not need the full absolute path here, just the pattern within the project.
@@ -168,10 +187,12 @@ I will look for common test file patterns related to 'auth'.
 # Tool: ${GrepTool.Name} (Search File Contents)
 
 ## Description
-Use this tool to perform a project-wide search within the contents of all files for specific text patterns or regular expressions.
+Searches for a regular expression pattern within the content of files in a specified directory (or current working directory). Can filter files by a glob pattern. Returns the lines containing matches, along with their file paths and line numbers.
 
 ## Parameters
-- \`pattern\` (string, required): The text pattern or regular expression to search for.
+- \`pattern\` (string, required): The regular expression (regex) pattern to search for within file contents (e.g., 'function\s+myFunction', 'import\s+\{.*\}\s+from\s+.*').
+- \`path\` (string, optional): The absolute path to the directory to search within. If omitted, searches the current working directory.
+- \`include\` (string, optional): A glob pattern to filter which files are searched (e.g., '*.js', '*.{ts,tsx}', 'src/**'). If omitted, searches all files (respecting potential global ignores).
 
 ## Guidelines
 - **Scope:** This tool searches the entire project directory.
@@ -196,7 +217,7 @@ I will search for common terms related to database configuration using a combine
 user: Find all imports of the 'lodash' library.
 model:
 I will search for import/require statements involving 'lodash' using regex.
-[tool_call: ${GrepTool.Name} for pattern "(import.*from 'lodash'|require\\('lodash'\\))"]
+[tool_call: ${GrepTool.Name} for pattern "(import.*from 'lodash'|require\('lodash'\))"]
 </example>
 `.trim(),
 
@@ -204,10 +225,12 @@ I will search for import/require statements involving 'lodash' using regex.
 # Tool: ${ReadFileTool.Name} (Read File Content)
 
 ## Description
-Reads the full content of a single specified file.
+Reads and returns the content of a specified file. If the file is large, the content will be truncated. The tool's response will clearly indicate if truncation has occurred and will provide details on how to read more of the file using the 'offset' and 'limit' parameters. Handles text, images (PNG, JPG, GIF, WEBP, SVG, BMP), and PDF files. For text files, it can read specific line ranges.
 
 ## Parameters
-- \`absolute_path\` (string, required): The absolute path of the file to read.
+- \`absolute_path\` (string, required): The absolute path to the file to read (e.g., '/home/user/project/file.txt'). Relative paths are not supported. You must provide an absolute path.
+- \`offset\` (number, optional): Optional: For text files, the 0-based line number to start reading from. Requires 'limit' to be set. Use for paginating through large files.
+- \`limit\` (number, optional): Optional: For text files, maximum number of lines to read. Use with 'offset' to paginate through large files. If omitted, reads the entire file (if feasible, up to a default limit).
 
 ## Guidelines
 - **Absolute Paths MANDATORY:** You MUST provide the full absolute path.
@@ -234,72 +257,100 @@ Before I can refactor, I must first read the file to understand its contents, st
 # Tool: ${ReadManyFilesTool.Name} (Read Multiple Files Content)
 
 ## Description
-Reads the full content of multiple specified files in a single operation.
+Reads content from multiple files specified by paths or glob patterns within a configured target directory. For text files, it concatenates their content into a single string. It is primarily designed for text-based files. However, it can also process image (e.g., .png, .jpg) and PDF (.pdf) files if their file names or extensions are explicitly included in the 'paths' argument. For these explicitly requested non-text files, their data is read and included in a format suitable for model consumption (e.g., base64 encoded).
+
+This tool is useful when you need to understand or analyze a collection of files, such as:
+- Getting an overview of a codebase or parts of it (e.g., all TypeScript files in the 'src' directory).
+- Finding where specific functionality is implemented if the user asks broad questions about code.
+- Reviewing documentation files (e.g., all Markdown files in the 'docs' directory).
+- Gathering context from multiple configuration files.
+- When the user asks to "read all files in X directory" or "show me the content of all Y files".
+
+Use this tool when the user's query implies needing the content of several files simultaneously for context, analysis, or summarization. For text files, it uses default UTF-8 encoding and a '--- {filePath} ---' separator between file contents. Ensure paths are relative to the target directory. Glob patterns like 'src/**/*.js' are supported. Avoid using for single files if a more specific single-file reading tool is available, unless the user specifically requests to process a list containing just one file via this tool. Other binary files (not explicitly requested as image/PDF) are generally skipped. Default excludes apply to common non-text files (except for explicitly requested images/PDFs) and large dependency directories unless 'useDefaultExcludes' is false.
 
 ## Parameters
-- \`absolute_paths\` (array of strings, required): An array of absolute paths of the files to read.
+- \`paths\` (array of strings, required): Required. An array of glob patterns or paths relative to the tool's target directory. Examples: ['src/**/*.ts'], ['README.md', 'docs/'].
+- \`include\` (array of strings, optional): Optional. Additional glob patterns to include. These are merged with \`paths\`. Example: "*.test.ts" to specifically add test files if they were broadly excluded.
+- \`exclude\` (array of strings, optional): Optional. Glob patterns for files/directories to exclude. Added to default excludes if useDefaultExcludes is true. Example: "**/*.log", "temp/".
+- \`recursive\` (boolean, optional): Optional. Whether to search recursively (primarily controlled by \`**\` in glob patterns). Defaults to true.
+- \`useDefaultExcludes\` (boolean, optional): Optional. Whether to apply a list of default exclusion patterns (e.g., node_modules, .git, binary files). Defaults to true.
+- \`file_filtering_options\` (object, optional): Whether to respect ignore patterns from .gitignore or .geminiignore.
+    - \`respect_git_ignore\` (boolean, optional): Optional: Whether to respect .gitignore patterns when listing files. Only available in git repositories. Defaults to true.
+    - \`respect_gemini_ignore\` (boolean, optional): Optional: Whether to respect .geminiignore patterns when listing files. Defaults to true.
 
 ## Guidelines
-- **Absolute Paths MANDATORY:** All paths in the array MUST be absolute paths.
+- **Relative Paths:** All paths and patterns are relative to the project's root directory.
 - **Contextual Understanding:** This is the preferred method when you need to understand how multiple files interact (e.g., a component and its stylesheet, an implementation file and its test file).
 - **Verify Before Modifying (CRUCIAL):** As with '${ReadFileTool.Name}', you must read files before attempting to modify them.
 
 ## Examples
 <example>
-user: Analyze the implementation of UserProfile.tsx and its test file.
+user: Analyze the implementation of all typescript files in the src directory.
 model:
-I will read both the implementation and the test file simultaneously to understand the context.
-[tool_call: ${ReadManyFilesTool.Name} for absolute_paths ['/path/to/src/UserProfile.tsx', '/path/to/tests/UserProfile.test.tsx']]
+I will read all the typescript files in the src directory.
+[tool_call: ${ReadManyFilesTool.Name} for paths ['src/**/*.ts']]
 </example>
 <example>
-user: I need to update the API service and its configuration.
+user: I need to read the main readme and all markdown files in the docs directory.
 model:
-I will read the service file and the configuration file together.
-[tool_call: ${ReadManyFilesTool.Name} for absolute_paths ['/path/to/src/services/api.js', '/path/to/config/settings.json']]
+I will read the README.md and all markdown files in docs.
+[tool_call: ${ReadManyFilesTool.Name} for paths ['README.md', 'docs/**/*.md']]
 </example>
 `.trim(),
 
-  [EditTool.Name]: `
-# Tool: ${EditTool.Name} (Edit Section of a File by Line Numbers)
+ [EditTool.Name]: `
+# Tool: ${EditTool.Name} (Find and Replace Text in a File)
 
 ## Description
-Modifies a specific, contiguous block of lines within an existing file. This is the primary tool for refactoring and updating code.
+Replaces an exact block of text within a specified file. This is the primary tool for refactoring and updating code.
 
 ## Parameters
-- \`absolute_path\` (string, required): The absolute path of the file to edit.
-- \`start_line\` (number, required): The starting line number (1-indexed, inclusive) of the operation.
-- \`end_line\` (number, required): The ending line number (1-indexed, inclusive) of the section to replace.
-- \`new_content\` (string, required): The new content to insert.
+- \`file_path\` (string, required): The absolute path to the file to modify.
+- \`old_string\` (string, required): The exact literal text to replace.
+- \`new_string\` (string, required): The exact literal text to replace \`old_string\` with.
+- \`expected_replacements\` (number, optional): Number of replacements expected. Defaults to 1. Use when you want to replace multiple occurrences.
 
 ## Guidelines
-- **Absolute Paths MANDATORY.**
-- **Read First (CRITICAL):** You MUST read the file immediately before using this tool to ensure the line numbers are accurate and that you understand the code conventions.
-- **JSON Escaping (CRITICAL):** The \`new_content\` parameter is a string within a JSON object. It MUST be properly escaped. Newlines must be \`\\n\`, tabs \`\\t\`, double quotes \`\\"\`, and backslashes \`\\\\\`. Failure to escape correctly will result in a failed tool call or corrupted file content.
-- **Adherence to Style:** Ensure \`new_content\` strictly mimics the style, formatting, and structure of the surrounding code.
-- **Line Indexing:** Line numbers are 1-indexed.
+- **Workflow (CRITICAL):** You MUST follow this sequence before editing:
+    1.  **Find Absolute Path:** Use the \`GlobTool\` to find the absolute path of the file.
+    2.  **Read File:** Use the \`ReadFileTool\` to read the file. This is mandatory for constructing the exact, multi-line \`old_string\`.
+    3.  **Edit File:** Only after completing the steps above should you use this tool to modify the file.
+- **Exact Matches Only (CRITICAL):** The \`old_string\` parameter must be an **exact, character-for-character match** of the content in the file, including all indentation, whitespace, and newlines (\`\n\`).
+- **JSON Escaping (CRITICAL):** Both \`old_string\` and \`new_string\` are strings within a JSON object. They MUST be properly escaped. Newlines must be \`\n\`, tabs \`\t\`, double quotes \`\\"\`, and backslashes \`\\\\\`.
+- **Adherence to Style:** Ensure \`new_string\` strictly mimics the style, formatting, and structure of the surrounding code.
 
 - **Operational Modes:**
-    - **Replacing Lines:** Set \`start_line\` and \`end_line\` to the range you want to replace (e.g., start=10, end=15). The entire range is removed and replaced by \`new_content\`.
-    - **Inserting Lines:** To insert code without deleting existing lines, set \`end_line\` to be \`start_line\` - 1. (e.g., To insert at line 10, use start=10, end=9).
-    - **Deleting Lines:** Provide an empty string for \`new_content\` and set the range to delete (e.g., start=10, end=15, content='').
+    - **Replacing Text:** Provide the \`old_string\` and the \`new_string\`.
+    - **Inserting Text:** To insert, you must provide an adjacent line or block of text as the \`old_string\` and replace it with a \`new_string\` that contains the original text *plus* the text you want to insert.
+    - **Deleting Text:** Provide the \`old_string\` and an empty string (\`""\`) for \`new_string\`.
 
 ## Examples
 <example>
-Scenario: Replacing a function (lines 10-12). Note the required JSON escaping (\\\\n).
-Model Call:
-[tool_call: ${EditTool.Name} for absolute_path '/path/to/project/src/finance.js', start_line 10, end_line 12, new_content 'function calculateTax(amount) {\\n  const rate = 0.08;\\n  return amount * rate;\\n}']
+**Scenario: Modifying a block of text.**
+**Task:** Add \`model: mockModel\` to the scheduler config.
+**Model Calls:**
+[tool_call: ${GlobTool.Name} for pattern '**/coreToolScheduler.test.ts']
+[tool_call: ${ReadFileTool.Name} for absolute_path '/home/user/project/coreToolScheduler.test.ts']
+[tool_call: ${EditTool.Name} for file_path '/home/user/project/coreToolScheduler.test.ts', old_string "const scheduler = new CoreToolScheduler({\n    config: mockConfig,\n  });", new_string "const scheduler = new CoreToolScheduler({\n    config: mockConfig,\n    model: mockModel\n  });"]
 </example>
 
+---
 <example>
-Scenario: Inserting an import at line 2 (without deleting line 2). Use end_line = start_line - 1.
-Model Call:
-[tool_call: ${EditTool.Name} for absolute_path '/path/to/project/src/component.js', start_line 2, end_line 1, new_content "import { useState } from 'react';\\n"]
+**Scenario: Inserting an import statement.**
+**Model's Thought Process:** To insert, I will target the existing import line as my \`old_string\`, and my \`new_string\` will be that same line plus the new import on a new line.
+**Model Calls:**
+[tool_call: ${GlobTool.Name} for pattern '**/src/component.js']
+[tool_call: ${ReadFileTool.Name} for absolute_path '/home/user/project/src/component.js']
+[tool_call: ${EditTool.Name} for file_path '/home/user/project/src/component.js', old_string "import React from 'react';", new_string "import React from 'react';\nimport { useState } from 'react';"]
 </example>
 
+---
 <example>
-Scenario: Deleting lines (lines 5-7). Use empty new_content.
-Model Call:
-[tool_call: ${EditTool.Name} for absolute_path '/path/to/project/utils.py', start_line 5, end_line 7, new_content '']
+**Scenario: Deleting a function.**
+**Model Calls:**
+[tool_call: ${GlobTool.Name} for pattern '**/utils.py']
+[tool_call: ${ReadFileTool.Name} for absolute_path '/home/user/project/utils.py']
+[tool_call: ${EditTool.Name} for file_path '/home/user/project/utils.py', old_string "def old_function():\n    pass\n", new_string ""]
 </example>
 `.trim(),
 
@@ -310,7 +361,7 @@ Model Call:
 Creates a new file with the specified content or completely overwrites an existing file.
 
 ## Parameters
-- \`absolute_path\` (string, required): The absolute path of the file to write.
+- \`file_path\` (string, required): The absolute path of the file to write.
 - \`content\` (string, required): The full content of the file.
 
 ## Guidelines
@@ -322,7 +373,7 @@ Creates a new file with the specified content or completely overwrites an existi
 
 ## Examples
 <example>
-user: Create a new test file 'src/new.test.ts' with boilerplate code. Note the required JSON escaping (\\\\n, \\\\").
+user: Create a new test file 'src/new.test.ts' with boilerplate code. Note the required JSON escaping (\\\\n).
 model:
 I will create the new test file.
 [tool_call: ${WriteFileTool.Name} for absolute_path '/path/to/project/src/new.test.ts', content 'describe(\\"New Feature\\", () => {\\n  test(\\"should work\\", () => {\\n    expect(true).toBe(true);\\n  });\\n});']
@@ -343,6 +394,8 @@ Executes commands in the system shell (bash/zsh/etc.).
 
 ## Parameters
 - \`command\` (string, required): The shell command to execute.
+- \`description\` (string, optional): Brief description of the command for the user. Be specific and concise. Ideally a single sentence. Can be up to 3 sentences for clarity. No line breaks.
+- \`directory\` (string, optional): Directory to run the command in, if not the project root directory. Must be relative to the project root directory and must already exist.
 
 ## Guidelines
 - **Use Cases:** Running tests, installing dependencies, managing git operations, scaffolding projects, building, linting, and system management.
