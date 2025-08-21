@@ -14,6 +14,7 @@ import {
 import { A2AClient, A2AClientOptions } from '@a2a-js/sdk/client';
 import { v4 as uuidv4 } from 'uuid';
 
+// TODO: uncomment
 // const AGENT_CARD_WELL_KNOWN_PATH = '/.well-known/agent-card.json';
 
 /**
@@ -61,8 +62,10 @@ export class A2AClientManager {
       throw new Error(`Agent with name '${name}' is already loaded.`);
     }
 
+    // TODO: change to use AGENT_CARD_WELL_KNOWN_PATH when a2a-js is updated
+    // Present now to prototype ServiceNow agent
     const options: A2AClientOptions = {
-      agentCardPath: 'well_known/agent_json', // change to default
+      agentCardPath: 'well_known/agent_json',
     };
 
     if (accessToken) {
