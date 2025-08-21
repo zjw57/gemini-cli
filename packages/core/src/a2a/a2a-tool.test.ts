@@ -11,13 +11,13 @@ import { A2ATool } from './a2a-tool.js';
 import { A2AClientManager } from './a2a-client-manager.js';
 import { Kind } from '../tools/tools.js';
 
-vi.mock('./a2a-client-manager.js', () => {
-  const A2AClientManager = vi.fn();
-  A2AClientManager.getInstance = vi.fn().mockReturnValue({
-    sendMessage: vi.fn(),
-  });
-  return { A2AClientManager };
-});
+vi.mock('./a2a-client-manager.js', () => ({
+  A2AClientManager: class {
+    static getInstance = vi.fn().mockReturnValue({
+      sendMessage: vi.fn(),
+    });
+  },
+}));
 
 describe('A2ATool', () => {
   const agentName = 'TestAgent';
@@ -54,20 +54,23 @@ describe('A2ATool', () => {
   });
 
   describe('build', () => {
-        it('should return a valid A2AToolInvocation', () => {
-            const params = { message: 'Hello' };
-            const invocation = tool.build(params);
-            expect(invocation).toBeDefined();
-            expect(invocation.params).toEqual(params);
-        });
+    it('should return a valid A2AToolInvocation', () => {
+      const params = { message: 'Hello' };
+      const invocation = tool.build(params);
+      expect(invocation).toBeDefined();
+      expect(invocation.params).toEqual(params);
     });
+  });
 
-    describe('A2AToolInvocation', () => {
-        it('should call sendMessage on execute', async () => {
-            const params = { message: 'Test message' };
-            const invocation = tool.build(params);
-            await invocation.execute(new AbortController().signal);
-            expect(clientManager.sendMessage).toHaveBeenCalledWith(agentName, params.message);
-        });
+  describe('A2AToolInvocation', () => {
+    it('should call sendMessage on execute', async () => {
+      const params = { message: 'Test message' };
+      const invocation = tool.build(params);
+      await invocation.execute(new AbortController().signal);
+      expect(clientManager.sendMessage).toHaveBeenCalledWith(
+        agentName,
+        params.message,
+      );
     });
+  });
 });

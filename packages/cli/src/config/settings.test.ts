@@ -112,6 +112,7 @@ describe('Settings Loading and Merging', () => {
       expect(settings.merged).toEqual({
         customThemes: {},
         mcpServers: {},
+        a2aAgents: {},
         includeDirectories: [],
         chatCompression: {},
       });
