@@ -8,19 +8,17 @@ import { CommandModule } from 'yargs';
 import { handleInstall, Scope } from './extensions/install.js';
 
 const installCommand: CommandModule = {
-  command: 'install',
+  command: 'install [source]',
   describe: 'Installs an extension from a git repository or a local path.',
   builder: (yargs) =>
     yargs
-      .option('source', {
+      .positional('source', {
         describe: 'The git URL of the extension to install.',
         type: 'string',
-        conflicts: 'path',
       })
       .option('path', {
         describe: 'Path to a local extension directory.',
         type: 'string',
-        conflicts: 'source',
       })
       .option('scope', {
         describe: 'The scope to install the extension to.',
@@ -28,19 +26,18 @@ const installCommand: CommandModule = {
         choices: [Scope.USER, Scope.PROJECT],
         default: Scope.USER,
       })
+      .conflicts('source', 'path')
       .check((argv) => {
         if (!argv.source && !argv.path) {
-          throw new Error(
-            'Either a --source git URL or a --path must be provided.',
-          );
+          throw new Error('Either a git URL or a --path must be provided.');
         }
         return true;
       }),
   handler: async (argv) => {
     await handleInstall({
-      source: argv['source'] as string | undefined,
-      path: argv['path'] as string | undefined,
-      scope: argv['scope'] as Scope | undefined,
+      source: argv.source as string | undefined,
+      path: argv.path as string | undefined,
+      scope: argv.scope as Scope | undefined,
     });
   },
 };
