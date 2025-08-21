@@ -18,7 +18,6 @@ import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
 import { connectAndDiscover } from './mcp-client.js';
 import { McpClientManager } from './mcp-client-manager.js';
-import { A2AClientManager } from './a2a-client-manager.js';
 import { DiscoveredMCPTool } from './mcp-tool.js';
 import { parse } from 'shell-quote';
 import { safeJsonStringify } from '../utils/safeJsonStringify.js';

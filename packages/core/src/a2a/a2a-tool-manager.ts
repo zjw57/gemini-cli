@@ -30,7 +30,7 @@ export class A2AToolManager {
         const agentCard = await clientManager.loadAgent(
           name,
           agentConfig.url,
-          agentConfig.token,
+          agentConfig.accessToken,
         );
         if (agentCard.skills) {
           for (const skill of agentCard.skills) {

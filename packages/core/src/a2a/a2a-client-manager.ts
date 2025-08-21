@@ -55,7 +55,7 @@ export class A2AClientManager {
   async loadAgent(
     name: string,
     url: string,
-    token?: string,
+    accessToken?: string,
   ): Promise<AgentCard> {
     if (this.clients.has(name)) {
       throw new Error(`Agent with name '${name}' is already loaded.`);
@@ -65,13 +65,13 @@ export class A2AClientManager {
       agentCardPath: AGENT_CARD_WELL_KNOWN_PATH,
     };
 
-    if (token) {
+    if (accessToken) {
       options.fetchImpl = (
         input: RequestInfo | URL,
         init?: RequestInit,
       ): Promise<Response> => {
         const headers = new Headers(init?.headers);
-        headers.set('Authorization', `Bearer ${token}`);
+        headers.set('Authorization', `Bearer ${accessToken}`);
         const newInit = { ...init, headers };
         return fetch(input, newInit);
       };

@@ -48,7 +48,6 @@ import {
 } from '../services/fileSystemService.js';
 import { logCliConfiguration, logIdeConnection } from '../telemetry/loggers.js';
 import { IdeConnectionEvent, IdeConnectionType } from '../telemetry/types.js';
-import { A2AAgentConfig } from '../a2a/types.js';
 
 // Re-export OAuth config type
 export type { MCPOAuthConfig };
