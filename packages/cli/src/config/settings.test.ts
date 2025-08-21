@@ -112,6 +112,7 @@ describe('Settings Loading and Merging', () => {
       expect(settings.merged).toEqual({
         customThemes: {},
         mcpServers: {},
+        a2aAgents: {},
         includeDirectories: [],
         chatCompression: {},
       });
@@ -147,6 +148,7 @@ describe('Settings Loading and Merging', () => {
         ...systemSettingsContent,
         customThemes: {},
         mcpServers: {},
+        a2aAgents: {},
         includeDirectories: [],
         chatCompression: {},
       });
@@ -182,6 +184,7 @@ describe('Settings Loading and Merging', () => {
         ...userSettingsContent,
         customThemes: {},
         mcpServers: {},
+        a2aAgents: {},
         includeDirectories: [],
         chatCompression: {},
       });
@@ -215,6 +218,7 @@ describe('Settings Loading and Merging', () => {
         ...workspaceSettingsContent,
         customThemes: {},
         mcpServers: {},
+        a2aAgents: {},
         includeDirectories: [],
         chatCompression: {},
       });
@@ -254,6 +258,7 @@ describe('Settings Loading and Merging', () => {
         contextFileName: 'WORKSPACE_CONTEXT.md',
         customThemes: {},
         mcpServers: {},
+        a2aAgents: {},
         includeDirectories: [],
         chatCompression: {},
       });
@@ -305,6 +310,7 @@ describe('Settings Loading and Merging', () => {
         allowMCPServers: ['server1', 'server2'],
         customThemes: {},
         mcpServers: {},
+        a2aAgents: {},
         includeDirectories: [],
         chatCompression: {},
       });
@@ -866,6 +872,7 @@ describe('Settings Loading and Merging', () => {
       expect(settings.merged).toEqual({
         customThemes: {},
         mcpServers: {},
+        a2aAgents: {},
         includeDirectories: [],
         chatCompression: {},
       });
@@ -1238,6 +1245,7 @@ describe('Settings Loading and Merging', () => {
           ...systemSettingsContent,
           customThemes: {},
           mcpServers: {},
+          a2aAgents: {},
           includeDirectories: [],
           chatCompression: {},
         });
