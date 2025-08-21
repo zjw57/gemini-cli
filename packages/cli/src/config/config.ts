@@ -11,6 +11,7 @@ import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 import process from 'node:process';
 import { mcpCommand } from '../commands/mcp.js';
+import { extensionsCommand } from '../commands/extensions.js';
 import {
   Config,
   loadServerHierarchicalMemory,
@@ -76,7 +77,7 @@ export interface CliArgs {
   extensionManagement: boolean | undefined;
 }
 
-export async function parseArguments(): Promise<CliArgs> {
+export async function parseArguments(settings: Settings): Promise<CliArgs> {
   const yargsInstance = yargs(hideBin(process.argv))
     .scriptName('gemini')
     .usage(
@@ -251,7 +252,13 @@ export async function parseArguments(): Promise<CliArgs> {
         }),
     )
     // Register MCP subcommands
-    .command(mcpCommand)
+    .command(mcpCommand);
+
+  if (settings.extensionManagement) {
+    yargsInstance.command(extensionsCommand);
+  }
+
+  yargsInstance
     .version(await getCliVersion()) // This will enable the --version flag based on package.json
     .alias('v', 'version')
     .help()
