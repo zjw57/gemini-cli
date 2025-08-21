@@ -199,14 +199,6 @@ async function fileOrDirectoryExists(path: string): Promise<boolean> {
 }
 
 export async function installExtension(args: InstallArgs): Promise<string> {
-  const { scope = SettingScope.User } = args;
-
-  if (scope !== SettingScope.User && scope !== SettingScope.Workspace) {
-    throw new Error(
-      'Only user and project scopes are supported for installation.',
-    );
-  }
-
   const extensionsDir = getUserExtensionsDir();
   await fs.promises.mkdir(extensionsDir, { recursive: true });
 
@@ -270,11 +262,15 @@ export async function installExtension(args: InstallArgs): Promise<string> {
   }
 
   const settings = loadSettings(process.cwd());
-  const settingsFile = settings.forScope(scope);
+  const settingsFile = settings.forScope(SettingScope.User);
   const activatedExtensions = settingsFile.settings.activatedExtensions || [];
   if (!activatedExtensions.includes(extensionName)) {
     activatedExtensions.push(extensionName);
-    settings.setValue(scope, 'activatedExtensions', activatedExtensions);
+    settings.setValue(
+      SettingScope.User,
+      'activatedExtensions',
+      activatedExtensions,
+    );
   }
 
   return extensionName;

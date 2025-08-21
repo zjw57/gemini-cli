@@ -38,7 +38,6 @@ vi.mock('./settings.js', () => ({
   loadSettings: vi.fn(),
   SettingScope: {
     User: 'user',
-    Workspace: 'workspace',
   },
 }));
 
