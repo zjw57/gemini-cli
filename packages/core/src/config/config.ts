@@ -206,6 +206,7 @@ export interface ConfigParameters {
   shouldUseNodePtyShell?: boolean;
   skipNextSpeakerCheck?: boolean;
   useSmartEdit?: boolean;
+  enablePromptCompletion?: boolean;
 }
 
 export class Config {
@@ -275,6 +276,7 @@ export class Config {
   private readonly useRipgrep: boolean;
   private readonly shouldUseNodePtyShell: boolean;
   private readonly skipNextSpeakerCheck: boolean;
+  private readonly useSmartEdit: boolean;
   private readonly enablePromptCompletion: boolean = false;
   private readonly useSmartEdit: boolean;
   private initialized: boolean = false;
@@ -751,6 +753,10 @@ export class Config {
 
   getSkipNextSpeakerCheck(): boolean {
     return this.skipNextSpeakerCheck;
+  }
+
+  getUseSmartEdit(): boolean {
+    return this.useSmartEdit;
   }
 
   getScreenReader(): boolean {
