@@ -14,9 +14,13 @@ export interface FileSystemService {
    * Read text content from a file
    *
    * @param filePath - The path to the file to read
+   * @param encoding - The encoding to use when reading the file
    * @returns The file content as a string
    */
-  readTextFile(filePath: string): Promise<string>;
+  readTextFile(
+    filePath: string,
+    encoding?: BufferEncoding,
+  ): Promise<string>;
 
   /**
    * Write text content to a file
@@ -31,8 +35,11 @@ export interface FileSystemService {
  * Standard file system implementation
  */
 export class StandardFileSystemService implements FileSystemService {
-  async readTextFile(filePath: string): Promise<string> {
-    return fs.readFile(filePath, 'utf-8');
+  async readTextFile(
+    filePath: string,
+    encoding: BufferEncoding = 'utf-8',
+  ): Promise<string> {
+    return fs.readFile(filePath, encoding);
   }
 
   async writeTextFile(filePath: string, content: string): Promise<void> {

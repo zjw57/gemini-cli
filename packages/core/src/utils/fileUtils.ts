@@ -19,6 +19,63 @@ const MAX_LINE_LENGTH_TEXT_FILE = 2000;
 export const DEFAULT_ENCODING: BufferEncoding = 'utf-8';
 
 /**
+ * Detects the character encoding of a file based on its Byte Order Mark (BOM).
+ * @param buffer A buffer containing the first few bytes of the file.
+ * @returns The detected buffer encoding or null if no BOM is found.
+ */
+function detectEncodingFromBuffer(buffer: Buffer): BufferEncoding | null {
+  // 1. Check for existing BOMs
+  if (buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+    return 'utf8';
+  }
+  if (buffer.length >= 2 && buffer[0] === 0xFF && buffer[1] === 0xFE) {
+    return 'utf16le';
+  }
+
+  // 2. Heuristic for UTF-16LE (no BOM)
+  // Check for a pattern of ASCII characters followed by null bytes.
+  // We'll check at least the first few bytes for confidence.
+  const checkLength = Math.min(buffer.length, 128);
+  if (checkLength < 4) {
+    // Not enough data to make a guess
+    return null;
+  }
+
+  let utf16leConfidence = 0;
+  // We check pairs of bytes, so we iterate up to half the length.
+  for (let i = 0; i < checkLength - 1; i += 2) {
+    const byte1 = buffer[i];
+    const byte2 = buffer[i + 1];
+
+    // Is the pattern [ASCII, 0]?
+    // ASCII range for printable characters is roughly 32-126.
+    // We also include tab(9), newline(10), and carriage return(13).
+    const isAscii = (byte1 >= 32 && byte1 <= 126) || byte1 === 9 || byte1 === 10 || byte1 === 13;
+
+    if (isAscii && byte2 === 0) {
+      utf16leConfidence++;
+    } else if (byte1 === 0 && byte2 !== 0) {
+      // This might indicate UTF-16 Big Endian, but we'll ignore for now
+      // to keep the fix focused. A low confidence score will handle this.
+    } else if (byte1 !== 0 && byte2 !== 0) {
+      // Two consecutive non-null bytes. This is a strong signal *against* UTF-16LE.
+      // We can decrease confidence or stop. Let's penalize it.
+      utf16leConfidence -= 2;
+    }
+  }
+
+  // 3. Calculate confidence score
+  // Let's say if at least 50% of the pairs match our pattern, we're confident.
+  const pairsChecked = Math.floor(checkLength / 2);
+  if (pairsChecked > 0 && (utf16leConfidence / pairsChecked) >= 0.5) {
+    return 'utf16le';
+  }
+
+  // 4. Default to null if no conclusion
+  return null;
+}
+
+/**
  * Looks up the specific MIME type for a file path.
  * @param filePath Path to the file.
  * @returns The specific MIME type string (e.g., 'text/python', 'application/javascript') or undefined if not found or ambiguous.
@@ -188,6 +245,21 @@ export async function detectFileType(
     return 'binary';
   }
 
+  // Read the first 4 bytes to check for a BOM.
+  const buffer = Buffer.alloc(4);
+  let fileHandle;
+  try {
+    fileHandle = await fs.promises.open(filePath, 'r');
+    await fileHandle.read(buffer, 0, 4, 0);
+  } finally {
+    await fileHandle?.close();
+  }
+
+  const encoding = detectEncodingFromBuffer(buffer);
+  if (encoding === 'utf16le') {
+    return 'text'; // It's a UTF-16 file, classify as text and skip isBinaryFile check.
+  }
+
   // Fall back to content-based check if mime type wasn't conclusive for image/pdf
   // and it's not a known binary extension.
   if (await isBinaryFile(filePath)) {
@@ -274,14 +346,28 @@ export async function processSingleFileContent(
             returnDisplay: `Skipped large SVG file (>1MB): ${relativePathForDisplay}`,
           };
         }
-        const content = await fileSystemService.readTextFile(filePath);
+        // We don't try to detect encoding for SVG, assume default.
+        const content = await fileSystemService.readTextFile(
+          filePath,
+          DEFAULT_ENCODING,
+        );
         return {
           llmContent: content,
           returnDisplay: `Read SVG as text: ${relativePathForDisplay}`,
         };
       }
       case 'text': {
-        const content = await fileSystemService.readTextFile(filePath);
+        const buffer = Buffer.alloc(4);
+        let fileHandle;
+        try {
+          fileHandle = await fs.promises.open(filePath, 'r');
+          await fileHandle.read(buffer, 0, 4, 0);
+        } finally {
+          await fileHandle?.close();
+        }
+        const encoding = detectEncodingFromBuffer(buffer) || DEFAULT_ENCODING;
+
+        const content = await fileSystemService.readTextFile(filePath, encoding);
         const lines = content.split('\n');
         const originalLineCount = lines.length;
 
