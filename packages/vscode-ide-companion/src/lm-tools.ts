@@ -7,10 +7,7 @@
 import { jsonSchemaObjectToZodRawShape } from 'zod-from-json-schema';
 import * as vscode from 'vscode';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import {
-  CallToolResult,
-  TextContent,
-} from '@modelcontextprotocol/sdk/types.js';
+import { TextContent } from '@modelcontextprotocol/sdk/types.js';
 
 /**
  * Manages the registration and invocation of VS Code Language Model tools.
@@ -23,7 +20,7 @@ export class LanguageModelTools {
   }
 
   /**
-   * Fetches the available tools and registers them with the MCP server.
+   * Fetches the available tools from VsCode and registers them with the MCP server.
    * @param server The MCP server instance.
    */
   async registerTools(server: McpServer) {
@@ -36,27 +33,24 @@ export class LanguageModelTools {
           {
             description: tool.description ?? 'No description',
             inputSchema: tool.inputSchema
-              ? (jsonSchemaObjectToZodRawShape(tool.inputSchema as any) as any)
+              ? // We can't cast directly to the Schema type or reference it
+                // because it is private, `any` is the only option here.
+                (jsonSchemaObjectToZodRawShape(tool.inputSchema as any) as any)
               : undefined,
           },
           async (input: object) => {
-            this.log(
-              `Invoking tool: ${tool.name} with input: ${JSON.stringify(
-                input,
-              )}`,
-            );
             const result = await vscode.lm.invokeTool(tool.name, {
               toolInvocationToken: undefined,
               input,
             });
             return {
               // Convert the language model content parts to text content parts.
-              content: result.content.map((part): TextContent => {
-                return {
+              content: result.content.map(
+                (part): TextContent => ({
                   type: 'text',
                   text: JSON.stringify(part),
-                };
-              }),
+                }),
+              ),
             };
           },
         );
