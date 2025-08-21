@@ -611,7 +611,7 @@ export const useGeminiStream = (
             return {
               status: StreamProcessingStatus.UserCancelled,
               geminiMessageBuffer: '',
-              isResponseInvalid: false
+              isResponseInvalid: false,
             };
           case ServerGeminiEventType.Error:
             handleErrorEvent(event.value, userMessageTimestamp);
@@ -619,7 +619,7 @@ export const useGeminiStream = (
             return {
               status: StreamProcessingStatus.Error,
               geminiMessageBuffer: '',
-              isResponseInvalid: false
+              isResponseInvalid: false,
             };
           case ServerGeminiEventType.ChatCompressed:
             handleChatCompressionEvent(event.value);
@@ -653,7 +653,11 @@ export const useGeminiStream = (
         scheduleToolCalls(toolCallRequests, signal);
       }
       // CHANGE 4: Return the status and the final assembled buffer
-      return { status: StreamProcessingStatus.Completed, geminiMessageBuffer, isResponseInvalid: isResponseInvalid };
+      return {
+        status: StreamProcessingStatus.Completed,
+        geminiMessageBuffer,
+        isResponseInvalid: isResponseInvalid,
+      };
     },
     [
       handleContentEvent,
