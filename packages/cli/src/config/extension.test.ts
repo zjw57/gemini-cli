@@ -232,10 +232,16 @@ describe('installExtension', () => {
     await installExtension({ path: sourceExtDir });
 
     const targetExtDir = path.join(userExtensionsDir, 'my-local-extension');
-    expect(fs.existsSync(targetExtDir)).toBe(true);
-    expect(
-      fs.existsSync(path.join(targetExtDir, EXTENSIONS_CONFIG_FILENAME)),
-    ).toBe(true);
+    expect(fs.lstatSync(targetExtDir).isSymbolicLink()).toBe(true);
+    expect(fs.readlinkSync(targetExtDir)).toBe(sourceExtDir);
+
+    const manifest = JSON.parse(
+      fs.readFileSync(
+        path.join(targetExtDir, EXTENSIONS_CONFIG_FILENAME),
+        'utf-8',
+      ),
+    );
+    expect(manifest.installPath).toBe(sourceExtDir);
 
     expect(settings.loadSettings).toHaveBeenCalledWith(process.cwd());
     expect(mockSettings.forScope).toHaveBeenCalledWith('user');
@@ -274,6 +280,44 @@ describe('installExtension', () => {
 
     const targetExtDir = path.join(userExtensionsDir, 'bad-extension');
     expect(fs.existsSync(targetExtDir)).toBe(false);
+  });
+
+  it('should install an extension from a git URL', async () => {
+    const gitUrl = 'https://github.com/google/gemini-extensions.git';
+    const extensionName = 'gemini-extensions';
+    const targetExtDir = path.join(userExtensionsDir, extensionName);
+
+    vi.mocked(execSync).mockImplementation(() => {
+      fs.mkdirSync(targetExtDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(targetExtDir, EXTENSIONS_CONFIG_FILENAME),
+        JSON.stringify({ name: extensionName, version: '1.0.0' }),
+      );
+      return Buffer.from('');
+    });
+
+    await installExtension({ source: gitUrl });
+
+    expect(execSync).toHaveBeenCalledWith(
+      `git clone --depth 1 ${gitUrl} ${targetExtDir}`,
+      { stdio: 'inherit' },
+    );
+
+    const manifest = JSON.parse(
+      fs.readFileSync(
+        path.join(targetExtDir, EXTENSIONS_CONFIG_FILENAME),
+        'utf-8',
+      ),
+    );
+    expect(manifest.githubUrl).toBe(gitUrl);
+
+    expect(settings.loadSettings).toHaveBeenCalledWith(process.cwd());
+    expect(mockSettings.forScope).toHaveBeenCalledWith('user');
+    expect(mockSettings.setValue).toHaveBeenCalledWith(
+      'user',
+      'activatedExtensions',
+      [extensionName],
+    );
   });
 });
 

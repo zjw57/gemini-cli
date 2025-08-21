@@ -30,6 +30,8 @@ export interface ExtensionConfig {
   mcpServers?: Record<string, MCPServerConfig>;
   contextFileName?: string | string[];
   excludeTools?: string[];
+  githubUrl?: string;
+  installPath?: string;
 }
 
 export function loadExtensions(workspaceDir: string): Extension[] {
@@ -204,6 +206,7 @@ export async function installExtension(args: InstallArgs): Promise<string> {
 
   let extensionName: string;
   let targetPath: string;
+  let manifestPath: string;
 
   if (args.source) {
     try {
@@ -213,6 +216,7 @@ export async function installExtension(args: InstallArgs): Promise<string> {
       throw new Error(`Invalid git URL: ${args.source}`);
     }
     targetPath = path.join(extensionsDir, extensionName);
+    manifestPath = path.join(targetPath, EXTENSIONS_CONFIG_FILENAME);
 
     if (await fileOrDirectoryExists(targetPath)) {
       throw new Error(
@@ -229,11 +233,21 @@ export async function installExtension(args: InstallArgs): Promise<string> {
         `Failed to clone repository: ${(error as Error).message}`,
       );
     }
+    // Add githubUrl to manifest
+    const manifest = JSON.parse(
+      await fs.promises.readFile(manifestPath, 'utf-8'),
+    );
+    manifest.githubUrl = args.source;
+    await fs.promises.writeFile(
+      manifestPath,
+      JSON.stringify(manifest, null, 2),
+    );
   } else if (args.path) {
     // Local path
     const sourcePath = path.resolve(args.path);
     extensionName = path.basename(sourcePath);
     targetPath = path.join(extensionsDir, extensionName);
+    manifestPath = path.join(targetPath, EXTENSIONS_CONFIG_FILENAME);
 
     if (await fileOrDirectoryExists(targetPath)) {
       throw new Error(
@@ -242,22 +256,30 @@ export async function installExtension(args: InstallArgs): Promise<string> {
     }
 
     try {
-      await fs.promises.cp(sourcePath, targetPath, { recursive: true });
+      await fs.promises.symlink(sourcePath, targetPath, 'dir');
     } catch (error) {
-      throw new Error(`Failed to copy directory: ${(error as Error).message}`);
+      throw new Error(`Failed to create symlink: ${(error as Error).message}`);
     }
+    // Add installPath to manifest
+    const manifest = JSON.parse(
+      await fs.promises.readFile(manifestPath, 'utf-8'),
+    );
+    manifest.installPath = sourcePath;
+    await fs.promises.writeFile(
+      manifestPath,
+      JSON.stringify(manifest, null, 2),
+    );
   } else {
     // This case should be prevented by yargs configuration
     throw new Error('Either a git URL source or a --path must be provided.');
   }
 
-  // Verify gemini-extension.json
-  const manifestPath = path.join(targetPath, 'gemini-extension.json');
+  // Verify manfiest file
   if (!(await fileOrDirectoryExists(manifestPath))) {
     // Clean up installed directory
     await fs.promises.rm(targetPath, { recursive: true, force: true });
     throw new Error(
-      'Installation failed: gemini-extension.json not found in the extension.',
+      `Installation failed: ${EXTENSIONS_CONFIG_FILENAME} not found in the extension.`,
     );
   }
 
