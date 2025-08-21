@@ -67,6 +67,10 @@ const DISALLOWED_IDE_TOOLS = new Set([
   // Duplicates, we have our own shell command handling
   'run_in_terminal',
   'get_terminal_output',
+  // These we may want to eventually restore but blocking them for now
+  'create_and_run_task',
+  'get_task_output',
+  'run_task',
 ]);
 
 /**
@@ -248,6 +252,9 @@ export class IdeClient {
               pattern.test(funcDecl.name!),
             )
           ) {
+            logger.debug(
+              `Skipping explicitly blocked IDE tool ${funcDecl.name}`,
+            );
             continue;
           }
 
