@@ -4,9 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { jsonSchemaObjectToZodRawShape } from 'zod-from-json-schema';
 import * as vscode from 'vscode';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
+import {
+  CallToolResult,
+  TextContent,
+} from '@modelcontextprotocol/sdk/types.js';
 
 /**
  * Manages the registration and invocation of VS Code Language Model tools.
@@ -31,23 +35,28 @@ export class LanguageModelTools {
           tool.name,
           {
             description: tool.description ?? 'No description',
-            inputSchema: tool.inputSchema as z.ZodRawShape,
+            inputSchema: tool.inputSchema
+              ? (jsonSchemaObjectToZodRawShape(tool.inputSchema as any) as any)
+              : undefined,
           },
           async (input: object) => {
             this.log(
-              `Invoking tool: ${tool.name} with input: ${JSON.stringify(input)}`,
+              `Invoking tool: ${tool.name} with input: ${JSON.stringify(
+                input,
+              )}`,
             );
             const result = await vscode.lm.invokeTool(tool.name, {
               toolInvocationToken: undefined,
               input,
             });
             return {
-              content: [
-                {
+              // Convert the language model content parts to text content parts.
+              content: result.content.map((part): TextContent => {
+                return {
                   type: 'text',
-                  text: JSON.stringify(result),
-                },
-              ],
+                  text: JSON.stringify(part),
+                };
+              }),
             };
           },
         );
