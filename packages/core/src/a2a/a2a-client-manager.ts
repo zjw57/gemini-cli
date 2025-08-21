@@ -14,7 +14,7 @@ import {
 import { A2AClient, A2AClientOptions } from '@a2a-js/sdk/client';
 import { v4 as uuidv4 } from 'uuid';
 
-const AGENT_CARD_WELL_KNOWN_PATH = '/.well-known/agent-card.json';
+// const AGENT_CARD_WELL_KNOWN_PATH = '/.well-known/agent-card.json';
 
 /**
  * Manages A2A clients and caches loaded agent information.
@@ -62,7 +62,7 @@ export class A2AClientManager {
     }
 
     const options: A2AClientOptions = {
-      agentCardPath: AGENT_CARD_WELL_KNOWN_PATH,
+      agentCardPath: 'well_known/agent_json', // change to default
     };
 
     if (accessToken) {

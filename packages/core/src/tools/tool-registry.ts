@@ -420,6 +420,10 @@ export class ToolRegistry {
     this.tools.forEach((tool) => {
       declarations.push(tool.schema);
     });
+    console.log(
+      'Registered tools:',
+      declarations.map((d) => d.name),
+    );
     return declarations;
   }
 

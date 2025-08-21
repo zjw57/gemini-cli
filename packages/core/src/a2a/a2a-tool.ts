@@ -20,14 +20,13 @@ class A2AToolInvocation extends BaseToolInvocation<
 > {
   constructor(
     private readonly agentName: string,
-    private readonly skillName: string,
     params: { message: string },
   ) {
     super(params);
   }
 
   getDescription(): string {
-    return `Calling skill ${this.skillName} on agent ${this.agentName} with message: ${this.params.message}`;
+    return `Calling agent ${this.agentName} with message: ${this.params.message}`;
   }
 
   async execute(): Promise<ToolResult> {
@@ -50,12 +49,11 @@ export class A2ATool extends BaseDeclarativeTool<
 > {
   constructor(
     private readonly agentName: string,
-    private readonly skillName: string,
     description: string,
   ) {
     super(
-      `${agentName}_${skillName}`,
-      `${agentName}: ${skillName}`,
+      agentName,
+      agentName,
       description,
       Kind.Other, // Using Kind.Other as requested
       {
@@ -63,7 +61,7 @@ export class A2ATool extends BaseDeclarativeTool<
         properties: {
           message: {
             type: 'string',
-            description: 'The message to send to the agent skill.',
+            description: 'The message to send to the agent.',
           },
         },
         required: ['message'],
@@ -74,6 +72,6 @@ export class A2ATool extends BaseDeclarativeTool<
   protected createInvocation(params: {
     message: string;
   }): BaseToolInvocation<{ message: string }, ToolResult> {
-    return new A2AToolInvocation(this.agentName, this.skillName, params);
+    return new A2AToolInvocation(this.agentName, params);
   }
 }

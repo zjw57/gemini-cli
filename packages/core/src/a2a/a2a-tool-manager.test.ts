@@ -66,7 +66,13 @@ describe('A2AToolManager', () => {
       'http://test.agent',
       'test-token',
     );
-    expect(toolRegistry.registerTool).toHaveBeenCalled();
+    expect(toolRegistry.registerTool).toHaveBeenCalledTimes(1);
+    expect(toolRegistry.registerTool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'TestAgent',
+        description: 'testSkill: A test skill',
+      }),
+    );
   });
 });
 

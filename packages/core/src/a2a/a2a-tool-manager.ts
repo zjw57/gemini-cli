@@ -32,11 +32,12 @@ export class A2AToolManager {
           agentConfig.url,
           agentConfig.accessToken,
         );
-        if (agentCard.skills) {
-          for (const skill of agentCard.skills) {
-            const tool = new A2ATool(name, skill.name, skill.description);
-            this.toolRegistry.registerTool(tool);
-          }
+        if (agentCard.skills && agentCard.skills.length > 0) {
+          const description = agentCard.skills
+            .map((skill) => `${skill.name}: ${skill.description}`)
+            .join('\n');
+          const tool = new A2ATool(name, description);
+          this.toolRegistry.registerTool(tool);
         }
       } catch (e) {
         // Log the error, but don't block the CLI from starting.

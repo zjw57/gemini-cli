@@ -21,31 +21,30 @@ vi.mock('./a2a-client-manager.js', () => ({
 
 describe('A2ATool', () => {
   const agentName = 'TestAgent';
-  const skillName = 'testSkill';
   const description = 'A test skill';
 
   let tool: A2ATool;
   let clientManager: A2AClientManager;
 
   beforeEach(() => {
-    tool = new A2ATool(agentName, skillName, description);
+    tool = new A2ATool(agentName, description);
     clientManager = A2AClientManager.getInstance();
   });
 
   it('should have the correct properties', () => {
-    expect(tool.name).toBe(`${agentName}_${skillName}`);
-    expect(tool.displayName).toBe(`${agentName}: ${skillName}`);
+    expect(tool.name).toBe(agentName);
+    expect(tool.displayName).toBe(agentName);
     expect(tool.description).toBe(description);
     expect(tool.kind).toBe(Kind.Other);
     expect(tool.schema).toEqual({
-      name: `${agentName}_${skillName}`,
+      name: agentName,
       description,
       parametersJsonSchema: {
         type: 'object',
         properties: {
           message: {
             type: 'string',
-            description: 'The message to send to the agent skill.',
+            description: 'The message to send to the agent.',
           },
         },
         required: ['message'],
