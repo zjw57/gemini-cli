@@ -1848,4 +1848,59 @@ describe('useGeminiStream', () => {
       expect.any(String),
     );
   });
+  describe('Retry Logic on Invalid Content', () => {
+    it('should retry if a stream chunk is invalid and then succeed', async () => {
+      // First call returns a stream with a valid chunk, then an invalid one.
+      mockSendMessageStream
+        .mockReturnValueOnce(
+          (async function* () {
+            yield {
+              type: ServerGeminiEventType.Content,
+              value: 'This part is valid',
+            };
+            // This is an invalid chunk according to `isValidContent`
+            yield { type: ServerGeminiEventType.Content, value: '' };
+          })(),
+        )
+        // Second call (the retry) returns a completely valid stream.
+        .mockReturnValueOnce(
+          (async function* () {
+            yield {
+              type: ServerGeminiEventType.Content,
+              value: 'Successful retry response',
+            };
+          })(),
+        );
+
+      const { result } = renderTestHook();
+
+      // Submit a query that will trigger the invalid chunk scenario
+      await act(async () => {
+        await result.current.submitQuery('test invalid chunk retry');
+      });
+
+      // Assert that the API was called twice (initial attempt + 1 retry)
+      await waitFor(() => {
+        expect(mockSendMessageStream).toHaveBeenCalledTimes(2);
+      });
+
+      // Assert that the final, successful message from the retry was added to history
+      expect(mockAddItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'gemini',
+          text: 'Successful retry response',
+        }),
+        expect.any(Number),
+      );
+
+      // Assert that no error message was added to history, as the retry succeeded
+      const errorMessages = mockAddItem.mock.calls.filter(
+        (call) => call[0].type === 'error',
+      );
+      expect(errorMessages).toHaveLength(0);
+
+      // Assert the final state is Idle
+      expect(result.current.streamingState).toBe(StreamingState.Idle);
+    });
+  });
 });
