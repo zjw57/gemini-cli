@@ -6,6 +6,7 @@
 
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs/promises';
+import type { Stats } from 'fs';
 import { execSync } from 'child_process';
 import { handleInstall } from './install.js';
 
@@ -38,9 +39,9 @@ vi.mock('fs/promises');
 vi.mock('child_process');
 
 describe('extensions install', () => {
-  const mockExit = vi.spyOn(process, 'exit').mockImplementation((() => {
+  const mockExit = vi.spyOn(process, 'exit').mockImplementation((): never => {
     throw new Error('process.exit called');
-  }) as any);
+  });
 
   beforeEach(() => {
     // Reset mocks before each test
@@ -64,7 +65,7 @@ describe('extensions install', () => {
     const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.mocked(fs.stat).mockImplementation(async (p) => {
       if (p.toString().endsWith('gemini-extension.json')) {
-        return { isFile: () => true } as any;
+        return { isFile: () => true } as Stats;
       }
       throw { code: 'ENOENT' };
     });
@@ -93,7 +94,7 @@ describe('extensions install', () => {
     const sourcePath = '/tmp/my-local-extension';
     vi.mocked(fs.stat).mockImplementation(async (p) => {
       if (p.toString().endsWith('gemini-extension.json')) {
-        return { isFile: () => true } as any;
+        return { isFile: () => true } as Stats;
       }
       throw { code: 'ENOENT' };
     });
@@ -122,13 +123,13 @@ describe('extensions install', () => {
       .mockImplementation(() => {});
 
     // Simulate directory already exists
-    vi.mocked(fs.stat).mockResolvedValue({ isDirectory: () => true } as any);
+    vi.mocked(fs.stat).mockResolvedValue({ isDirectory: () => true } as Stats);
 
     try {
       await handleInstall({
         source: 'https://github.com/google/add-copyright.git',
       });
-    } catch (e) {
+    } catch (_e) {
       // ignore
     }
 
@@ -150,12 +151,12 @@ describe('extensions install', () => {
         throw { code: 'ENOENT' };
       }
       // For the directory check, say it doesn't exist so we proceed to copy
-      return { isDirectory: () => false } as any;
+      return { isDirectory: () => false } as Stats;
     });
 
     try {
       await handleInstall({ path: sourcePath });
-    } catch (e) {
+    } catch (_e) {
       // ignore
     }
 
