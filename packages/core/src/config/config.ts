@@ -536,7 +536,7 @@ export class Config {
     return this.mcpServers;
   }
 
-   getA2AAgents(): Record<string, A2AAgentConfig> | undefined {
+  getA2AAgents(): Record<string, A2AAgentConfig> | undefined {
     return this.a2aAgents;
   }
 

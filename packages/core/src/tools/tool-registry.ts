@@ -167,7 +167,7 @@ export class ToolRegistry {
   private tools: Map<string, AnyDeclarativeTool> = new Map();
   private config: Config;
   private mcpClientManager: McpClientManager;
-  private a2aClientManager: A2AClientManager
+  private a2aClientManager: A2AClientManager;
 
   constructor(config: Config) {
     this.config = config;
