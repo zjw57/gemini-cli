@@ -8,12 +8,21 @@ import { CommandModule } from 'yargs';
 import { loadUserExtensions, toOutputString } from '../../config/extension.js';
 
 export async function handleList() {
-  const extensions = loadUserExtensions();
-  console.log(
-    extensions
-      .map((extension, _): string => toOutputString(extension))
-      .join('\n\n'),
-  );
+  try {
+    const extensions = loadUserExtensions();
+    if (extensions.length === 0) {
+      console.log('No extensions installed.');
+      return;
+    }
+    console.log(
+      extensions
+        .map((extension, _): string => toOutputString(extension))
+        .join('\n\n'),
+    );
+  } catch (error) {
+    console.error((error as Error).message);
+    process.exit(1);
+  }
 }
 
 export const listCommand: CommandModule = {
