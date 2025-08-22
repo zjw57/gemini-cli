@@ -355,5 +355,28 @@ export async function uninstallExtension(extensionName: string): Promise<void> {
 }
 
 export function toOutputString(extension: Extension): string {
-  return `${extension.config.name} (${extension.config.version})`;
+  let output = `${extension.config.name} (${extension.config.version})`;
+  output += `\n Path: ${extension.path}`;
+  if (extension.installMetadata) {
+    output += `\n Source: ${extension.installMetadata.source}`;
+  }
+  if (extension.contextFiles.length > 0) {
+    output += `\n Context files:`;
+    extension.contextFiles.forEach((contextFile) => {
+      output += `\n  ${contextFile}`;
+    });
+  }
+  if (extension.config.mcpServers) {
+    output += `\n MCP servers:`;
+    Object.keys(extension.config.mcpServers).forEach((key) => {
+      output += `\n  ${key}`;
+    });
+  }
+  if (extension.config.excludeTools) {
+    output += `\n Excluded tools:`;
+    extension.config.excludeTools.forEach((tool) => {
+      output += `\n  ${tool}`;
+    });
+  }
+  return output;
 }
