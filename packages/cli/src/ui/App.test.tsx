@@ -22,7 +22,7 @@ import { LoadedSettings, SettingsFile, Settings } from '../config/settings.js';
 import process from 'node:process';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
 import { useConsoleMessages } from './hooks/useConsoleMessages.js';
-import { StreamingState, ConsoleMessageItem } from './types.js';
+import { StreamingState, ConsoleMessageItem, ToolCallStatus } from './types.js';
 import { Tips } from './components/Tips.js';
 import { checkForUpdates, UpdateObject } from './utils/updateCheck.js';
 import { EventEmitter } from 'events';
@@ -204,6 +204,7 @@ vi.mock('./hooks/useGeminiStream', () => ({
     initError: null,
     pendingHistoryItems: [],
     thought: null,
+    activeShellPtyId: null,
   })),
 }));
 
@@ -1491,6 +1492,7 @@ describe('App UI', () => {
         initError: null,
         pendingHistoryItems: [],
         thought: 'Processing...',
+        activeShellPtyId: null,
       });
 
       const { lastFrame, unmount } = renderWithProviders(
@@ -1510,6 +1512,40 @@ describe('App UI', () => {
 
       // Verify the component structure is intact (loading indicator should be present)
       expect(output).toContain('esc to cancel');
+    });
+  });
+  describe('activeShellPtyId', () => {
+    it('should pass activeShellPtyId to HistoryItemDisplay', () => {
+      const mockPtyId = 12345;
+      vi.mocked(useGeminiStream).mockReturnValue({
+        streamingState: StreamingState.Responding,
+        submitQuery: vi.fn(),
+        initError: null,
+        pendingHistoryItems: [
+          {
+            type: 'tool_group',
+            tools: [
+              {
+                callId: 'shell-123',
+                name: 'Shell Command',
+                status: ToolCallStatus.Executing,
+                ptyId: mockPtyId,
+              },
+            ],
+          },
+        ],
+        thought: 'Running command...',
+        activeShellPtyId: mockPtyId,
+      });
+
+      const { unmount } = renderWithProviders(
+        <App
+          config={mockConfig as unknown as ServerConfig}
+          settings={mockSettings}
+          version={mockVersion}
+        />,
+      );
+      currentUnmount = unmount;
     });
   });
 });

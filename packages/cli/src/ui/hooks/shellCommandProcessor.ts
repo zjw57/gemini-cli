@@ -9,7 +9,7 @@ import {
   IndividualToolCallDisplay,
   ToolCallStatus,
 } from '../types.js';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Config,
   GeminiClient,
@@ -73,6 +73,7 @@ export const useShellCommandProcessor = (
   terminalWidth?: number,
   terminalHeight?: number,
 ) => {
+  const [activeShellPtyId, setActiveShellPtyId] = useState<number | null>(null);
   const handleShellCommand = useCallback(
     (rawQuery: PartListUnion, abortSignal: AbortSignal): boolean => {
       if (typeof rawQuery !== 'string' || rawQuery.trim() === '') {
@@ -206,6 +207,7 @@ export const useShellCommandProcessor = (
 
           executionPid = pid;
           if (pid) {
+            setActiveShellPtyId(pid);
             setPendingHistoryItem((prevItem) => {
               if (prevItem?.type === 'tool_group') {
                 return {
@@ -297,6 +299,7 @@ export const useShellCommandProcessor = (
               if (pwdFilePath && fs.existsSync(pwdFilePath)) {
                 fs.unlinkSync(pwdFilePath);
               }
+              setActiveShellPtyId(null);
               resolve();
             });
         } catch (err) {
@@ -315,7 +318,7 @@ export const useShellCommandProcessor = (
           if (pwdFilePath && fs.existsSync(pwdFilePath)) {
             fs.unlinkSync(pwdFilePath);
           }
-
+          setActiveShellPtyId(null);
           resolve(); // Resolve the promise to unblock `onExec`
         }
       };
@@ -339,5 +342,5 @@ export const useShellCommandProcessor = (
     ],
   );
 
-  return { handleShellCommand };
+  return { handleShellCommand, activeShellPtyId };
 };

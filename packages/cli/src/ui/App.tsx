@@ -14,12 +14,7 @@ import {
   useStdin,
   useStdout,
 } from 'ink';
-import {
-  StreamingState,
-  type HistoryItem,
-  MessageType,
-  ToolCallStatus,
-} from './types.js';
+import { StreamingState, type HistoryItem, MessageType } from './types.js';
 import { useTerminalSize } from './hooks/useTerminalSize.js';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
 import { useLoadingIndicator } from './hooks/useLoadingIndicator.js';
@@ -104,7 +99,6 @@ import { SettingsDialog } from './components/SettingsDialog.js';
 import { setUpdateHandler } from '../utils/handleAutoUpdate.js';
 import { appEvents, AppEvent } from '../utils/events.js';
 import { isNarrowWidth } from './utils/isNarrowWidth.js';
-import { SHELL_COMMAND_NAME } from './constants.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 // Maximum number of queued messages to display in UI to prevent performance issues
@@ -566,6 +560,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     pendingHistoryItems: pendingGeminiHistoryItems,
     thought,
     cancelOngoingRequest,
+    activeShellPtyId,
   } = useGeminiStream(
     config.getGeminiClient(),
     history,
@@ -649,30 +644,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     () => [...pendingSlashCommandHistoryItems, ...pendingGeminiHistoryItems],
     [pendingSlashCommandHistoryItems, pendingGeminiHistoryItems],
   );
-
-  const [activeShellPtyId, setActiveShellPtyId] = useState<number | null>(null);
-
-  useEffect(() => {
-    let ptyId: number | null = null;
-    for (const item of pendingHistoryItems) {
-      if (item.type === 'tool_group') {
-        for (const tool of item.tools) {
-          if (
-            (tool.name === SHELL_COMMAND_NAME || tool.name === 'Shell') &&
-            tool.status === ToolCallStatus.Executing &&
-            tool.ptyId
-          ) {
-            ptyId = tool.ptyId;
-            break;
-          }
-        }
-      }
-      if (ptyId) {
-        break;
-      }
-    }
-    setActiveShellPtyId(ptyId);
-  }, [pendingHistoryItems]);
 
   useEffect(() => {
     if (activeShellPtyId === null) {

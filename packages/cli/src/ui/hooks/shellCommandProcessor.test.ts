@@ -438,4 +438,177 @@ describe('useShellCommandProcessor', () => {
       expect(finalHistoryItem.tools[0].resultDisplay).not.toContain('WARNING');
     });
   });
+
+  describe('ActiveShellPtyId management', () => {
+    beforeEach(() => {
+      // The real service returns a promise that resolves with the pid and result promise
+      mockShellExecutionService.mockImplementation((_cmd, _cwd, callback) => {
+        mockShellOutputCallback = callback;
+        return Promise.resolve({
+          pid: 12345,
+          result: new Promise((resolve) => {
+            resolveExecutionPromise = resolve;
+          }),
+        });
+      });
+    });
+
+    it('should have activeShellPtyId as null initially', () => {
+      const { result } = renderProcessorHook();
+      expect(result.current.activeShellPtyId).toBeNull();
+    });
+
+    it('should set activeShellPtyId when a command with a PID starts', async () => {
+      const { result } = renderProcessorHook();
+
+      act(() => {
+        result.current.handleShellCommand('ls', new AbortController().signal);
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.activeShellPtyId).toBe(12345);
+      });
+    });
+
+    it('should update the pending history item with the ptyId', async () => {
+      const { result } = renderProcessorHook();
+
+      act(() => {
+        result.current.handleShellCommand('ls', new AbortController().signal);
+      });
+
+      await vi.waitFor(() => {
+        // Wait for the second call which is the functional update
+        expect(setPendingHistoryItemMock).toHaveBeenCalledTimes(2);
+      });
+
+      // The state update is functional, so we test it by executing it.
+      const updaterFn = setPendingHistoryItemMock.mock.lastCall?.[0];
+      expect(typeof updaterFn).toBe('function');
+
+      // The initial state is the first call to setPendingHistoryItem
+      const initialState = setPendingHistoryItemMock.mock.calls[0][0];
+      const stateAfterPid = updaterFn(initialState);
+
+      expect(stateAfterPid.tools[0].ptyId).toBe(12345);
+    });
+
+    it('should reset activeShellPtyId to null after successful execution', async () => {
+      const { result } = renderProcessorHook();
+
+      act(() => {
+        result.current.handleShellCommand('ls', new AbortController().signal);
+      });
+      const execPromise = onExecMock.mock.calls[0][0];
+
+      await vi.waitFor(() => {
+        expect(result.current.activeShellPtyId).toBe(12345);
+      });
+
+      act(() => {
+        resolveExecutionPromise(createMockServiceResult());
+      });
+      await act(async () => await execPromise);
+
+      expect(result.current.activeShellPtyId).toBeNull();
+    });
+
+    it('should reset activeShellPtyId to null after failed execution', async () => {
+      const { result } = renderProcessorHook();
+
+      act(() => {
+        result.current.handleShellCommand(
+          'bad-cmd',
+          new AbortController().signal,
+        );
+      });
+      const execPromise = onExecMock.mock.calls[0][0];
+
+      await vi.waitFor(() => {
+        expect(result.current.activeShellPtyId).toBe(12345);
+      });
+
+      act(() => {
+        resolveExecutionPromise(createMockServiceResult({ exitCode: 1 }));
+      });
+      await act(async () => await execPromise);
+
+      expect(result.current.activeShellPtyId).toBeNull();
+    });
+
+    it('should reset activeShellPtyId to null if execution promise rejects', async () => {
+      let rejectResultPromise: (reason?: unknown) => void;
+      mockShellExecutionService.mockImplementation(() =>
+        Promise.resolve({
+          pid: 1234_5,
+          result: new Promise((_, reject) => {
+            rejectResultPromise = reject;
+          }),
+        }),
+      );
+      const { result } = renderProcessorHook();
+
+      act(() => {
+        result.current.handleShellCommand('cmd', new AbortController().signal);
+      });
+      const execPromise = onExecMock.mock.calls[0][0];
+
+      await vi.waitFor(() => {
+        expect(result.current.activeShellPtyId).toBe(12345);
+      });
+
+      act(() => {
+        rejectResultPromise(new Error('Failure'));
+      });
+
+      await act(async () => await execPromise);
+
+      expect(result.current.activeShellPtyId).toBeNull();
+    });
+
+    it('should not set activeShellPtyId on synchronous execution error and should remain null', async () => {
+      mockShellExecutionService.mockImplementation(() => {
+        throw new Error('Sync Error');
+      });
+      const { result } = renderProcessorHook();
+
+      expect(result.current.activeShellPtyId).toBeNull(); // Pre-condition
+
+      act(() => {
+        result.current.handleShellCommand('cmd', new AbortController().signal);
+      });
+      const execPromise = onExecMock.mock.calls[0][0];
+
+      // The hook's state should not have changed to a PID
+      expect(result.current.activeShellPtyId).toBeNull();
+
+      await act(async () => await execPromise); // Let the promise resolve
+
+      // And it should still be null after everything is done
+      expect(result.current.activeShellPtyId).toBeNull();
+    });
+
+    it('should not set activeShellPtyId if service does not return a PID', async () => {
+      mockShellExecutionService.mockImplementation((_cmd, _cwd, callback) => {
+        mockShellOutputCallback = callback;
+        return Promise.resolve({
+          pid: undefined, // No PID
+          result: new Promise((resolve) => {
+            resolveExecutionPromise = resolve;
+          }),
+        });
+      });
+
+      const { result } = renderProcessorHook();
+
+      act(() => {
+        result.current.handleShellCommand('ls', new AbortController().signal);
+      });
+
+      // Let microtasks run
+      await act(async () => {});
+
+      expect(result.current.activeShellPtyId).toBeNull();
+    });
+  });
 });
