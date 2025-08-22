@@ -74,7 +74,6 @@ export interface CliArgs {
   listExtensions: boolean | undefined;
   proxy: string | undefined;
   includeDirectories: string[] | undefined;
-  extensionManagement: boolean | undefined;
   screenReader: boolean | undefined;
 }
 
@@ -255,7 +254,7 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
     // Register MCP subcommands
     .command(mcpCommand);
 
-  if (settings.extensionManagement) {
+  if (settings?.extensionManagement ?? false) {
     yargsInstance.command(extensionsCommand);
   }
 
@@ -566,7 +565,6 @@ export async function loadCliConfig(
     useRipgrep: settings.useRipgrep,
     shouldUseNodePtyShell: settings.shouldUseNodePtyShell,
     skipNextSpeakerCheck: settings.skipNextSpeakerCheck,
-    extensionManagement: settings.extensionManagement,
     enablePromptCompletion: settings.enablePromptCompletion ?? false,
   });
 }
