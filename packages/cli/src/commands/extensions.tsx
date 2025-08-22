@@ -5,35 +5,7 @@
  */
 
 import { CommandModule } from 'yargs';
-import { handleInstall } from './extensions/install.js';
-
-const installCommand: CommandModule = {
-  command: 'install [source]',
-  describe: 'Installs an extension from a git repository or a local path.',
-  builder: (yargs) =>
-    yargs
-      .positional('source', {
-        describe: 'The git URL of the extension to install.',
-        type: 'string',
-      })
-      .option('path', {
-        describe: 'Path to a local extension directory.',
-        type: 'string',
-      })
-      .conflicts('source', 'path')
-      .check((argv) => {
-        if (!argv.source && !argv.path) {
-          throw new Error('Either a git URL or a --path must be provided.');
-        }
-        return true;
-      }),
-  handler: async (argv) => {
-    await handleInstall({
-      source: argv['source'] as string | undefined,
-      path: argv['path'] as string | undefined,
-    });
-  },
-};
+import { installCommand } from './extensions/install.js';
 
 export const extensionsCommand: CommandModule = {
   command: 'extensions <command>',

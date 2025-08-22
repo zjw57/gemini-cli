@@ -12,8 +12,8 @@ import {
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { execSync } from 'child_process';
 import { URL } from 'url';
+import { simpleGit } from 'simple-git';
 import { SettingScope, loadSettings } from './settings.js';
 
 export const EXTENSIONS_CONFIG_FILENAME = 'gemini-extension.json';
@@ -32,6 +32,34 @@ export interface ExtensionConfig {
   excludeTools?: string[];
   githubUrl?: string;
   installPath?: string;
+}
+
+export class ExtensionStorage {
+  private readonly extensionName: string;
+
+  constructor(extensionName: string) {
+    this.extensionName = extensionName;
+  }
+
+  static getUserExtensionsDir(): string {
+    const storage = new Storage(os.homedir());
+    return storage.getExtensionsDir();
+  }
+
+  getExtensionDir(): string {
+    return path.join(
+      ExtensionStorage.getUserExtensionsDir(),
+      this.extensionName,
+    );
+  }
+
+  getConfigPath(): string {
+    return path.join(this.getExtensionDir(), EXTENSIONS_CONFIG_FILENAME);
+  }
+
+  static getSettingsPath(): string {
+    return process.cwd();
+  }
 }
 
 export function loadExtensions(workspaceDir: string): Extension[] {
@@ -177,11 +205,6 @@ export function annotateActiveExtensions(
   return annotatedExtensions;
 }
 
-function getUserExtensionsDir(): string {
-  const storage = new Storage(os.homedir());
-  return storage.getExtensionsDir();
-}
-
 export interface InstallArgs {
   source?: string;
   path?: string;
@@ -201,12 +224,10 @@ async function fileOrDirectoryExists(path: string): Promise<boolean> {
 }
 
 export async function installExtension(args: InstallArgs): Promise<string> {
-  const extensionsDir = getUserExtensionsDir();
+  const extensionsDir = ExtensionStorage.getUserExtensionsDir();
   await fs.promises.mkdir(extensionsDir, { recursive: true });
 
   let extensionName: string;
-  let targetPath: string;
-  let manifestPath: string;
 
   if (args.source) {
     try {
@@ -215,19 +236,27 @@ export async function installExtension(args: InstallArgs): Promise<string> {
     } catch (_e) {
       throw new Error(`Invalid git URL: ${args.source}`);
     }
-    targetPath = path.join(extensionsDir, extensionName);
-    manifestPath = path.join(targetPath, EXTENSIONS_CONFIG_FILENAME);
+  } else if (args.path) {
+    const sourcePath = path.resolve(args.path);
+    extensionName = path.basename(sourcePath);
+  } else {
+    // This case should be prevented by yargs configuration
+    throw new Error('Either a git URL source or a --path must be provided.');
+  }
 
-    if (await fileOrDirectoryExists(targetPath)) {
-      throw new Error(
-        `Extension "${extensionName}" already exists. Please uninstall it first.`,
-      );
-    }
+  const extensionStorage = new ExtensionStorage(extensionName);
+  const targetPath = extensionStorage.getExtensionDir();
+  const manifestPath = extensionStorage.getConfigPath();
 
+  if (await fileOrDirectoryExists(targetPath)) {
+    throw new Error(
+      `Extension "${extensionName}" already exists. Please uninstall it first.`,
+    );
+  }
+
+  if (args.source) {
     try {
-      execSync(`git clone --depth 1 ${args.source} ${targetPath}`, {
-        stdio: 'inherit',
-      });
+      await simpleGit().clone(args.source, targetPath, ['--depth', '1']);
     } catch (error) {
       throw new Error(
         `Failed to clone repository: ${(error as Error).message}`,
@@ -245,16 +274,6 @@ export async function installExtension(args: InstallArgs): Promise<string> {
   } else if (args.path) {
     // Local path
     const sourcePath = path.resolve(args.path);
-    extensionName = path.basename(sourcePath);
-    targetPath = path.join(extensionsDir, extensionName);
-    manifestPath = path.join(targetPath, EXTENSIONS_CONFIG_FILENAME);
-
-    if (await fileOrDirectoryExists(targetPath)) {
-      throw new Error(
-        `Extension "${extensionName}" already exists. Please uninstall it first.`,
-      );
-    }
-
     try {
       await fs.promises.symlink(sourcePath, targetPath, 'dir');
     } catch (error) {
@@ -269,9 +288,6 @@ export async function installExtension(args: InstallArgs): Promise<string> {
       manifestPath,
       JSON.stringify(manifest, null, 2),
     );
-  } else {
-    // This case should be prevented by yargs configuration
-    throw new Error('Either a git URL source or a --path must be provided.');
   }
 
   // Verify manfiest file
@@ -283,7 +299,37 @@ export async function installExtension(args: InstallArgs): Promise<string> {
     );
   }
 
-  const settings = loadSettings(process.cwd());
+  // Check if the extension is already installed by comparing
+  // ExtensionConfig.name. This is more robust than checking for file path
+  // uniqueness.
+  const installedExtensions = loadExtensionsFromDir(os.homedir());
+  const newExtension = loadExtension(targetPath);
+  if (!newExtension) {
+    // Clean up installed directory
+    await fs.promises.rm(targetPath, { recursive: true, force: true });
+    throw new Error(
+      `Invalid extension at ${
+        args.source || args.path
+      }. Please make sure it has a valid gemini-extension.json file.`,
+    );
+  }
+
+  if (
+    installedExtensions.some(
+      (installed) => installed.config.name === newExtension.config.name,
+    )
+  ) {
+    // Clean up installed directory
+    await fs.promises.rm(targetPath, { recursive: true, force: true });
+    // Since an extension with the same name exists, the command fails and
+    // informs the user they need to uninstall it first or use the update
+    // command.
+    throw new Error(
+      `Error: Extension "${newExtension.config.name}" is already installed. Please uninstall it first.`,
+    );
+  }
+
+  const settings = loadSettings(ExtensionStorage.getSettingsPath());
   const settingsFile = settings.forScope(SettingScope.User);
   const activatedExtensions = settingsFile.settings.activatedExtensions || [];
   if (!activatedExtensions.includes(extensionName)) {

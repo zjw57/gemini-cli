@@ -266,7 +266,10 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
 
   // Handle case where MCP subcommands are executed - they should exit the process
   // and not return to main CLI logic
-  if (result._.length > 0 && result._[0] === 'mcp') {
+  if (
+    result._.length > 0 &&
+    (result._[0] === 'mcp' || result._[0] === 'extensions')
+  ) {
     // MCP commands handle their own execution and process exit
     process.exit(0);
   }

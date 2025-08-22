@@ -18,6 +18,12 @@ import { execSync } from 'child_process';
 import * as settings from './settings.js';
 import { LoadedSettings } from './settings.js';
 
+import { simpleGit } from 'simple-git';
+
+vi.mock('simple-git', () => ({
+  simpleGit: vi.fn(),
+}));
+
 vi.mock('os', async (importOriginal) => {
   const os = await importOriginal<typeof import('os')>();
   return {
@@ -205,6 +211,9 @@ describe('installExtension', () => {
     );
     vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
     userExtensionsDir = path.join(tempHomeDir, '.gemini', 'extensions');
+    // Clean up before each test
+    fs.rmSync(userExtensionsDir, { recursive: true, force: true });
+    fs.mkdirSync(userExtensionsDir, { recursive: true });
 
     vi.mocked(settings.loadSettings).mockReturnValue(
       mockSettings as unknown as LoadedSettings,
@@ -250,6 +259,7 @@ describe('installExtension', () => {
       'activatedExtensions',
       ['my-local-extension'],
     );
+    fs.rmSync(targetExtDir, { recursive: true, force: true });
   });
 
   it('should throw an error if the extension already exists', async () => {
@@ -275,7 +285,7 @@ describe('installExtension', () => {
     fs.mkdirSync(sourceExtDir, { recursive: true }); // No manifest file
 
     await expect(installExtension({ path: sourceExtDir })).rejects.toThrow(
-      'Installation failed: gemini-extension.json not found in the extension.',
+      `Invalid extension at ${sourceExtDir}. Please make sure it has a valid gemini-extension.json file.`,
     );
 
     const targetExtDir = path.join(userExtensionsDir, 'bad-extension');
@@ -287,21 +297,18 @@ describe('installExtension', () => {
     const extensionName = 'gemini-extensions';
     const targetExtDir = path.join(userExtensionsDir, extensionName);
 
-    vi.mocked(execSync).mockImplementation(() => {
+    const clone = vi.fn().mockImplementation(async () => {
       fs.mkdirSync(targetExtDir, { recursive: true });
       fs.writeFileSync(
         path.join(targetExtDir, EXTENSIONS_CONFIG_FILENAME),
         JSON.stringify({ name: extensionName, version: '1.0.0' }),
       );
-      return Buffer.from('');
     });
+    vi.mocked(simpleGit).mockReturnValue({ clone } as any);
 
     await installExtension({ source: gitUrl });
 
-    expect(execSync).toHaveBeenCalledWith(
-      `git clone --depth 1 ${gitUrl} ${targetExtDir}`,
-      { stdio: 'inherit' },
-    );
+    expect(clone).toHaveBeenCalledWith(gitUrl, targetExtDir, ['--depth', '1']);
 
     const manifest = JSON.parse(
       fs.readFileSync(
@@ -318,6 +325,7 @@ describe('installExtension', () => {
       'activatedExtensions',
       [extensionName],
     );
+    fs.rmSync(targetExtDir, { recursive: true, force: true });
   });
 });
 
