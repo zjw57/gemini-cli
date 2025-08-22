@@ -49,7 +49,7 @@ export async function checkNextSpeaker(
   // to respond with an empty part collection if you were to send that message back to the server it will respond with
   // a 400 indicating that model part collections MUST have content.
 
-  const curatedHistory = chat.getHistory(/* curated */ true);
+  const curatedHistory = await chat.getHistory(/* curated */ true);
 
   // Ensure there's a model response to analyze
   if (curatedHistory.length === 0) {
@@ -57,7 +57,7 @@ export async function checkNextSpeaker(
     return null;
   }
 
-  const comprehensiveHistory = chat.getHistory();
+  const comprehensiveHistory = await chat.getHistory();
   // If comprehensiveHistory is empty, there is no last message to check.
   // This case should ideally be caught by the curatedHistory.length check earlier,
   // but as a safeguard:

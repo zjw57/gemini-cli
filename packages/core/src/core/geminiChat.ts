@@ -32,7 +32,7 @@ import {
 } from '../tools/tools.js';
 import { StructuredError } from './turn.js';
 import { toGenerateContentResponse } from './responseConverter.js';
-import { LlmAgent, InMemoryRunner, Session, Event } from '@google/adk';
+import { LlmAgent, InMemoryRunner, Event } from '@google/adk';
 import { ToolRegistry } from '../tools/tool-registry.js';
 
 /**
@@ -132,6 +132,7 @@ export class GeminiChat {
   private runner: InMemoryRunner;
   private agent: LlmAgent;
   private sessionId: string | undefined;
+  private appName: string = 'GeminiCLI';
 
   constructor(
     private readonly config: Config,
@@ -154,7 +155,7 @@ export class GeminiChat {
       .map((tool) => new AdkToolAdapter(tool as AnyDeclarativeTool));
 
     this.agent = new LlmAgent({
-      name: 'GeminiCLI',
+      name: this.appName,
       model: this.config.getModel(),
       instruction: systemInstruction as string,
       tools: adkTools,
@@ -162,16 +163,20 @@ export class GeminiChat {
       // planner: thinkingConfig, // Not implemented yet.
     });
 
-    const appName = this.agent.name;
-    this.runner = new InMemoryRunner({ agent: this.agent, appName });
+    this.runner = new InMemoryRunner({
+      agent: this.agent,
+      appName: this.appName,
+    });
 
     // Send the first message.
     // TODO: can we "pack the history" instead?
     if (history?.length) {
-        this.sendMessage({ 
-          message: history[0].parts as PartListUnion}, 
-          'placeholder'
-        );
+      this.sendMessage(
+        {
+          message: history[0].parts as PartListUnion,
+        },
+        'placeholder',
+      );
     }
   }
 
@@ -356,7 +361,7 @@ export class GeminiChat {
         // to deduplicate the existing chat history.
         const fullAutomaticFunctionCallingHistory =
           response.automaticFunctionCallingHistory;
-        const index = this.getHistory(true).length;
+        const index = (await this.getHistory(true)).length;
         let automaticFunctionCallingHistory: Content[] = [];
         if (fullAutomaticFunctionCallingHistory != null) {
           automaticFunctionCallingHistory =
@@ -526,13 +531,30 @@ export class GeminiChat {
    * @return History contents alternating between user and model for the entire
    *     chat session.
    */
-  getHistory(curated: boolean = false): Content[] {
-    const history = curated
-      ? extractCuratedHistory(this.history)
-      : this.history;
-    // Deep copy the history to avoid mutating the history outside of the
-    // chat session.
-    return structuredClone(history);
+  async getHistory(curated: boolean = false): Promise<Content[]> {
+    const sessionId = await this.maybeSetSession();
+    const session = await this.runner.sessionService.getSession(
+      this.appName,
+      'placeholder',
+      sessionId,
+    );
+
+    if (!session?.events?.length) {
+      return [];
+    }
+
+    const history: Content[] = [];
+    for (const event of session.events) {
+      if (event.content) {
+        history.push(event.content);
+      }
+    }
+
+    if (curated) {
+      //return extractCuratedHistory(history);
+    }
+
+    return history;
   }
 
   /**
@@ -548,9 +570,11 @@ export class GeminiChat {
    * @param content - The content to add to the history.
    */
   addHistory(content: Content): void {
+    // TODO
     this.history.push(content);
   }
   setHistory(history: Content[]): void {
+    // TODO
     this.history = history;
   }
 

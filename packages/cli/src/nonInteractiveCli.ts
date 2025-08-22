@@ -6,15 +6,15 @@
 
 import {
   Config,
-  ToolCallRequestInfo,
-  executeToolCall,
-  ToolRegistry,
+  //ToolCallRequestInfo,
+  //executeToolCall,
+  //ToolRegistry,
   shutdownTelemetry,
   isTelemetrySdkInitialized,
   GeminiEventType,
-  ToolErrorType,
+  //ToolErrorType,
 } from '@google/gemini-cli-core';
-import { Content, Part, FunctionCall } from '@google/genai';
+import { Content /*Part, FunctionCall*/ } from '@google/genai';
 
 import { parseAndFormatApiError } from './ui/utils/errorParsing.js';
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
@@ -40,10 +40,10 @@ export async function runNonInteractive(
     });
 
     const geminiClient = config.getGeminiClient();
-    const toolRegistry: ToolRegistry = await config.getToolRegistry();
+    //const toolRegistry: ToolRegistry = await config.getToolRegistry();
 
     const abortController = new AbortController();
-    let currentMessages: Content[] = [
+    const currentMessages: Content[] = [
       { role: 'user', parts: [{ text: input }] },
     ];
     let turnCount = 0;
@@ -58,7 +58,7 @@ export async function runNonInteractive(
         );
         return;
       }
-      const functionCalls: FunctionCall[] = [];
+      //const functionCalls: FunctionCall[] = [];
 
       const responseStream = geminiClient.sendMessageStream(
         currentMessages[0]?.parts || [],

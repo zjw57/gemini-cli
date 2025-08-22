@@ -158,8 +158,8 @@ export class GeminiClient {
     return this.chat !== undefined && this.contentGenerator !== undefined;
   }
 
-  getHistory(): Content[] {
-    return this.getChat().getHistory();
+  async getHistory(): Promise<Content[]> {
+    return await this.getChat().getHistory();
   }
 
   setHistory(history: Content[]) {
@@ -578,7 +578,7 @@ export class GeminiClient {
     prompt_id: string,
     force: boolean = false,
   ): Promise<ChatCompressionInfo | null> {
-    const curatedHistory = this.getChat().getHistory(true);
+    const curatedHistory = await this.getChat().getHistory(true);
 
     // Regardless of `force`, don't do anything if the history is empty.
     if (curatedHistory.length === 0) {
@@ -654,7 +654,7 @@ export class GeminiClient {
       await this.getContentGenerator().countTokens({
         // model might change after calling `sendMessage`, so we get the newest value from config
         model: this.config.getModel(),
-        contents: this.getChat().getHistory(),
+        contents: await this.getChat().getHistory(),
       });
     if (newTokenCount === undefined) {
       console.warn('Could not determine compressed history token count.');

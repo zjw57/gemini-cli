@@ -117,7 +117,7 @@ const saveCommand: SlashCommand = {
       };
     }
 
-    const history = chat.getHistory();
+    const history = await chat.getHistory();
     if (history.length > 0) {
       await logger.saveCheckpoint(history, tag);
       return {

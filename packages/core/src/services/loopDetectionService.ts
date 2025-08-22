@@ -320,10 +320,9 @@ export class LoopDetectionService {
   }
 
   private async checkForLoopWithLLM(signal: AbortSignal) {
-    const recentHistory = this.config
-      .getGeminiClient()
-      .getHistory()
-      .slice(-LLM_LOOP_CHECK_HISTORY_COUNT);
+    const recentHistory = (
+      await this.config.getGeminiClient().getHistory()
+    ).slice(-LLM_LOOP_CHECK_HISTORY_COUNT);
 
     const prompt = `You are a sophisticated AI diagnostic agent specializing in identifying when a conversational AI is stuck in an unproductive state. Your task is to analyze the provided conversation history and determine if the assistant has ceased to make meaningful progress.
 

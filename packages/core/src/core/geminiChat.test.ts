@@ -24,6 +24,7 @@ vi.mock('@google/adk', async (importOriginal) => {
     runAsync: vi.fn(),
     sessionService: {
       createSession: vi.fn().mockResolvedValue({ id: 'mock-session-id' }),
+      getSession: vi.fn().mockResolvedValue({ events: [] }),
     },
   };
 
@@ -150,31 +151,31 @@ describe('GeminiChat', () => {
       parts: [{ text: 'User input' }],
     };
 
-    it('should add user input and a single model output to history', () => {
+    it('should add user input and a single model output to history', async () => {
       const modelOutput: Content[] = [
         { role: 'model', parts: [{ text: 'Model output' }] },
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, modelOutput);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history).toEqual([userInput, modelOutput[0]]);
     });
 
-    it('should consolidate adjacent model outputs', () => {
+    it('should consolidate adjacent model outputs', async () => {
       const modelOutputParts: Content[] = [
         { role: 'model', parts: [{ text: 'Model part 1' }] },
         { role: 'model', parts: [{ text: 'Model part 2' }] },
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, modelOutputParts);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(2);
       expect(history[0]).toEqual(userInput);
       expect(history[1].role).toBe('model');
       expect(history[1].parts).toEqual([{ text: 'Model part 1Model part 2' }]);
     });
 
-    it('should handle a mix of user and model roles in outputContents (though unusual)', () => {
+    it('should handle a mix of user and model roles in outputContents (though unusual)', async () => {
       const mixedOutput: Content[] = [
         { role: 'model', parts: [{ text: 'Model 1' }] },
         { role: 'user', parts: [{ text: 'Unexpected User' }] }, // This should be pushed as is
@@ -182,7 +183,7 @@ describe('GeminiChat', () => {
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, mixedOutput);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(4); // user, model1, user_unexpected, model2
       expect(history[0]).toEqual(userInput);
       expect(history[1]).toEqual(mixedOutput[0]);
@@ -190,7 +191,7 @@ describe('GeminiChat', () => {
       expect(history[3]).toEqual(mixedOutput[2]);
     });
 
-    it('should consolidate multiple adjacent model outputs correctly', () => {
+    it('should consolidate multiple adjacent model outputs correctly', async () => {
       const modelOutputParts: Content[] = [
         { role: 'model', parts: [{ text: 'M1' }] },
         { role: 'model', parts: [{ text: 'M2' }] },
@@ -198,12 +199,12 @@ describe('GeminiChat', () => {
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, modelOutputParts);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(2);
       expect(history[1].parts).toEqual([{ text: 'M1M2M3' }]);
     });
 
-    it('should not consolidate if roles are different between model outputs', () => {
+    it('should not consolidate if roles are different between model outputs', async () => {
       const modelOutputParts: Content[] = [
         { role: 'model', parts: [{ text: 'M1' }] },
         { role: 'user', parts: [{ text: 'Interjecting User' }] },
@@ -211,13 +212,13 @@ describe('GeminiChat', () => {
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, modelOutputParts);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(4); // user, M1, Interjecting User, M2
       expect(history[1].parts).toEqual([{ text: 'M1' }]);
       expect(history[3].parts).toEqual([{ text: 'M2' }]);
     });
 
-    it('should merge with last history entry if it is also a model output', () => {
+    it('should merge with last history entry if it is also a model output', async () => {
       // @ts-expect-error Accessing private property for test setup
       chat.history = [
         userInput,
@@ -254,7 +255,7 @@ describe('GeminiChat', () => {
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(secondUserInput, secondModelOutput);
 
-      const finalHistory = chat.getHistory();
+      const finalHistory = await chat.getHistory();
       expect(finalHistory.length).toBe(4); // user1, model1, user2, model2(consolidated)
       expect(finalHistory[0]).toEqual(firstUserInput);
       expect(finalHistory[1]).toEqual(firstModelOutput[0]);
@@ -265,7 +266,7 @@ describe('GeminiChat', () => {
       ]);
     });
 
-    it('should correctly merge consolidated new output with existing model history', () => {
+    it('should correctly merge consolidated new output with existing model history', async () => {
       // Setup: history ends with a model turn
       const initialUser: Content = {
         role: 'user',
@@ -292,7 +293,7 @@ describe('GeminiChat', () => {
 
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(currentUserInput, newModelParts);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
 
       // Expected: initialUser, initialModel, currentUserInput, consolidatedNewModelParts
       expect(history.length).toBe(4);
@@ -305,10 +306,10 @@ describe('GeminiChat', () => {
       ]);
     });
 
-    it('should handle empty modelOutput array', () => {
+    it('should handle empty modelOutput array', async () => {
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, []);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       // If modelOutput is empty, it might push a default empty model part depending on isFunctionResponse
       // Assuming isFunctionResponse(userInput) is false for this simple text input
       expect(history.length).toBe(2);
@@ -317,7 +318,7 @@ describe('GeminiChat', () => {
       expect(history[1].parts).toEqual([]);
     });
 
-    it('should handle aggregating modelOutput', () => {
+    it('should handle aggregating modelOutput', async () => {
       const modelOutputUndefinedParts: Content[] = [
         { role: 'model', parts: [{ text: 'First model part' }] },
         { role: 'model', parts: [{ text: 'Second model part' }] },
@@ -327,7 +328,7 @@ describe('GeminiChat', () => {
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, modelOutputUndefinedParts);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(5);
       expect(history[0]).toEqual(userInput);
       expect(history[1].role).toBe('model');
@@ -342,7 +343,7 @@ describe('GeminiChat', () => {
       expect(history[4].parts).toEqual([]);
     });
 
-    it('should handle modelOutput with parts being undefined or empty (if they pass initial every check)', () => {
+    it('should handle modelOutput with parts being undefined or empty (if they pass initial every check)', async () => {
       const modelOutputUndefinedParts: Content[] = [
         { role: 'model', parts: [{ text: 'Text part' }] },
         { role: 'model', parts: undefined as unknown as Part[] }, // Test undefined parts
@@ -350,7 +351,7 @@ describe('GeminiChat', () => {
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, modelOutputUndefinedParts);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(4); // userInput, model1 (text), model2 (undefined parts), model3 (empty parts)
       expect(history[0]).toEqual(userInput);
       expect(history[1].role).toBe('model');
@@ -361,7 +362,7 @@ describe('GeminiChat', () => {
       expect(history[3].parts).toEqual([]);
     });
 
-    it('should correctly handle automaticFunctionCallingHistory', () => {
+    it('should correctly handle automaticFunctionCallingHistory', async () => {
       const afcHistory: Content[] = [
         { role: 'user', parts: [{ text: 'AFC User' }] },
         { role: 'model', parts: [{ text: 'AFC Model' }] },
@@ -371,33 +372,33 @@ describe('GeminiChat', () => {
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, modelOutput, afcHistory);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(3);
       expect(history[0]).toEqual(afcHistory[0]);
       expect(history[1]).toEqual(afcHistory[1]);
       expect(history[2]).toEqual(modelOutput[0]);
     });
 
-    it('should add userInput if AFC history is present but empty', () => {
+    it('should add userInput if AFC history is present but empty', async () => {
       const modelOutput: Content[] = [
         { role: 'model', parts: [{ text: 'Model Output' }] },
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, modelOutput, []); // Empty AFC history
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(2);
       expect(history[0]).toEqual(userInput);
       expect(history[1]).toEqual(modelOutput[0]);
     });
 
-    it('should skip "thought" content from modelOutput', () => {
+    it('should skip "thought" content from modelOutput', async () => {
       const modelOutputWithThought: Content[] = [
         { role: 'model', parts: [{ thought: true }, { text: 'Visible text' }] },
         { role: 'model', parts: [{ text: 'Another visible text' }] },
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, modelOutputWithThought);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(2); // User input + consolidated model output
       expect(history[0]).toEqual(userInput);
       expect(history[1].role).toBe('model');
@@ -405,18 +406,18 @@ describe('GeminiChat', () => {
       expect(history[1].parts).toEqual([{ text: 'Another visible text' }]);
     });
 
-    it('should skip "thought" content even if it is the only content', () => {
+    it('should skip "thought" content even if it is the only content', async () => {
       const modelOutputOnlyThought: Content[] = [
         { role: 'model', parts: [{ thought: true }] },
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, modelOutputOnlyThought);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(1); // User input + default empty model part
       expect(history[0]).toEqual(userInput);
     });
 
-    it('should correctly consolidate text parts when a thought part is in between', () => {
+    it('should correctly consolidate text parts when a thought part is in between', async () => {
       const modelOutputMixed: Content[] = [
         { role: 'model', parts: [{ text: 'Part 1.' }] },
         {
@@ -427,14 +428,14 @@ describe('GeminiChat', () => {
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, modelOutputMixed);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(2);
       expect(history[0]).toEqual(userInput);
       expect(history[1].role).toBe('model');
       expect(history[1].parts).toEqual([{ text: 'Part 1.Part 2.' }]);
     });
 
-    it('should handle multiple thought parts correctly', () => {
+    it('should handle multiple thought parts correctly', async () => {
       const modelOutputMultipleThoughts: Content[] = [
         { role: 'model', parts: [{ thought: true }] },
         { role: 'model', parts: [{ text: 'Visible 1' }] },
@@ -443,21 +444,21 @@ describe('GeminiChat', () => {
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, modelOutputMultipleThoughts);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(2);
       expect(history[0]).toEqual(userInput);
       expect(history[1].role).toBe('model');
       expect(history[1].parts).toEqual([{ text: 'Visible 1Visible 2' }]);
     });
 
-    it('should handle thought part at the end of outputContents', () => {
+    it('should handle thought part at the end of outputContents', async () => {
       const modelOutputThoughtAtEnd: Content[] = [
         { role: 'model', parts: [{ text: 'Visible text' }] },
         { role: 'model', parts: [{ thought: true }] },
       ];
       // @ts-expect-error Accessing private method for testing purposes
       chat.recordHistory(userInput, modelOutputThoughtAtEnd);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(2);
       expect(history[0]).toEqual(userInput);
       expect(history[1].role).toBe('model');
@@ -466,18 +467,18 @@ describe('GeminiChat', () => {
   });
 
   describe('addHistory', () => {
-    it('should add a new content item to the history', () => {
+    it('should add a new content item to the history', async () => {
       const newContent: Content = {
         role: 'user',
         parts: [{ text: 'A new message' }],
       };
       chat.addHistory(newContent);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(1);
       expect(history[0]).toEqual(newContent);
     });
 
-    it('should add multiple items correctly', () => {
+    it('should add multiple items correctly', async () => {
       const content1: Content = {
         role: 'user',
         parts: [{ text: 'Message 1' }],
@@ -488,7 +489,7 @@ describe('GeminiChat', () => {
       };
       chat.addHistory(content1);
       chat.addHistory(content2);
-      const history = chat.getHistory();
+      const history = await chat.getHistory();
       expect(history.length).toBe(2);
       expect(history[0]).toEqual(content1);
       expect(history[1]).toEqual(content2);

@@ -516,7 +516,7 @@ describe('Gemini Client (client.ts)', () => {
     it('should not trigger summarization if token count is below threshold', async () => {
       const MOCKED_TOKEN_LIMIT = 1000;
       vi.mocked(tokenLimit).mockReturnValue(MOCKED_TOKEN_LIMIT);
-      mockGetHistory.mockReturnValue([
+      mockGetHistory.mockResolvedValue([
         { role: 'user', parts: [{ text: '...history...' }] },
       ]);
 
@@ -540,7 +540,7 @@ describe('Gemini Client (client.ts)', () => {
       vi.spyOn(client['config'], 'getChatCompression').mockReturnValue({
         contextPercentageThreshold: MOCKED_CONTEXT_PERCENTAGE_THRESHOLD,
       });
-      mockGetHistory.mockReturnValue([
+      mockGetHistory.mockResolvedValue([
         { role: 'user', parts: [{ text: '...history...' }] },
       ]);
 
@@ -578,7 +578,7 @@ describe('Gemini Client (client.ts)', () => {
     it('should not compress across a function call response', async () => {
       const MOCKED_TOKEN_LIMIT = 1000;
       vi.mocked(tokenLimit).mockReturnValue(MOCKED_TOKEN_LIMIT);
-      mockGetHistory.mockReturnValue([
+      mockGetHistory.mockResolvedValue([
         { role: 'user', parts: [{ text: '...history 1...' }] },
         { role: 'model', parts: [{ text: '...history 2...' }] },
         { role: 'user', parts: [{ text: '...history 3...' }] },
@@ -630,11 +630,11 @@ describe('Gemini Client (client.ts)', () => {
       // 3. compressed summary message
       // 4. standard canned user summary message
       // 5. The last user message (not the last 3 because that would start with a function response)
-      expect(newChat.getHistory().length).toEqual(5);
+      await expect(newChat.getHistory()).resolves.toHaveLength(5);
     });
 
     it('should always trigger summarization when force is true, regardless of token count', async () => {
-      mockGetHistory.mockReturnValue([
+      mockGetHistory.mockResolvedValue([
         { role: 'user', parts: [{ text: '...history...' }] },
       ]);
 
