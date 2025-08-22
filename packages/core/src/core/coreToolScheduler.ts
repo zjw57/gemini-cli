@@ -397,7 +397,7 @@ export class CoreToolScheduler {
               errorType: undefined,
             },
             durationMs,
-            outcome,
+            oucome: ToolConfirmationOutcome.Cancel,
           } as CancelledToolCall;
         }
         case 'validating':
