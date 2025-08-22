@@ -406,7 +406,7 @@ export async function updateExtension(
   const tempDir = await ExtensionStorage.createTmpDir();
   await copyExtension(extension.path, tempDir);
   await uninstallExtension(extensionName);
-  installExtension(extension.installMetadata);
+  await installExtension(extension.installMetadata);
   try {
     const updatedExtension = loadExtension(extension.path);
     if (!updatedExtension) {

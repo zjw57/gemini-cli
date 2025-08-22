@@ -13,8 +13,14 @@ interface UpdateArgs {
 
 export async function handleUpdate(args: UpdateArgs) {
   try {
-    await updateExtension(args.name);
-    console.log(`Extension "${args.name}" successfully updated.`);
+    const updatedExtensionInfo = await updateExtension(args.name);
+    if (!updatedExtensionInfo) {
+      console.log(`Extension "${args.name}" failed to update.`);
+      return;
+    }
+    console.log(
+      `Extension "${args.name}" successfully updated from version ${updatedExtensionInfo.originalVersion} to version ${updatedExtensionInfo.updatedVersion}.`,
+    );
   } catch (error) {
     console.error((error as Error).message);
     process.exit(1);
