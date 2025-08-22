@@ -39,6 +39,11 @@ export interface ExtensionInstallMetadata {
   type: 'git' | 'local';
 }
 
+export interface ExtensionUpdateInfo {
+  originalVersion: string;
+  updatedVersion: string;
+}
+
 export class ExtensionStorage {
   private readonly extensionName: string;
 
@@ -379,4 +384,44 @@ export function toOutputString(extension: Extension): string {
     });
   }
   return output;
+}
+
+export async function updateExtension(
+  extensionName: string,
+): Promise<ExtensionUpdateInfo | undefined> {
+  const installedExtensions = loadUserExtensions();
+  const extension = installedExtensions.find(
+    (installed) => installed.config.name === extensionName,
+  );
+  if (!extension) {
+    throw new Error(`Error: Extension "${extensionName}" not found.`);
+  }
+  if (!extension.installMetadata) {
+    throw new Error(
+      `Extension cannot be updated. To update manually, uninstall and then reinstall the updated version.`,
+    );
+  }
+  const originalVersion = extension.config.version;
+  let updatedVersion: string | undefined = undefined;
+  const tempDir = await ExtensionStorage.createTmpDir();
+  await copyExtension(extension.path, tempDir);
+  await uninstallExtension(extensionName);
+  installExtension(extension.installMetadata);
+  try {
+    const updatedExtension = loadExtension(extension.path);
+    if (!updatedExtension) {
+      throw Error('Updated extension not found.');
+    }
+    updatedVersion = updatedExtension.config.version;
+  } catch (e) {
+    console.error(`Warning: error updating extension: ${e}`);
+    copyExtension(tempDir, extension.path);
+  }
+  await fs.promises.rm(tempDir, { recursive: true, force: true });
+  return updatedVersion
+    ? {
+        originalVersion,
+        updatedVersion,
+      }
+    : undefined;
 }
