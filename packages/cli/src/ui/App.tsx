@@ -4,14 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  useRef,
-  useContext,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
   Box,
   DOMElement,
@@ -53,7 +46,7 @@ import { ShellConfirmationDialog } from './components/ShellConfirmationDialog.js
 import { RadioButtonSelect } from './components/shared/RadioButtonSelect.js';
 import { Colors } from './colors.js';
 import { loadHierarchicalGeminiMemory } from '../config/config.js';
-import { SettingScope } from '../config/settings.js';
+import { LoadedSettings, SettingScope } from '../config/settings.js';
 import { Tips } from './components/Tips.js';
 import { ConsolePatcher } from './utils/ConsolePatcher.js';
 import { registerCleanup } from '../utils/cleanup.js';
@@ -110,7 +103,6 @@ import { useSettingsCommand } from './hooks/useSettingsCommand.js';
 import { SettingsDialog } from './components/SettingsDialog.js';
 import { setUpdateHandler } from '../utils/handleAutoUpdate.js';
 import { appEvents, AppEvent } from '../utils/events.js';
-import { SettingsContext } from './contexts/SettingsContext.js';
 import { isNarrowWidth } from './utils/isNarrowWidth.js';
 import { SHELL_COMMAND_NAME } from './constants.js';
 
@@ -120,26 +112,20 @@ const MAX_DISPLAYED_QUEUED_MESSAGES = 3;
 
 interface AppProps {
   config: Config;
+  settings: LoadedSettings;
   startupWarnings?: string[];
   version: string;
 }
 
 export const AppWrapper = (props: AppProps) => {
   const kittyProtocolStatus = useKittyKeyboardProtocol();
-  const settingsContext = useContext(SettingsContext);
-  if (!settingsContext) {
-    // This should not happen as AppWrapper is always rendered within the provider.
-    throw new Error('SettingsContext is not available');
-  }
-  const { settings } = settingsContext;
-
   return (
     <KeypressProvider
       kittyProtocolEnabled={kittyProtocolStatus.enabled}
       config={props.config}
     >
       <SessionStatsProvider>
-        <VimModeProvider settings={settings}>
+        <VimModeProvider settings={props.settings}>
           <App {...props} />
         </VimModeProvider>
       </SessionStatsProvider>
@@ -147,19 +133,13 @@ export const AppWrapper = (props: AppProps) => {
   );
 };
 
-const App = ({ config, startupWarnings = [], version }: AppProps) => {
+const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   const isFocused = useFocus();
   useBracketedPaste();
   const [updateInfo, setUpdateInfo] = useState<UpdateObject | null>(null);
   const { stdout } = useStdout();
   const nightly = version.includes('nightly');
   const { history, addItem, clearItems, loadHistory } = useHistory();
-  const settingsContext = useContext(SettingsContext);
-  if (!settingsContext) {
-    // This should not happen as App is always rendered within the provider.
-    throw new Error('SettingsContext is not available');
-  }
-  const { settings } = settingsContext;
 
   const [idePromptAnswered, setIdePromptAnswered] = useState(false);
   const currentIDE = config.getIdeClient().getCurrentIde();
@@ -287,15 +267,13 @@ const App = ({ config, startupWarnings = [], version }: AppProps) => {
     openThemeDialog,
     handleThemeSelect,
     handleThemeHighlight,
-  } = useThemeCommand(setThemeError, addItem);
+  } = useThemeCommand(settings, setThemeError, addItem);
 
   const { isSettingsDialogOpen, openSettingsDialog, closeSettingsDialog } =
     useSettingsCommand();
 
-  const { isFolderTrustDialogOpen, handleFolderTrustSelect } = useFolderTrust(
-    settings,
-    setIsTrustedFolder,
-  );
+  const { isFolderTrustDialogOpen, handleFolderTrustSelect, isRestarting } =
+    useFolderTrust(settings, setIsTrustedFolder);
 
   const {
     isAuthDialogOpen,
@@ -333,7 +311,7 @@ const App = ({ config, startupWarnings = [], version }: AppProps) => {
     openEditorDialog,
     handleEditorSelect,
     exitEditorDialog,
-  } = useEditorSettings(setEditorError, addItem);
+  } = useEditorSettings(settings, setEditorError, addItem);
 
   const toggleCorgiMode = useCallback(() => {
     setCorgiMode((prev) => !prev);
@@ -1006,10 +984,12 @@ const App = ({ config, startupWarnings = [], version }: AppProps) => {
           key={staticKey}
           items={[
             <Box flexDirection="column" key="header">
-              {!settings.merged.hideBanner && (
+              {!(settings.merged.hideBanner || config.getScreenReader()) && (
                 <Header version={version} nightly={nightly} />
               )}
-              {!settings.merged.hideTips && <Tips config={config} />}
+              {!(settings.merged.hideTips || config.getScreenReader()) && (
+                <Tips config={config} />
+              )}
             </Box>,
             ...history.map((h) => (
               <HistoryItemDisplay
@@ -1074,7 +1054,10 @@ const App = ({ config, startupWarnings = [], version }: AppProps) => {
               onComplete={handleIdePromptComplete}
             />
           ) : isFolderTrustDialogOpen ? (
-            <FolderTrustDialog onSelect={handleFolderTrustSelect} />
+            <FolderTrustDialog
+              onSelect={handleFolderTrustSelect}
+              isRestarting={isRestarting}
+            />
           ) : shellConfirmationRequest ? (
             <ShellConfirmationDialog request={shellConfirmationRequest} />
           ) : confirmationRequest ? (
@@ -1176,19 +1159,20 @@ const App = ({ config, startupWarnings = [], version }: AppProps) => {
                 <LoadingIndicator
                   thought={
                     streamingState === StreamingState.WaitingForConfirmation ||
-                    config.getAccessibility()?.disableLoadingPhrases
+                    config.getAccessibility()?.disableLoadingPhrases ||
+                    config.getScreenReader()
                       ? undefined
                       : thought
                   }
                   currentLoadingPhrase={
-                    config.getAccessibility()?.disableLoadingPhrases
+                    config.getAccessibility()?.disableLoadingPhrases ||
+                    config.getScreenReader()
                       ? undefined
                       : currentLoadingPhrase
                   }
                   elapsedTime={elapsedTime}
                 />
               )}
-
               {/* Display queued messages below loading indicator */}
               {messageQueue.length > 0 && (
                 <Box flexDirection="column" marginTop={1}>

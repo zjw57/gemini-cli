@@ -314,6 +314,13 @@ export const useGeminiStream = (
             messageId: userMessageTimestamp,
             signal: abortSignal,
           });
+
+          // Add user's turn after @ command processing is done.
+          addItem(
+            { type: MessageType.USER, text: trimmedQuery },
+            userMessageTimestamp,
+          );
+
           if (!atCommandResult.shouldProceed) {
             return { queryToSend: null, shouldProceed: false };
           }
@@ -912,17 +919,31 @@ export const useGeminiStream = (
           }
 
           try {
-            let commitHash = await gitService?.createFileSnapshot(
-              `Snapshot for ${toolCall.request.name}`,
-            );
+            if (!gitService) {
+              onDebugMessage(
+                `Checkpointing is enabled but Git service is not available. Failed to create snapshot for ${filePath}. Ensure Git is installed and working properly.`,
+              );
+              continue;
+            }
+
+            let commitHash: string | undefined;
+            try {
+              commitHash = await gitService.createFileSnapshot(
+                `Snapshot for ${toolCall.request.name}`,
+              );
+            } catch (error) {
+              onDebugMessage(
+                `Failed to create new snapshot: ${getErrorMessage(error)}. Attempting to use current commit.`,
+              );
+            }
 
             if (!commitHash) {
-              commitHash = await gitService?.getCurrentCommitHash();
+              commitHash = await gitService.getCurrentCommitHash();
             }
 
             if (!commitHash) {
               onDebugMessage(
-                `Failed to create snapshot for ${filePath}. Skipping restorable tool call.`,
+                `Failed to create snapshot for ${filePath}. Checkpointing may not be working properly. Ensure Git is installed and the project directory is accessible.`,
               );
               continue;
             }
@@ -959,9 +980,9 @@ export const useGeminiStream = (
             );
           } catch (error) {
             onDebugMessage(
-              `Failed to write restorable tool call file: ${getErrorMessage(
+              `Failed to create checkpoint for ${filePath}: ${getErrorMessage(
                 error,
-              )}`,
+              )}. This may indicate a problem with Git or file system permissions.`,
             );
           }
         }
