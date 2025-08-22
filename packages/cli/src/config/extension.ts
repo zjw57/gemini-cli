@@ -23,6 +23,7 @@ export interface Extension {
   path: string;
   config: ExtensionConfig;
   contextFiles: string[];
+  installMetadata?: ExtensionInstallMetadata | undefined;
 }
 
 export interface ExtensionConfig {
@@ -31,8 +32,6 @@ export interface ExtensionConfig {
   mcpServers?: Record<string, MCPServerConfig>;
   contextFileName?: string | string[];
   excludeTools?: string[];
-  githubUrl?: string;
-  installPath?: string;
 }
 
 export interface ExtensionInstallMetadata {
@@ -156,12 +155,26 @@ export function loadExtension(extensionDir: string): Extension | null {
       path: extensionDir,
       config,
       contextFiles,
+      installMetadata: loadInstallMetadata(extensionDir),
     };
   } catch (e) {
     console.error(
       `Warning: error parsing extension config in ${configFilePath}: ${e}`,
     );
     return null;
+  }
+}
+
+function loadInstallMetadata(
+  extensionDir: string,
+): ExtensionInstallMetadata | undefined {
+  const metadataFilePath = path.join(extensionDir, INSTALL_METADATA_FILENAME);
+  try {
+    const configContent = fs.readFileSync(metadataFilePath, 'utf-8');
+    const metadata = JSON.parse(configContent) as ExtensionInstallMetadata;
+    return metadata;
+  } catch (_e) {
+    return undefined;
   }
 }
 
