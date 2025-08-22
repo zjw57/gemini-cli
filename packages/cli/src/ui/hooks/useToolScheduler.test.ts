@@ -60,6 +60,8 @@ const mockConfig = {
     model: 'test-model',
     authType: 'oauth-personal',
   }),
+  getTerminalWidth: () => 80,
+  getTerminalHeight: () => 24,
 };
 
 class MockToolInvocation extends BaseToolInvocation<object, ToolResult> {
@@ -184,7 +186,6 @@ describe('useReactToolScheduler in YOLO Mode', () => {
         mockConfig as unknown as Config,
         setPendingHistoryItem,
         () => {},
-        () => ({ columns: 80, rows: 24 }),
       ),
     );
 
@@ -338,7 +339,6 @@ describe('useReactToolScheduler', () => {
         mockConfig as unknown as Config,
         setPendingHistoryItem,
         () => {},
-        () => ({ columns: 80, rows: 24 }),
       ),
     );
 

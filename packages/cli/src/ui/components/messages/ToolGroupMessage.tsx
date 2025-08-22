@@ -33,7 +33,6 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
   isFocused = true,
   activeShellPtyId,
   shellInputFocused,
-  onShellInputSubmit,
 }) => {
   const isShellFocused =
     shellInputFocused &&
@@ -114,7 +113,7 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
                 }
                 activeShellPtyId={activeShellPtyId}
                 shellInputFocused={shellInputFocused}
-                onShellInputSubmit={onShellInputSubmit}
+                config={config}
               />
             </Box>
             {tool.status === ToolCallStatus.Confirming &&

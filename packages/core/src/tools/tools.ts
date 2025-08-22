@@ -53,7 +53,6 @@ export interface ToolInvocation<
     updateOutput?: (output: string) => void,
     terminalColumns?: number,
     terminalRows?: number,
-    onPid?: (pid: number) => void,
   ): Promise<TResult>;
 }
 
@@ -84,7 +83,6 @@ export abstract class BaseToolInvocation<
     updateOutput?: (output: string) => void,
     terminalColumns?: number,
     terminalRows?: number,
-    onPid?: (pid: number) => void,
   ): Promise<TResult>;
 }
 
@@ -205,7 +203,6 @@ export abstract class DeclarativeTool<
     updateOutput?: (output: string) => void,
     terminalColumns?: number,
     terminalRows?: number,
-    onPid?: (pid: number) => void,
   ): Promise<TResult> {
     const invocation = this.build(params);
     return invocation.execute(
@@ -213,7 +210,6 @@ export abstract class DeclarativeTool<
       updateOutput,
       terminalColumns,
       terminalRows,
-      onPid,
     );
   }
 

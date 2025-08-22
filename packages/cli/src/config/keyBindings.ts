@@ -164,7 +164,7 @@ export const defaultKeyBindings: KeyBindingConfig = {
   // Original: key.ctrl && key.name === 'o'
   [Command.SHOW_ERROR_DETAILS]: [{ key: 'o', ctrl: true }],
   // Original: key.ctrl && key.name === 't'
-  [Command.TOGGLE_TOOL_DESCRIPTIONS]: [{ key: 'i', ctrl: true }],
+  [Command.TOGGLE_TOOL_DESCRIPTIONS]: [{ key: 't', ctrl: true }],
   // Original: key.ctrl && key.name === 'g'
   [Command.TOGGLE_IDE_CONTEXT_DETAIL]: [{ key: 'g', ctrl: true }],
   // Original: key.ctrl && (key.name === 'c' || key.name === 'C')
@@ -183,5 +183,5 @@ export const defaultKeyBindings: KeyBindingConfig = {
   // Original: key.name === 'tab'
   // Original: key.name === 'tab'
   [Command.ACCEPT_SUGGESTION_REVERSE_SEARCH]: [{ key: 'tab' }],
-  [Command.TOGGLE_SHELL_INPUT_FOCUS]: [{ key: 't', ctrl: true }],
+  [Command.TOGGLE_SHELL_INPUT_FOCUS]: [{ key: 'f', ctrl: true }],
 };

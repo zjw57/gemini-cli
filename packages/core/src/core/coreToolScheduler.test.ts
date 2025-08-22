@@ -129,6 +129,8 @@ describe('CoreToolScheduler', () => {
         model: 'test-model',
         authType: 'oauth-personal',
       }),
+      getTerminalWidth: () => 90,
+      getTerminalHeight: () => 30,
     } as unknown as Config;
 
     const scheduler = new CoreToolScheduler({
@@ -137,7 +139,6 @@ describe('CoreToolScheduler', () => {
       onAllToolCallsComplete,
       onToolCallsUpdate,
       getPreferredEditor: () => 'vscode',
-      terminalSize: { columns: 90, rows: 30 },
       onEditorClose: vi.fn(),
     });
 
@@ -190,6 +191,8 @@ describe('CoreToolScheduler with payload', () => {
         model: 'test-model',
         authType: 'oauth-personal',
       }),
+      getTerminalWidth: () => 90,
+      getTerminalHeight: () => 30,
     } as unknown as Config;
 
     const scheduler = new CoreToolScheduler({
@@ -198,7 +201,6 @@ describe('CoreToolScheduler with payload', () => {
       onAllToolCallsComplete,
       onToolCallsUpdate,
       getPreferredEditor: () => 'vscode',
-      terminalSize: { columns: 90, rows: 30 },
       onEditorClose: vi.fn(),
     });
 
@@ -491,6 +493,8 @@ describe('CoreToolScheduler edit cancellation', () => {
         model: 'test-model',
         authType: 'oauth-personal',
       }),
+      getTerminalWidth: () => 90,
+      getTerminalHeight: () => 30,
     } as unknown as Config;
 
     const scheduler = new CoreToolScheduler({
@@ -499,7 +503,6 @@ describe('CoreToolScheduler edit cancellation', () => {
       onAllToolCallsComplete,
       onToolCallsUpdate,
       getPreferredEditor: () => 'vscode',
-      terminalSize: { columns: 90, rows: 30 },
       onEditorClose: vi.fn(),
     });
 
@@ -584,6 +587,8 @@ describe('CoreToolScheduler YOLO mode', () => {
         model: 'test-model',
         authType: 'oauth-personal',
       }),
+      getTerminalWidth: () => 90,
+      getTerminalHeight: () => 30,
     } as unknown as Config;
 
     const scheduler = new CoreToolScheduler({
@@ -592,7 +597,6 @@ describe('CoreToolScheduler YOLO mode', () => {
       onAllToolCallsComplete,
       onToolCallsUpdate,
       getPreferredEditor: () => 'vscode',
-      terminalSize: { columns: 90, rows: 30 },
       onEditorClose: vi.fn(),
     });
 
@@ -674,6 +678,8 @@ describe('CoreToolScheduler request queueing', () => {
         model: 'test-model',
         authType: 'oauth-personal',
       }),
+      getTerminalWidth: () => 90,
+      getTerminalHeight: () => 30,
     } as unknown as Config;
 
     const scheduler = new CoreToolScheduler({
@@ -682,7 +688,6 @@ describe('CoreToolScheduler request queueing', () => {
       onAllToolCallsComplete,
       onToolCallsUpdate,
       getPreferredEditor: () => 'vscode',
-      terminalSize: { columns: 90, rows: 30 },
       onEditorClose: vi.fn(),
     });
 
@@ -788,6 +793,8 @@ describe('CoreToolScheduler request queueing', () => {
         model: 'test-model',
         authType: 'oauth-personal',
       }),
+      getTerminalWidth: () => 90,
+      getTerminalHeight: () => 30,
     } as unknown as Config;
 
     const scheduler = new CoreToolScheduler({
@@ -796,7 +803,6 @@ describe('CoreToolScheduler request queueing', () => {
       onAllToolCallsComplete,
       onToolCallsUpdate,
       getPreferredEditor: () => 'vscode',
-      terminalSize: { columns: 90, rows: 30 },
       onEditorClose: vi.fn(),
     });
 
@@ -848,6 +854,8 @@ describe('CoreToolScheduler request queueing', () => {
       setApprovalMode: (mode: ApprovalMode) => {
         approvalMode = mode;
       },
+      getTerminalWidth: () => 90,
+      getTerminalHeight: () => 30,
     } as unknown as Config;
 
     const testTool = new TestApprovalTool(mockConfig);
@@ -903,7 +911,6 @@ describe('CoreToolScheduler request queueing', () => {
       },
       getPreferredEditor: () => 'vscode',
       onEditorClose: vi.fn(),
-      terminalSize: { columns: 90, rows: 30 },
     });
 
     const abortController = new AbortController();

@@ -20,7 +20,6 @@ import {
   ToolCall,
   Status as CoreStatus,
   EditorType,
-  type PidUpdateHandler,
 } from '@google/gemini-cli-core';
 import { useCallback, useState, useMemo } from 'react';
 import {
@@ -68,9 +67,7 @@ export function useReactToolScheduler(
   config: Config,
   getPreferredEditor: () => EditorType | undefined,
   onEditorClose: () => void,
-  getTerminalSize: () => { columns: number; rows: number },
 ): [TrackedToolCall[], ScheduleFn, MarkToolsAsSubmittedFn] {
-  const terminalSize = getTerminalSize();
   const [toolCallsForDisplay, setToolCallsForDisplay] = useState<
     TrackedToolCall[]
   >([]);
@@ -121,21 +118,6 @@ export function useReactToolScheduler(
     [setToolCallsForDisplay],
   );
 
-  const pidUpdateHandler: PidUpdateHandler = useCallback(
-    (toolCallId, pid) => {
-      setToolCallsForDisplay((prevCalls) =>
-        prevCalls.map((tc) => {
-          if (tc.request.callId === toolCallId && tc.status === 'executing') {
-            const executingTc = tc as TrackedExecutingToolCall;
-            return { ...executingTc, ptyId: pid };
-          }
-          return tc;
-        }),
-      );
-    },
-    [setToolCallsForDisplay],
-  );
-
   const scheduler = useMemo(
     () =>
       new CoreToolScheduler({
@@ -146,8 +128,6 @@ export function useReactToolScheduler(
         getPreferredEditor,
         config,
         onEditorClose,
-        pidUpdateHandler,
-        terminalSize,
       }),
     [
       config,
@@ -156,8 +136,6 @@ export function useReactToolScheduler(
       toolCallsUpdateHandler,
       getPreferredEditor,
       onEditorClose,
-      pidUpdateHandler,
-      terminalSize,
     ],
   );
 

@@ -200,6 +200,8 @@ export interface ConfigParameters {
   trustedFolder?: boolean;
   shouldUseNodePtyShell?: boolean;
   skipNextSpeakerCheck?: boolean;
+  terminalWidth?: number;
+  terminalHeight?: number;
 }
 
 export class Config {
@@ -267,6 +269,8 @@ export class Config {
   private readonly trustedFolder: boolean | undefined;
   private readonly shouldUseNodePtyShell: boolean;
   private readonly skipNextSpeakerCheck: boolean;
+  private terminalWidth: number;
+  private terminalHeight: number;
   private initialized: boolean = false;
   readonly storage: Storage;
 
@@ -337,6 +341,8 @@ export class Config {
     this.trustedFolder = params.trustedFolder;
     this.shouldUseNodePtyShell = params.shouldUseNodePtyShell ?? false;
     this.skipNextSpeakerCheck = params.skipNextSpeakerCheck ?? false;
+    this.terminalWidth = params.terminalWidth ?? 80;
+    this.terminalHeight = params.terminalHeight ?? 24;
     this.storage = new Storage(this.targetDir);
 
     if (params.contextFileName) {
@@ -729,6 +735,22 @@ export class Config {
 
   getSkipNextSpeakerCheck(): boolean {
     return this.skipNextSpeakerCheck;
+  }
+
+  getTerminalWidth(): number {
+    return this.terminalWidth;
+  }
+
+  setTerminalWidth(width: number): void {
+    this.terminalWidth = width;
+  }
+
+  getTerminalHeight(): number {
+    return this.terminalHeight;
+  }
+
+  setTerminalHeight(height: number): void {
+    this.terminalHeight = height;
   }
 
   async getGitService(): Promise<GitService> {

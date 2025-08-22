@@ -98,7 +98,6 @@ class ShellToolInvocation extends BaseToolInvocation<
     updateOutput?: (output: string) => void,
     terminalColumns?: number,
     terminalRows?: number,
-    onPid?: (pid: number) => void,
   ): Promise<ToolResult> {
     const strippedCommand = stripShellWrapper(this.params.command);
 
@@ -135,59 +134,54 @@ class ShellToolInvocation extends BaseToolInvocation<
       let lastUpdateTime = Date.now();
       let isBinaryStream = false;
 
-      const { pid, result: resultPromise } =
-        await ShellExecutionService.execute(
-          commandToExecute,
-          cwd,
-          (event: ShellOutputEvent) => {
-            if (!updateOutput) {
-              return;
-            }
+      const { result: resultPromise } = await ShellExecutionService.execute(
+        commandToExecute,
+        cwd,
+        (event: ShellOutputEvent) => {
+          if (!updateOutput) {
+            return;
+          }
 
-            let currentDisplayOutput = '';
-            let shouldUpdate = false;
+          let currentDisplayOutput = '';
+          let shouldUpdate = false;
 
-            switch (event.type) {
-              case 'data':
-                if (isBinaryStream) break;
-                cumulativeOutput = event.chunk;
-                currentDisplayOutput = cumulativeOutput;
+          switch (event.type) {
+            case 'data':
+              if (isBinaryStream) break;
+              cumulativeOutput = event.chunk;
+              currentDisplayOutput = cumulativeOutput;
+              shouldUpdate = true;
+              break;
+            case 'binary_detected':
+              isBinaryStream = true;
+              currentDisplayOutput =
+                '[Binary output detected. Halting stream...]';
+              shouldUpdate = true;
+              break;
+            case 'binary_progress':
+              isBinaryStream = true;
+              currentDisplayOutput = `[Receiving binary output... ${formatMemoryUsage(
+                event.bytesReceived,
+              )} received]`;
+              if (Date.now() - lastUpdateTime > OUTPUT_UPDATE_INTERVAL_MS) {
                 shouldUpdate = true;
-                break;
-              case 'binary_detected':
-                isBinaryStream = true;
-                currentDisplayOutput =
-                  '[Binary output detected. Halting stream...]';
-                shouldUpdate = true;
-                break;
-              case 'binary_progress':
-                isBinaryStream = true;
-                currentDisplayOutput = `[Receiving binary output... ${formatMemoryUsage(
-                  event.bytesReceived,
-                )} received]`;
-                if (Date.now() - lastUpdateTime > OUTPUT_UPDATE_INTERVAL_MS) {
-                  shouldUpdate = true;
-                }
-                break;
-              default: {
-                throw new Error('An unhandled ShellOutputEvent was found.');
               }
+              break;
+            default: {
+              throw new Error('An unhandled ShellOutputEvent was found.');
             }
+          }
 
-            if (shouldUpdate) {
-              updateOutput(currentDisplayOutput);
-              lastUpdateTime = Date.now();
-            }
-          },
-          signal,
-          this.config.getShouldUseNodePtyShell(),
-          terminalColumns,
-          terminalRows,
-        );
-
-      if (pid && onPid) {
-        onPid(pid);
-      }
+          if (shouldUpdate) {
+            updateOutput(currentDisplayOutput);
+            lastUpdateTime = Date.now();
+          }
+        },
+        signal,
+        this.config.getShouldUseNodePtyShell(),
+        terminalColumns,
+        terminalRows,
+      );
 
       const result = await resultPromise;
 

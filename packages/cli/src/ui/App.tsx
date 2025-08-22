@@ -494,6 +494,10 @@ const App = ({ config, startupWarnings = [], version }: AppProps) => {
 
   // Terminal and UI setup
   const { rows: terminalHeight, columns: terminalWidth } = useTerminalSize();
+
+  config.setTerminalHeight(terminalHeight);
+  config.setTerminalWidth(terminalWidth);
+
   const isNarrow = isNarrowWidth(terminalWidth);
   const { stdin, setRawMode } = useStdin();
   const isInitialMount = useRef(true);
@@ -600,8 +604,8 @@ const App = ({ config, startupWarnings = [], version }: AppProps) => {
     refreshStatic,
     () => cancelHandlerRef.current(),
     setShellInputFocused,
-    Math.floor(terminalWidth * 0.5),
-    Math.floor(terminalHeight * 0.5),
+    terminalWidth,
+    terminalHeight,
     shellInputFocused,
   );
 
@@ -691,15 +695,6 @@ const App = ({ config, startupWarnings = [], version }: AppProps) => {
     }
     setActiveShellPtyId(ptyId);
   }, [pendingHistoryItems]);
-
-  const handleShellInputSubmit = useCallback(
-    (input: string) => {
-      if (activeShellPtyId) {
-        config.getGeminiClient().writeToShell(activeShellPtyId, input);
-      }
-    },
-    [activeShellPtyId, config],
-  );
 
   useEffect(() => {
     if (activeShellPtyId === null) {
@@ -930,19 +925,15 @@ const App = ({ config, startupWarnings = [], version }: AppProps) => {
   const initialPrompt = useMemo(() => config.getQuestion(), [config]);
   const geminiClient = config.getGeminiClient();
 
-  useEffect(
-    () => {
-      if (activeShellPtyId) {
-        geminiClient.resizeShell(
-          activeShellPtyId,
-          Math.floor(terminalWidth * 0.5),
-          Math.floor(terminalHeight * 0.5),
-        );
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [terminalHeight, terminalWidth],
-  );
+  useEffect(() => {
+    if (activeShellPtyId) {
+      geminiClient.resizeShell(
+        activeShellPtyId,
+        Math.floor(terminalWidth * 0.5),
+        Math.floor(terminalHeight * 0.5),
+      );
+    }
+  }, [terminalHeight, terminalWidth, activeShellPtyId, geminiClient]);
 
   useEffect(() => {
     if (
@@ -1052,7 +1043,6 @@ const App = ({ config, startupWarnings = [], version }: AppProps) => {
                 isFocused={!isEditorDialogOpen}
                 activeShellPtyId={activeShellPtyId}
                 shellInputFocused={shellInputFocused}
-                onShellInputSubmit={handleShellInputSubmit}
               />
             ))}
             <ShowMoreLines constrainHeight={constrainHeight} />

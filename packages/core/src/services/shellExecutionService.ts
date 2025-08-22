@@ -79,8 +79,7 @@ export type ShellOutputEvent =
 
 interface ActivePty {
   ptyProcess: IPty;
-  // @ts-expect-error Terminal type has issues.
-  headlessTerminal: Terminal;
+  headlessTerminal: pkg.Terminal;
 }
 
 /**
@@ -108,7 +107,6 @@ export class ShellExecutionService {
     shouldUseNodePty: boolean,
     terminalColumns?: number,
     terminalRows?: number,
-    onPid?: (pid: number) => void,
   ): Promise<ShellExecutionHandle> {
     if (shouldUseNodePty) {
       const ptyInfo = await getPty();
@@ -122,7 +120,6 @@ export class ShellExecutionService {
             terminalColumns,
             terminalRows,
             ptyInfo,
-            onPid,
           );
         } catch (_e) {
           // Fallback to child_process
@@ -239,7 +236,7 @@ export class ShellExecutionService {
             signal: signal ? os.constants.signals[signal] : null,
             error,
             aborted: abortSignal.aborted,
-            pid: child.pid,
+            pid: undefined,
             executionMethod: 'child_process',
           });
         };
@@ -297,7 +294,7 @@ export class ShellExecutionService {
         }
       });
 
-      return { pid: child.pid, result };
+      return { pid: undefined, result };
     } catch (e) {
       const error = e as Error;
       return {
@@ -324,7 +321,6 @@ export class ShellExecutionService {
     terminalColumns: number | undefined,
     terminalRows: number | undefined,
     ptyInfo: PtyImplementation,
-    onPid?: (pid: number) => void,
   ): ShellExecutionHandle {
     if (!ptyInfo) {
       // This should not happen, but as a safeguard...
@@ -353,10 +349,6 @@ export class ShellExecutionService {
         handleFlowControl: true,
       });
 
-      if (onPid) {
-        onPid(ptyProcess.pid);
-      }
-
       const result = new Promise<ShellExecutionResult>((resolve) => {
         const headlessTerminal = new Terminal({
           allowProposedApi: true,
@@ -379,7 +371,7 @@ export class ShellExecutionService {
         let sniffedBytes = 0;
 
         let renderTimeout: NodeJS.Timeout | null = null;
-        const RENDER_INTERVAL = 100; // roughly 60fps
+        const RENDER_INTERVAL = 100;
 
         const render = () => {
           renderTimeout = null;

@@ -180,7 +180,6 @@ describe('ShellExecutionService', () => {
     });
 
     it('should call onPid with the process id', async () => {
-      const onPid = vi.fn();
       const abortController = new AbortController();
       const handle = await ShellExecutionService.execute(
         'ls -l',
@@ -190,7 +189,6 @@ describe('ShellExecutionService', () => {
         true,
         80,
         24,
-        onPid,
       );
       mockPtyProcess.onExit.mock.calls[0][0]({ exitCode: 0, signal: null });
       await handle.result;
@@ -425,7 +423,7 @@ describe('ShellExecutionService child_process fallback', () => {
       expect(result.error).toBeNull();
       expect(result.aborted).toBe(false);
       expect(result.output).toBe('file1.txt\na warning');
-      expect(handle.pid).toBe(12345);
+      expect(handle.pid).toBe(undefined);
 
       expect(onOutputEventMock).toHaveBeenCalledWith({
         type: 'data',

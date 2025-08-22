@@ -47,7 +47,6 @@ describe('useShellCommandProcessor', () => {
   let setPendingHistoryItemMock: Mock;
   let onExecMock: Mock;
   let onDebugMessageMock: Mock;
-  let onPidMock: Mock;
   let mockConfig: Config;
   let mockGeminiClient: GeminiClient;
 
@@ -65,7 +64,6 @@ describe('useShellCommandProcessor', () => {
       getTargetDir: () => '/test/dir',
       getShouldUseNodePtyShell: () => false,
     } as Config;
-    onPidMock = vi.fn();
     mockGeminiClient = { addHistory: vi.fn() } as unknown as GeminiClient;
 
     vi.mocked(os.platform).mockReturnValue('linux');
@@ -96,7 +94,6 @@ describe('useShellCommandProcessor', () => {
         onDebugMessageMock,
         mockConfig,
         mockGeminiClient,
-        onPidMock,
       ),
     );
 

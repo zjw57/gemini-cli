@@ -8,16 +8,19 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 import { useKeypress, Key, keyToAnsi } from '../hooks/useKeypress.js';
 import chalk from 'chalk';
+import { type Config } from '@google/gemini-cli-core';
 
 const CURSOR_BLINK_RATE_MS = 500;
 
 export interface ShellInputPromptProps {
-  onSubmit: (value: string) => void;
+  config: Config;
+  activeShellPtyId: number | null;
   focus?: boolean;
 }
 
 export const ShellInputPrompt: React.FC<ShellInputPromptProps> = ({
-  onSubmit,
+  config,
+  activeShellPtyId,
   focus = true,
 }) => {
   const [isCursorVisible, setIsCursorVisible] = useState(true);
@@ -36,6 +39,15 @@ export const ShellInputPrompt: React.FC<ShellInputPromptProps> = ({
     };
   }, [focus]);
 
+  const handleShellInputSubmit = useCallback(
+    (input: string) => {
+      if (activeShellPtyId) {
+        config.getGeminiClient().writeToShell(activeShellPtyId, input);
+      }
+    },
+    [activeShellPtyId, config],
+  );
+
   const handleInput = useCallback(
     (key: Key) => {
       if (!focus) {
@@ -45,10 +57,10 @@ export const ShellInputPrompt: React.FC<ShellInputPromptProps> = ({
 
       const ansiSequence = keyToAnsi(key);
       if (ansiSequence) {
-        onSubmit(ansiSequence);
+        handleShellInputSubmit(ansiSequence);
       }
     },
-    [focus, onSubmit],
+    [focus, handleShellInputSubmit],
   );
 
   useKeypress(handleInput, { isActive: focus });

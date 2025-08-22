@@ -15,6 +15,7 @@ import { MaxSizedBox } from '../shared/MaxSizedBox.js';
 import { ShellInputPrompt } from '../ShellInputPrompt.js';
 import { SHELL_COMMAND_NAME } from '../../constants.js';
 import { theme } from '../../semantic-colors.js';
+import { Config } from '@google/gemini-cli-core';
 
 const STATIC_HEIGHT = 1;
 const RESERVED_LINE_COUNT = 5; // for tool name, status, padding etc.
@@ -33,7 +34,7 @@ export interface ToolMessageProps extends IndividualToolCallDisplay {
   renderOutputAsMarkdown?: boolean;
   activeShellPtyId?: number | null;
   shellInputFocused?: boolean;
-  onShellInputSubmit?: (input: string) => void;
+  config?: Config;
 }
 
 export const ToolMessage: React.FC<ToolMessageProps> = ({
@@ -47,15 +48,9 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
   renderOutputAsMarkdown = true,
   activeShellPtyId,
   shellInputFocused,
-  onShellInputSubmit,
   ptyId,
+  config,
 }) => {
-  const handleShellInput = (input: string) => {
-    if (onShellInputSubmit) {
-      onShellInputSubmit(input);
-    }
-  };
-
   const isThisShellFocused =
     (name === SHELL_COMMAND_NAME || name === 'Shell') &&
     status === ToolCallStatus.Executing &&
@@ -132,10 +127,11 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
           </Box>
         </Box>
       )}
-      {isThisShellFocused && (
+      {isThisShellFocused && config && (
         <Box paddingLeft={STATUS_INDICATOR_WIDTH} marginTop={1}>
           <ShellInputPrompt
-            onSubmit={handleShellInput}
+            config={config}
+            activeShellPtyId={activeShellPtyId ?? null}
             focus={shellInputFocused}
           />
         </Box>

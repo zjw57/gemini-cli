@@ -96,8 +96,8 @@ export const useGeminiStream = (
   onEditorClose: () => void,
   onCancelSubmit: () => void,
   setShellInputFocused: (value: boolean) => void,
-  terminalWidth?: number,
-  terminalHeight?: number,
+  terminalWidth: number,
+  terminalHeight: number,
   isShellFocused?: boolean,
 ) => {
   const [initError, setInitError] = useState<string | null>(null);
@@ -117,11 +117,6 @@ export const useGeminiStream = (
     }
     return new GitService(config.getProjectRoot(), storage);
   }, [config, storage]);
-
-  const getTerminalSize = () => ({
-    columns: terminalWidth ?? process.stdout.columns,
-    rows: terminalHeight ?? process.stdout.rows,
-  });
 
   const [toolCalls, scheduleToolCalls, markToolsAsSubmitted] =
     useReactToolScheduler(
@@ -145,7 +140,6 @@ export const useGeminiStream = (
       config,
       getPreferredEditor,
       onEditorClose,
-      getTerminalSize,
     );
 
   const pendingToolCallGroupDisplay = useMemo(
@@ -168,20 +162,6 @@ export const useGeminiStream = (
     onDebugMessage,
     config,
     geminiClient,
-    (pid) => {
-      setPendingHistoryItem((prevItem) => {
-        if (prevItem?.type === 'tool_group') {
-          return {
-            ...prevItem,
-            tools: prevItem.tools.map((tool) => ({
-              ...tool,
-              ptyId: pid,
-            })),
-          };
-        }
-        return prevItem;
-      });
-    },
     terminalWidth,
     terminalHeight,
   );

@@ -70,7 +70,6 @@ export const useShellCommandProcessor = (
   onDebugMessage: (message: string) => void,
   config: Config,
   geminiClient: GeminiClient,
-  onPid: (pid: number) => void,
   terminalWidth?: number,
   terminalHeight?: number,
 ) => {
@@ -207,7 +206,17 @@ export const useShellCommandProcessor = (
 
           executionPid = pid;
           if (pid) {
-            onPid(pid);
+            setPendingHistoryItem((prevItem) => {
+              if (prevItem?.type === 'tool_group') {
+                return {
+                  ...prevItem,
+                  tools: prevItem.tools.map((tool) =>
+                    tool.callId === callId ? { ...tool, ptyId: pid } : tool,
+                  ),
+                };
+              }
+              return prevItem;
+            });
           }
 
           result
@@ -325,7 +334,6 @@ export const useShellCommandProcessor = (
       setPendingHistoryItem,
       onExec,
       geminiClient,
-      onPid,
       terminalHeight,
       terminalWidth,
     ],
