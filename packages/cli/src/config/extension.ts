@@ -340,3 +340,7 @@ export async function uninstallExtension(extensionName: string): Promise<void> {
     force: true,
   });
 }
+
+export function toOutputString(extension: Extension): string {
+  return `${extension.config.name} (${extension.config.version})`;
+}
