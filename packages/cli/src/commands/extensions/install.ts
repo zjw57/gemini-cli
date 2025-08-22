@@ -5,7 +5,10 @@
  */
 
 import { CommandModule } from 'yargs';
-import { installExtension } from '../../config/extension.js';
+import {
+  installExtension,
+  ExtensionInstallMetadata,
+} from '../../config/extension.js';
 
 interface InstallArgs {
   source?: string;
@@ -14,7 +17,11 @@ interface InstallArgs {
 
 export async function handleInstall(args: InstallArgs) {
   try {
-    const extensionName = await installExtension(args);
+    const installMetadata: ExtensionInstallMetadata = {
+      source: (args.source || args.path) as string,
+      type: args.source ? 'git' : 'local',
+    };
+    const extensionName = await installExtension(installMetadata);
     console.log(
       `Extension "${extensionName}" installed successfully and enabled.`,
     );

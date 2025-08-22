@@ -543,15 +543,6 @@ export const SETTINGS_SCHEMA = {
     description: 'Skip the next speaker check.',
     showInDialog: true,
   },
-  activatedExtensions: {
-    type: 'array',
-    label: 'Activated Extensions',
-    category: 'Advanced',
-    requiresRestart: true,
-    default: [] as string[],
-    description: 'A list of activated extensions.',
-    showInDialog: false,
-  },
   enablePromptCompletion: {
     type: 'boolean',
     label: 'Enable Prompt Completion',

@@ -10,15 +10,13 @@ import * as os from 'os';
 import * as path from 'path';
 import {
   EXTENSIONS_CONFIG_FILENAME,
+  INSTALL_METADATA_FILENAME,
   annotateActiveExtensions,
   installExtension,
   loadExtensions,
 } from './extension.js';
 import { execSync } from 'child_process';
-import * as settings from './settings.js';
-import { LoadedSettings } from './settings.js';
-
-import { simpleGit } from 'simple-git';
+import { SimpleGit, simpleGit } from 'simple-git';
 
 vi.mock('simple-git', () => ({
   simpleGit: vi.fn(),
@@ -39,14 +37,6 @@ vi.mock('child_process', async (importOriginal) => {
     execSync: vi.fn(),
   };
 });
-
-vi.mock('./settings.js', () => ({
-  loadSettings: vi.fn(),
-  SettingScope: {
-    User: 'user',
-  },
-}));
-
 const EXTENSIONS_DIRECTORY_NAME = path.join('.gemini', 'extensions');
 
 describe('loadExtensions', () => {
@@ -189,23 +179,10 @@ describe('annotateActiveExtensions', () => {
 });
 
 describe('installExtension', () => {
-  let tempWorkspaceDir: string;
   let tempHomeDir: string;
   let userExtensionsDir: string;
-  const mockSettings = {
-    forScope: vi.fn(),
-    setValue: vi.fn(),
-  };
-  const mockSettingsFile = {
-    settings: {
-      activatedExtensions: [] as string[],
-    },
-  };
 
   beforeEach(() => {
-    tempWorkspaceDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), 'gemini-cli-test-workspace-'),
-    );
     tempHomeDir = fs.mkdtempSync(
       path.join(os.tmpdir(), 'gemini-cli-test-home-'),
     );
@@ -215,76 +192,55 @@ describe('installExtension', () => {
     fs.rmSync(userExtensionsDir, { recursive: true, force: true });
     fs.mkdirSync(userExtensionsDir, { recursive: true });
 
-    vi.mocked(settings.loadSettings).mockReturnValue(
-      mockSettings as unknown as LoadedSettings,
-    );
-    mockSettings.forScope.mockReturnValue(mockSettingsFile);
-    mockSettingsFile.settings.activatedExtensions = [];
     vi.mocked(execSync).mockClear();
-    mockSettings.setValue.mockClear();
-    mockSettings.forScope.mockClear();
   });
 
   afterEach(() => {
-    fs.rmSync(tempWorkspaceDir, { recursive: true, force: true });
     fs.rmSync(tempHomeDir, { recursive: true, force: true });
   });
 
   it('should install an extension from a local path', async () => {
-    const sourceExtDir = path.join(tempWorkspaceDir, 'my-local-extension');
-    fs.mkdirSync(sourceExtDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(sourceExtDir, EXTENSIONS_CONFIG_FILENAME),
-      JSON.stringify({ name: 'my-local-extension', version: '1.0.0' }),
+    const sourceExtDir = createExtension(
+      tempHomeDir,
+      'my-local-extension',
+      '1.0.0',
     );
-
-    await installExtension({ path: sourceExtDir });
-
     const targetExtDir = path.join(userExtensionsDir, 'my-local-extension');
-    expect(fs.lstatSync(targetExtDir).isSymbolicLink()).toBe(true);
-    expect(fs.readlinkSync(targetExtDir)).toBe(sourceExtDir);
+    const metadataPath = path.join(targetExtDir, INSTALL_METADATA_FILENAME);
 
-    const manifest = JSON.parse(
-      fs.readFileSync(
-        path.join(targetExtDir, EXTENSIONS_CONFIG_FILENAME),
-        'utf-8',
-      ),
-    );
-    expect(manifest.installPath).toBe(sourceExtDir);
+    await installExtension({ source: sourceExtDir, type: 'local' });
 
-    expect(settings.loadSettings).toHaveBeenCalledWith(process.cwd());
-    expect(mockSettings.forScope).toHaveBeenCalledWith('user');
-    expect(mockSettings.setValue).toHaveBeenCalledWith(
-      'user',
-      'activatedExtensions',
-      ['my-local-extension'],
-    );
+    expect(fs.existsSync(targetExtDir)).toBe(true);
+    expect(fs.existsSync(metadataPath)).toBe(true);
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+    expect(metadata).toEqual({
+      source: sourceExtDir,
+      type: 'local',
+    });
     fs.rmSync(targetExtDir, { recursive: true, force: true });
   });
 
   it('should throw an error if the extension already exists', async () => {
-    const sourceExtDir = path.join(tempWorkspaceDir, 'my-local-extension');
-    fs.mkdirSync(sourceExtDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(sourceExtDir, EXTENSIONS_CONFIG_FILENAME),
-      JSON.stringify({ name: 'my-local-extension', version: '1.0.0' }),
+    const sourceExtDir = createExtension(
+      tempHomeDir,
+      'my-local-extension',
+      '1.0.0',
     );
-
-    // "Install" it once by creating the directory
-    fs.mkdirSync(path.join(userExtensionsDir, 'my-local-extension'), {
-      recursive: true,
-    });
-
-    await expect(installExtension({ path: sourceExtDir })).rejects.toThrow(
-      'Extension "my-local-extension" already exists. Please uninstall it first.',
+    await installExtension({ source: sourceExtDir, type: 'local' });
+    await expect(
+      installExtension({ source: sourceExtDir, type: 'local' }),
+    ).rejects.toThrow(
+      'Error: Extension "my-local-extension" is already installed. Please uninstall it first.',
     );
   });
 
   it('should throw an error and cleanup if gemini-extension.json is missing', async () => {
-    const sourceExtDir = path.join(tempWorkspaceDir, 'bad-extension');
-    fs.mkdirSync(sourceExtDir, { recursive: true }); // No manifest file
+    const sourceExtDir = path.join(tempHomeDir, 'bad-extension');
+    fs.mkdirSync(sourceExtDir, { recursive: true });
 
-    await expect(installExtension({ path: sourceExtDir })).rejects.toThrow(
+    await expect(
+      installExtension({ source: sourceExtDir, type: 'local' }),
+    ).rejects.toThrow(
       `Invalid extension at ${sourceExtDir}. Please make sure it has a valid gemini-extension.json file.`,
     );
 
@@ -296,35 +252,30 @@ describe('installExtension', () => {
     const gitUrl = 'https://github.com/google/gemini-extensions.git';
     const extensionName = 'gemini-extensions';
     const targetExtDir = path.join(userExtensionsDir, extensionName);
+    const metadataPath = path.join(targetExtDir, INSTALL_METADATA_FILENAME);
 
-    const clone = vi.fn().mockImplementation(async () => {
-      fs.mkdirSync(targetExtDir, { recursive: true });
+    const clone = vi.fn().mockImplementation(async (_, destination) => {
+      fs.mkdirSync(destination, { recursive: true });
       fs.writeFileSync(
-        path.join(targetExtDir, EXTENSIONS_CONFIG_FILENAME),
+        path.join(destination, EXTENSIONS_CONFIG_FILENAME),
         JSON.stringify({ name: extensionName, version: '1.0.0' }),
       );
     });
-    vi.mocked(simpleGit).mockReturnValue({ clone } as any);
 
-    await installExtension({ source: gitUrl });
+    const mockedSimpleGit = simpleGit as vi.MockedFunction<typeof simpleGit>;
+    mockedSimpleGit.mockReturnValue({
+      clone,
+    } as unknown as SimpleGit);
 
-    expect(clone).toHaveBeenCalledWith(gitUrl, targetExtDir, ['--depth', '1']);
+    await installExtension({ source: gitUrl, type: 'git' });
 
-    const manifest = JSON.parse(
-      fs.readFileSync(
-        path.join(targetExtDir, EXTENSIONS_CONFIG_FILENAME),
-        'utf-8',
-      ),
-    );
-    expect(manifest.githubUrl).toBe(gitUrl);
-
-    expect(settings.loadSettings).toHaveBeenCalledWith(process.cwd());
-    expect(mockSettings.forScope).toHaveBeenCalledWith('user');
-    expect(mockSettings.setValue).toHaveBeenCalledWith(
-      'user',
-      'activatedExtensions',
-      [extensionName],
-    );
+    expect(fs.existsSync(targetExtDir)).toBe(true);
+    expect(fs.existsSync(metadataPath)).toBe(true);
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+    expect(metadata).toEqual({
+      source: gitUrl,
+      type: 'git',
+    });
     fs.rmSync(targetExtDir, { recursive: true, force: true });
   });
 });
@@ -335,9 +286,9 @@ function createExtension(
   version: string,
   addContextFile = false,
   contextFileName?: string,
-): void {
+): string {
   const extDir = path.join(extensionsDir, name);
-  fs.mkdirSync(extDir);
+  fs.mkdirSync(extDir, { recursive: true });
   fs.writeFileSync(
     path.join(extDir, EXTENSIONS_CONFIG_FILENAME),
     JSON.stringify({ name, version, contextFileName }),
@@ -350,4 +301,5 @@ function createExtension(
   if (contextFileName) {
     fs.writeFileSync(path.join(extDir, contextFileName), 'context');
   }
+  return extDir;
 }
