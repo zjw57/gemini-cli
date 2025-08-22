@@ -562,7 +562,6 @@ export async function loadCliConfig(
     skipNextSpeakerCheck: settings.skipNextSpeakerCheck,
     enablePromptCompletion: settings.enablePromptCompletion ?? false,
     useSmartEdit: argv.useSmartEdit ?? settings.useSmartEdit,
-    enablePromptCompletion: settings.enablePromptCompletion ?? false,
   });
 }
 
