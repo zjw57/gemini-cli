@@ -53,6 +53,8 @@ describe('useShellCommandProcessor', () => {
   let mockShellOutputCallback: (event: ShellOutputEvent) => void;
   let resolveExecutionPromise: (result: ShellExecutionResult) => void;
 
+  let setShellInputFocusedMock: Mock;
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -60,6 +62,7 @@ describe('useShellCommandProcessor', () => {
     setPendingHistoryItemMock = vi.fn();
     onExecMock = vi.fn();
     onDebugMessageMock = vi.fn();
+    setShellInputFocusedMock = vi.fn();
     mockConfig = {
       getTargetDir: () => '/test/dir',
       getShouldUseNodePtyShell: () => false,
@@ -94,6 +97,7 @@ describe('useShellCommandProcessor', () => {
         onDebugMessageMock,
         mockConfig,
         mockGeminiClient,
+        setShellInputFocusedMock,
       ),
     );
 
@@ -174,6 +178,7 @@ describe('useShellCommandProcessor', () => {
       }),
     );
     expect(mockGeminiClient.addHistory).toHaveBeenCalled();
+    expect(setShellInputFocusedMock).toHaveBeenCalledWith(false);
   });
 
   it('should handle command failure and display error status', async () => {
@@ -200,6 +205,7 @@ describe('useShellCommandProcessor', () => {
       'Command exited with code 127',
     );
     expect(finalHistoryItem.tools[0].resultDisplay).toContain('not found');
+    expect(setShellInputFocusedMock).toHaveBeenCalledWith(false);
   });
 
   describe('UI Streaming and Throttling', () => {
@@ -306,6 +312,7 @@ describe('useShellCommandProcessor', () => {
     expect(finalHistoryItem.tools[0].resultDisplay).toContain(
       'Command was cancelled.',
     );
+    expect(setShellInputFocusedMock).toHaveBeenCalledWith(false);
   });
 
   it('should handle binary output result correctly', async () => {
@@ -359,6 +366,7 @@ describe('useShellCommandProcessor', () => {
       type: 'error',
       text: 'An unexpected error occurred: Unexpected failure',
     });
+    expect(setShellInputFocusedMock).toHaveBeenCalledWith(false);
   });
 
   it('should handle synchronous errors during execution and clean up resources', async () => {
@@ -390,6 +398,7 @@ describe('useShellCommandProcessor', () => {
     const tmpFile = path.join(os.tmpdir(), 'shell_pwd_abcdef.tmp');
     // Verify that the temporary file was cleaned up
     expect(vi.mocked(fs.unlinkSync)).toHaveBeenCalledWith(tmpFile);
+    expect(setShellInputFocusedMock).toHaveBeenCalledWith(false);
   });
 
   describe('Directory Change Warning', () => {

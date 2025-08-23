@@ -70,6 +70,7 @@ export const useShellCommandProcessor = (
   onDebugMessage: (message: string) => void,
   config: Config,
   geminiClient: GeminiClient,
+  setShellInputFocused: (value: boolean) => void,
   terminalWidth?: number,
   terminalHeight?: number,
 ) => {
@@ -300,6 +301,7 @@ export const useShellCommandProcessor = (
                 fs.unlinkSync(pwdFilePath);
               }
               setActiveShellPtyId(null);
+              setShellInputFocused(false);
               resolve();
             });
         } catch (err) {
@@ -319,6 +321,7 @@ export const useShellCommandProcessor = (
             fs.unlinkSync(pwdFilePath);
           }
           setActiveShellPtyId(null);
+          setShellInputFocused(false);
           resolve(); // Resolve the promise to unblock `onExec`
         }
       };
@@ -337,6 +340,7 @@ export const useShellCommandProcessor = (
       setPendingHistoryItem,
       onExec,
       geminiClient,
+      setShellInputFocused,
       terminalHeight,
       terminalWidth,
     ],

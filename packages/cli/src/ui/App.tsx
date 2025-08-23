@@ -645,12 +645,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     [pendingSlashCommandHistoryItems, pendingGeminiHistoryItems],
   );
 
-  useEffect(() => {
-    if (activeShellPtyId === null) {
-      setShellInputFocused(false);
-    }
-  }, [activeShellPtyId]);
-
   const { elapsedTime, currentLoadingPhrase } =
     useLoadingIndicator(streamingState);
   const showAutoAcceptIndicator = useAutoAcceptIndicator({ config });

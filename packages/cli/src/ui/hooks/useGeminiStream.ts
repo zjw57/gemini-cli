@@ -162,6 +162,7 @@ export const useGeminiStream = (
     onDebugMessage,
     config,
     geminiClient,
+    setShellInputFocused,
     terminalWidth,
     terminalHeight,
   );
