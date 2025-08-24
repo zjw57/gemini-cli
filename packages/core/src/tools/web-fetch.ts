@@ -101,6 +101,12 @@ class WebFetchToolInvocation extends BaseToolInvocation<
       }).substring(0, MAX_CONTENT_LENGTH);
 
       const geminiClient = this.config.getGeminiClient();
+      if (!geminiClient) {
+        throw new Error('Gemini client not available');
+      }
+      if (!geminiClient) {
+        throw new Error('Gemini client not available');
+      }
       const fallbackPrompt = `The user requested the following: "${this.params.prompt}".
 
 I was unable to access the URL directly. Instead, I have fetched the raw content of the page. Please use the following content to answer the request. Do not attempt to access the URL again.
@@ -184,6 +190,9 @@ ${textContent}
     }
 
     const geminiClient = this.config.getGeminiClient();
+    if (!geminiClient) {
+      throw new Error('Gemini client not available');
+    }
 
     try {
       const response = await geminiClient.generateContent(

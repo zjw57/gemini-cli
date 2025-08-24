@@ -47,8 +47,7 @@ async function createMockConfig(
     debugMode: false,
     cwd: process.cwd(),
   };
-  const config = new Config(configParams);
-  await config.initialize();
+  const config = await Config.create(configParams);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await config.refreshAuth('test-auth' as any);
 

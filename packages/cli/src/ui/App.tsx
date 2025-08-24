@@ -298,7 +298,10 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   useEffect(() => {
     // Only sync when not currently authenticating
     if (!isAuthenticating) {
-      setUserTier(config.getGeminiClient()?.getUserTier());
+      const geminiClient = config.getGeminiClient();
+      if (geminiClient) {
+        setUserTier(geminiClient.getUserTier());
+      }
     }
   }, [config, isAuthenticating]);
 
@@ -390,7 +393,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       let message: string;
 
       if (
-        config.getContentGeneratorConfig().authType ===
+        config.getContentGeneratorConfig()?.authType ===
         AuthType.LOGIN_WITH_GOOGLE
       ) {
         // Use actual user tier if available; otherwise, default to FREE tier behavior (safe default)
@@ -458,7 +461,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       config.setFallbackMode(true);
       logFlashFallback(
         config,
-        new FlashFallbackEvent(config.getContentGeneratorConfig().authType!),
+        new FlashFallbackEvent(config.getContentGeneratorConfig()!.authType!),
       );
       return false; // Don't continue with current prompt
     };
@@ -551,6 +554,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   // Stable reference for cancel handler to avoid circular dependency
   const cancelHandlerRef = useRef<() => void>(() => {});
 
+  const geminiClient = config.getGeminiClient();
   const {
     streamingState,
     submitQuery,
@@ -559,7 +563,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     thought,
     cancelOngoingRequest,
   } = useGeminiStream(
-    config.getGeminiClient(),
+    geminiClient,
     history,
     addItem,
     config,
@@ -857,7 +861,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   }, [settings.merged.contextFileName]);
 
   const initialPrompt = useMemo(() => config.getQuestion(), [config]);
-  const geminiClient = config.getGeminiClient();
 
   useEffect(() => {
     if (
@@ -883,6 +886,16 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     showPrivacyNotice,
     geminiClient,
   ]);
+
+  if (!geminiClient) {
+    return (
+      <AuthDialog
+        onSelect={handleAuthSelect}
+        settings={settings}
+        initialErrorMessage={authError}
+      />
+    );
+  }
 
   if (quittingMessages) {
     return (

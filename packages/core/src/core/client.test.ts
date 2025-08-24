@@ -211,15 +211,14 @@ describe('Gemini Client (client.ts)', () => {
       getChatCompression: vi.fn().mockReturnValue(undefined),
       getSkipNextSpeakerCheck: vi.fn().mockReturnValue(false),
     };
-    const MockedConfig = vi.mocked(Config, true);
-    MockedConfig.mockImplementation(
-      () => mockConfigObject as unknown as Config,
+    vi.mocked(Config.create).mockResolvedValue(
+      mockConfigObject as unknown as Config,
     );
 
     // We can instantiate the client here since Config is mocked
     // and the constructor will use the mocked GoogleGenAI
     client = new GeminiClient(
-      new Config({ sessionId: 'test-session-id' } as never),
+      await Config.create({ sessionId: 'test-session-id' } as never),
     );
     mockConfigObject.getGeminiClient.mockReturnValue(client);
 
@@ -497,7 +496,7 @@ describe('Gemini Client (client.ts)', () => {
     const mockSendMessage = vi.fn();
     const mockGetHistory = vi.fn();
 
-    beforeEach(() => {
+    beforeEach(async () => {
       vi.mock('./tokenLimits', () => ({
         tokenLimit: vi.fn(),
       }));
@@ -1264,7 +1263,7 @@ ${JSON.stringify(
         yield { type: 'content', value: 'Hello' };
       })();
 
-      beforeEach(() => {
+      beforeEach(async () => {
         client['forceFullIdeContext'] = false; // Reset before each delta test
         vi.spyOn(client, 'tryCompressChat').mockResolvedValue(null);
         vi.spyOn(client['config'], 'getIdeMode').mockReturnValue(true);
@@ -1524,7 +1523,7 @@ ${JSON.stringify(
     describe('IDE context with pending tool calls', () => {
       let mockChat: Partial<GeminiChat>;
 
-      beforeEach(() => {
+      beforeEach(async () => {
         vi.spyOn(client, 'tryCompressChat').mockResolvedValue(null);
 
         const mockStream = (async function* () {

@@ -20,10 +20,10 @@ describe('telemetry', () => {
   let mockConfig: Config;
   let mockNodeSdk: NodeSDK;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetAllMocks();
 
-    mockConfig = new Config({
+    mockConfig = await Config.create({
       sessionId: 'test-session-id',
       model: 'test-model',
       targetDir: '/test/dir',
