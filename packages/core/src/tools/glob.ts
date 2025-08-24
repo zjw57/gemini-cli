@@ -6,7 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { glob, escape } from 'glob';
+import { glob } from 'glob';
 import {
   BaseDeclarativeTool,
   BaseToolInvocation,
@@ -142,13 +142,7 @@ class GlobToolInvocation extends BaseToolInvocation<
       let allEntries: GlobPath[] = [];
 
       for (const searchDir of searchDirectories) {
-        let pattern = this.params.pattern;
-        const fullPath = path.join(searchDir, pattern);
-        if (fs.existsSync(fullPath)) {
-          pattern = escape(pattern);
-        }
-
-        const entries = (await glob(pattern, {
+        const entries = await glob(pattern, {
           cwd: searchDir,
           withFileTypes: true,
           nodir: true,
@@ -158,7 +152,7 @@ class GlobToolInvocation extends BaseToolInvocation<
           ignore: this.config.getFileExclusions().getGlobExcludes(),
           follow: false,
           signal,
-        })) as GlobPath[];
+        });
 
         allEntries = allEntries.concat(entries);
       }

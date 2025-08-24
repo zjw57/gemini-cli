@@ -173,7 +173,7 @@ export class ChatRecordingService {
   private getLastMessage(
     conversation: ConversationRecord,
   ): MessageRecord | undefined {
-    return conversation.messages.at(-1);
+    const lastMessage = messages[messages.length - 1];
   }
 
   private newMessage(

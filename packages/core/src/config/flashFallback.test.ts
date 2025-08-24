@@ -15,12 +15,12 @@ vi.mock('node:fs');
 describe('Flash Model Fallback Configuration', () => {
   let config: Config;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(fs.statSync).mockReturnValue({
       isDirectory: () => true,
     } as fs.Stats);
-    config = new Config({
+    config = await Config.create({
       sessionId: 'test-session',
       targetDir: '/test',
       debugMode: false,
@@ -42,9 +42,9 @@ describe('Flash Model Fallback Configuration', () => {
   // with the fallback mechanism. This will be necessary we introduce more
   // intelligent model routing.
   describe('setModel', () => {
-    it('should only mark as switched if contentGeneratorConfig exists', () => {
+    it('should only mark as switched if contentGeneratorConfig exists', async () => {
       // Create config without initializing contentGeneratorConfig
-      const newConfig = new Config({
+      const newConfig = await Config.create({
         sessionId: 'test-session-2',
         targetDir: '/test',
         debugMode: false,
@@ -65,9 +65,9 @@ describe('Flash Model Fallback Configuration', () => {
       expect(config.getModel()).toBe(DEFAULT_GEMINI_FLASH_MODEL);
     });
 
-    it('should fall back to initial model if contentGeneratorConfig is not available', () => {
+    it('should fall back to initial model if contentGeneratorConfig is not available', async () => {
       // Test with fresh config where contentGeneratorConfig might not be set
-      const newConfig = new Config({
+      const newConfig = await Config.create({
         sessionId: 'test-session-2',
         targetDir: '/test',
         debugMode: false,

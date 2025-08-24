@@ -9,7 +9,6 @@ import fsPromises from 'fs/promises';
 import path from 'path';
 import { EOL } from 'os';
 import { spawn } from 'child_process';
-import { globStream } from 'glob';
 import {
   BaseDeclarativeTool,
   BaseToolInvocation,

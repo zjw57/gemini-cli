@@ -573,8 +573,15 @@ export class SubAgentScope {
         generationConfig.systemInstruction = systemInstruction;
       }
 
+      const contentGeneratorConfig =
+        this.runtimeContext.getContentGeneratorConfig();
+      if (!contentGeneratorConfig) {
+        throw new Error(
+          'ContentGeneratorConfig not initialized. Was refreshAuth called?',
+        );
+      }
       const contentGenerator = await createContentGenerator(
-        this.runtimeContext.getContentGeneratorConfig(),
+        contentGeneratorConfig,
         this.runtimeContext,
         this.runtimeContext.getSessionId(),
       );

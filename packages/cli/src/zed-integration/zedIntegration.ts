@@ -182,7 +182,6 @@ class GeminiAgent {
       cwd,
     );
 
-    await config.initialize();
     return config;
   }
 

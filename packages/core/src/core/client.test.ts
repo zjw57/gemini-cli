@@ -212,15 +212,14 @@ describe('Gemini Client (client.ts)', () => {
       getSkipNextSpeakerCheck: vi.fn().mockReturnValue(false),
     };
     const MockedConfig = vi.mocked(Config, true);
-    MockedConfig.mockImplementation(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (MockedConfig as any).mockImplementation(
       () => mockConfigObject as unknown as Config,
     );
 
     // We can instantiate the client here since Config is mocked
     // and the constructor will use the mocked GoogleGenAI
-    client = new GeminiClient(
-      new Config({ sessionId: 'test-session-id' } as never),
-    );
+    client = new GeminiClient(mockConfigObject as unknown as Config);
     mockConfigObject.getGeminiClient.mockReturnValue(client);
 
     await client.initialize(contentGeneratorConfig);

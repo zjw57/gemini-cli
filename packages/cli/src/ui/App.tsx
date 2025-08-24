@@ -390,7 +390,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       let message: string;
 
       if (
-        config.getContentGeneratorConfig().authType ===
+        config.getContentGeneratorConfig()?.authType ===
         AuthType.LOGIN_WITH_GOOGLE
       ) {
         // Use actual user tier if available; otherwise, default to FREE tier behavior (safe default)
@@ -456,10 +456,10 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       // Switch model for future use but return false to stop current retry
       config.setModel(fallbackModel);
       config.setFallbackMode(true);
-      logFlashFallback(
-        config,
-        new FlashFallbackEvent(config.getContentGeneratorConfig().authType!),
-      );
+      const authType = config.getContentGeneratorConfig()?.authType;
+      if (authType) {
+        logFlashFallback(config, new FlashFallbackEvent(authType));
+      }
       return false; // Don't continue with current prompt
     };
 

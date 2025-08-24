@@ -30,9 +30,21 @@ import {
   Type,
 } from '@google/genai';
 import { ToolErrorType } from '../tools/tool-error.js';
+import { AuthType } from '../core/contentGenerator.js';
 
 vi.mock('./geminiChat.js');
-vi.mock('./contentGenerator.js');
+vi.mock('./contentGenerator.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./contentGenerator.js')>();
+  return {
+    ...actual,
+    createContentGenerator: vi.fn(),
+    createContentGeneratorConfig: vi.fn().mockReturnValue({
+      model: 'gemini-pro',
+      apiKey: 'test-key',
+      authType: 'test-auth',
+    }),
+  };
+});
 vi.mock('../utils/environmentContext.js');
 vi.mock('./nonInteractiveToolExecutor.js');
 vi.mock('../ide/ide-client.js');
@@ -47,10 +59,8 @@ async function createMockConfig(
     debugMode: false,
     cwd: process.cwd(),
   };
-  const config = new Config(configParams);
-  await config.initialize();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await config.refreshAuth('test-auth' as any);
+  const config = await Config.create(configParams);
+  await config.refreshAuth(AuthType.USE_GEMINI);
 
   // Mock ToolRegistry
   const mockToolRegistry = {

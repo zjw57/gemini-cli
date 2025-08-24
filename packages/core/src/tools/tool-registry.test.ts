@@ -118,12 +118,12 @@ describe('ToolRegistry', () => {
   let toolRegistry: ToolRegistry;
   let mockConfigGetToolDiscoveryCommand: ReturnType<typeof vi.spyOn>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(fs.statSync).mockReturnValue({
       isDirectory: () => true,
     } as fs.Stats);
-    config = new Config(baseConfigParams);
+    config = await Config.create(baseConfigParams);
     toolRegistry = new ToolRegistry(config);
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});

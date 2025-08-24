@@ -23,12 +23,12 @@ vi.mock('node:fs');
 describe('Flash Fallback Integration', () => {
   let config: Config;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(fs.statSync).mockReturnValue({
       isDirectory: () => true,
     } as fs.Stats);
-    config = new Config({
+    config = await Config.create({
       sessionId: 'test-session',
       targetDir: '/test',
       debugMode: false,

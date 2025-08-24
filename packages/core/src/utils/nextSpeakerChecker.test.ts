@@ -44,25 +44,12 @@ vi.mock('@google/genai', async () => {
 describe('checkNextSpeaker', () => {
   let chatInstance: GeminiChat;
   let mockGeminiClient: GeminiClient;
-  let MockConfig: Mock;
   const abortSignal = new AbortController().signal;
 
   beforeEach(() => {
-    MockConfig = vi.mocked(Config);
-    const mockConfigInstance = new MockConfig(
-      'test-api-key',
-      'gemini-pro',
-      false,
-      '.',
-      false,
-      undefined,
-      false,
-      undefined,
-      undefined,
-      undefined,
-    );
+    const mockConfigInstance = {} as Config;
 
-    mockGeminiClient = new GeminiClient(mockConfigInstance);
+    mockGeminiClient = new (vi.mocked(GeminiClient))(mockConfigInstance);
 
     // Reset mocks before each test to ensure test isolation
     vi.mocked(mockModelsInstance.generateContent).mockReset();

@@ -213,7 +213,7 @@ export class Config {
   private promptRegistry!: PromptRegistry;
   private sessionId: string;
   private fileSystemService: FileSystemService;
-  private contentGeneratorConfig!: ContentGeneratorConfig;
+  private contentGeneratorConfig: ContentGeneratorConfig | undefined;
   private readonly embeddingModel: string;
   private readonly sandbox: SandboxConfig | undefined;
   private readonly targetDir: string;
@@ -234,7 +234,7 @@ export class Config {
   private readonly accessibility: AccessibilitySettings;
   private readonly telemetrySettings: TelemetrySettings;
   private readonly usageStatisticsEnabled: boolean;
-  private geminiClient!: GeminiClient;
+  private geminiClient: GeminiClient | undefined;
   private readonly fileFiltering: {
     respectGitIgnore: boolean;
     respectGeminiIgnore: boolean;
@@ -280,7 +280,7 @@ export class Config {
   readonly storage: Storage;
   private readonly fileExclusions: FileExclusions;
 
-  constructor(params: ConfigParameters) {
+  private constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
     this.embeddingModel =
       params.embeddingModel ?? DEFAULT_GEMINI_EMBEDDING_MODEL;
@@ -362,10 +362,16 @@ export class Config {
     }
   }
 
+  static async create(params: ConfigParameters): Promise<Config> {
+    const config = new Config(params);
+    await config.initialize();
+    return config;
+  }
+
   /**
    * Must only be called once, throws if called again.
    */
-  async initialize(): Promise<void> {
+  private async initialize(): Promise<void> {
     if (this.initialized) {
       throw Error('Config was already initialized');
     }
@@ -430,7 +436,7 @@ export class Config {
     return this.loadMemoryFromIncludeDirectories;
   }
 
-  getContentGeneratorConfig(): ContentGeneratorConfig {
+  getContentGeneratorConfig(): ContentGeneratorConfig | undefined {
     return this.contentGeneratorConfig;
   }
 
@@ -599,6 +605,11 @@ export class Config {
   }
 
   getGeminiClient(): GeminiClient {
+    if (!this.geminiClient) {
+      throw new Error(
+        'geminiClient has not been initialized. Was refreshAuth called?',
+      );
+    }
     return this.geminiClient;
   }
 

@@ -14,7 +14,7 @@ import {
 import { getErrorMessage } from '../utils/errors.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import { glob, escape } from 'glob';
+import { glob } from 'glob';
 import {
   detectFileType,
   processSingleFileContent,

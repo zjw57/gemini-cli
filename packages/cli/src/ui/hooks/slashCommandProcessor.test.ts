@@ -86,6 +86,7 @@ import { McpPromptLoader } from '../../services/McpPromptLoader.js';
 import {
   SlashCommandStatus,
   makeFakeConfig,
+  Config,
 } from '@google/gemini-cli-core/index.js';
 
 function createTestCommand(
@@ -108,7 +109,12 @@ describe('useSlashCommandProcessor', () => {
   const mockOpenAuthDialog = vi.fn();
   const mockSetQuittingMessages = vi.fn();
 
-  const mockConfig = makeFakeConfig({});
+  let mockConfig: Config;
+  beforeAll(async () => {
+    mockConfig = await makeFakeConfig({
+      targetDir: '/fake/dir',
+    });
+  });
 
   const mockSettings = {} as LoadedSettings;
 
@@ -404,7 +410,9 @@ describe('useSlashCommandProcessor', () => {
         await result.current.handleSlashCommand('/load');
       });
 
-      expect(mockClearItems).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(mockClearItems).toHaveBeenCalledTimes(1);
+      });
       expect(mockAddItem).toHaveBeenCalledWith(
         { type: 'user', text: 'old prompt' },
         expect.any(Number),

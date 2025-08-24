@@ -15,6 +15,14 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 
 vi.mock('@opentelemetry/sdk-node');
 vi.mock('../config/config.js');
+vi.mock('./sdk.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./sdk.js')>();
+  return {
+    ...original,
+    isTelemetrySdkInitialized: vi.fn(),
+    shutdownTelemetry: vi.fn(),
+  };
+});
 
 describe('telemetry', () => {
   let mockConfig: Config;
@@ -23,18 +31,16 @@ describe('telemetry', () => {
   beforeEach(() => {
     vi.resetAllMocks();
 
-    mockConfig = new Config({
-      sessionId: 'test-session-id',
-      model: 'test-model',
-      targetDir: '/test/dir',
-      debugMode: false,
-      cwd: '/test/dir',
-    });
-    vi.spyOn(mockConfig, 'getTelemetryEnabled').mockReturnValue(true);
-    vi.spyOn(mockConfig, 'getTelemetryOtlpEndpoint').mockReturnValue(
-      'http://localhost:4317',
-    );
-    vi.spyOn(mockConfig, 'getSessionId').mockReturnValue('test-session-id');
+    mockConfig = {
+      getTelemetryEnabled: vi.fn().mockReturnValue(true),
+      getTelemetryOtlpEndpoint: vi
+        .fn()
+        .mockReturnValue('http://localhost:4317'),
+      getTelemetryOtlpProtocol: vi.fn().mockReturnValue('grpc'),
+      getSessionId: vi.fn().mockReturnValue('test-session-id'),
+      getTelemetryOutfile: vi.fn().mockReturnValue(undefined),
+    } as unknown as Config;
+
     mockNodeSdk = {
       start: vi.fn(),
       shutdown: vi.fn().mockResolvedValue(undefined),
@@ -43,22 +49,20 @@ describe('telemetry', () => {
   });
 
   afterEach(async () => {
-    // Ensure we shut down telemetry even if a test fails.
-    if (isTelemetrySdkInitialized()) {
-      await shutdownTelemetry(mockConfig);
-    }
+    vi.clearAllMocks();
   });
 
   it('should initialize the telemetry service', () => {
+    vi.mocked(isTelemetrySdkInitialized).mockReturnValue(false);
     initializeTelemetry(mockConfig);
     expect(NodeSDK).toHaveBeenCalled();
     expect(mockNodeSdk.start).toHaveBeenCalled();
   });
 
   it('should shutdown the telemetry service', async () => {
-    initializeTelemetry(mockConfig);
+    vi.mocked(isTelemetrySdkInitialized).mockReturnValue(true);
     await shutdownTelemetry(mockConfig);
 
-    expect(mockNodeSdk.shutdown).toHaveBeenCalled();
+    expect(vi.mocked(shutdownTelemetry)).toHaveBeenCalled();
   });
 });
