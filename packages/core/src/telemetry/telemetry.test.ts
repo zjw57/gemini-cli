@@ -23,14 +23,6 @@ describe('telemetry', () => {
   beforeEach(async () => {
     vi.resetAllMocks();
 
-    const fakeConfig = {
-      getTelemetryEnabled: vi.fn(),
-      getTelemetryOtlpEndpoint: vi.fn(),
-      getSessionId: vi.fn(),
-      getTelemetryOtlpProtocol: vi.fn(),
-    };
-    vi.mocked(Config.create).mockResolvedValue(fakeConfig as unknown as Config);
-
     mockConfig = await Config.create({
       sessionId: 'test-session-id',
       model: 'test-model',
