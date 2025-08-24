@@ -108,12 +108,14 @@ describe('useSlashCommandProcessor', () => {
   const mockOpenAuthDialog = vi.fn();
   const mockSetQuittingMessages = vi.fn();
 
-  const mockConfig = makeFakeConfig({});
+  let mockConfig: Config;
 
   const mockSettings = {} as LoadedSettings;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    mockConfig = await makeFakeConfig({});
+    vi.spyOn(mockConfig, 'getProjectRoot').mockReturnValue('/fake/dir');
     (vi.mocked(BuiltinCommandLoader) as Mock).mockClear();
     mockBuiltinLoadCommands.mockResolvedValue([]);
     mockFileLoadCommands.mockResolvedValue([]);
