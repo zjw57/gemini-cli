@@ -256,14 +256,14 @@ export class GeminiClient {
 
       return new GeminiChat(
         this.config,
+        this.getContentGenerator(),
         {
           systemInstruction,
           ...generateContentConfigWithThinking,
           tools,
         },
         toolRegistry,
-        history,
-        this.config.getAdkMode(),
+        history
       );
     } catch (error) {
       await reportError(

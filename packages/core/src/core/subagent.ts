@@ -18,6 +18,7 @@ import {
   Type,
 } from '@google/genai';
 import { GeminiChat } from './geminiChat.js';
+import { createContentGenerator } from './contentGenerator.js';
 
 /**
  * @fileoverview Defines the configuration interfaces for a subagent.
@@ -581,12 +582,18 @@ export class SubAgentScope {
         generationConfig.systemInstruction = systemInstruction;
       }
 
+      const contentGenerator = await createContentGenerator(
+        this.runtimeContext.getContentGeneratorConfig(),
+        this.runtimeContext,
+        this.runtimeContext.getSessionId(),
+      );
       const toolRegistry = await this.runtimeContext.getToolRegistry();
 
       this.runtimeContext.setModel(this.modelConfig.model);
 
       return new GeminiChat(
         this.runtimeContext,
+        contentGenerator,
         generationConfig,
         toolRegistry,
         start_history,

@@ -4,47 +4,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { InMemoryRunner, LlmAgent, Event } from '@google/adk';
 import {
   Content,
   GenerateContentConfig,
   GenerateContentResponse,
   Part,
 } from '@google/genai';
+import { ContentGenerator } from './contentGenerator.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Config } from '../config/config.js';
 import { setSimulate429 } from '../utils/testUtils.js';
 import { GeminiChat } from './geminiChat.js';
 import { ToolRegistry } from '../tools/tool-registry.js';
 
-vi.mock('@google/adk', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@google/adk')>();
-  const mockRunnerInstance = {
-    runSync: vi.fn(),
-    runAsync: vi.fn(),
-    sessionService: {
-      createSession: vi.fn().mockResolvedValue({ id: 'mock-session-id' }),
-      getSession: vi.fn().mockResolvedValue({ events: [] }),
-    },
-  };
-
-  return {
-    ...actual,
-    LlmAgent: vi.fn().mockImplementation(() => ({})),
-    InMemoryRunner: vi.fn().mockImplementation(() => mockRunnerInstance),
-  };
-});
-
-const toEvent = (response: GenerateContentResponse): Event =>
-  new Event({
-    content: response.candidates?.[0].content,
-  });
+// Mocks
+const mockContentGenerator = {
+  generateContent: vi.fn(),
+  generateContentStream: vi.fn(),
+  countTokens: vi.fn(),
+  embedContent: vi.fn(),
+  batchEmbedContents: vi.fn(),
+} as unknown as ContentGenerator;
 
 describe('GeminiChat', () => {
   let chat: GeminiChat;
   let mockConfig: Config;
   const config: GenerateContentConfig = {};
-  let mockRunner: InMemoryRunner;
   let mockToolRegistry: ToolRegistry;
 
   beforeEach(() => {
@@ -63,23 +48,20 @@ describe('GeminiChat', () => {
       getQuotaErrorOccurred: vi.fn().mockReturnValue(false),
       setQuotaErrorOccurred: vi.fn(),
       flashFallbackHandler: undefined,
+      getAdkMode: vi.fn().mockReturnValue(false),
     } as unknown as Config;
     mockToolRegistry = new ToolRegistry(mockConfig);
     vi.spyOn(mockToolRegistry, 'getAllTools').mockReturnValue([]);
 
     // Disable 429 simulation for tests
     setSimulate429(false);
-    mockRunner = new InMemoryRunner({
-      agent: { name: 'mock-agent' } as LlmAgent,
-      // @ts-expect-error - We are adding a mock property
-      sessionService: {
-        createSession: vi.fn().mockResolvedValue({ id: 'mock-session-id' }),
-      },
-    });
     // Reset history for each test by creating a new instance
-    chat = new GeminiChat(mockConfig, config, mockToolRegistry);
-    // @ts-expect-error Accessing private property for testing
-    chat.runner = mockRunner;
+    chat = new GeminiChat(
+      mockConfig,
+      mockContentGenerator,
+      config,
+      mockToolRegistry,
+    );
   });
 
   afterEach(() => {
@@ -87,8 +69,37 @@ describe('GeminiChat', () => {
     vi.resetAllMocks();
   });
 
+  describe('constructor', () => {
+    it('should not create LlmAgent and InMemoryRunner when adkMode is false', () => {
+      chat = new GeminiChat(
+        mockConfig,
+        mockContentGenerator,
+        config,
+        mockToolRegistry,
+      );
+      // @ts-expect-error - testing private properties
+      expect(chat.agent).toBeUndefined();
+      // @ts-expect-error - testing private properties
+      expect(chat.runner).toBeUndefined();
+    });
+
+    it('should create LlmAgent and InMemoryRunner when adkMode is true', () => {
+      vi.mocked(mockConfig.getAdkMode).mockReturnValue(true);
+      chat = new GeminiChat(
+        mockConfig,
+        mockContentGenerator,
+        config,
+        mockToolRegistry,
+      );
+      // @ts-expect-error - testing private properties
+      expect(LlmAgent).toHaveBeenCalled();
+      // @ts-expect-error - testing private properties
+      expect(InMemoryRunner).toHaveBeenCalled();
+    });
+  });
+
   describe('sendMessage', () => {
-    it('should call runner.runSync with the correct parameters', async () => {
+    it('should call generateContent with the correct parameters', async () => {
       const response = {
         candidates: [
           {
@@ -103,22 +114,27 @@ describe('GeminiChat', () => {
         ],
         text: () => 'response',
       } as unknown as GenerateContentResponse;
-      vi.mocked(mockRunner.runSync).mockResolvedValue([toEvent(response)]);
+      vi.mocked(mockContentGenerator.generateContent).mockResolvedValue(
+        response,
+      );
 
       await chat.sendMessage({ message: 'hello' }, 'prompt-id-1');
 
-      expect(mockRunner.runSync).toHaveBeenCalledWith({
-        userId: 'placeholder',
-        sessionId: 'mock-session-id',
-        newMessage: { role: 'user', parts: [{ text: 'hello' }] },
-      });
+      expect(mockContentGenerator.generateContent).toHaveBeenCalledWith(
+        {
+          model: 'gemini-pro',
+          contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
+          config: {},
+        },
+        'prompt-id-1',
+      );
     });
   });
 
   describe('sendMessageStream', () => {
-    it('should call runner.runAsync with the correct parameters', async () => {
+    it('should call generateContentStream with the correct parameters', async () => {
       const response = (async function* () {
-        yield toEvent({
+        yield {
           candidates: [
             {
               content: {
@@ -131,17 +147,22 @@ describe('GeminiChat', () => {
             },
           ],
           text: () => 'response',
-        } as unknown as GenerateContentResponse);
+        } as unknown as GenerateContentResponse;
       })();
-      mockRunner.runAsync = vi.fn().mockResolvedValue(response);
+      vi.mocked(mockContentGenerator.generateContentStream).mockResolvedValue(
+        response,
+      );
 
       await chat.sendMessageStream({ message: 'hello' }, 'prompt-id-1');
 
-      expect(mockRunner.runAsync).toHaveBeenCalledWith({
-        userId: 'placeholder',
-        sessionId: 'mock-session-id',
-        newMessage: { role: 'user', parts: [{ text: 'hello' }] },
-      });
+      expect(mockContentGenerator.generateContentStream).toHaveBeenCalledWith(
+        {
+          model: 'gemini-pro',
+          contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
+          config: {},
+        },
+        'prompt-id-1',
+      );
     });
   });
 
@@ -233,7 +254,13 @@ describe('GeminiChat', () => {
       chat.recordHistory(userInput, newModelOutput); // userInput here is for the *next* turn, but history is already primed
 
       // Reset and set up a more realistic scenario for merging with existing history
-      chat = new GeminiChat(mockConfig, config, mockToolRegistry, []);
+      chat = new GeminiChat(
+        mockConfig,
+        mockContentGenerator,
+        config,
+        mockToolRegistry,
+        [],
+      );
       const firstUserInput: Content = {
         role: 'user',
         parts: [{ text: 'First user input' }],
@@ -276,10 +303,13 @@ describe('GeminiChat', () => {
         role: 'model',
         parts: [{ text: 'Initial model answer.' }],
       };
-      chat = new GeminiChat(mockConfig, config, mockToolRegistry, [
-        initialUser,
-        initialModel,
-      ]);
+      chat = new GeminiChat(
+        mockConfig,
+        mockContentGenerator,
+        config,
+        mockToolRegistry,
+        [initialUser, initialModel],
+      );
 
       // New interaction
       const currentUserInput: Content = {
