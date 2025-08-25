@@ -265,10 +265,7 @@ class ShellToolInvocation extends BaseToolInvocation<
       const summarizeConfig = this.config.getSummarizeToolOutputConfig();
       const geminiClient = this.config.getGeminiClient();
       if (!geminiClient) {
-        return {
-          llmContent: 'Gemini client not available',
-          returnDisplay: 'Gemini client not available',
-        };
+        throw new Error('Gemini client not available');
       }
       if (summarizeConfig && summarizeConfig[ShellTool.Name]) {
         const summary = await summarizeToolOutput(

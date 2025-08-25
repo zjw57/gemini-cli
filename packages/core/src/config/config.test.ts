@@ -19,6 +19,7 @@ import {
   createContentGeneratorConfig,
 } from '../core/contentGenerator.js';
 import { GeminiClient } from '../core/client.js';
+import { GitService } from '../services/gitService.js';
 import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
 
 vi.mock('fs', async (importOriginal) => {
@@ -131,6 +132,32 @@ describe('Server Config (config.ts)', async () => {
       ClearcutLogger.prototype,
       'logStartSessionEvent',
     ).mockImplementation(() => undefined);
+  });
+
+  describe('create', async () => {
+    it('should throw an error if checkpointing is enabled and GitService fails', async () => {
+      const gitError = new Error('Git is not installed');
+      vi.mocked(GitService.prototype.initialize).mockRejectedValue(gitError);
+
+      await expect(
+        Config.create({
+          ...baseParams,
+          checkpointing: true,
+        }),
+      ).rejects.toThrow(gitError);
+    });
+
+    it('should not throw an error if checkpointing is disabled and GitService fails', async () => {
+      const gitError = new Error('Git is not installed');
+      vi.mocked(GitService.prototype.initialize).mockRejectedValue(gitError);
+
+      const config = await Config.create({
+        ...baseParams,
+        checkpointing: false,
+      });
+
+      expect(config).toBeInstanceOf(Config);
+    });
   });
 
   describe('refreshAuth', async () => {

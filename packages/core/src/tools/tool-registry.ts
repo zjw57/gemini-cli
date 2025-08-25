@@ -279,11 +279,7 @@ export class ToolRegistry {
 
     const promptRegistry = this.config.getPromptRegistry();
     if (!promptRegistry) {
-      console.warn(
-        'Prompt registry not available, skipping tool discovery for server ' +
-          serverName,
-      );
-      return;
+      throw new Error('Prompt registry not available.');
     }
     promptRegistry.removePromptsByServer(serverName);
 

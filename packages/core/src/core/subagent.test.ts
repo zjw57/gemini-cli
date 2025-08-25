@@ -49,8 +49,6 @@ async function createMockConfig(
     cwd: process.cwd(),
   };
   const config = await Config.create(configParams);
-
-  // Mock the methods that are causing issues.
   vi.spyOn(config, 'getContentGeneratorConfig').mockReturnValue({
     apiKey: 'test-key',
     authType: AuthType.USE_GEMINI,

@@ -621,7 +621,7 @@ export const useGeminiStream = (
         addItem(
           {
             type: MessageType.ERROR,
-            text: 'Authentication error. Please run `/auth` to configure authentication.',
+            text: 'Gemini client not available.',
           },
           Date.now(),
         );

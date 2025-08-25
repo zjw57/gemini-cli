@@ -559,7 +559,7 @@ export class CoreToolScheduler {
               response: createErrorResponse(
                 reqInfo,
                 new Error(`Tool registry is not available.`),
-                ToolErrorType.TOOL_NOT_REGISTERED,
+                ToolErrorType.UNHANDLED_EXCEPTION,
               ),
               durationMs: 0,
             };

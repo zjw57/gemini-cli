@@ -554,7 +554,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   // Stable reference for cancel handler to avoid circular dependency
   const cancelHandlerRef = useRef<() => void>(() => {});
 
-  const geminiClient = config.getGeminiClient();
   const {
     streamingState,
     submitQuery,
@@ -563,7 +562,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     thought,
     cancelOngoingRequest,
   } = useGeminiStream(
-    geminiClient,
+    config.getGeminiClient(),
     history,
     addItem,
     config,
@@ -861,6 +860,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   }, [settings.merged.contextFileName]);
 
   const initialPrompt = useMemo(() => config.getQuestion(), [config]);
+  const geminiClient = config.getGeminiClient();
 
   useEffect(() => {
     if (
@@ -886,16 +886,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     showPrivacyNotice,
     geminiClient,
   ]);
-
-  if (!geminiClient) {
-    return (
-      <AuthDialog
-        onSelect={handleAuthSelect}
-        settings={settings}
-        initialErrorMessage={authError}
-      />
-    );
-  }
 
   if (quittingMessages) {
     return (

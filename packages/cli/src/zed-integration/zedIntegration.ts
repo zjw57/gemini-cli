@@ -149,7 +149,7 @@ class GeminiAgent {
 
     const geminiClient = config.getGeminiClient();
     if (!geminiClient) {
-      throw acp.RequestError.authRequired();
+      throw acp.RequestError.internalError();
     }
     const chat = await geminiClient.startChat();
     const session = new Session(sessionId, chat, config, this.client);

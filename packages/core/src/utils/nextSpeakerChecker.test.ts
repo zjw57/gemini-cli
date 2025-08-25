@@ -8,7 +8,6 @@ import { describe, it, expect, vi, beforeEach, Mock, afterEach } from 'vitest';
 import { Content, GoogleGenAI, Models } from '@google/genai';
 import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 import { GeminiClient } from '../core/client.js';
-
 import { checkNextSpeaker, NextSpeakerResponse } from './nextSpeakerChecker.js';
 import { GeminiChat } from '../core/geminiChat.js';
 
