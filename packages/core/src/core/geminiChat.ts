@@ -282,9 +282,9 @@ export class GeminiChat {
     }
 
     const userContent = createUserContent(params.message);
-    const history = await this.getHistory(true)
+    const history = await this.getHistory(true);
     const requestContents = history.concat(userContent);
-          
+
     let response: GenerateContentResponse;
 
     try {
@@ -407,9 +407,9 @@ export class GeminiChat {
     }
 
     const userContent = createUserContent(params.message);
-    const history = await this.getHistory(true)
+    const history = await this.getHistory(true);
     const requestContents = history.concat(userContent);
-    
+
     try {
       const apiCall = () => {
         const modelToUse = this.config.getModel();

@@ -6,9 +6,8 @@
 
 import {
   Config,
-  //ToolCallRequestInfo,
-  //executeToolCall,
-  //ToolRegistry,
+  ToolCallRequestInfo,
+  executeToolCall,
   shutdownTelemetry,
   isTelemetrySdkInitialized,
   GeminiEventType,
@@ -59,7 +58,7 @@ export async function runNonInteractive(
       process.exit(1);
     }
 
-    const currentMessages: Content[] = [
+    let currentMessages: Content[] = [
       { role: 'user', parts: processedQuery as Part[] },
     ];
 
@@ -75,7 +74,7 @@ export async function runNonInteractive(
         );
         return;
       }
-      //const toolCallRequests: ToolCallRequestInfo[] = [];
+      const toolCallRequests: ToolCallRequestInfo[] = [];
 
       const responseStream = geminiClient.sendMessageStream(
         currentMessages[0]?.parts || [],
@@ -91,41 +90,41 @@ export async function runNonInteractive(
 
         if (event.type === GeminiEventType.Content) {
           process.stdout.write(event.value);
-        } //else if (event.type === GeminiEventType.ToolCallRequest) {
-        //     toolCallRequests.push(event.value);
-        //   }
-        // }
+        } else if (event.type === GeminiEventType.ToolCallRequest) {
+          toolCallRequests.push(event.value);
+        }
+      }
 
-        // if (toolCallRequests.length > 0) {
-        //   const toolResponseParts: Part[] = [];
-        //   for (const requestInfo of toolCallRequests) {
-        //     const toolResponse = await executeToolCall(
-        //       config,
-        //       requestInfo,
-        //       abortController.signal,
-        //     );
+      if (!config.getAdkMode() && toolCallRequests.length > 0) {
+        const toolResponseParts: Part[] = [];
+        for (const requestInfo of toolCallRequests) {
+          const toolResponse = await executeToolCall(
+            config,
+            requestInfo,
+            abortController.signal,
+          );
 
-        //     if (toolResponse.error) {
-        //       console.error(
-        //         `Error executing tool ${requestInfo.name}: ${toolResponse.resultDisplay || toolResponse.error.message}`,
-        //       );
-        //     }
+          if (toolResponse.error) {
+            console.error(
+              `Error executing tool ${requestInfo.name}: ${toolResponse.resultDisplay || toolResponse.error.message}`,
+            );
+          }
 
-        //     if (toolResponse.responseParts) {
-        //       const parts = Array.isArray(toolResponse.responseParts)
-        //         ? toolResponse.responseParts
-        //         : [toolResponse.responseParts];
-        //       for (const part of parts) {
-        //         if (typeof part === 'string') {
-        //           toolResponseParts.push({ text: part });
-        //         } else if (part) {
-        //           toolResponseParts.push(part);
-        //         }
-        //       }
-        //     }
-        //   }
-        //   currentMessages = [{ role: 'user', parts: toolResponseParts }];
-        // } else {
+          if (toolResponse.responseParts) {
+            const parts = Array.isArray(toolResponse.responseParts)
+              ? toolResponse.responseParts
+              : [toolResponse.responseParts];
+            for (const part of parts) {
+              if (typeof part === 'string') {
+                toolResponseParts.push({ text: part });
+              } else if (part) {
+                toolResponseParts.push(part);
+              }
+            }
+          }
+        }
+        currentMessages = [{ role: 'user', parts: toolResponseParts }];
+      } else {
         process.stdout.write('\n'); // Ensure a final newline
         return;
       }

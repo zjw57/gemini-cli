@@ -319,7 +319,7 @@ describe('subagent.ts', () => {
         );
 
         // Check History (should include environment context)
-        const history = callArgs[3];
+        const history = callArgs[4];
         expect(history).toEqual([
           { role: 'user', parts: [{ text: 'Env Context' }] },
           {
@@ -393,7 +393,7 @@ describe('subagent.ts', () => {
 
         const callArgs = vi.mocked(GeminiChat).mock.calls[0];
         const generationConfig = getGenerationConfigFromMock();
-        const history = callArgs[3];
+        const history = callArgs[4];
 
         expect(generationConfig.systemInstruction).toBeUndefined();
         expect(history).toEqual([

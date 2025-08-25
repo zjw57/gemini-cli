@@ -72,6 +72,7 @@ describe('runNonInteractive', () => {
       getFullContext: vi.fn().mockReturnValue(false),
       getContentGeneratorConfig: vi.fn().mockReturnValue({}),
       getDebugMode: vi.fn().mockReturnValue(false),
+      getAdkMode: vi.fn().mockReturnValue(false),
     } as unknown as Config;
 
     const { handleAtCommand } = await import(
@@ -187,7 +188,6 @@ describe('runNonInteractive', () => {
     expect(mockCoreExecuteToolCall).toHaveBeenCalledWith(
       mockConfig,
       expect.objectContaining({ name: 'testTool' }),
-      mockToolRegistry,
       expect.any(AbortSignal),
     );
     expect(mockGeminiClient.sendMessageStream).toHaveBeenNthCalledWith(
@@ -229,7 +229,6 @@ describe('runNonInteractive', () => {
     expect(mockCoreExecuteToolCall).toHaveBeenCalledWith(
       mockConfig,
       expect.objectContaining({ name: 'testTool' }),
-      mockToolRegistry,
       expect.any(AbortSignal),
     );
     expect(mockGeminiClient.sendMessageStream).toHaveBeenNthCalledWith(

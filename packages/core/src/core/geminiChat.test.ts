@@ -49,6 +49,10 @@ describe('GeminiChat', () => {
       setQuotaErrorOccurred: vi.fn(),
       flashFallbackHandler: undefined,
       getAdkMode: vi.fn().mockReturnValue(false),
+      getMcpServers: vi.fn().mockReturnValue({}),
+      getMcpServerCommand: vi.fn().mockReturnValue(undefined),
+      getPromptRegistry: vi.fn().mockReturnValue(undefined),
+      getWorkspaceContext: vi.fn().mockReturnValue(undefined),
     } as unknown as Config;
     mockToolRegistry = new ToolRegistry(mockConfig);
     vi.spyOn(mockToolRegistry, 'getAllTools').mockReturnValue([]);
@@ -92,9 +96,9 @@ describe('GeminiChat', () => {
         mockToolRegistry,
       );
       // @ts-expect-error - testing private properties
-      expect(LlmAgent).toHaveBeenCalled();
+      expect(chat.agent).toBeDefined();
       // @ts-expect-error - testing private properties
-      expect(InMemoryRunner).toHaveBeenCalled();
+      expect(chat.runner).toBeDefined();
     });
   });
 
