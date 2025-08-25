@@ -440,8 +440,10 @@ export async function updateExtension(
 }
 
 export function disableExtension(name: string, scope: SettingScope) {
-  if (scope === SettingScope.System) {
-    throw new Error('Cannot disable extensions at the system scope.');
+  if (scope === SettingScope.System || scope === SettingScope.SystemDefaults) {
+    throw new Error(
+      'Cannot disable extensions at the system or system defaults scope.',
+    );
   }
   const settings = loadSettings(process.cwd());
   const settingsFile = settings.forScope(scope);
@@ -452,6 +454,11 @@ export function disableExtension(name: string, scope: SettingScope) {
   }
 }
 
+/**
+ * Removes an extension from the list of disabled extensions.
+ * @param name The name of the extension to remove.
+ * @param scope The scopes to remove the name from.
+ */
 function removeFromDisabledExtensions(name: string, scopes: SettingScope[]) {
   const settings = loadSettings(process.cwd());
   for (const scope of scopes) {
