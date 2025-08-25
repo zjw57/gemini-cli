@@ -402,26 +402,28 @@ export async function updateExtension(
     );
   }
   const originalVersion = extension.config.version;
-  let updatedVersion: string | undefined = undefined;
   const tempDir = await ExtensionStorage.createTmpDir();
-  await copyExtension(extension.path, tempDir);
-  await uninstallExtension(extensionName);
-  await installExtension(extension.installMetadata);
   try {
+    await copyExtension(extension.path, tempDir);
+    await uninstallExtension(extensionName);
+    await installExtension(extension.installMetadata);
+
     const updatedExtension = loadExtension(extension.path);
     if (!updatedExtension) {
-      throw Error('Updated extension not found.');
+      throw new Error('Updated extension not found after installation.');
     }
-    updatedVersion = updatedExtension.config.version;
+    const updatedVersion = updatedExtension.config.version;
+    return {
+      originalVersion,
+      updatedVersion,
+    };
   } catch (e) {
-    console.error(`Warning: error updating extension: ${e}`);
-    copyExtension(tempDir, extension.path);
+    console.error(
+      `Warning: error updating extension, rolling back. Error: ${e}`,
+    );
+    await copyExtension(tempDir, extension.path);
+    throw e;
+  } finally {
+    await fs.promises.rm(tempDir, { recursive: true, force: true });
   }
-  await fs.promises.rm(tempDir, { recursive: true, force: true });
-  return updatedVersion
-    ? {
-        originalVersion,
-        updatedVersion,
-      }
-    : undefined;
 }
