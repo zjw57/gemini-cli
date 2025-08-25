@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import * as os from 'os';
 import * as path from 'path';
 import { ShellTool, EditTool, WriteFileTool } from '@google/gemini-cli-core';
-import { loadCliConfig, parseArguments } from './config.js';
+import { loadCliConfig, parseArguments, CliArgs } from './config.js';
 import { Settings } from './settings.js';
 import { Extension } from './extension.js';
 import * as ServerConfig from '@google/gemini-cli-core';
@@ -338,71 +338,98 @@ describe('loadCliConfig', () => {
     expect(config.getShowMemoryUsage()).toBe(true);
   });
 
-  it(`should leave proxy to empty by default`, async () => {
-    process.argv = ['node', 'script.js'];
-    const argv = await parseArguments({} as Settings);
-    const settings: Settings = {};
-    const config = await loadCliConfig(settings, [], 'test-session', argv);
-    expect(config.getProxy()).toBeFalsy();
-  });
+  describe('Proxy configuration', () => {
+    const originalProxyEnv: { [key: string]: string | undefined } = {};
+    const proxyEnvVars = [
+      'HTTP_PROXY',
+      'HTTPS_PROXY',
+      'http_proxy',
+      'https_proxy',
+    ];
 
-  const proxy_url = 'http://localhost:7890';
-  const testCases = [
-    {
-      input: {
-        env_name: 'https_proxy',
-        proxy_url,
-      },
-      expected: proxy_url,
-    },
-    {
-      input: {
-        env_name: 'http_proxy',
-        proxy_url,
-      },
-      expected: proxy_url,
-    },
-    {
-      input: {
-        env_name: 'HTTPS_PROXY',
-        proxy_url,
-      },
-      expected: proxy_url,
-    },
-    {
-      input: {
-        env_name: 'HTTP_PROXY',
-        proxy_url,
-      },
-      expected: proxy_url,
-    },
-  ];
-  testCases.forEach(({ input, expected }) => {
-    it(`should set proxy to ${expected} according to environment variable [${input.env_name}]`, async () => {
-      vi.stubEnv(input.env_name, input.proxy_url);
+    beforeEach(() => {
+      for (const key of proxyEnvVars) {
+        originalProxyEnv[key] = process.env[key];
+        delete process.env[key];
+      }
+    });
+
+    afterEach(() => {
+      for (const key of proxyEnvVars) {
+        if (originalProxyEnv[key]) {
+          process.env[key] = originalProxyEnv[key];
+        } else {
+          delete process.env[key];
+        }
+      }
+    });
+
+    it(`should leave proxy to empty by default`, async () => {
       process.argv = ['node', 'script.js'];
       const argv = await parseArguments({} as Settings);
       const settings: Settings = {};
       const config = await loadCliConfig(settings, [], 'test-session', argv);
-      expect(config.getProxy()).toBe(expected);
+      expect(config.getProxy()).toBeFalsy();
     });
-  });
 
-  it('should set proxy when --proxy flag is present', async () => {
-    process.argv = ['node', 'script.js', '--proxy', 'http://localhost:7890'];
-    const argv = await parseArguments({} as Settings);
-    const settings: Settings = {};
-    const config = await loadCliConfig(settings, [], 'test-session', argv);
-    expect(config.getProxy()).toBe('http://localhost:7890');
-  });
+    const proxy_url = 'http://localhost:7890';
+    const testCases = [
+      {
+        input: {
+          env_name: 'https_proxy',
+          proxy_url,
+        },
+        expected: proxy_url,
+      },
+      {
+        input: {
+          env_name: 'http_proxy',
+          proxy_url,
+        },
+        expected: proxy_url,
+      },
+      {
+        input: {
+          env_name: 'HTTPS_PROXY',
+          proxy_url,
+        },
+        expected: proxy_url,
+      },
+      {
+        input: {
+          env_name: 'HTTP_PROXY',
+          proxy_url,
+        },
+        expected: proxy_url,
+      },
+    ];
+    testCases.forEach(({ input, expected }) => {
+      it(`should set proxy to ${expected} according to environment variable [${input.env_name}]`, async () => {
+        vi.stubEnv(input.env_name, input.proxy_url);
+        process.argv = ['node', 'script.js'];
+        const argv = await parseArguments({} as Settings);
+        const settings: Settings = {};
+        const config = await loadCliConfig(settings, [], 'test-session', argv);
+        expect(config.getProxy()).toBe(expected);
+      });
+    });
 
-  it('should prioritize CLI flag over environment variable for proxy (CLI http://localhost:7890, environment variable http://localhost:7891)', async () => {
-    vi.stubEnv('http_proxy', 'http://localhost:7891');
-    process.argv = ['node', 'script.js', '--proxy', 'http://localhost:7890'];
-    const argv = await parseArguments({} as Settings);
-    const settings: Settings = {};
-    const config = await loadCliConfig(settings, [], 'test-session', argv);
-    expect(config.getProxy()).toBe('http://localhost:7890');
+    it('should set proxy when --proxy flag is present', async () => {
+      process.argv = ['node', 'script.js', '--proxy', 'http://localhost:7890'];
+      const argv = await parseArguments({} as Settings);
+      const settings: Settings = {};
+      const config = await loadCliConfig(settings, [], 'test-session', argv);
+      expect(config.getProxy()).toBe('http://localhost:7890');
+    });
+
+    it('should prioritize CLI flag over environment variable for proxy (CLI http://localhost:7890, environment variable http://localhost:7891)', async () => {
+      vi.stubEnv('http_proxy', 'http://localhost:7891');
+      process.argv = ['node', 'script.js', '--proxy', 'http://localhost:7890'];
+      const argv = await parseArguments({} as Settings);
+      const settings: Settings = {};
+      const config = await loadCliConfig(settings, [], 'test-session', argv);
+      expect(config.getProxy()).toBe('http://localhost:7890');
+    });
   });
 });
 
@@ -649,6 +676,7 @@ describe('Hierarchical Memory Loading (config.ts) - Placeholder Suite', () => {
     const settings: Settings = {};
     const extensions: Extension[] = [
       {
+        path: '/path/to/ext1',
         config: {
           name: 'ext1',
           version: '1.0.0',
@@ -656,6 +684,7 @@ describe('Hierarchical Memory Loading (config.ts) - Placeholder Suite', () => {
         contextFiles: ['/path/to/ext1/GEMINI.md'],
       },
       {
+        path: '/path/to/ext2',
         config: {
           name: 'ext2',
           version: '1.0.0',
@@ -663,6 +692,7 @@ describe('Hierarchical Memory Loading (config.ts) - Placeholder Suite', () => {
         contextFiles: [],
       },
       {
+        path: '/path/to/ext3',
         config: {
           name: 'ext3',
           version: '1.0.0',
@@ -728,6 +758,7 @@ describe('mergeMcpServers', () => {
     };
     const extensions: Extension[] = [
       {
+        path: '/path/to/ext1',
         config: {
           name: 'ext1',
           version: '1.0.0',
@@ -764,6 +795,7 @@ describe('mergeExcludeTools', () => {
     const settings: Settings = { excludeTools: ['tool1', 'tool2'] };
     const extensions: Extension[] = [
       {
+        path: '/path/to/ext1',
         config: {
           name: 'ext1',
           version: '1.0.0',
@@ -772,6 +804,7 @@ describe('mergeExcludeTools', () => {
         contextFiles: [],
       },
       {
+        path: '/path/to/ext2',
         config: {
           name: 'ext2',
           version: '1.0.0',
@@ -798,6 +831,7 @@ describe('mergeExcludeTools', () => {
     const settings: Settings = { excludeTools: ['tool1', 'tool2'] };
     const extensions: Extension[] = [
       {
+        path: '/path/to/ext1',
         config: {
           name: 'ext1',
           version: '1.0.0',
@@ -824,6 +858,7 @@ describe('mergeExcludeTools', () => {
     const settings: Settings = { excludeTools: ['tool1'] };
     const extensions: Extension[] = [
       {
+        path: '/path/to/ext1',
         config: {
           name: 'ext1',
           version: '1.0.0',
@@ -832,6 +867,7 @@ describe('mergeExcludeTools', () => {
         contextFiles: [],
       },
       {
+        path: '/path/to/ext2',
         config: {
           name: 'ext2',
           version: '1.0.0',
@@ -905,6 +941,7 @@ describe('mergeExcludeTools', () => {
     const settings: Settings = {};
     const extensions: Extension[] = [
       {
+        path: '/path/to/ext',
         config: {
           name: 'ext1',
           version: '1.0.0',
@@ -931,6 +968,7 @@ describe('mergeExcludeTools', () => {
     const settings: Settings = { excludeTools: ['tool1'] };
     const extensions: Extension[] = [
       {
+        path: '/path/to/ext',
         config: {
           name: 'ext1',
           version: '1.0.0',
@@ -1145,7 +1183,12 @@ describe('Approval mode tool exclusion logic', () => {
     const extensions: Extension[] = [];
 
     await expect(
-      loadCliConfig(settings, extensions, 'test-session', invalidArgv),
+      loadCliConfig(
+        settings,
+        extensions,
+        'test-session',
+        invalidArgv as CliArgs,
+      ),
     ).rejects.toThrow(
       'Invalid approval mode: invalid_mode. Valid values are: yolo, auto_edit, default',
     );
@@ -1300,10 +1343,12 @@ describe('loadCliConfig with allowed-mcp-server-names', () => {
 describe('loadCliConfig extensions', () => {
   const mockExtensions: Extension[] = [
     {
+      path: '/path/to/ext1',
       config: { name: 'ext1', version: '1.0.0' },
       contextFiles: ['/path/to/ext1.md'],
     },
     {
+      path: '/path/to/ext2',
       config: { name: 'ext2', version: '1.0.0' },
       contextFiles: ['/path/to/ext2.md'],
     },
@@ -1591,7 +1636,7 @@ describe('loadCliConfig useRipgrep', () => {
 
   it('should be false by default when useRipgrep is not set in settings', async () => {
     process.argv = ['node', 'script.js'];
-    const argv = await parseArguments();
+    const argv = await parseArguments({} as Settings);
     const settings: Settings = {};
     const config = await loadCliConfig(settings, [], 'test-session', argv);
     expect(config.getUseRipgrep()).toBe(false);
@@ -1599,7 +1644,7 @@ describe('loadCliConfig useRipgrep', () => {
 
   it('should be true when useRipgrep is set to true in settings', async () => {
     process.argv = ['node', 'script.js'];
-    const argv = await parseArguments();
+    const argv = await parseArguments({} as Settings);
     const settings: Settings = { useRipgrep: true };
     const config = await loadCliConfig(settings, [], 'test-session', argv);
     expect(config.getUseRipgrep()).toBe(true);
@@ -1607,7 +1652,7 @@ describe('loadCliConfig useRipgrep', () => {
 
   it('should be false when useRipgrep is explicitly set to false in settings', async () => {
     process.argv = ['node', 'script.js'];
-    const argv = await parseArguments();
+    const argv = await parseArguments({} as Settings);
     const settings: Settings = { useRipgrep: false };
     const config = await loadCliConfig(settings, [], 'test-session', argv);
     expect(config.getUseRipgrep()).toBe(false);
@@ -1906,14 +1951,12 @@ describe('loadCliConfig trustedFolder', () => {
     description,
   } of testCases) {
     it(`should be correct for: ${description}`, async () => {
-      (isWorkspaceTrusted as vi.Mock).mockImplementation(
-        (settings: Settings) => {
-          const featureIsEnabled =
-            (settings.folderTrustFeature ?? false) &&
-            (settings.folderTrust ?? true);
-          return featureIsEnabled ? mockTrustValue : true;
-        },
-      );
+      (isWorkspaceTrusted as Mock).mockImplementation((settings: Settings) => {
+        const featureIsEnabled =
+          (settings.folderTrustFeature ?? false) &&
+          (settings.folderTrust ?? true);
+        return featureIsEnabled ? mockTrustValue : true;
+      });
       const argv = await parseArguments({} as Settings);
       const settings: Settings = { folderTrustFeature, folderTrust };
       const config = await loadCliConfig(settings, [], 'test-session', argv);
