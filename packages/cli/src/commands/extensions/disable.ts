@@ -17,7 +17,7 @@ export async function handleDisable(args: DisableArgs) {
   try {
     disableExtension(args.name, args.scope);
     console.log(
-      `Extension "${args.name}" successfully disableed for scope "${args.scope}".`,
+      `Extension "${args.name}" successfully disabled for scope "${args.scope}".`,
     );
   } catch (error) {
     console.error((error as Error).message);
