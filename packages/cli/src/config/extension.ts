@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { simpleGit } from 'simple-git';
+import { SettingScope, loadSettings } from '../config/settings.js';
 
 export const EXTENSIONS_DIRECTORY_NAME = '.gemini/extensions';
 
@@ -79,6 +80,8 @@ export class ExtensionStorage {
 }
 
 export function loadExtensions(workspaceDir: string): Extension[] {
+  const settings = loadSettings(workspaceDir).merged;
+  const disabledExtensions = settings.disabledExtensions ?? [];
   const allExtensions = [
     ...loadExtensionsFromDir(workspaceDir),
     ...loadExtensionsFromDir(os.homedir()),
@@ -86,7 +89,10 @@ export function loadExtensions(workspaceDir: string): Extension[] {
 
   const uniqueExtensions = new Map<string, Extension>();
   for (const extension of allExtensions) {
-    if (!uniqueExtensions.has(extension.config.name)) {
+    if (
+      !uniqueExtensions.has(extension.config.name) &&
+      !disabledExtensions.includes(extension.config.name)
+    ) {
       uniqueExtensions.set(extension.config.name, extension);
     }
   }
@@ -352,6 +358,10 @@ export async function uninstallExtension(extensionName: string): Promise<void> {
   ) {
     throw new Error(`Error: Extension "${extensionName}" not found.`);
   }
+  removeFromDisabledExtensions(extensionName, [
+    SettingScope.User,
+    SettingScope.Workspace,
+  ]);
   const storage = new ExtensionStorage(extensionName);
   return await fs.promises.rm(storage.getExtensionDir(), {
     recursive: true,
@@ -424,4 +434,29 @@ export async function updateExtension(
         updatedVersion,
       }
     : undefined;
+}
+
+export function disableExtension(name: string, scope: SettingScope) {
+  if (scope === SettingScope.System) {
+    throw new Error('Cannot disable extensions at the system scope.');
+  }
+  const settings = loadSettings(process.cwd());
+  const settingsFile = settings.forScope(scope);
+  const disabledExtensions = settingsFile.settings.disabledExtensions || [];
+  if (!disabledExtensions.includes(name)) {
+    disabledExtensions.push(name);
+    settings.setValue(scope, 'disabledExtensions', disabledExtensions);
+  }
+}
+
+function removeFromDisabledExtensions(name: string, scopes: SettingScope[]) {
+  const settings = loadSettings(process.cwd());
+  for (const scope of scopes) {
+    const settingsFile = settings.forScope(scope);
+    let disabledExtensions = settingsFile.settings.disabledExtensions || [];
+    disabledExtensions = disabledExtensions.filter(
+      (extension) => extension !== name,
+    );
+    settings.setValue(scope, 'disabledExtensions', disabledExtensions);
+  }
 }
