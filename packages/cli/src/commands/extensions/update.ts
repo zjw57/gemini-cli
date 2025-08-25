@@ -28,7 +28,7 @@ export async function handleUpdate(args: UpdateArgs) {
 }
 
 export const updateCommand: CommandModule = {
-  command: 'update [name]',
+  command: 'update <name>',
   describe: 'Updates an extension.',
   builder: (yargs) =>
     yargs
