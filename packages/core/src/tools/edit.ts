@@ -459,7 +459,7 @@ export class EditTool
   extends BaseDeclarativeTool<EditToolParams, ToolResult>
   implements ModifiableDeclarativeTool<EditToolParams>
 {
-  static readonly Name = 'replace';
+  static readonly Name = 'edit_replace';
   constructor(private readonly config: Config) {
     super(
       EditTool.Name,
