@@ -13,7 +13,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { simpleGit } from 'simple-git';
-import { SettingScope, loadSettings } from '../config/settings.js';
+import {
+  SettingScope,
+  getSystemSettingsPath,
+  loadSettings,
+} from '../config/settings.js';
 
 export const EXTENSIONS_DIRECTORY_NAME = '.gemini/extensions';
 
@@ -45,16 +49,22 @@ export interface ExtensionUpdateInfo {
   updatedVersion: string;
 }
 
+export type InstallScope = SettingScope.User | SettingScope.System;
+
 export class ExtensionStorage {
   private readonly extensionName: string;
+  private readonly scope: InstallScope;
 
-  constructor(extensionName: string) {
+  constructor(extensionName: string, scope: InstallScope) {
     this.extensionName = extensionName;
+    this.scope = scope;
   }
 
   getExtensionDir(): string {
     return path.join(
-      ExtensionStorage.getUserExtensionsDir(),
+      this.scope === SettingScope.User
+        ? ExtensionStorage.getUserExtensionsDir()
+        : ExtensionStorage.getSystemExtensionsDir(),
       this.extensionName,
     );
   }
@@ -76,6 +86,11 @@ export class ExtensionStorage {
     return await fs.promises.mkdtemp(
       path.join(os.tmpdir(), 'gemini-extension'),
     );
+  }
+
+  static getSystemExtensionsDir(): string {
+    const storage = new Storage(path.dirname(getSystemSettingsPath()));
+    return storage.getExtensionsDir();
   }
 }
 
@@ -104,6 +119,21 @@ export function loadExtensions(workspaceDir: string): Extension[] {
 
 export function loadUserExtensions(): Extension[] {
   const userExtensions = loadExtensionsFromDir(os.homedir());
+
+  const uniqueExtensions = new Map<string, Extension>();
+  for (const extension of userExtensions) {
+    if (!uniqueExtensions.has(extension.config.name)) {
+      uniqueExtensions.set(extension.config.name, extension);
+    }
+  }
+
+  return Array.from(uniqueExtensions.values());
+}
+
+export function loadSystemExtensions(): Extension[] {
+  const userExtensions = loadExtensionsFromDir(
+    path.dirname(getSystemSettingsPath()),
+  );
 
   const uniqueExtensions = new Map<string, Extension>();
   for (const extension of userExtensions) {
@@ -289,8 +319,12 @@ async function copyExtension(
 
 export async function installExtension(
   installMetadata: ExtensionInstallMetadata,
+  scope: InstallScope,
 ): Promise<string> {
-  const extensionsDir = ExtensionStorage.getUserExtensionsDir();
+  const extensionsDir =
+    scope === SettingScope.User
+      ? ExtensionStorage.getUserExtensionsDir()
+      : ExtensionStorage.getSystemExtensionsDir();
   await fs.promises.mkdir(extensionsDir, { recursive: true });
 
   // Convert relative paths to absolute paths for the metadata file.
@@ -324,7 +358,7 @@ export async function installExtension(
 
     // ~/.gemini/extensions/{ExtensionConfig.name}.
     newExtensionName = newExtension.config.name;
-    const extensionStorage = new ExtensionStorage(newExtensionName);
+    const extensionStorage = new ExtensionStorage(newExtensionName, scope);
     const destinationPath = extensionStorage.getExtensionDir();
 
     const installedExtensions = loadUserExtensions();
@@ -352,7 +386,10 @@ export async function installExtension(
   return newExtensionName;
 }
 
-export async function uninstallExtension(extensionName: string): Promise<void> {
+export async function uninstallExtension(
+  extensionName: string,
+  scope: InstallScope,
+): Promise<void> {
   const installedExtensions = loadUserExtensions();
   if (
     !installedExtensions.some(
@@ -361,11 +398,20 @@ export async function uninstallExtension(extensionName: string): Promise<void> {
   ) {
     throw new Error(`Extension "${extensionName}" not found.`);
   }
-  removeFromDisabledExtensions(extensionName, [
-    SettingScope.User,
-    SettingScope.Workspace,
-  ]);
-  const storage = new ExtensionStorage(extensionName);
+  if (scope === SettingScope.User) {
+    removeFromDisabledExtensions(extensionName, [
+      SettingScope.User,
+      SettingScope.Workspace,
+    ]);
+  } else {
+    removeFromDisabledExtensions(extensionName, [
+      SettingScope.User,
+      SettingScope.Workspace,
+      SettingScope.System,
+      SettingScope.SystemDefaults,
+    ]);
+  }
+  const storage = new ExtensionStorage(extensionName, scope);
   return await fs.promises.rm(storage.getExtensionDir(), {
     recursive: true,
     force: true,
@@ -401,6 +447,7 @@ export function toOutputString(extension: Extension): string {
 
 export async function updateExtension(
   extensionName: string,
+  scope: InstallScope,
 ): Promise<ExtensionUpdateInfo | undefined> {
   const installedExtensions = loadUserExtensions();
   const extension = installedExtensions.find(
@@ -420,8 +467,8 @@ export async function updateExtension(
   const tempDir = await ExtensionStorage.createTmpDir();
   try {
     await copyExtension(extension.path, tempDir);
-    await uninstallExtension(extensionName);
-    await installExtension(extension.installMetadata);
+    await uninstallExtension(extensionName, scope);
+    await installExtension(extension.installMetadata, scope);
 
     const updatedExtension = loadExtension(extension.path);
     if (!updatedExtension) {
