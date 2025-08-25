@@ -205,6 +205,7 @@ export interface ConfigParameters {
   shouldUseNodePtyShell?: boolean;
   skipNextSpeakerCheck?: boolean;
   enablePromptCompletion?: boolean;
+  adkMode?: boolean;
 }
 
 export class Config {
@@ -275,6 +276,7 @@ export class Config {
   private readonly shouldUseNodePtyShell: boolean;
   private readonly skipNextSpeakerCheck: boolean;
   private readonly enablePromptCompletion: boolean = false;
+  private readonly adkMode: boolean;
   private initialized: boolean = false;
   readonly storage: Storage;
 
@@ -349,6 +351,7 @@ export class Config {
     this.skipNextSpeakerCheck = params.skipNextSpeakerCheck ?? false;
     this.storage = new Storage(this.targetDir);
     this.enablePromptCompletion = params.enablePromptCompletion ?? false;
+    this.adkMode = params.adkMode ?? false;
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -752,6 +755,10 @@ export class Config {
 
   getScreenReader(): boolean {
     return this.accessibility.screenReader ?? false;
+  }
+
+  getAdkMode(): boolean {
+    return this.adkMode;
   }
 
   getEnablePromptCompletion(): boolean {

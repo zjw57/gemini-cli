@@ -263,6 +263,7 @@ export class GeminiClient {
         },
         toolRegistry,
         history,
+        this.config.getAdkMode(),
       );
     } catch (error) {
       await reportError(

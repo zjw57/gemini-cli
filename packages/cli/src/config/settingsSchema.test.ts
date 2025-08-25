@@ -53,6 +53,7 @@ describe('SettingsSchema', () => {
         'hasSeenIdeIntegrationNudge',
         'folderTrustFeature',
         'useRipgrep',
+        'adkMode',
       ];
 
       expectedSettings.forEach((setting) => {
@@ -248,6 +249,14 @@ describe('SettingsSchema', () => {
       expect(SETTINGS_SCHEMA.folderTrustFeature.category).toBe('General');
       expect(SETTINGS_SCHEMA.folderTrustFeature.default).toBe(false);
       expect(SETTINGS_SCHEMA.folderTrustFeature.showInDialog).toBe(true);
+    });
+
+    it('should have adkMode setting in schema', () => {
+      expect(SETTINGS_SCHEMA.adkMode).toBeDefined();
+      expect(SETTINGS_SCHEMA.adkMode.type).toBe('boolean');
+      expect(SETTINGS_SCHEMA.adkMode.category).toBe('Mode');
+      expect(SETTINGS_SCHEMA.adkMode.default).toBe(false);
+      expect(SETTINGS_SCHEMA.adkMode.showInDialog).toBe(false);
     });
   });
 });

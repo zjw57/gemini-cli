@@ -187,6 +187,15 @@ export const SETTINGS_SCHEMA = {
     description: 'Enable IDE integration mode',
     showInDialog: true,
   },
+  adkMode: {
+    type: 'boolean',
+    label: 'ADK Mode',
+    category: 'Mode',
+    requiresRestart: true,
+    default: false,
+    description: 'Enable ADK integration mode',
+    showInDialog: false,
+  },
 
   accessibility: {
     type: 'object',

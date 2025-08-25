@@ -136,6 +136,7 @@ export class GeminiChat {
     private readonly generationConfig: GenerateContentConfig = {},
     toolRegistry: ToolRegistry,
     private history: Content[] = [],
+    private readonly adkMode: boolean = false,
   ) {
     validateHistory(history);
 
