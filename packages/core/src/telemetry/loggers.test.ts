@@ -822,13 +822,13 @@ describe('loggers', () => {
     });
   });
 
-  describe('logMalformedJsonResponse', () => {
+  describe('logMalformedJsonResponse', async () => {
     beforeEach(() => {
       vi.spyOn(ClearcutLogger.prototype, 'logMalformedJsonResponseEvent');
     });
 
-    it('logs the event to Clearcut and OTEL', () => {
-      const mockConfig = makeFakeConfig();
+    it('logs the event to Clearcut and OTEL', async () => {
+      const mockConfig = await makeFakeConfig();
       const event = new MalformedJsonResponseEvent('test-model');
 
       logMalformedJsonResponse(mockConfig, event);
