@@ -120,6 +120,7 @@ class VsCodeInstaller implements IdeInstaller {
 export function getIdeInstaller(ide: DetectedIde): IdeInstaller | null {
   switch (ide) {
     case DetectedIde.VSCode:
+    case DetectedIde.FirebaseStudio:
       return new VsCodeInstaller();
     default:
       return null;
