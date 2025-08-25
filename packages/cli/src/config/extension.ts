@@ -264,6 +264,7 @@ async function cloneFromGit(
   destination: string,
 ): Promise<void> {
   try {
+    // TODO(chrstnb): Download the archive instead to avoid unnecessary .git info.
     await simpleGit().clone(gitUrl, destination, ['--depth', '1']);
   } catch (error) {
     throw new Error(`Failed to clone Git repository from ${gitUrl}`, {
@@ -331,7 +332,7 @@ export async function installExtension(
       )
     ) {
       throw new Error(
-        `Error: Extension "${newExtensionName}" is already installed. Please uninstall it first.`,
+        `Extension "${newExtensionName}" is already installed. Please uninstall it first.`,
       );
     }
 
@@ -356,7 +357,7 @@ export async function uninstallExtension(extensionName: string): Promise<void> {
       (installed) => installed.config.name === extensionName,
     )
   ) {
-    throw new Error(`Error: Extension "${extensionName}" not found.`);
+    throw new Error(`Extension "${extensionName}" not found.`);
   }
   removeFromDisabledExtensions(extensionName, [
     SettingScope.User,
@@ -404,36 +405,38 @@ export async function updateExtension(
     (installed) => installed.config.name === extensionName,
   );
   if (!extension) {
-    throw new Error(`Error: Extension "${extensionName}" not found.`);
+    throw new Error(
+      `Extension "${extensionName}" not found. Run gemini extensions list to see available extensions.`,
+    );
   }
   if (!extension.installMetadata) {
     throw new Error(
-      `Extension cannot be updated. To update manually, uninstall and then reinstall the updated version.`,
+      `Extension cannot be updated because it is missing the .gemini-extension.install.json file. To update manually, uninstall and then reinstall the updated version.`,
     );
   }
   const originalVersion = extension.config.version;
-  let updatedVersion: string | undefined = undefined;
   const tempDir = await ExtensionStorage.createTmpDir();
-  await copyExtension(extension.path, tempDir);
-  await uninstallExtension(extensionName);
-  await installExtension(extension.installMetadata);
   try {
+    await copyExtension(extension.path, tempDir);
+    await uninstallExtension(extensionName);
+    await installExtension(extension.installMetadata);
+
     const updatedExtension = loadExtension(extension.path);
     if (!updatedExtension) {
-      throw Error('Updated extension not found.');
+      throw new Error('Updated extension not found after installation.');
     }
-    updatedVersion = updatedExtension.config.version;
+    const updatedVersion = updatedExtension.config.version;
+    return {
+      originalVersion,
+      updatedVersion,
+    };
   } catch (e) {
-    console.error(`Warning: error updating extension: ${e}`);
-    copyExtension(tempDir, extension.path);
+    console.error(`Error updating extension, rolling back. ${e}`);
+    await copyExtension(tempDir, extension.path);
+    throw e;
+  } finally {
+    await fs.promises.rm(tempDir, { recursive: true, force: true });
   }
-  await fs.promises.rm(tempDir, { recursive: true, force: true });
-  return updatedVersion
-    ? {
-        originalVersion,
-        updatedVersion,
-      }
-    : undefined;
 }
 
 export function disableExtension(name: string, scope: SettingScope) {

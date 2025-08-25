@@ -13,13 +13,14 @@ interface UpdateArgs {
 
 export async function handleUpdate(args: UpdateArgs) {
   try {
+    // TODO(chrstnb): we should list extensions if the requested extension is not installed.
     const updatedExtensionInfo = await updateExtension(args.name);
     if (!updatedExtensionInfo) {
       console.log(`Extension "${args.name}" failed to update.`);
       return;
     }
     console.log(
-      `Extension "${args.name}" successfully updated from version ${updatedExtensionInfo.originalVersion} to version ${updatedExtensionInfo.updatedVersion}.`,
+      `Extension "${args.name}" successfully updated: ${updatedExtensionInfo.originalVersion} → ${updatedExtensionInfo.updatedVersion}.`,
     );
   } catch (error) {
     console.error((error as Error).message);
@@ -28,7 +29,7 @@ export async function handleUpdate(args: UpdateArgs) {
 }
 
 export const updateCommand: CommandModule = {
-  command: 'update [name]',
+  command: 'update <name>',
   describe: 'Updates an extension.',
   builder: (yargs) =>
     yargs

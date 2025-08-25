@@ -255,7 +255,7 @@ describe('installExtension', () => {
     await expect(
       installExtension({ source: sourceExtDir, type: 'local' }),
     ).rejects.toThrow(
-      'Error: Extension "my-local-extension" is already installed. Please uninstall it first.',
+      'Extension "my-local-extension" is already installed. Please uninstall it first.',
     );
   });
 
@@ -338,9 +338,28 @@ describe('uninstallExtension', () => {
     expect(fs.existsSync(sourceExtDir)).toBe(false);
   });
 
+  it('should uninstall an extension by name and retain existing extensions', async () => {
+    const sourceExtDir = createExtension(
+      userExtensionsDir,
+      'my-local-extension',
+      '1.0.0',
+    );
+    const otherExtDir = createExtension(
+      userExtensionsDir,
+      'other-extension',
+      '1.0.0',
+    );
+
+    await uninstallExtension('my-local-extension');
+
+    expect(fs.existsSync(sourceExtDir)).toBe(false);
+    expect(loadExtensions(tempHomeDir)).toHaveLength(1);
+    expect(fs.existsSync(otherExtDir)).toBe(true);
+  });
+
   it('should throw an error if the extension does not exist', async () => {
     await expect(uninstallExtension('nonexistent-extension')).rejects.toThrow(
-      'Error: Extension "nonexistent-extension" not found.',
+      'Extension "nonexistent-extension" not found.',
     );
   });
 });
