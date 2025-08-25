@@ -146,6 +146,7 @@ export class GeminiChat {
     this.adkMode = config.getAdkMode();
 
     if (this.adkMode) {
+      console.log("ADK MODE IS ON");
       // We need to pop off a bunch of attrs that LlmAgent isn't expecting
       const {
         tools: _tools, // This is really a list of functionDeclarations
