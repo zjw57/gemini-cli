@@ -79,9 +79,11 @@ export class ExtensionStorage {
   }
 }
 
+// TODO(#7038): Standardize loading of extensions and add the 'disabled' status
+// to the extension interface.
 export function loadExtensions(workspaceDir: string): Extension[] {
   const settings = loadSettings(workspaceDir).merged;
-  const disabledExtensions = settings.disabledExtensions ?? [];
+  const disabledExtensions = settings.extensions?.disabled ?? [];
   const allExtensions = [
     ...loadExtensionsFromDir(workspaceDir),
     ...loadExtensionsFromDir(os.homedir()),
@@ -441,16 +443,16 @@ export async function updateExtension(
 
 export function disableExtension(name: string, scope: SettingScope) {
   if (scope === SettingScope.System || scope === SettingScope.SystemDefaults) {
-    throw new Error(
-      'Cannot disable extensions at the system or system defaults scope.',
-    );
+    throw new Error('System and SystemDefaults scopes are not supported.');
   }
   const settings = loadSettings(process.cwd());
   const settingsFile = settings.forScope(scope);
-  const disabledExtensions = settingsFile.settings.disabledExtensions || [];
+  let extensionSettings = settingsFile.settings.extensions || { disabled: [] };
+  const disabledExtensions = extensionSettings.disabled || [];
   if (!disabledExtensions.includes(name)) {
     disabledExtensions.push(name);
-    settings.setValue(scope, 'disabledExtensions', disabledExtensions);
+    extensionSettings.disabled = disabledExtensions;
+    settings.setValue(scope, 'extensions', extensionSettings);
   }
 }
 
@@ -463,10 +465,13 @@ function removeFromDisabledExtensions(name: string, scopes: SettingScope[]) {
   const settings = loadSettings(process.cwd());
   for (const scope of scopes) {
     const settingsFile = settings.forScope(scope);
-    let disabledExtensions = settingsFile.settings.disabledExtensions || [];
-    disabledExtensions = disabledExtensions.filter(
+    let extensionSettings = settingsFile.settings.extensions || {
+      disabled: [],
+    };
+    const disabledExtensions = extensionSettings.disabled || [];
+    extensionSettings.disabled = disabledExtensions.filter(
       (extension) => extension !== name,
     );
-    settings.setValue(scope, 'disabledExtensions', disabledExtensions);
+    settings.setValue(scope, 'extensions', extensionSettings);
   }
 }

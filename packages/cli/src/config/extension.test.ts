@@ -143,7 +143,7 @@ describe('loadExtensions', () => {
     fs.mkdirSync(settingsDir, { recursive: true });
     fs.writeFileSync(
       path.join(settingsDir, 'settings.json'),
-      JSON.stringify({ disabledExtensions: ['ext1'] }),
+      JSON.stringify({ extensions: { disabled: ['ext1'] } }),
     );
 
     const extensions = loadExtensions(tempWorkspaceDir);
@@ -486,7 +486,7 @@ describe('disableExtension', () => {
     disableExtension('my-extension', SettingScope.User);
     const settings = loadSettings(tempWorkspaceDir);
     expect(
-      settings.forScope(SettingScope.User).settings.disabledExtensions,
+      settings.forScope(SettingScope.User).settings.extensions?.disabled,
     ).toEqual(['my-extension']);
   });
 
@@ -494,7 +494,7 @@ describe('disableExtension', () => {
     disableExtension('my-extension', SettingScope.Workspace);
     const settings = loadSettings(tempWorkspaceDir);
     expect(
-      settings.forScope(SettingScope.Workspace).settings.disabledExtensions,
+      settings.forScope(SettingScope.Workspace).settings.extensions?.disabled,
     ).toEqual(['my-extension']);
   });
 
@@ -503,7 +503,7 @@ describe('disableExtension', () => {
     disableExtension('my-extension', SettingScope.User);
     const settings = loadSettings(tempWorkspaceDir);
     expect(
-      settings.forScope(SettingScope.User).settings.disabledExtensions,
+      settings.forScope(SettingScope.User).settings.extensions?.disabled,
     ).toEqual(['my-extension']);
   });
 
