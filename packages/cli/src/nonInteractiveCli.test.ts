@@ -411,4 +411,32 @@ describe('runNonInteractive', () => {
     // 6. Assert the final output is correct
     expect(processStdoutSpy).toHaveBeenCalledWith('Summary complete.');
   });
+
+  it('should not execute tool calls when adkMode is true', async () => {
+    vi.mocked(mockConfig.getAdkMode).mockReturnValue(true);
+    const toolCallEvent: ServerGeminiStreamEvent = {
+      type: GeminiEventType.ToolCallRequest,
+      value: {
+        callId: 'tool-1',
+        name: 'testTool',
+        args: { arg1: 'value1' },
+        isClientInitiated: false,
+        prompt_id: 'prompt-id-adk',
+      },
+    };
+    const events: ServerGeminiStreamEvent[] = [
+      toolCallEvent,
+      { type: GeminiEventType.Content, value: 'ADK handled this.' },
+    ];
+    mockGeminiClient.sendMessageStream.mockReturnValue(
+      createStreamFromEvents(events),
+    );
+
+    await runNonInteractive(mockConfig, 'ADK test', 'prompt-id-adk');
+
+    expect(mockGeminiClient.sendMessageStream).toHaveBeenCalledTimes(1);
+    expect(mockCoreExecuteToolCall).not.toHaveBeenCalled();
+    expect(processStdoutSpy).toHaveBeenCalledWith('ADK handled this.');
+    expect(processStdoutSpy).toHaveBeenCalledWith('\n');
+  });
 });
