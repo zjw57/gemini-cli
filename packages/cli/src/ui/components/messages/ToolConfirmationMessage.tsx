@@ -44,7 +44,9 @@ export const ToolConfirmationMessage: React.FC<
   const childWidth = terminalWidth - 2; // 2 for padding
 
   const handleConfirm = async (outcome: ToolConfirmationOutcome) => {
+    console.log("handleConfirm called")
     if (confirmationDetails.type === 'edit') {
+      console.log("handleConfirm called for edit")
       const ideClient = config?.getIdeClient();
       if (config?.getIdeMode()) {
         const cliOutcome =

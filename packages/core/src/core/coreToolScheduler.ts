@@ -631,6 +631,7 @@ export class CoreToolScheduler {
               ) {
                 confirmationDetails.ideConfirmation.then((resolution) => {
                   if (resolution.status === 'accepted') {
+                    console.log("ide confirmation accepted")
                     this.handleConfirmationResponse(
                       reqInfo.callId,
                       confirmationDetails.onConfirm,
@@ -638,6 +639,7 @@ export class CoreToolScheduler {
                       signal,
                     );
                   } else {
+                     console.log("ide confirmation rejected: ", resolution.status)
                     this.handleConfirmationResponse(
                       reqInfo.callId,
                       confirmationDetails.onConfirm,

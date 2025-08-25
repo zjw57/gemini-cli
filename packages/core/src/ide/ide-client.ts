@@ -230,6 +230,7 @@ export class IdeClient {
   // Closes the diff. Instead of waiting for a notification,
   // manually resolves the diff resolver as the desired outcome.
   async resolveDiffFromCli(filePath: string, outcome: 'accepted' | 'rejected') {
+    console.log(`resolving diff for ${filePath} from CLI with outcome: ${outcome}`);
     const content = await this.closeDiff(filePath);
     const resolver = this.diffResponses.get(filePath);
     if (resolver) {
@@ -239,6 +240,8 @@ export class IdeClient {
         resolver({ status: 'rejected', content: undefined });
       }
       this.diffResponses.delete(filePath);
+    } else {
+      console.log("no resolver found")
     }
   }
 

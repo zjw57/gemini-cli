@@ -214,6 +214,7 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
       : (currentContent ?? '');
 
     if (!error && fileExists && currentContent === newContent) {
+      console.log("no changes to display")
       error = {
         display:
           'No changes to apply. The new content is identical to the current content.',
@@ -281,17 +282,21 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
       originalContent: editData.currentContent,
       newContent: editData.newContent,
       onConfirm: async (outcome: ToolConfirmationOutcome) => {
+        console.log("edit on confirm called")
         if (outcome === ToolConfirmationOutcome.ProceedAlways) {
           this.config.setApprovalMode(ApprovalMode.AUTO_EDIT);
         }
 
         if (ideConfirmation) {
+          console.log("edit ide on confirm called")
           const result = await ideConfirmation;
           if (result.status === 'accepted' && result.content) {
             // TODO(chrstn): See https://github.com/google-gemini/gemini-cli/pull/5618#discussion_r2255413084
             // for info on a possible race condition where the file is modified on disk while being edited.
             this.params.old_string = editData.currentContent ?? '';
             this.params.new_string = result.content;
+          } else {
+            console.log("result status != accepted or no content")
           }
         }
       },
@@ -328,6 +333,7 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
    * @returns Result of the edit operation
    */
   async execute(signal: AbortSignal): Promise<ToolResult> {
+    console.log("executing edit")
     let editData: CalculatedEdit;
     try {
       editData = await this.calculateEdit(this.params, signal);
