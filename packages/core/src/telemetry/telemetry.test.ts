@@ -20,21 +20,19 @@ describe('telemetry', () => {
   let mockConfig: Config;
   let mockNodeSdk: NodeSDK;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.resetAllMocks();
 
-    mockConfig = await Config.create({
-      sessionId: 'test-session-id',
-      model: 'test-model',
-      targetDir: '/test/dir',
-      debugMode: false,
-      cwd: '/test/dir',
-    });
-    vi.spyOn(mockConfig, 'getTelemetryEnabled').mockReturnValue(true);
-    vi.spyOn(mockConfig, 'getTelemetryOtlpEndpoint').mockReturnValue(
-      'http://localhost:4317',
-    );
-    vi.spyOn(mockConfig, 'getSessionId').mockReturnValue('test-session-id');
+    mockConfig = {
+      getTelemetryEnabled: vi.fn().mockReturnValue(true),
+      getTelemetryOtlpEndpoint: vi
+        .fn()
+        .mockReturnValue('http://localhost:4317'),
+      getTelemetryOtlpProtocol: vi.fn().mockReturnValue('grpc'),
+      getTelemetryOutfile: vi.fn().mockReturnValue(undefined),
+      getDebugMode: vi.fn().mockReturnValue(false),
+      getSessionId: vi.fn().mockReturnValue('test-session-id'),
+    } as unknown as Config;
     mockNodeSdk = {
       start: vi.fn(),
       shutdown: vi.fn().mockResolvedValue(undefined),
