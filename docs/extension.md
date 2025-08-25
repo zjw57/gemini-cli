@@ -81,9 +81,9 @@ You can install extensions using the `install` command. This command allows you 
 
 ### Usage
 
-`gemini extensions install [options]`
+`gemini extensions install <source> | [options]`
 
 ### Options
 
-- `--source <url>`: The URL of a Git repository to install the extension from. The repository must contain a `gemini-extension.json` file in its root.
+- `source <url> positional argument`: The URL of a Git repository to install the extension from. The repository must contain a `gemini-extension.json` file in its root.
 - `--path <path>`: The path to a local directory to install as an extension. The directory must contain a `gemini-extension.json` file.
