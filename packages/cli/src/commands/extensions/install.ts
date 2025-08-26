@@ -36,6 +36,7 @@ export async function handleInstall(args: InstallArgs) {
     );
   } catch (error) {
     console.error(getErrorMessage(error));
+    throw error;
   }
 }
 

@@ -16,11 +16,11 @@ interface UpdateArgs {
 
 export async function handleUpdate(args: UpdateArgs) {
   try {
-    const scope =
+    const location =
       args.location === 'system'
         ? InstallLocation.System
         : InstallLocation.User;
-    const updatedExtensionInfo = await updateExtension(args.name, scope);
+    const updatedExtensionInfo = await updateExtension(args.name, location);
     if (!updatedExtensionInfo) {
       console.log(`Extension "${args.name}" failed to update.`);
       return;
@@ -30,7 +30,7 @@ export async function handleUpdate(args: UpdateArgs) {
     );
   } catch (error) {
     console.error(getErrorMessage(error));
-    process.exit(1);
+    throw error;
   }
 }
 

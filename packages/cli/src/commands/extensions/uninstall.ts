@@ -24,6 +24,7 @@ export async function handleUninstall(args: UninstallArgs) {
     console.log(`Extension "${args.name}" successfully uninstalled.`);
   } catch (error) {
     console.error(getErrorMessage(error));
+    throw error;
   }
 }
 
