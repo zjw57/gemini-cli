@@ -45,9 +45,8 @@ export const enableCommand: CommandModule = {
       })
       .option('scope', {
         describe:
-          'The scope to enable the extenison in. If not set, will be enabled in all scopes.',
+          'The scope to enable the extenison in. If not set, will be enabled in user and workspace scopes.',
         type: 'string',
-        choices: [SettingScope.User, SettingScope.Workspace],
       })
       .check((_argv) => true),
   handler: async (argv) => {

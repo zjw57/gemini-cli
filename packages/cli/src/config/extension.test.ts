@@ -11,6 +11,7 @@ import * as path from 'node:path';
 import {
   EXTENSIONS_CONFIG_FILENAME,
   INSTALL_METADATA_FILENAME,
+  InstallLocation,
   annotateActiveExtensions,
   disableExtension,
   enableExtension,
@@ -24,8 +25,20 @@ import {
   type MCPServerConfig,
 } from '@google/gemini-cli-core';
 import { execSync } from 'node:child_process';
-import { SettingScope, loadSettings } from './settings.js';
 import { type SimpleGit, simpleGit } from 'simple-git';
+import {
+  SettingScope,
+  loadSettings,
+  getSystemSettingsBasePath,
+} from './settings.js';
+
+vi.mock('./settings.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./settings.js')>();
+  return {
+    ...actual,
+    getSystemSettingsBasePath: vi.fn(),
+  };
+});
 
 vi.mock('simple-git', () => ({
   simpleGit: vi.fn(),
@@ -51,6 +64,7 @@ const EXTENSIONS_DIRECTORY_NAME = path.join('.gemini', 'extensions');
 describe('loadExtensions', () => {
   let tempWorkspaceDir: string;
   let tempHomeDir: string;
+  let tempSystemDir: string;
 
   beforeEach(() => {
     tempWorkspaceDir = fs.mkdtempSync(
@@ -59,6 +73,10 @@ describe('loadExtensions', () => {
     tempHomeDir = fs.mkdtempSync(
       path.join(os.tmpdir(), 'gemini-cli-test-home-'),
     );
+    tempSystemDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'gemini-cli-test-system-'),
+    );
+    vi.mocked(getSystemSettingsBasePath).mockReturnValue(tempSystemDir);
     vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
   });
 
@@ -274,6 +292,7 @@ describe('annotateActiveExtensions', () => {
 describe('installExtension', () => {
   let tempHomeDir: string;
   let userExtensionsDir: string;
+  let tempSystemDir: string;
 
   beforeEach(() => {
     tempHomeDir = fs.mkdtempSync(
@@ -281,10 +300,13 @@ describe('installExtension', () => {
     );
     vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
     userExtensionsDir = path.join(tempHomeDir, '.gemini', 'extensions');
+    tempSystemDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'gemini-cli-test-system-'),
+    );
+    vi.mocked(getSystemSettingsBasePath).mockReturnValue(tempSystemDir);
     // Clean up before each test
     fs.rmSync(userExtensionsDir, { recursive: true, force: true });
     fs.mkdirSync(userExtensionsDir, { recursive: true });
-
     vi.mocked(execSync).mockClear();
   });
 
@@ -301,7 +323,10 @@ describe('installExtension', () => {
     const targetExtDir = path.join(userExtensionsDir, 'my-local-extension');
     const metadataPath = path.join(targetExtDir, INSTALL_METADATA_FILENAME);
 
-    await installExtension({ source: sourceExtDir, type: 'local' });
+    await installExtension(
+      { source: sourceExtDir, type: 'local' },
+      InstallLocation.User,
+    );
 
     expect(fs.existsSync(targetExtDir)).toBe(true);
     expect(fs.existsSync(metadataPath)).toBe(true);
@@ -319,9 +344,15 @@ describe('installExtension', () => {
       'my-local-extension',
       '1.0.0',
     );
-    await installExtension({ source: sourceExtDir, type: 'local' });
+    await installExtension(
+      { source: sourceExtDir, type: 'local' },
+      InstallLocation.User,
+    );
     await expect(
-      installExtension({ source: sourceExtDir, type: 'local' }),
+      installExtension(
+        { source: sourceExtDir, type: 'local' },
+        InstallLocation.User,
+      ),
     ).rejects.toThrow(
       'Extension "my-local-extension" is already installed. Please uninstall it first.',
     );
@@ -332,7 +363,10 @@ describe('installExtension', () => {
     fs.mkdirSync(sourceExtDir, { recursive: true });
 
     await expect(
-      installExtension({ source: sourceExtDir, type: 'local' }),
+      installExtension(
+        { source: sourceExtDir, type: 'local' },
+        InstallLocation.User,
+      ),
     ).rejects.toThrow(
       `Invalid extension at ${sourceExtDir}. Please make sure it has a valid gemini-extension.json file.`,
     );
@@ -358,7 +392,10 @@ describe('installExtension', () => {
     const mockedSimpleGit = simpleGit as vi.MockedFunction<typeof simpleGit>;
     mockedSimpleGit.mockReturnValue({ clone } as unknown as SimpleGit);
 
-    await installExtension({ source: gitUrl, type: 'git' });
+    await installExtension(
+      { source: gitUrl, type: 'git' },
+      InstallLocation.User,
+    );
 
     expect(fs.existsSync(targetExtDir)).toBe(true);
     expect(fs.existsSync(metadataPath)).toBe(true);
@@ -374,6 +411,7 @@ describe('installExtension', () => {
 describe('uninstallExtension', () => {
   let tempHomeDir: string;
   let userExtensionsDir: string;
+  let tempSystemDir: string;
 
   beforeEach(() => {
     tempHomeDir = fs.mkdtempSync(
@@ -381,6 +419,10 @@ describe('uninstallExtension', () => {
     );
     vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
     userExtensionsDir = path.join(tempHomeDir, '.gemini', 'extensions');
+    tempSystemDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'gemini-cli-test-system-'),
+    );
+    vi.mocked(getSystemSettingsBasePath).mockReturnValue(tempSystemDir);
     // Clean up before each test
     fs.rmSync(userExtensionsDir, { recursive: true, force: true });
     fs.mkdirSync(userExtensionsDir, { recursive: true });
@@ -399,7 +441,7 @@ describe('uninstallExtension', () => {
       '1.0.0',
     );
 
-    await uninstallExtension('my-local-extension');
+    await uninstallExtension('my-local-extension', InstallLocation.User);
 
     expect(fs.existsSync(sourceExtDir)).toBe(false);
   });
@@ -416,7 +458,7 @@ describe('uninstallExtension', () => {
       '1.0.0',
     );
 
-    await uninstallExtension('my-local-extension');
+    await uninstallExtension('my-local-extension', InstallLocation.User);
 
     expect(fs.existsSync(sourceExtDir)).toBe(false);
     expect(loadExtensions(tempHomeDir)).toHaveLength(1);
@@ -424,9 +466,9 @@ describe('uninstallExtension', () => {
   });
 
   it('should throw an error if the extension does not exist', async () => {
-    await expect(uninstallExtension('nonexistent-extension')).rejects.toThrow(
-      'Extension "nonexistent-extension" not found.',
-    );
+    await expect(
+      uninstallExtension('nonexistent-extension', InstallLocation.User),
+    ).rejects.toThrow('Extension "nonexistent-extension" not found.');
   });
 });
 
@@ -458,12 +500,17 @@ function createExtension(
 describe('updateExtension', () => {
   let tempHomeDir: string;
   let userExtensionsDir: string;
-
+  let tempSystemDir: string;
   beforeEach(() => {
     tempHomeDir = fs.mkdtempSync(
       path.join(os.tmpdir(), 'gemini-cli-test-home-'),
     );
     vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
+    tempSystemDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'gemini-cli-test-system-'),
+    );
+    vi.mocked(getSystemSettingsBasePath).mockReturnValue(tempSystemDir);
+
     userExtensionsDir = path.join(tempHomeDir, '.gemini', 'extensions');
     // Clean up before each test
     fs.rmSync(userExtensionsDir, { recursive: true, force: true });
@@ -510,7 +557,10 @@ describe('updateExtension', () => {
     } as unknown as SimpleGit);
 
     // 3. Call updateExtension
-    const updateInfo = await updateExtension(extensionName);
+    const updateInfo = await updateExtension(
+      extensionName,
+      InstallLocation.User,
+    );
 
     // 4. Assertions
     expect(updateInfo).toEqual({
@@ -532,6 +582,7 @@ describe('updateExtension', () => {
 describe('disableExtension', () => {
   let tempWorkspaceDir: string;
   let tempHomeDir: string;
+  let tempSystemDir: string;
 
   beforeEach(() => {
     tempWorkspaceDir = fs.mkdtempSync(
@@ -540,6 +591,11 @@ describe('disableExtension', () => {
     tempHomeDir = fs.mkdtempSync(
       path.join(os.tmpdir(), 'gemini-cli-test-home-'),
     );
+    tempSystemDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'gemini-cli-test-system-'),
+    );
+    vi.mocked(getSystemSettingsBasePath).mockReturnValue(tempSystemDir);
+
     vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
     vi.spyOn(process, 'cwd').mockReturnValue(tempWorkspaceDir);
   });
@@ -573,19 +629,13 @@ describe('disableExtension', () => {
       settings.forScope(SettingScope.User).settings.extensions?.disabled,
     ).toEqual(['my-extension']);
   });
-
-  it('should throw an error if you request system scope', () => {
-    expect(() => disableExtension('my-extension', SettingScope.System)).toThrow(
-      'System and SystemDefaults scopes are not supported.',
-    );
-  });
 });
 
 describe('enableExtension', () => {
   let tempWorkspaceDir: string;
   let tempHomeDir: string;
   let userExtensionsDir: string;
-
+  let tempSystemDir: string;
   beforeEach(() => {
     tempWorkspaceDir = fs.mkdtempSync(
       path.join(os.tmpdir(), 'gemini-cli-test-workspace-'),
@@ -594,6 +644,11 @@ describe('enableExtension', () => {
       path.join(os.tmpdir(), 'gemini-cli-test-home-'),
     );
     userExtensionsDir = path.join(tempHomeDir, '.gemini', 'extensions');
+    tempSystemDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'gemini-cli-test-system-'),
+    );
+    vi.mocked(getSystemSettingsBasePath).mockReturnValue(tempSystemDir);
+
     vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
     vi.spyOn(process, 'cwd').mockReturnValue(tempWorkspaceDir);
   });

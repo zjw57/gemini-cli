@@ -13,7 +13,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { simpleGit } from 'simple-git';
-import { SettingScope, loadSettings } from '../config/settings.js';
+import {
+  SettingScope,
+  loadSettings,
+  getSystemSettingsBasePath,
+} from '../config/settings.js';
 import { getErrorMessage } from '../utils/errors.js';
 import { recursivelyHydrateStrings } from './extensions/variables.js';
 
@@ -47,16 +51,30 @@ export interface ExtensionUpdateInfo {
   updatedVersion: string;
 }
 
+export enum InstallLocation {
+  User = 'User',
+  System = 'System',
+}
+
 export class ExtensionStorage {
   private readonly extensionName: string;
+  private readonly location: InstallLocation;
 
-  constructor(extensionName: string) {
+  constructor(extensionName: string, location: InstallLocation) {
     this.extensionName = extensionName;
+    this.location = location;
+    const extensionsDir =
+      location === InstallLocation.System
+        ? ExtensionStorage.getSystemExtensionsDir()
+        : ExtensionStorage.getUserExtensionsDir();
+    fs.mkdirSync(extensionsDir, { recursive: true });
   }
 
   getExtensionDir(): string {
     return path.join(
-      ExtensionStorage.getUserExtensionsDir(),
+      this.location === InstallLocation.System
+        ? ExtensionStorage.getSystemExtensionsDir()
+        : ExtensionStorage.getUserExtensionsDir(),
       this.extensionName,
     );
   }
@@ -70,6 +88,11 @@ export class ExtensionStorage {
     return storage.getExtensionsDir();
   }
 
+  static getSystemExtensionsDir(): string {
+    const storage = new Storage(getSystemSettingsBasePath());
+    return storage.getExtensionsDir();
+  }
+
   static async createTmpDir(): Promise<string> {
     return await fs.promises.mkdtemp(
       path.join(os.tmpdir(), 'gemini-extension'),
@@ -79,8 +102,9 @@ export class ExtensionStorage {
 
 export function loadExtensions(workspaceDir: string): Extension[] {
   const allExtensions = [
-    ...loadExtensionsFromDir(workspaceDir),
-    ...loadExtensionsFromDir(os.homedir()),
+    ...loadExtensionsFromDir(new Storage(workspaceDir).getExtensionsDir()),
+    ...loadExtensionsForLocation(InstallLocation.User),
+    ...loadExtensionsForLocation(InstallLocation.System),
   ];
 
   const uniqueExtensions = new Map<string, Extension>();
@@ -93,22 +117,15 @@ export function loadExtensions(workspaceDir: string): Extension[] {
   return Array.from(uniqueExtensions.values());
 }
 
-export function loadUserExtensions(): Extension[] {
-  const userExtensions = loadExtensionsFromDir(os.homedir());
-
-  const uniqueExtensions = new Map<string, Extension>();
-  for (const extension of userExtensions) {
-    if (!uniqueExtensions.has(extension.config.name)) {
-      uniqueExtensions.set(extension.config.name, extension);
-    }
-  }
-
-  return Array.from(uniqueExtensions.values());
+export function loadExtensionsForLocation(
+  location: InstallLocation,
+): Extension[] {
+  return location === InstallLocation.System
+    ? loadExtensionsFromDir(ExtensionStorage.getSystemExtensionsDir())
+    : loadExtensionsFromDir(ExtensionStorage.getUserExtensionsDir());
 }
 
-export function loadExtensionsFromDir(dir: string): Extension[] {
-  const storage = new Storage(dir);
-  const extensionsDir = storage.getExtensionsDir();
+export function loadExtensionsFromDir(extensionsDir: string): Extension[] {
   if (!fs.existsSync(extensionsDir)) {
     return [];
   }
@@ -297,11 +314,9 @@ async function copyExtension(
 
 export async function installExtension(
   installMetadata: ExtensionInstallMetadata,
+  location: InstallLocation,
   cwd: string = process.cwd(),
 ): Promise<string> {
-  const extensionsDir = ExtensionStorage.getUserExtensionsDir();
-  await fs.promises.mkdir(extensionsDir, { recursive: true });
-
   // Convert relative paths to absolute paths for the metadata file.
   if (
     installMetadata.type === 'local' &&
@@ -328,12 +343,11 @@ export async function installExtension(
       );
     }
 
-    // ~/.gemini/extensions/{ExtensionConfig.name}.
     newExtensionName = newExtension.config.name;
-    const extensionStorage = new ExtensionStorage(newExtensionName);
+    const extensionStorage = new ExtensionStorage(newExtensionName, location);
     const destinationPath = extensionStorage.getExtensionDir();
 
-    const installedExtensions = loadUserExtensions();
+    const installedExtensions = loadExtensionsForLocation(location);
     if (
       installedExtensions.some(
         (installed) => installed.config.name === newExtensionName,
@@ -360,9 +374,10 @@ export async function installExtension(
 
 export async function uninstallExtension(
   extensionName: string,
+  location: InstallLocation,
   cwd: string = process.cwd(),
 ): Promise<void> {
-  const installedExtensions = loadUserExtensions();
+  const installedExtensions = loadExtensionsForLocation(location);
   if (
     !installedExtensions.some(
       (installed) => installed.config.name === extensionName,
@@ -370,12 +385,18 @@ export async function uninstallExtension(
   ) {
     throw new Error(`Extension "${extensionName}" not found.`);
   }
-  removeFromDisabledExtensions(
-    extensionName,
-    [SettingScope.User, SettingScope.Workspace],
-    cwd,
-  );
-  const storage = new ExtensionStorage(extensionName);
+  const settingScopes =
+    location === InstallLocation.System
+      ? [
+          SettingScope.System,
+          SettingScope.SystemDefaults,
+          SettingScope.User,
+          SettingScope.Workspace,
+        ]
+      : [SettingScope.User, SettingScope.Workspace];
+
+  removeFromDisabledExtensions(extensionName, settingScopes, cwd);
+  const storage = new ExtensionStorage(extensionName, location);
   return await fs.promises.rm(storage.getExtensionDir(), {
     recursive: true,
     force: true,
@@ -411,9 +432,10 @@ export function toOutputString(extension: Extension): string {
 
 export async function updateExtension(
   extensionName: string,
+  location: InstallLocation,
   cwd: string = process.cwd(),
 ): Promise<ExtensionUpdateInfo | undefined> {
-  const installedExtensions = loadUserExtensions();
+  const installedExtensions = loadExtensionsForLocation(location);
   const extension = installedExtensions.find(
     (installed) => installed.config.name === extensionName,
   );
@@ -431,8 +453,8 @@ export async function updateExtension(
   const tempDir = await ExtensionStorage.createTmpDir();
   try {
     await copyExtension(extension.path, tempDir);
-    await uninstallExtension(extensionName, cwd);
-    await installExtension(extension.installMetadata, cwd);
+    await uninstallExtension(extensionName, location, cwd);
+    await installExtension(extension.installMetadata, location, cwd);
 
     const updatedExtension = loadExtension(extension.path);
     if (!updatedExtension) {
@@ -459,9 +481,6 @@ export function disableExtension(
   scope: SettingScope,
   cwd: string = process.cwd(),
 ) {
-  if (scope === SettingScope.System || scope === SettingScope.SystemDefaults) {
-    throw new Error('System and SystemDefaults scopes are not supported.');
-  }
   const settings = loadSettings(cwd);
   const settingsFile = settings.forScope(scope);
   const extensionSettings = settingsFile.settings.extensions || {
@@ -475,8 +494,12 @@ export function disableExtension(
   }
 }
 
-export function enableExtension(name: string, scopes: SettingScope[]) {
-  removeFromDisabledExtensions(name, scopes);
+export function enableExtension(
+  name: string,
+  scopes: SettingScope[],
+  cwd: string = process.cwd(),
+) {
+  removeFromDisabledExtensions(name, scopes, cwd);
 }
 
 /**

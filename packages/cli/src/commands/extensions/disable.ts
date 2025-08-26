@@ -27,7 +27,7 @@ export async function handleDisable(args: DisableArgs) {
 }
 
 export const disableCommand: CommandModule = {
-  command: 'disable [--scope] <name>',
+  command: 'disable <name> [--scope]',
   describe: 'Disables an extension.',
   builder: (yargs) =>
     yargs
@@ -39,7 +39,6 @@ export const disableCommand: CommandModule = {
         describe: 'The scope to disable the extenison in.',
         type: 'string',
         default: SettingScope.User,
-        choices: [SettingScope.User, SettingScope.Workspace],
       })
       .check((_argv) => true),
   handler: async (argv) => {
