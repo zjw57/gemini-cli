@@ -99,6 +99,7 @@ export const useGeminiStream = (
   terminalWidth: number,
   terminalHeight: number,
   isShellFocused?: boolean,
+  setCursorPosition?: (position: { x: number; y: number } | null) => void,
 ) => {
   const [initError, setInitError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -165,6 +166,7 @@ export const useGeminiStream = (
     setShellInputFocused,
     terminalWidth,
     terminalHeight,
+    setCursorPosition,
   );
 
   const streamingState = useMemo(() => {

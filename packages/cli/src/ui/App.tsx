@@ -208,6 +208,25 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   const [showEscapePrompt, setShowEscapePrompt] = useState(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [shellInputFocused, setShellInputFocused] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [isCursorVisible, setIsCursorVisible] = useState(true);
+
+  useEffect(() => {
+    if (!shellInputFocused) {
+      setIsCursorVisible(true);
+      return;
+    }
+
+    const blinker = setInterval(() => {
+      setIsCursorVisible((prev) => !prev);
+    }, 500);
+    return () => {
+      clearInterval(blinker);
+    };
+  }, [shellInputFocused]);
 
   useEffect(() => {
     const unsubscribe = ideContext.subscribeToIdeContext(setIdeContextState);
@@ -467,9 +486,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   // Terminal and UI setup
   const { rows: terminalHeight, columns: terminalWidth } = useTerminalSize();
 
-  config.setTerminalHeight(terminalHeight);
-  config.setTerminalWidth(terminalWidth);
-
   const isNarrow = isNarrowWidth(terminalWidth);
   const { stdin, setRawMode } = useStdin();
   const isInitialMount = useRef(true);
@@ -580,6 +596,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     terminalWidth,
     terminalHeight,
     shellInputFocused,
+    setCursorPosition,
   );
 
   // Message queue for handling input during streaming
@@ -836,10 +853,13 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       refreshStatic();
     }, 300);
 
+    config.setTerminalHeight(terminalHeight*0.5);
+    config.setTerminalWidth(terminalWidth*0.5);
+
     return () => {
       clearTimeout(handler);
     };
-  }, [terminalWidth, terminalHeight, refreshStatic]);
+  }, [terminalWidth, terminalHeight, refreshStatic, config]);
 
   useEffect(() => {
     if (streamingState === StreamingState.Idle && staticNeedsRefresh) {
@@ -872,8 +892,8 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     if (activeShellPtyId) {
       geminiClient.resizeShell(
         activeShellPtyId,
-        Math.floor(terminalWidth * 0.5),
-        Math.floor(terminalHeight * 0.5),
+        Math.floor(terminalWidth*0.5),
+        Math.floor(terminalHeight*0.5),
       );
     }
   }, [terminalHeight, terminalWidth, activeShellPtyId, geminiClient]);
@@ -988,6 +1008,8 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                 isFocused={!isEditorDialogOpen}
                 activeShellPtyId={activeShellPtyId}
                 shellInputFocused={shellInputFocused}
+                cursorPosition={cursorPosition}
+                isCursorVisible={isCursorVisible}
               />
             ))}
             <ShowMoreLines constrainHeight={constrainHeight} />

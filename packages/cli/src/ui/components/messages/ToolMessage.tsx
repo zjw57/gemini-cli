@@ -13,6 +13,7 @@ import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
 import { GeminiRespondingSpinner } from '../GeminiRespondingSpinner.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
 import { ShellInputPrompt } from '../ShellInputPrompt.js';
+import { TerminalOutput } from '../TerminalOutput.js';
 import { SHELL_COMMAND_NAME } from '../../constants.js';
 import { theme } from '../../semantic-colors.js';
 import { Config } from '@google/gemini-cli-core';
@@ -35,6 +36,8 @@ export interface ToolMessageProps extends IndividualToolCallDisplay {
   activeShellPtyId?: number | null;
   shellInputFocused?: boolean;
   config?: Config;
+  cursorPosition?: { x: number; y: number } | null;
+  isCursorVisible?: boolean;
 }
 
 export const ToolMessage: React.FC<ToolMessageProps> = ({
@@ -50,6 +53,8 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
   shellInputFocused,
   ptyId,
   config,
+  cursorPosition,
+  isCursorVisible,
 }) => {
   const isThisShellFocused =
     (name === SHELL_COMMAND_NAME || name === 'Shell') &&
@@ -99,7 +104,16 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
       {resultDisplay && (
         <Box paddingLeft={STATUS_INDICATOR_WIDTH} width="100%" marginTop={1}>
           <Box flexDirection="column">
-            {typeof resultDisplay === 'string' && renderOutputAsMarkdown && (
+            {isThisShellFocused &&
+            typeof resultDisplay === 'string' &&
+            cursorPosition &&
+            isCursorVisible !== undefined ? (
+              <TerminalOutput
+                output={resultDisplay}
+                cursor={cursorPosition}
+                isCursorVisible={isCursorVisible}
+              />
+            ) : typeof resultDisplay === 'string' && renderOutputAsMarkdown ? (
               <Box flexDirection="column">
                 <MarkdownDisplay
                   text={resultDisplay}
@@ -108,21 +122,21 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
                   terminalWidth={childWidth}
                 />
               </Box>
-            )}
-            {typeof resultDisplay === 'string' && !renderOutputAsMarkdown && (
+            ) : typeof resultDisplay === 'string' && !renderOutputAsMarkdown ? (
               <MaxSizedBox maxHeight={availableHeight} maxWidth={childWidth}>
                 <Box>
                   <Text wrap="wrap">{resultDisplay}</Text>
                 </Box>
               </MaxSizedBox>
-            )}
-            {typeof resultDisplay !== 'string' && (
-              <DiffRenderer
-                diffContent={resultDisplay.fileDiff}
-                filename={resultDisplay.fileName}
-                availableTerminalHeight={availableHeight}
-                terminalWidth={childWidth}
-              />
+            ) : (
+              typeof resultDisplay !== 'string' && (
+                <DiffRenderer
+                  diffContent={resultDisplay.fileDiff}
+                  filename={resultDisplay.fileName}
+                  availableTerminalHeight={availableHeight}
+                  terminalWidth={childWidth}
+                />
+              )
             )}
           </Box>
         </Box>

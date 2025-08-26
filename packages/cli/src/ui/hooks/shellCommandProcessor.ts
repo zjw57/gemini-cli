@@ -73,6 +73,7 @@ export const useShellCommandProcessor = (
   setShellInputFocused: (value: boolean) => void,
   terminalWidth?: number,
   terminalHeight?: number,
+  setCursorPosition?: (position: { x: number; y: number } | null) => void,
 ) => {
   const [activeShellPtyId, setActiveShellPtyId] = useState<number | null>(null);
   const handleShellCommand = useCallback(
@@ -149,6 +150,9 @@ export const useShellCommandProcessor = (
                   // Do not process text data if we've already switched to binary mode.
                   if (isBinaryStream) break;
                   cumulativeStdout = event.chunk;
+                  if (setCursorPosition) {
+                    setCursorPosition(event.cursor ?? null);
+                  }
                   // Force an immediate UI update to show the binary detection message.
                   shouldUpdate = true;
                   break;
@@ -343,6 +347,7 @@ export const useShellCommandProcessor = (
       setShellInputFocused,
       terminalHeight,
       terminalWidth,
+      setCursorPosition,
     ],
   );
 

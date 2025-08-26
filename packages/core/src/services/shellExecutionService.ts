@@ -17,15 +17,25 @@ const { Terminal } = pkg;
 
 const SIGKILL_TIMEOUT_MS = 200;
 
-// @ts-expect-error getFullText is not a public API.
-const getFullText = (terminal: Terminal) => {
+const getVisibleText = (terminal: pkg.Terminal): string => {
   const buffer = terminal.buffer.active;
   const lines: string[] = [];
-  for (let i = 0; i < buffer.length; i++) {
+  for (let i = buffer.viewportY; i < buffer.viewportY + terminal.rows; i++) {
     const line = buffer.getLine(i);
-    lines.push(line ? line.translateToString(true) : '');
+    const lineContent = line ? line.translateToString(true) : '';
+    lines.push(lineContent)
   }
-  return lines.join('\n').trim();
+  return lines.join('\n').trimEnd()
+};
+
+const getCursorPosition = (
+  terminal: pkg.Terminal,
+): { x: number; y: number } => {
+  const buffer = terminal.buffer.active;
+  return {
+    x: buffer.cursorX,
+    y: buffer.cursorY,
+  };
 };
 
 /** A structured result from a shell command execution. */
@@ -65,6 +75,11 @@ export type ShellOutputEvent =
       type: 'data';
       /** The decoded string chunk. */
       chunk: string;
+      /** The cursor position. */
+      cursor?: {
+        x: number;
+        y: number;
+      };
     }
   | {
       /** Signals that the output stream has been identified as binary. */
@@ -152,7 +167,7 @@ export class ShellExecutionService {
         env: {
           ...process.env,
           GEMINI_CLI: '1',
-          TERM: 'xterm-256color',
+          TERM: 'xterm',
           PAGER: 'cat',
         },
       });
@@ -343,8 +358,7 @@ export class ShellExecutionService {
         env: {
           ...process.env,
           GEMINI_CLI: '1',
-          TERM: 'xterm-256color',
-          PAGER: 'cat',
+          TERM: 'xterm',
         },
         handleFlowControl: true,
       });
@@ -362,6 +376,7 @@ export class ShellExecutionService {
         let processingChain = Promise.resolve();
         let decoder: TextDecoder | null = null;
         let output = '';
+        let lastCursor = { x: -1, y: -1 };
         const outputChunks: Buffer[] = [];
         const error: Error | null = null;
         let exited = false;
@@ -371,14 +386,28 @@ export class ShellExecutionService {
         let sniffedBytes = 0;
 
         let renderTimeout: NodeJS.Timeout | null = null;
-        const RENDER_INTERVAL = 100;
+        const RENDER_INTERVAL = 17;
+        let writeInProgress = false;
 
         const render = () => {
           renderTimeout = null;
-          const newStrippedOutput = getFullText(headlessTerminal);
-          if (output !== newStrippedOutput) {
+          if (!isStreamingRawContent) {
+            return;
+          }
+          const newStrippedOutput = getVisibleText(headlessTerminal);
+          const cursorPosition = getCursorPosition(headlessTerminal);
+          if (
+            output !== newStrippedOutput ||
+            cursorPosition.x !== lastCursor.x ||
+            cursorPosition.y !== lastCursor.y
+          ) {
             output = newStrippedOutput;
-            onOutputEvent({ type: 'data', chunk: newStrippedOutput });
+            lastCursor = cursorPosition;
+            onOutputEvent({
+              type: 'data',
+              chunk: newStrippedOutput,
+              cursor: cursorPosition,
+            });
           }
         };
 
@@ -387,6 +416,27 @@ export class ShellExecutionService {
             renderTimeout = setTimeout(render, RENDER_INTERVAL);
           }
         };
+
+        headlessTerminal.onCursorMove(() => {
+          if (writeInProgress) {
+            return;
+          }
+          if (!isStreamingRawContent) {
+            return;
+          }
+          const cursorPosition = getCursorPosition(headlessTerminal);
+          if (
+            cursorPosition.x !== lastCursor.x ||
+            cursorPosition.y !== lastCursor.y
+          ) {
+            lastCursor = cursorPosition;
+            onOutputEvent({
+              type: 'data',
+              chunk: output,
+              cursor: cursorPosition,
+            });
+          }
+        });
 
         const handleOutput = (data: Buffer) => {
           processingChain = processingChain.then(
@@ -415,7 +465,9 @@ export class ShellExecutionService {
 
                 if (isStreamingRawContent) {
                   const decodedChunk = decoder.decode(data, { stream: true });
+                  writeInProgress = true;
                   headlessTerminal.write(decodedChunk, () => {
+                    writeInProgress = false;
                     scheduleRender();
                     resolve();
                   });
@@ -449,7 +501,9 @@ export class ShellExecutionService {
               if (renderTimeout) {
                 clearTimeout(renderTimeout);
               }
-              render();
+              if (isStreamingRawContent) {
+                render();
+              }
               const finalBuffer = Buffer.concat(outputChunks);
 
               resolve({

@@ -4,13 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { Box, Text } from 'ink';
+import React, { useCallback } from 'react';
 import { useKeypress, Key, keyToAnsi } from '../hooks/useKeypress.js';
-import chalk from 'chalk';
 import { type Config } from '@google/gemini-cli-core';
-
-const CURSOR_BLINK_RATE_MS = 500;
 
 export interface ShellInputPromptProps {
   config: Config;
@@ -23,22 +19,6 @@ export const ShellInputPrompt: React.FC<ShellInputPromptProps> = ({
   activeShellPtyId,
   focus = true,
 }) => {
-  const [isCursorVisible, setIsCursorVisible] = useState(true);
-
-  useEffect(() => {
-    if (!focus) {
-      setIsCursorVisible(true);
-      return;
-    }
-
-    const blinker = setInterval(() => {
-      setIsCursorVisible((prev) => !prev);
-    }, CURSOR_BLINK_RATE_MS);
-    return () => {
-      clearInterval(blinker);
-    };
-  }, [focus]);
-
   const handleShellInputSubmit = useCallback(
     (input: string) => {
       if (activeShellPtyId) {
@@ -53,7 +33,6 @@ export const ShellInputPrompt: React.FC<ShellInputPromptProps> = ({
       if (!focus) {
         return;
       }
-      setIsCursorVisible(true);
 
       const ansiSequence = keyToAnsi(key);
       if (ansiSequence) {
@@ -65,7 +44,5 @@ export const ShellInputPrompt: React.FC<ShellInputPromptProps> = ({
 
   useKeypress(handleInput, { isActive: focus });
 
-  const cursor = isCursorVisible ? chalk.inverse(' ') : ' ';
-
-  return <Box>{focus && <Text>{cursor}</Text>}</Box>;
+  return null;
 };
