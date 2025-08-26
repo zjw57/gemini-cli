@@ -181,6 +181,24 @@ describe('loadExtensions', () => {
     expect(activeExtensions[0].name).toBe('ext2');
   });
 
+  it('should prioritize system extensions over user extensions', () => {
+    const userExtensionsDir = path.join(tempHomeDir, EXTENSIONS_DIRECTORY_NAME);
+    fs.mkdirSync(userExtensionsDir, { recursive: true });
+    createExtension(userExtensionsDir, 'test-extension', '1.0.0');
+
+    const systemExtensionsDir = path.join(
+      tempSystemDir,
+      EXTENSIONS_DIRECTORY_NAME,
+    );
+    fs.mkdirSync(systemExtensionsDir, { recursive: true });
+    createExtension(systemExtensionsDir, 'test-extension', '2.0.0');
+
+    const extensions = loadExtensions(tempWorkspaceDir);
+    expect(extensions).toHaveLength(1);
+    expect(extensions[0].config.name).toBe('test-extension');
+    expect(extensions[0].config.version).toBe('2.0.0');
+  });
+
   it('should hydrate variables', () => {
     const workspaceExtensionsDir = path.join(
       tempWorkspaceDir,
@@ -373,6 +391,31 @@ describe('installExtension', () => {
 
     const targetExtDir = path.join(userExtensionsDir, 'bad-extension');
     expect(fs.existsSync(targetExtDir)).toBe(false);
+  });
+
+  it('should throw an error if installing a user extension that already exists as a system extension', async () => {
+    const systemExtensionsDir = path.join(
+      tempSystemDir,
+      '.gemini',
+      'extensions',
+    );
+    fs.mkdirSync(systemExtensionsDir, { recursive: true });
+    createExtension(systemExtensionsDir, 'my-local-extension', '1.0.0');
+
+    const sourceExtDir = createExtension(
+      tempHomeDir,
+      'my-local-extension',
+      '2.0.0',
+    );
+
+    await expect(
+      installExtension(
+        { source: sourceExtDir, type: 'local' },
+        InstallLocation.User,
+      ),
+    ).rejects.toThrow(
+      'Extension "my-local-extension" is already installed at the system level.',
+    );
   });
 
   it('should install an extension from a git URL', async () => {

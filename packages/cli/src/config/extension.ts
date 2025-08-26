@@ -102,9 +102,9 @@ export class ExtensionStorage {
 
 export function loadExtensions(workspaceDir: string): Extension[] {
   const allExtensions = [
-    ...loadExtensionsFromDir(new Storage(workspaceDir).getExtensionsDir()),
-    ...loadExtensionsForLocation(InstallLocation.User),
     ...loadExtensionsForLocation(InstallLocation.System),
+    ...loadExtensionsForLocation(InstallLocation.User),
+    ...loadExtensionsFromDir(new Storage(workspaceDir).getExtensionsDir()),
   ];
 
   const uniqueExtensions = new Map<string, Extension>();
@@ -356,6 +356,21 @@ export async function installExtension(
       throw new Error(
         `Extension "${newExtensionName}" is already installed. Please uninstall it first.`,
       );
+    }
+
+    if (location === InstallLocation.User) {
+      const systemExtensions = loadExtensionsForLocation(
+        InstallLocation.System,
+      );
+      if (
+        systemExtensions.some(
+          (systemExt) => systemExt.config.name === newExtensionName,
+        )
+      ) {
+        throw new Error(
+          `Extension "${newExtensionName}" is already installed at the system level.`,
+        );
+      }
     }
 
     await copyExtension(localSourcePath, destinationPath);
