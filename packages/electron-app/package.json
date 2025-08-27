@@ -7,10 +7,13 @@
     "name": "Google",
     "email": "gemini-cli@google.com"
   },
+  "workspaces": [
+    "*"
+  ],
   "main": "out/main/index.js",
   "scripts": {
     "dev": "npx electron-vite dev",
-    "build": "npx electron-vite build",
+    "build": "npm run build:all --prefix ../.. && npx electron-vite build",
     "start": "npx electron-vite preview",
     "prepackage": "rm -rf dist && mkdir -p dist/cli dist/core && cp -r ../../packages/cli/dist/* dist/cli && cp -r ../../packages/core/dist/* dist/core",
     "package": "npm run build && npm run prepackage && electron-builder && mkdir -p ../../packaged_app && cp dist/electron/*.{deb,dmg,exe,AppImage} ../../packaged_app/",

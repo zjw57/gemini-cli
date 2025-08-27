@@ -6,7 +6,11 @@
   },
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/cli",
+    "packages/core",
+    "packages/test-utils",
+    "packages/vscode-ide-companion",
+    "packages/a2a-server"
   ],
   "private": "true",
   "repository": {
@@ -20,7 +24,6 @@
     "start": "node scripts/start.js",
     "start:a2a-server": "CODER_AGENT_PORT=41242 npm run start --workspace @google/gemini-cli-a2a-server",
     "debug": "cross-env DEBUG=1 node --inspect-brk scripts/start.js",
-    "dev:electron": "npm run dev --workspace=packages/electron-app",
     "auth:npm": "npx google-artifactregistry-auth",
     "auth:docker": "gcloud auth configure-docker us-west1-docker.pkg.dev",
     "auth": "npm run auth:npm && npm run auth:docker",
@@ -28,9 +31,7 @@
     "build": "node scripts/build.js",
     "build-and-start": "npm run build && npm run start",
     "build:vscode": "node scripts/build_vscode_companion.js",
-    "build:electron": "npm run build --workspace=packages/electron-app",
     "build:all": "npm run build && npm run build:sandbox && npm run build:vscode",
-    "build:all:electron": "npm run build && npm run build:sandbox && npm run build:vscode && npm run build:electron",
     "build:packages": "npm run build --workspaces",
     "build:sandbox": "node scripts/build_sandbox.js --skip-npm-install-build",
     "bundle": "npm run generate && node esbuild.config.js && node scripts/copy_bundle_assets.js",
@@ -64,6 +65,7 @@
   ],
   "devDependencies": {
     "@types/marked": "^5.0.2",
+    "@types/micromatch": "^4.0.9",
     "@types/mime-types": "^3.0.1",
     "@types/minimatch": "^5.1.2",
     "@types/mock-fs": "^4.13.4",
@@ -96,6 +98,7 @@
     "yargs": "^17.7.2"
   },
   "dependencies": {
+    "node-fetch": "^3.3.2",
     "@lvce-editor/ripgrep": "^1.6.0",
     "simple-git": "^3.28.0",
     "strip-ansi": "^7.1.0"
