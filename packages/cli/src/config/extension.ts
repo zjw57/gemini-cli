@@ -312,6 +312,15 @@ async function copyExtension(
   await fs.promises.cp(source, destination, { recursive: true });
 }
 
+/**
+ * Handles the extension installation process based on the provided arguments.
+ * It determines whether the installation source is a git repository or a local
+ * path and calls the appropriate installation function.
+ * Logs success or error messages to the console.
+ * @param args The arguments for the install command.
+ * @throws Will re-throw any error encountered during the installation process
+ * after logging an error message.
+ */
 export async function installExtension(
   installMetadata: ExtensionInstallMetadata,
   location: InstallLocation,
