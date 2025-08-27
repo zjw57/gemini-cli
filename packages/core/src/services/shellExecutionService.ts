@@ -385,12 +385,9 @@ export class ShellExecutionService {
         const MAX_SNIFF_SIZE = 4096;
         let sniffedBytes = 0;
 
-        let renderTimeout: NodeJS.Timeout | null = null;
-        const RENDER_INTERVAL = 17;
         let writeInProgress = false;
 
         const render = () => {
-          renderTimeout = null;
           if (!isStreamingRawContent) {
             return;
           }
@@ -411,12 +408,6 @@ export class ShellExecutionService {
           }
         };
 
-        const scheduleRender = () => {
-          if (!renderTimeout) {
-            renderTimeout = setTimeout(render, RENDER_INTERVAL);
-          }
-        };
-
         headlessTerminal.onCursorMove(() => {
           if (writeInProgress) {
             return;
@@ -424,18 +415,7 @@ export class ShellExecutionService {
           if (!isStreamingRawContent) {
             return;
           }
-          const cursorPosition = getCursorPosition(headlessTerminal);
-          if (
-            cursorPosition.x !== lastCursor.x ||
-            cursorPosition.y !== lastCursor.y
-          ) {
-            lastCursor = cursorPosition;
-            onOutputEvent({
-              type: 'data',
-              chunk: output,
-              cursor: cursorPosition,
-            });
-          }
+          render();
         });
 
         const handleOutput = (data: Buffer) => {
@@ -468,7 +448,7 @@ export class ShellExecutionService {
                   writeInProgress = true;
                   headlessTerminal.write(decodedChunk, () => {
                     writeInProgress = false;
-                    scheduleRender();
+                    render();
                     resolve();
                   });
                 } else {
@@ -498,9 +478,6 @@ export class ShellExecutionService {
             this.activePtys.delete(ptyProcess.pid);
 
             processingChain.then(() => {
-              if (renderTimeout) {
-                clearTimeout(renderTimeout);
-              }
               if (isStreamingRawContent) {
                 render();
               }
