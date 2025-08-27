@@ -23,16 +23,6 @@ import { Config } from '../config/config.js';
 import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 import { hasCycleInSchema } from '../tools/tools.js';
 import { StructuredError } from './turn.js';
-import {
-  logContentRetry,
-  logContentRetryFailure,
-  logInvalidChunk,
-} from '../telemetry/loggers.js';
-import {
-  ContentRetryEvent,
-  ContentRetryFailureEvent,
-  InvalidChunkEvent,
-} from '../telemetry/types.js';
 
 /**
  * Options for retrying due to invalid content from the model.
@@ -48,6 +38,7 @@ const INVALID_CONTENT_RETRY_OPTIONS: ContentRetryOptions = {
   maxAttempts: 3, // 1 initial call + 2 retries
   initialDelayMs: 500,
 };
+
 /**
  * Returns true if the response is valid, false otherwise.
  */
@@ -358,7 +349,7 @@ export class GeminiChat {
 
         for (
           let attempt = 0;
-          attempt < INVALID_CONTENT_RETRY_OPTIONS.maxAttempts;
+          attempt <= INVALID_CONTENT_RETRY_OPTIONS.maxAttempts;
           attempt++
         ) {
           try {
@@ -382,14 +373,6 @@ export class GeminiChat {
             if (isContentError) {
               // Check if we have more attempts left.
               if (attempt < INVALID_CONTENT_RETRY_OPTIONS.maxAttempts - 1) {
-                logContentRetry(
-                  self.config,
-                  new ContentRetryEvent(
-                    attempt,
-                    'EmptyStreamError',
-                    INVALID_CONTENT_RETRY_OPTIONS.initialDelayMs,
-                  ),
-                );
                 await new Promise((res) =>
                   setTimeout(
                     res,
@@ -405,15 +388,6 @@ export class GeminiChat {
         }
 
         if (lastError) {
-          if (lastError instanceof EmptyStreamError) {
-            logContentRetryFailure(
-              self.config,
-              new ContentRetryFailureEvent(
-                INVALID_CONTENT_RETRY_OPTIONS.maxAttempts,
-                'EmptyStreamError',
-              ),
-            );
-          }
           // If the stream fails, remove the user message that was added.
           if (self.history[self.history.length - 1] === userContent) {
             self.history.pop();
@@ -571,10 +545,6 @@ export class GeminiChat {
           }
         }
       } else {
-        logInvalidChunk(
-          this.config,
-          new InvalidChunkEvent('Invalid chunk received from stream.'),
-        );
         isStreamInvalid = true;
       }
       yield chunk; // Yield every chunk to the UI immediately.
