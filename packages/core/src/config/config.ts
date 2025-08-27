@@ -409,7 +409,7 @@ export class Config {
 
     // Restore the conversation history to the new client
     if (existingHistory.length > 0) {
-      this.geminiClient.setHistory(existingHistory, {
+      await this.geminiClient.setHistory(existingHistory, {
         stripThoughts: fromGenaiToVertex,
       });
     }

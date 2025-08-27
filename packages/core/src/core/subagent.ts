@@ -591,13 +591,15 @@ export class SubAgentScope {
 
       this.runtimeContext.setModel(this.modelConfig.model);
 
-      return new GeminiChat(
+      const chat = new GeminiChat(
         this.runtimeContext,
         contentGenerator,
         generationConfig,
         toolRegistry,
         start_history,
       );
+      chat.setHistory(start_history);
+      return chat;
     } catch (error) {
       await reportError(
         error,

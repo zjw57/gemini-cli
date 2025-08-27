@@ -15,7 +15,6 @@ import {
   createUserContent,
   Part,
   Tool,
-  PartListUnion,
 } from '@google/genai';
 import { retryWithBackoff } from '../utils/retry.js';
 import { isFunctionResponse } from '../utils/messageInspectors.js';
@@ -29,7 +28,7 @@ import {
 } from '../tools/tools.js';
 import { StructuredError } from './turn.js';
 import { toGenerateContentResponse } from './responseConverter.js';
-import { LlmAgent, InMemoryRunner, Event } from '@google/adk';
+import { LlmAgent, InMemoryRunner, Event, Session } from '@google/adk';
 import { ToolRegistry } from '../tools/tool-registry.js';
 
 /**
@@ -141,12 +140,10 @@ export class GeminiChat {
     toolRegistry: ToolRegistry,
     private history: Content[] = [],
   ) {
-    validateHistory(history);
-
     this.adkMode = config.getAdkMode();
 
     if (this.adkMode) {
-      console.log("ADK MODE IS ON");
+      console.log('ADK MODE IS ON');
       // We need to pop off a bunch of attrs that LlmAgent isn't expecting
       const {
         tools: _tools, // This is really a list of functionDeclarations
@@ -172,17 +169,6 @@ export class GeminiChat {
         agent: this.agent,
         appName: this.appName,
       });
-
-      // Send the first message.
-      // TODO: can we "pack the history" instead?
-      if (history?.length) {
-        this.sendMessage(
-          {
-            message: history[0].parts as PartListUnion,
-          },
-          'placeholder',
-        );
-      }
     }
   }
 
@@ -195,6 +181,22 @@ export class GeminiChat {
       this.sessionId = session!.id;
     }
     return this.sessionId!;
+  }
+
+  private async getSession(): Promise<Session> {
+    const sessionId = await this.maybeSetSession();
+    const session = await this.runner!.sessionService.getSession(
+      this.appName,
+      'placeholder',
+      sessionId,
+    );
+    if (!session) {
+      // Something's gone wrong; this should have been initialized.
+      throw new Error(
+        'Could not find initialized ADK session; please restart.',
+      );
+    }
+    return session;
   }
 
   /**
@@ -514,14 +516,9 @@ export class GeminiChat {
    */
   async getHistory(curated: boolean = false): Promise<Content[]> {
     if (this.adkMode) {
-      const sessionId = await this.maybeSetSession();
-      const session = await this.runner!.sessionService.getSession(
-        this.appName,
-        'placeholder',
-        sessionId,
-      );
+      const session = await this.getSession();
 
-      if (!session?.events?.length) {
+      if (!session.events?.length) {
         return [];
       }
 
@@ -555,13 +552,30 @@ export class GeminiChat {
    *
    * @param content - The content to add to the history.
    */
-  addHistory(content: Content): void {
-    // TODO
-    this.history.push(content);
+  async addHistory(content: Content): Promise<void> {
+    if (this.adkMode) {
+      const session = await this.getSession();
+      const event = new Event({ content });
+      await this.runner?.sessionService.appendEvent(session, event);
+    } else {
+      this.history.push(content);
+    }
   }
-  setHistory(history: Content[]): void {
-    // TODO
-    this.history = history;
+
+  async setHistory(history: Content[]): Promise<void> {
+    validateHistory(history);
+
+    if (this.adkMode) {
+      const session = await this.getSession();
+      for (const content of history) {
+        const event = new Event({
+          content,
+        });
+        await this.runner?.sessionService.appendEvent(session, event);
+      }
+    } else {
+      this.history = history;
+    }
   }
 
   setTools(tools: Tool[]): void {

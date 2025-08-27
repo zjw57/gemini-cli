@@ -154,7 +154,7 @@ export class GeminiClient {
   }
 
   async addHistory(content: Content) {
-    this.getChat().addHistory(content);
+    await this.getChat().addHistory(content);
   }
 
   getChat(): GeminiChat {
@@ -172,7 +172,7 @@ export class GeminiClient {
     return await this.getChat().getHistory();
   }
 
-  setHistory(
+  async setHistory(
     history: Content[],
     { stripThoughts = false }: { stripThoughts?: boolean } = {},
   ) {
@@ -197,7 +197,7 @@ export class GeminiClient {
           return newContent;
         })
       : history;
-    this.getChat().setHistory(historyToSet);
+    await this.getChat().setHistory(historyToSet);
     this.forceFullIdeContext = true;
   }
 
@@ -217,7 +217,7 @@ export class GeminiClient {
       return;
     }
 
-    this.getChat().addHistory({
+    await this.addHistory({
       role: 'user',
       parts: [{ text: await getDirectoryContextString(this.config) }],
     });
@@ -254,7 +254,7 @@ export class GeminiClient {
           }
         : this.generateContentConfig;
 
-      return new GeminiChat(
+      const chat = new GeminiChat(
         this.config,
         this.getContentGenerator(),
         {
@@ -265,6 +265,8 @@ export class GeminiClient {
         toolRegistry,
         history,
       );
+      chat.setHistory(history);
+      return chat;
     } catch (error) {
       await reportError(
         error,
@@ -496,7 +498,7 @@ export class GeminiClient {
         this.forceFullIdeContext || (await this.getHistory()).length === 0,
       );
       if (contextParts.length > 0) {
-        this.getChat().addHistory({
+        await this.addHistory({
           role: 'user',
           parts: [{ text: contextParts.join('\n') }],
         });
@@ -815,7 +817,9 @@ export class GeminiClient {
     const historyToCompress = curatedHistory.slice(0, compressBeforeIndex);
     const historyToKeep = curatedHistory.slice(compressBeforeIndex);
 
-    this.getChat().setHistory(historyToCompress);
+    // Note that this does not strip thoughts, since it bypasses
+    // this.setHistory in favor of chat.setHistory.
+    await this.getChat().setHistory(historyToCompress);
 
     const { text: summary } = await this.getChat().sendMessage(
       {

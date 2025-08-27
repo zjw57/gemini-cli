@@ -132,6 +132,7 @@ describe('subagent.ts', () => {
         () =>
           ({
             sendMessageStream: mockSendMessageStream,
+            setHistory: vi.fn(),
           }) as unknown as GeminiChat,
       );
     });

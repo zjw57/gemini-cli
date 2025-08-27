@@ -16,6 +16,7 @@ import { Config } from '../config/config.js';
 import { setSimulate429 } from '../utils/testUtils.js';
 import { GeminiChat } from './geminiChat.js';
 import { ToolRegistry } from '../tools/tool-registry.js';
+import { InMemoryRunner, Session, Event } from '@google/adk';
 
 // Mocks
 const mockContentGenerator = {
@@ -31,9 +32,29 @@ describe('GeminiChat', () => {
   let mockConfig: Config;
   const config: GenerateContentConfig = {};
   let mockToolRegistry: ToolRegistry;
+  let mockRunner: InMemoryRunner;
+  let mockSession: Session;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSession = {
+      appName: 'test-app',
+      id: 'test-session-id',
+      userId: 'test-user-id',
+      state: {},
+      events: [],
+      lastUpdateTime: 0,
+    };
+
+    mockRunner = {
+      sessionService: {
+        createSession: vi.fn().mockResolvedValue(mockSession),
+        getSession: vi.fn().mockResolvedValue(mockSession),
+        appendEvent: vi.fn().mockImplementation(async (session, event) => {
+          session.events.push(event);
+        }),
+      },
+    } as unknown as InMemoryRunner;
     mockConfig = {
       getSessionId: () => 'test-session-id',
       getTelemetryLogPromptsEnabled: () => true,
@@ -59,13 +80,6 @@ describe('GeminiChat', () => {
 
     // Disable 429 simulation for tests
     setSimulate429(false);
-    // Reset history for each test by creating a new instance
-    chat = new GeminiChat(
-      mockConfig,
-      mockContentGenerator,
-      config,
-      mockToolRegistry,
-    );
   });
 
   afterEach(() => {
@@ -73,14 +87,26 @@ describe('GeminiChat', () => {
     vi.resetAllMocks();
   });
 
+  const setupChat = (adkMode: boolean, history: Content[] = []) => {
+    vi.mocked(mockConfig.getAdkMode).mockReturnValue(adkMode);
+    chat = new GeminiChat(
+      mockConfig,
+      mockContentGenerator,
+      config,
+      mockToolRegistry,
+      history,
+    );
+    chat.setHistory(history);
+
+    if (adkMode) {
+      // @ts-expect-error - testing private properties
+      chat.runner = mockRunner;
+    }
+  };
+
   describe('constructor', () => {
     it('should not create LlmAgent and InMemoryRunner when adkMode is false', () => {
-      chat = new GeminiChat(
-        mockConfig,
-        mockContentGenerator,
-        config,
-        mockToolRegistry,
-      );
+      setupChat(false);
       // @ts-expect-error - testing private properties
       expect(chat.agent).toBeUndefined();
       // @ts-expect-error - testing private properties
@@ -88,13 +114,7 @@ describe('GeminiChat', () => {
     });
 
     it('should create LlmAgent and InMemoryRunner when adkMode is true', () => {
-      vi.mocked(mockConfig.getAdkMode).mockReturnValue(true);
-      chat = new GeminiChat(
-        mockConfig,
-        mockContentGenerator,
-        config,
-        mockToolRegistry,
-      );
+      setupChat(true);
       // @ts-expect-error - testing private properties
       expect(chat.agent).toBeDefined();
       // @ts-expect-error - testing private properties
@@ -103,6 +123,7 @@ describe('GeminiChat', () => {
   });
 
   describe('sendMessage', () => {
+    beforeEach(() => setupChat(false));
     it('should call generateContent with the correct parameters', async () => {
       const response = {
         candidates: [
@@ -136,6 +157,7 @@ describe('GeminiChat', () => {
   });
 
   describe('sendMessageStream', () => {
+    beforeEach(() => setupChat(false));
     it('should call generateContentStream with the correct parameters', async () => {
       const response = (async function* () {
         yield {
@@ -171,6 +193,7 @@ describe('GeminiChat', () => {
   });
 
   describe('recordHistory', () => {
+    beforeEach(() => setupChat(false));
     const userInput: Content = {
       role: 'user',
       parts: [{ text: 'User input' }],
@@ -258,13 +281,7 @@ describe('GeminiChat', () => {
       chat.recordHistory(userInput, newModelOutput); // userInput here is for the *next* turn, but history is already primed
 
       // Reset and set up a more realistic scenario for merging with existing history
-      chat = new GeminiChat(
-        mockConfig,
-        mockContentGenerator,
-        config,
-        mockToolRegistry,
-        [],
-      );
+      setupChat(false, []);
       const firstUserInput: Content = {
         role: 'user',
         parts: [{ text: 'First user input' }],
@@ -307,13 +324,7 @@ describe('GeminiChat', () => {
         role: 'model',
         parts: [{ text: 'Initial model answer.' }],
       };
-      chat = new GeminiChat(
-        mockConfig,
-        mockContentGenerator,
-        config,
-        mockToolRegistry,
-        [initialUser, initialModel],
-      );
+      setupChat(false, [initialUser, initialModel]);
 
       // New interaction
       const currentUserInput: Content = {
@@ -427,7 +438,10 @@ describe('GeminiChat', () => {
 
     it('should skip "thought" content from modelOutput', async () => {
       const modelOutputWithThought: Content[] = [
-        { role: 'model', parts: [{ thought: true }, { text: 'Visible text' }] },
+        {
+          role: 'model',
+          parts: [{ thought: true }, { text: 'Visible text' }],
+        },
         { role: 'model', parts: [{ text: 'Another visible text' }] },
       ];
       // @ts-expect-error Accessing private method for testing purposes
@@ -501,32 +515,116 @@ describe('GeminiChat', () => {
   });
 
   describe('addHistory', () => {
-    it('should add a new content item to the history', async () => {
-      const newContent: Content = {
-        role: 'user',
-        parts: [{ text: 'A new message' }],
-      };
-      chat.addHistory(newContent);
-      const history = await chat.getHistory();
-      expect(history.length).toBe(1);
-      expect(history[0]).toEqual(newContent);
+    describe('Normal Mode', () => {
+      beforeEach(() => setupChat(false));
+
+      it('should add a new content item to the history', async () => {
+        const newContent: Content = {
+          role: 'user',
+          parts: [{ text: 'A new message' }],
+        };
+        await chat.addHistory(newContent);
+        const history = await chat.getHistory();
+        expect(history.length).toBe(1);
+        expect(history[0]).toEqual(newContent);
+      });
+
+      it('should add multiple items correctly', async () => {
+        const content1: Content = {
+          role: 'user',
+          parts: [{ text: 'Message 1' }],
+        };
+        const content2: Content = {
+          role: 'model',
+          parts: [{ text: 'Message 2' }],
+        };
+        await chat.addHistory(content1);
+        await chat.addHistory(content2);
+        const history = await chat.getHistory();
+        expect(history.length).toBe(2);
+        expect(history[0]).toEqual(content1);
+        expect(history[1]).toEqual(content2);
+      });
     });
 
-    it('should add multiple items correctly', async () => {
-      const content1: Content = {
-        role: 'user',
-        parts: [{ text: 'Message 1' }],
-      };
-      const content2: Content = {
-        role: 'model',
-        parts: [{ text: 'Message 2' }],
-      };
-      chat.addHistory(content1);
-      chat.addHistory(content2);
-      const history = await chat.getHistory();
-      expect(history.length).toBe(2);
-      expect(history[0]).toEqual(content1);
-      expect(history[1]).toEqual(content2);
+    describe('ADK Mode', () => {
+      beforeEach(() => setupChat(true));
+
+      it('should append an event to the ADK session', async () => {
+        const newContent: Content = {
+          role: 'user',
+          parts: [{ text: 'A new message for ADK' }],
+        };
+        await chat.addHistory(newContent);
+
+        expect(mockRunner.sessionService.getSession).toHaveBeenCalledWith(
+          'GeminiCLI',
+          'placeholder',
+          expect.any(String),
+        );
+        expect(mockRunner.sessionService.appendEvent).toHaveBeenCalledTimes(1);
+        const expectedEvent = new Event({ content: newContent });
+        expect(mockRunner.sessionService.appendEvent).toHaveBeenCalledWith(
+          mockSession,
+          expect.objectContaining({
+            content: expectedEvent.content,
+          }),
+        );
+      });
+    });
+  });
+
+  describe('setHistory', () => {
+    const historyToSet: Content[] = [
+      { role: 'user', parts: [{ text: 'First message' }] },
+      { role: 'model', parts: [{ text: 'First response' }] },
+    ];
+
+    describe('Normal Mode', () => {
+      beforeEach(() => setupChat(false));
+
+      it('should replace the existing history', async () => {
+        await chat.addHistory({
+          role: 'user',
+          parts: [{ text: 'Old message' }],
+        });
+        await chat.setHistory(historyToSet);
+        const history = await chat.getHistory();
+        expect(history).toEqual(historyToSet);
+      });
+
+      it('should set history when it is initially empty', async () => {
+        await chat.setHistory(historyToSet);
+        const history = await chat.getHistory();
+        expect(history).toEqual(historyToSet);
+      });
+    });
+
+    describe('ADK Mode', () => {
+      beforeEach(() => setupChat(true));
+
+      it('should append all history items as events to the ADK session', async () => {
+        await chat.setHistory(historyToSet);
+
+        expect(mockRunner.sessionService.getSession).toHaveBeenCalledWith(
+          'GeminiCLI',
+          'placeholder',
+          expect.any(String),
+        );
+        expect(mockRunner.sessionService.appendEvent).toHaveBeenCalledTimes(
+          historyToSet.length,
+        );
+
+        for (const content of historyToSet) {
+          const expectedEvent = new Event({ content });
+          expect(mockRunner.sessionService.appendEvent).toHaveBeenCalledWith(
+            mockSession,
+            expect.objectContaining({
+              content: expectedEvent.content,
+            }),
+          );
+        }
+      });
     });
   });
 });

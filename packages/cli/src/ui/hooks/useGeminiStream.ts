@@ -555,6 +555,7 @@ export const useGeminiStream = (
       stream: AsyncIterable<GeminiEvent>,
       userMessageTimestamp: number,
       signal: AbortSignal,
+      config: Config,
     ): Promise<StreamProcessingStatus> => {
       let geminiMessageBuffer = '';
       const toolCallRequests: ToolCallRequestInfo[] = [];
@@ -571,7 +572,9 @@ export const useGeminiStream = (
             );
             break;
           case ServerGeminiEventType.ToolCallRequest:
-            //toolCallRequests.push(event.value);
+            if (!config.getAdkMode()) {
+              toolCallRequests.push(event.value);
+            }
             break;
           case ServerGeminiEventType.UserCancelled:
             handleUserCancelledEvent(userMessageTimestamp);
@@ -681,6 +684,7 @@ export const useGeminiStream = (
           stream,
           userMessageTimestamp,
           abortSignal,
+          config,
         );
 
         if (processingStatus === StreamProcessingStatus.UserCancelled) {
