@@ -22,7 +22,6 @@ export async function handleDisable(args: DisableArgs) {
     );
   } catch (error) {
     console.error(getErrorMessage(error));
-    process.exit(1);
   }
 }
 

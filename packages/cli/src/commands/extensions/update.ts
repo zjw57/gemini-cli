@@ -30,7 +30,6 @@ export async function handleUpdate(args: UpdateArgs) {
     );
   } catch (error) {
     console.error(getErrorMessage(error));
-    throw error;
   }
 }
 

@@ -44,7 +44,6 @@ export async function handleList() {
     }
   } catch (error) {
     console.error(getErrorMessage(error));
-    process.exit(1);
   }
 }
 
