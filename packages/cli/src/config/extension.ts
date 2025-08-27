@@ -100,16 +100,49 @@ export class ExtensionStorage {
   }
 }
 
+export function getWorkspaceExtensions(workspaceDir: string): Extension[] {
+  return loadExtensionsFromDir(workspaceDir);
+}
+
+export async function performWorkspaceExtensionMigration(
+  extensions: Extension[],
+): Promise<string[]> {
+  const failedInstallNames: string[] = [];
+
+  for (const extension of extensions) {
+    try {
+      const installMetadata: ExtensionInstallMetadata = {
+        source: extension.path,
+        type: 'local',
+      };
+      await installExtension(installMetadata, InstallLocation.User);
+    } catch (_) {
+      failedInstallNames.push(extension.config.name);
+    }
+  }
+  return failedInstallNames;
+}
+
 export function loadExtensions(workspaceDir: string): Extension[] {
+  const settings = loadSettings(workspaceDir).merged;
+  const disabledExtensions = settings.extensions?.disabled ?? [];
   const allExtensions = [
-    ...loadExtensionsForLocation(InstallLocation.System),
     ...loadExtensionsForLocation(InstallLocation.User),
-    ...loadExtensionsFromDir(new Storage(workspaceDir).getExtensionsDir()),
+    ...loadExtensionsForLocation(InstallLocation.System),
   ];
+
+  if (!settings.extensionManagement) {
+    allExtensions.push(
+      ...loadExtensionsFromDir(new Storage(workspaceDir).getExtensionsDir()),
+    );
+  }
 
   const uniqueExtensions = new Map<string, Extension>();
   for (const extension of allExtensions) {
-    if (!uniqueExtensions.has(extension.config.name)) {
+    if (
+      !uniqueExtensions.has(extension.config.name) &&
+      !disabledExtensions.includes(extension.config.name)
+    ) {
       uniqueExtensions.set(extension.config.name, extension);
     }
   }
