@@ -6,7 +6,8 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
-import { IndividualToolCallDisplay, ToolCallStatus } from '../../types.js';
+import type { IndividualToolCallDisplay } from '../../types.js';
+import { ToolCallStatus } from '../../types.js';
 import { DiffRenderer } from './DiffRenderer.js';
 import { Colors } from '../../colors.js';
 import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
@@ -16,7 +17,7 @@ import { ShellInputPrompt } from '../ShellInputPrompt.js';
 import { TerminalOutput } from '../TerminalOutput.js';
 import { SHELL_COMMAND_NAME } from '../../constants.js';
 import { theme } from '../../semantic-colors.js';
-import { Config } from '@google/gemini-cli-core';
+import type { Config } from '@google/gemini-cli-core';
 
 const STATIC_HEIGHT = 1;
 const RESERVED_LINE_COUNT = 5; // for tool name, status, padding etc.
@@ -165,7 +166,7 @@ const ToolStatusIndicator: React.FC<ToolStatusIndicatorProps> = ({
       />
     )}
     {status === ToolCallStatus.Success && (
-      <Text color={Colors.AccentGreen}>✔</Text>
+      <Text color={Colors.AccentGreen}>✓</Text>
     )}
     {status === ToolCallStatus.Confirming && (
       <Text color={Colors.AccentYellow}>?</Text>

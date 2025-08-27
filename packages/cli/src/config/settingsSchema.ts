@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
+import type {
   MCPServerConfig,
   BugCommandSettings,
   TelemetrySettings,
   AuthType,
   ChatCompressionSettings,
 } from '@google/gemini-cli-core';
-import { CustomTheme } from '../ui/themes/theme.js';
+import type { CustomTheme } from '../ui/themes/theme.js';
 
 export interface SettingDefinition {
   type: 'boolean' | 'string' | 'number' | 'array' | 'object';
@@ -344,6 +344,16 @@ export const SETTINGS_SCHEMA = {
     description: 'Paths to core tool definitions.',
     showInDialog: false,
   },
+  allowedTools: {
+    type: 'array',
+    label: 'Allowed Tools',
+    category: 'Advanced',
+    requiresRestart: true,
+    default: undefined as string[] | undefined,
+    description:
+      'A list of tool names that will bypass the confirmation dialog.',
+    showInDialog: false,
+  },
   excludeTools: {
     type: 'array',
     label: 'Exclude Tools',
@@ -535,6 +545,35 @@ export const SETTINGS_SCHEMA = {
     description: 'Show line numbers in the chat.',
     showInDialog: true,
   },
+  extensionManagement: {
+    type: 'boolean',
+    label: 'Extension Management',
+    category: 'Feature Flag',
+    requiresRestart: true,
+    default: false,
+    description: 'Enable extension management features.',
+    showInDialog: false,
+  },
+  extensions: {
+    type: 'object',
+    label: 'Extensions',
+    category: 'Extensions',
+    requiresRestart: true,
+    default: {},
+    description: 'Settings for extensions.',
+    showInDialog: false,
+    properties: {
+      disabled: {
+        type: 'array',
+        label: 'Disabled Extensions',
+        category: 'Extensions',
+        requiresRestart: true,
+        default: [] as string[],
+        description: 'List of disabled extensions.',
+        showInDialog: false,
+      },
+    },
+  },
   skipNextSpeakerCheck: {
     type: 'boolean',
     label: 'Skip Next Speaker Check',
@@ -562,6 +601,15 @@ export const SETTINGS_SCHEMA = {
     default: false,
     description:
       'Enable AI-powered prompt completion suggestions while typing.',
+    showInDialog: true,
+  },
+  debugKeystrokeLogging: {
+    type: 'boolean',
+    label: 'Debug Keystroke Logging',
+    category: 'General',
+    requiresRestart: false,
+    default: false,
+    description: 'Enable debug logging of keystrokes to the console.',
     showInDialog: true,
   },
 } as const;

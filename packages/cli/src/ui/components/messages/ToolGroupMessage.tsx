@@ -4,20 +4,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useMemo } from 'react';
+import type React from 'react';
+import { useMemo } from 'react';
 import { Box } from 'ink';
-import { IndividualToolCallDisplay, ToolCallStatus } from '../../types.js';
+import type { IndividualToolCallDisplay } from '../../types.js';
+import { ToolCallStatus } from '../../types.js';
 import { ToolMessage } from './ToolMessage.js';
 import { ToolConfirmationMessage } from './ToolConfirmationMessage.js';
-import { Config } from '@google/gemini-cli-core';
 import { theme } from '../../semantic-colors.js';
+import type { Config } from '@google/gemini-cli-core';
 
 interface ToolGroupMessageProps {
   groupId: number;
   toolCalls: IndividualToolCallDisplay[];
   availableTerminalHeight?: number;
   terminalWidth: number;
-  config?: Config;
+  config: Config;
   isFocused?: boolean;
   activeShellPtyId?: number | null;
   shellInputFocused?: boolean;
@@ -96,6 +98,7 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
       marginLeft={1}
       borderDimColor={hasPending}
       borderColor={borderColor}
+      gap={1}
     >
       {toolCalls.map((tool) => {
         const isConfirming = toolAwaitingApproval?.callId === tool.callId;

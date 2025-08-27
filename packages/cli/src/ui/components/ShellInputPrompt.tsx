@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback } from 'react';
-import { useKeypress, Key, keyToAnsi } from '../hooks/useKeypress.js';
+import { useCallback } from 'react';
+import type React from 'react';
+import { useKeypress, type Key, keyToAnsi } from '../hooks/useKeypress.js';
 import { type Config } from '@google/gemini-cli-core';
 
 export interface ShellInputPromptProps {
