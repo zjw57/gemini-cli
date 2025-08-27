@@ -243,8 +243,6 @@ const createErrorResponse = (
   errorType,
 });
 
-export type PidUpdateHandler = (toolCallId: string, pid: number) => void;
-
 interface CoreToolSchedulerOptions {
   config: Config;
   outputUpdateHandler?: OutputUpdateHandler;

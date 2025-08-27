@@ -7,7 +7,7 @@
 import { useCallback } from 'react';
 import type React from 'react';
 import { useKeypress, type Key, keyToAnsi } from '../hooks/useKeypress.js';
-import { type Config } from '@google/gemini-cli-core';
+import { ShellExecutionService, type Config } from '@google/gemini-cli-core';
 
 export interface ShellInputPromptProps {
   config: Config;
@@ -23,10 +23,10 @@ export const ShellInputPrompt: React.FC<ShellInputPromptProps> = ({
   const handleShellInputSubmit = useCallback(
     (input: string) => {
       if (activeShellPtyId) {
-        config.getGeminiClient().writeToShell(activeShellPtyId, input);
+        ShellExecutionService.writeToPty(activeShellPtyId, input);
       }
     },
-    [activeShellPtyId, config],
+    [activeShellPtyId],
   );
 
   const handleInput = useCallback(

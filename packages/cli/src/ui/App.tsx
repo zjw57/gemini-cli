@@ -70,6 +70,7 @@ import {
   isProQuotaExceededError,
   isGenericQuotaExceededError,
   UserTierId,
+  ShellExecutionService,
 } from '@google/gemini-cli-core';
 import type { IdeIntegrationNudgeResult } from './IdeIntegrationNudge.js';
 import { IdeIntegrationNudge } from './IdeIntegrationNudge.js';
@@ -917,7 +918,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
 
   useEffect(() => {
     if (activeShellPtyId) {
-      geminiClient.resizeShell(
+      ShellExecutionService.resizePty(
         activeShellPtyId,
         Math.floor(terminalWidth * 0.5),
         Math.floor(terminalHeight * 0.5),
