@@ -212,21 +212,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     x: number;
     y: number;
   } | null>(null);
-  const [isCursorVisible, setIsCursorVisible] = useState(true);
-
-  useEffect(() => {
-    if (!shellInputFocused) {
-      setIsCursorVisible(true);
-      return;
-    }
-
-    const blinker = setInterval(() => {
-      setIsCursorVisible((prev) => !prev);
-    }, 500);
-    return () => {
-      clearInterval(blinker);
-    };
-  }, [shellInputFocused]);
 
   useEffect(() => {
     const unsubscribe = ideContext.subscribeToIdeContext(setIdeContextState);
@@ -853,8 +838,8 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       refreshStatic();
     }, 300);
 
-    config.setTerminalHeight(terminalHeight*0.5);
-    config.setTerminalWidth(terminalWidth*0.5);
+    config.setTerminalHeight(terminalHeight * 0.5);
+    config.setTerminalWidth(terminalWidth * 0.5);
 
     return () => {
       clearTimeout(handler);
@@ -892,8 +877,8 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     if (activeShellPtyId) {
       geminiClient.resizeShell(
         activeShellPtyId,
-        Math.floor(terminalWidth*0.5),
-        Math.floor(terminalHeight*0.5),
+        Math.floor(terminalWidth * 0.5),
+        Math.floor(terminalHeight * 0.5),
       );
     }
   }, [terminalHeight, terminalWidth, activeShellPtyId, geminiClient]);
@@ -1009,7 +994,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                 activeShellPtyId={activeShellPtyId}
                 shellInputFocused={shellInputFocused}
                 cursorPosition={cursorPosition}
-                isCursorVisible={isCursorVisible}
               />
             ))}
             <ShowMoreLines constrainHeight={constrainHeight} />

@@ -23,9 +23,9 @@ const getVisibleText = (terminal: pkg.Terminal): string => {
   for (let i = buffer.viewportY; i < buffer.viewportY + terminal.rows; i++) {
     const line = buffer.getLine(i);
     const lineContent = line ? line.translateToString(true) : '';
-    lines.push(lineContent)
+    lines.push(lineContent);
   }
-  return lines.join('\n').trimEnd()
+  return lines.join('\n').trimEnd();
 };
 
 const getCursorPosition = (

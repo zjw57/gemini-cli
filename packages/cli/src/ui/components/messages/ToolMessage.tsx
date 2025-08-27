@@ -37,7 +37,6 @@ export interface ToolMessageProps extends IndividualToolCallDisplay {
   shellInputFocused?: boolean;
   config?: Config;
   cursorPosition?: { x: number; y: number } | null;
-  isCursorVisible?: boolean;
 }
 
 export const ToolMessage: React.FC<ToolMessageProps> = ({
@@ -54,7 +53,6 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
   ptyId,
   config,
   cursorPosition,
-  isCursorVisible,
 }) => {
   const isThisShellFocused =
     (name === SHELL_COMMAND_NAME || name === 'Shell') &&
@@ -106,13 +104,8 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
           <Box flexDirection="column">
             {isThisShellFocused &&
             typeof resultDisplay === 'string' &&
-            cursorPosition &&
-            isCursorVisible !== undefined ? (
-              <TerminalOutput
-                output={resultDisplay}
-                cursor={cursorPosition}
-                isCursorVisible={isCursorVisible}
-              />
+            cursorPosition ? (
+              <TerminalOutput output={resultDisplay} cursor={cursorPosition} />
             ) : typeof resultDisplay === 'string' && renderOutputAsMarkdown ? (
               <Box flexDirection="column">
                 <MarkdownDisplay

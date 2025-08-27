@@ -23,7 +23,6 @@ interface ToolGroupMessageProps {
   shellInputFocused?: boolean;
   onShellInputSubmit?: (input: string) => void;
   cursorPosition?: { x: number; y: number } | null;
-  isCursorVisible?: boolean;
 }
 
 // Main component renders the border and maps the tools using ToolMessage
@@ -36,7 +35,6 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
   activeShellPtyId,
   shellInputFocused,
   cursorPosition,
-  isCursorVisible,
 }) => {
   const isShellFocused =
     shellInputFocused &&
@@ -119,7 +117,6 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
                 shellInputFocused={shellInputFocused}
                 config={config}
                 cursorPosition={cursorPosition}
-                isCursorVisible={isCursorVisible}
               />
             </Box>
             {tool.status === ToolCallStatus.Confirming &&

@@ -11,11 +11,7 @@ import { Box, Text } from 'ink';
 describe('<TerminalOutput />', () => {
   it('renders the output text correctly', () => {
     const { lastFrame } = render(
-      <TerminalOutput
-        output="Hello, World!"
-        cursor={null}
-        isCursorVisible={false}
-      />,
+      <TerminalOutput output="Hello, World!" cursor={null} />,
     );
 
     expect(lastFrame()).toEqual(
@@ -29,11 +25,7 @@ describe('<TerminalOutput />', () => {
 
   it('renders a visible cursor at the correct position', () => {
     const { lastFrame } = render(
-      <TerminalOutput
-        output="Hello, World!"
-        cursor={{ x: 7, y: 0 }}
-        isCursorVisible={true}
-      />,
+      <TerminalOutput output="Hello, World!" cursor={{ x: 7, y: 0 }} />,
     );
 
     expect(lastFrame()).toEqual(
@@ -49,11 +41,7 @@ describe('<TerminalOutput />', () => {
 
   it('renders a visible cursor as a space at the end of a line', () => {
     const { lastFrame } = render(
-      <TerminalOutput
-        output="Hello"
-        cursor={{ x: 5, y: 0 }}
-        isCursorVisible={true}
-      />,
+      <TerminalOutput output="Hello" cursor={{ x: 5, y: 0 }} />,
     );
 
     expect(lastFrame()).toEqual(
@@ -69,11 +57,7 @@ describe('<TerminalOutput />', () => {
 
   it('does not render the cursor when isCursorVisible is false', () => {
     const { lastFrame } = render(
-      <TerminalOutput
-        output="Hello, World!"
-        cursor={{ x: 7, y: 0 }}
-        isCursorVisible={false}
-      />,
+      <TerminalOutput output="Hello, World!" cursor={{ x: 7, y: 0 }} />,
     );
 
     expect(lastFrame()).toEqual(
@@ -88,7 +72,7 @@ describe('<TerminalOutput />', () => {
   it('handles multi-line output correctly', () => {
     const output = 'Line 1\nLine 2\nLine 3';
     const { lastFrame } = render(
-      <TerminalOutput output={output} cursor={null} isCursorVisible={false} />,
+      <TerminalOutput output={output} cursor={null} />,
     );
 
     expect(lastFrame()).toEqual(
@@ -105,11 +89,7 @@ describe('<TerminalOutput />', () => {
   it('renders a cursor on the correct line in multi-line output', () => {
     const output = 'Line 1\nLine 2\nLine 3';
     const { lastFrame } = render(
-      <TerminalOutput
-        output={output}
-        cursor={{ x: 2, y: 1 }}
-        isCursorVisible={true}
-      />,
+      <TerminalOutput output={output} cursor={{ x: 2, y: 1 }} />,
     );
 
     expect(lastFrame()).toEqual(
@@ -126,9 +106,7 @@ describe('<TerminalOutput />', () => {
   });
 
   it('handles empty output', () => {
-    const { lastFrame } = render(
-      <TerminalOutput output="" cursor={null} isCursorVisible={false} />,
-    );
+    const { lastFrame } = render(<TerminalOutput output="" cursor={null} />);
 
     // Renders a single empty line
     expect(lastFrame()).toEqual(
@@ -142,11 +120,7 @@ describe('<TerminalOutput />', () => {
 
   it('renders a cursor correctly in an empty output', () => {
     const { lastFrame } = render(
-      <TerminalOutput
-        output=""
-        cursor={{ x: 0, y: 0 }}
-        isCursorVisible={true}
-      />,
+      <TerminalOutput output="" cursor={{ x: 0, y: 0 }} />,
     );
 
     expect(lastFrame()).toEqual(

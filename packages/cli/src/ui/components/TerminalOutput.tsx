@@ -10,20 +10,18 @@ import { Box, Text } from 'ink';
 interface TerminalOutputProps {
   output: string;
   cursor: { x: number; y: number } | null;
-  isCursorVisible: boolean;
 }
 
 export const TerminalOutput: React.FC<TerminalOutputProps> = ({
   output,
   cursor,
-  isCursorVisible,
 }) => {
   const lines = output.split('\n');
 
   return (
     <Box flexDirection="column">
       {lines.map((line, index) => {
-        if (cursor && isCursorVisible && index === cursor.y) {
+        if (cursor && index === cursor.y) {
           const before = line.substring(0, cursor.x);
           const at = line[cursor.x] ?? ' ';
           const after = line.substring(cursor.x + 1);
