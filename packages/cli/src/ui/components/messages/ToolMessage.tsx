@@ -138,7 +138,6 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
       {isThisShellFocused && config && (
         <Box paddingLeft={STATUS_INDICATOR_WIDTH} marginTop={1}>
           <ShellInputPrompt
-            config={config}
             activeShellPtyId={activeShellPtyId ?? null}
             focus={shellInputFocused}
           />

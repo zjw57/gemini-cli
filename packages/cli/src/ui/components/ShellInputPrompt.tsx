@@ -7,16 +7,14 @@
 import { useCallback } from 'react';
 import type React from 'react';
 import { useKeypress, type Key, keyToAnsi } from '../hooks/useKeypress.js';
-import { ShellExecutionService, type Config } from '@google/gemini-cli-core';
+import { ShellExecutionService } from '@google/gemini-cli-core';
 
 export interface ShellInputPromptProps {
-  config: Config;
   activeShellPtyId: number | null;
   focus?: boolean;
 }
 
 export const ShellInputPrompt: React.FC<ShellInputPromptProps> = ({
-  config,
   activeShellPtyId,
   focus = true,
 }) => {
