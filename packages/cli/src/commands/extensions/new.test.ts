@@ -15,9 +15,9 @@ const mockedFs = vi.mocked(fsPromises);
 
 describe('extensions new command', () => {
   beforeEach(() => {
-        vi.resetAllMocks();
+    vi.resetAllMocks();
 
-            mockedFs.readdir.mockResolvedValue([
+    mockedFs.readdir.mockResolvedValue([
       { name: 'context', isDirectory: () => true },
       { name: 'custom-commands', isDirectory: () => true },
       { name: 'mcp-server', isDirectory: () => true },
@@ -39,15 +39,15 @@ describe('extensions new command', () => {
   });
 
   it('should create directory and copy files when path does not exist', async () => {
-        mockedFs.access.mockRejectedValue(new Error('ENOENT'));
-        mockedFs.mkdir.mockResolvedValue(undefined);
+    mockedFs.access.mockRejectedValue(new Error('ENOENT'));
+    mockedFs.mkdir.mockResolvedValue(undefined);
     mockedFs.cp.mockResolvedValue(undefined);
 
     const parser = yargs([]).command(newCommand).fail(false);
 
-        await parser.parseAsync('new /some/path context');
+    await parser.parseAsync('new /some/path context');
 
-        expect(mockedFs.mkdir).toHaveBeenCalledWith('/some/path', {
+    expect(mockedFs.mkdir).toHaveBeenCalledWith('/some/path', {
       recursive: true,
     });
     expect(mockedFs.cp).toHaveBeenCalledWith(
@@ -58,14 +58,14 @@ describe('extensions new command', () => {
   });
 
   it('should throw an error if the path already exists', async () => {
-        mockedFs.access.mockResolvedValue(undefined);
+    mockedFs.access.mockResolvedValue(undefined);
     const parser = yargs([]).command(newCommand).fail(false);
 
-        await expect(parser.parseAsync('new /some/path context')).rejects.toThrow(
+    await expect(parser.parseAsync('new /some/path context')).rejects.toThrow(
       'Path already exists: /some/path',
     );
 
-        expect(mockedFs.mkdir).not.toHaveBeenCalled();
+    expect(mockedFs.mkdir).not.toHaveBeenCalled();
     expect(mockedFs.cp).not.toHaveBeenCalled();
   });
 });

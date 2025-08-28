@@ -13,6 +13,29 @@ const server = new McpServer({
   version: '1.0.0',
 });
 
+server.registerTool(
+  'fetch_posts',
+  {
+    description: 'Fetches a list of posts from a public API.',
+    inputSchema: z.object({}).shape,
+  },
+  async () => {
+    const apiResponse = await fetch(
+      'https://jsonplaceholder.typicode.com/posts',
+    );
+    const posts = await apiResponse.json();
+    const response = { posts: posts.slice(0, 5) };
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(response),
+        },
+      ],
+    };
+  },
+);
+
 server.registerPrompt(
   'poem-writer',
   {
