@@ -147,7 +147,6 @@ export class GeminiChat {
       // We need to pop off a bunch of attrs that LlmAgent isn't expecting
       const {
         tools: _tools, // This is really a list of functionDeclarations
-        thinkingConfig: _thinkingConfig,
         systemInstruction,
         ...adkGenerationConfig
       } = this.generationConfig;
@@ -162,7 +161,6 @@ export class GeminiChat {
         instruction: systemInstruction as string,
         tools: adkTools,
         generateContentConfig: adkGenerationConfig,
-        // planner: thinkingConfig, // Not implemented yet.
       });
 
       this.runner = new InMemoryRunner({
