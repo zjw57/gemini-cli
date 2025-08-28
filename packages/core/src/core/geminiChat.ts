@@ -382,7 +382,7 @@ export class GeminiChat {
             if (attempt > 0) {
               yield { type: StreamEventType.RETRY };
             }
-            
+
             const stream = await self.makeApiCallAndProcessStream(
               requestContents,
               params,

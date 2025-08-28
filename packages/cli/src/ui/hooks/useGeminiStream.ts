@@ -31,6 +31,8 @@ import {
   ConversationFinishedEvent,
   ApprovalMode,
   parseAndFormatApiError,
+  StreamEventType,
+  type StreamEvent,
 } from '@google/gemini-cli-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
 import type {
@@ -568,7 +570,8 @@ export const useGeminiStream = (
 
   const processGeminiStreamEvents = useCallback(
     async (
-      stream: AsyncIterable<GeminiEvent>,
+      // CHANGE: The stream is now of the new type we defined
+      stream: AsyncIterable<StreamEvent>,
       userMessageTimestamp: number,
       signal: AbortSignal,
     ): Promise<StreamProcessingStatus> => {
@@ -576,46 +579,39 @@ export const useGeminiStream = (
       const toolCallRequests: ToolCallRequestInfo[] = [];
       for await (const event of stream) {
         switch (event.type) {
-          case ServerGeminiEventType.Thought:
-            setThought(event.value);
+          // CHANGE: Add a case to handle the new RETRY event.
+          case StreamEventType.RETRY:
+            // A retry is starting. Clear any pending UI state from the failed attempt.
+            geminiMessageBuffer = '';
+            if (pendingHistoryItemRef.current) {
+              setPendingHistoryItem(null);
+            }
             break;
-          case ServerGeminiEventType.Content:
-            geminiMessageBuffer = handleContentEvent(
-              event.value,
-              geminiMessageBuffer,
-              userMessageTimestamp,
-            );
+          case StreamEventType.CHUNK: {
+            // The logic from the other events (Thought, ToolCallRequest, etc.)
+            // that are inside the chunk's `value` must now be handled here.
+            const chunk = event.value;
+
+            // Handle thoughts from the chunk
+            if (chunk.thought) {
+              setThought(chunk.thought);
+            }
+            // Handle tool call requests from the chunk
+            if (chunk.toolCallRequest) {
+              toolCallRequests.push(chunk.toolCallRequest);
+            }
+
+            // Handle content from the chunk
+            const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              geminiMessageBuffer = handleContentEvent(
+                text,
+                geminiMessageBuffer,
+                userMessageTimestamp,
+              );
+            }
             break;
-          case ServerGeminiEventType.ToolCallRequest:
-            toolCallRequests.push(event.value);
-            break;
-          case ServerGeminiEventType.UserCancelled:
-            handleUserCancelledEvent(userMessageTimestamp);
-            break;
-          case ServerGeminiEventType.Error:
-            handleErrorEvent(event.value, userMessageTimestamp);
-            break;
-          case ServerGeminiEventType.ChatCompressed:
-            handleChatCompressionEvent(event.value);
-            break;
-          case ServerGeminiEventType.ToolCallConfirmation:
-          case ServerGeminiEventType.ToolCallResponse:
-            // do nothing
-            break;
-          case ServerGeminiEventType.MaxSessionTurns:
-            handleMaxSessionTurnsEvent();
-            break;
-          case ServerGeminiEventType.Finished:
-            handleFinishedEvent(
-              event as ServerGeminiFinishedEvent,
-              userMessageTimestamp,
-            );
-            break;
-          case ServerGeminiEventType.LoopDetected:
-            // handle later because we want to move pending history to history
-            // before we add loop detected message to history
-            loopDetectedRef.current = true;
-            break;
+          }
           default: {
             // enforces exhaustive switch-case
             const unreachable: never = event;
@@ -630,12 +626,9 @@ export const useGeminiStream = (
     },
     [
       handleContentEvent,
-      handleUserCancelledEvent,
-      handleErrorEvent,
       scheduleToolCalls,
-      handleChatCompressionEvent,
-      handleFinishedEvent,
-      handleMaxSessionTurnsEvent,
+      pendingHistoryItemRef,
+      setPendingHistoryItem,
     ],
   );
 
