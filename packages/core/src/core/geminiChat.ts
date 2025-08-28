@@ -174,10 +174,10 @@ export class GeminiChat {
 
   private async maybeSetSession(): Promise<string> {
     if (this.sessionId === undefined) {
-      const session = await this.runner?.sessionService.createSession(
-        this.agent!.name,
-        'placeholder',
-      );
+      const session = await this.runner?.sessionService.createSession({
+        appName: this.appName,
+        userId: 'placeholder',
+      });
       this.sessionId = session!.id;
     }
     return this.sessionId!;
@@ -185,11 +185,11 @@ export class GeminiChat {
 
   private async getSession(): Promise<Session> {
     const sessionId = await this.maybeSetSession();
-    const session = await this.runner!.sessionService.getSession(
-      this.appName,
-      'placeholder',
+    const session = await this.runner!.sessionService.getSession({
+      appName: this.appName,
+      userId: 'placeholder',
       sessionId,
-    );
+    });
     if (!session) {
       // Something's gone wrong; this should have been initialized.
       throw new Error(
@@ -556,7 +556,7 @@ export class GeminiChat {
     if (this.adkMode) {
       const session = await this.getSession();
       const event = new Event({ content });
-      await this.runner?.sessionService.appendEvent(session, event);
+      await this.runner?.sessionService.appendEvent({ session, event });
     } else {
       this.history.push(content);
     }
@@ -571,7 +571,7 @@ export class GeminiChat {
         const event = new Event({
           content,
         });
-        await this.runner?.sessionService.appendEvent(session, event);
+        await this.runner?.sessionService.appendEvent({ session, event });
       }
     } else {
       this.history = history;

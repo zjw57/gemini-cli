@@ -50,7 +50,7 @@ describe('GeminiChat', () => {
       sessionService: {
         createSession: vi.fn().mockResolvedValue(mockSession),
         getSession: vi.fn().mockResolvedValue(mockSession),
-        appendEvent: vi.fn().mockImplementation(async (session, event) => {
+        appendEvent: vi.fn().mockImplementation(async ({ session, event }) => {
           session.events.push(event);
         }),
       },
@@ -557,19 +557,19 @@ describe('GeminiChat', () => {
         };
         await chat.addHistory(newContent);
 
-        expect(mockRunner.sessionService.getSession).toHaveBeenCalledWith(
-          'GeminiCLI',
-          'placeholder',
-          expect.any(String),
-        );
+        expect(mockRunner.sessionService.getSession).toHaveBeenCalledWith({
+          appName: 'GeminiCLI',
+          userId: 'placeholder',
+          sessionId: expect.any(String),
+        });
         expect(mockRunner.sessionService.appendEvent).toHaveBeenCalledTimes(1);
         const expectedEvent = new Event({ content: newContent });
-        expect(mockRunner.sessionService.appendEvent).toHaveBeenCalledWith(
-          mockSession,
-          expect.objectContaining({
+        expect(mockRunner.sessionService.appendEvent).toHaveBeenCalledWith({
+          session: mockSession,
+          event: expect.objectContaining({
             content: expectedEvent.content,
           }),
-        );
+        });
       });
     });
   });
@@ -606,23 +606,23 @@ describe('GeminiChat', () => {
       it('should append all history items as events to the ADK session', async () => {
         await chat.setHistory(historyToSet);
 
-        expect(mockRunner.sessionService.getSession).toHaveBeenCalledWith(
-          'GeminiCLI',
-          'placeholder',
-          expect.any(String),
-        );
+        expect(mockRunner.sessionService.getSession).toHaveBeenCalledWith({
+          appName: 'GeminiCLI',
+          userId: 'placeholder',
+          sessionId: expect.any(String),
+        });
         expect(mockRunner.sessionService.appendEvent).toHaveBeenCalledTimes(
           historyToSet.length,
         );
 
         for (const content of historyToSet) {
           const expectedEvent = new Event({ content });
-          expect(mockRunner.sessionService.appendEvent).toHaveBeenCalledWith(
-            mockSession,
-            expect.objectContaining({
+          expect(mockRunner.sessionService.appendEvent).toHaveBeenCalledWith({
+            session: mockSession,
+            event: expect.objectContaining({
               content: expectedEvent.content,
             }),
-          );
+          });
         }
       });
     });

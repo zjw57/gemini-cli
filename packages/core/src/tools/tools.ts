@@ -8,10 +8,7 @@ import { FunctionDeclaration, PartListUnion } from '@google/genai';
 import { ToolErrorType } from './tool-error.js';
 import { DiffUpdateResult } from '../ide/ideContext.js';
 import { SchemaValidator } from '../utils/schemaValidator.js';
-import {
-  BaseTool as AdkBaseTool,
-  ToolContext as AdkToolContext,
-} from '@google/adk';
+import { BaseTool as AdkBaseTool, RunToolRequest } from '@google/adk';
 
 /**
  * An adapter that wraps a gemini-cli DeclarativeTool to make it compatible
@@ -26,12 +23,8 @@ export class AdkToolAdapter extends AdkBaseTool {
     return this.tool.schema;
   }
 
-  async runAsync(
-    args: Record<string, unknown>,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    toolContext: AdkToolContext,
-  ): Promise<unknown> {
-    const invocation = this.tool.build(args);
+  async runAsync(request: RunToolRequest): Promise<unknown> {
+    const invocation = this.tool.build(request.args);
     const abortController = new AbortController();
     const result = await invocation.execute(abortController.signal);
     return result;
