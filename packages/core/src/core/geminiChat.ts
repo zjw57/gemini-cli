@@ -591,7 +591,7 @@ export class GeminiChat {
         logInvalidChunk(
           this.config,
           new InvalidChunkEvent('Invalid chunk received from stream.'),
-        );        
+        );
         isStreamInvalid = true;
         firstInvalidChunkEncountered = true;
       }
