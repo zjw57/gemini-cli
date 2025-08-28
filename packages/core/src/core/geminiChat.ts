@@ -566,7 +566,6 @@ export class GeminiChat {
     let hasToolCall = false;
     let lastChunk: GenerateContentResponse | null = null;
 
-    // --- FIX: Restore the overall status flag and initialize all flags ---
     let isStreamInvalid = false;
     let firstInvalidChunkEncountered = false;
     let validChunkAfterInvalidEncountered = false;
@@ -592,8 +591,7 @@ export class GeminiChat {
         logInvalidChunk(
           this.config,
           new InvalidChunkEvent('Invalid chunk received from stream.'),
-        );
-        // --- FIX: Set both flags for an invalid chunk ---
+        );        
         isStreamInvalid = true;
         firstInvalidChunkEncountered = true;
       }
