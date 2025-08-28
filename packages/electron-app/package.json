@@ -18,13 +18,16 @@
     "prepackage": "rm -rf dist && mkdir -p dist/cli dist/core && cp -r ../../packages/cli/dist/* dist/cli && cp -r ../../packages/core/dist/* dist/core",
     "package": "npm run build && npm run prepackage && electron-builder && mkdir -p ../../packaged_app && cp dist/electron/*.{deb,dmg,exe,AppImage} ../../packaged_app/",
     "lint": "eslint . --ext .ts,.tsx",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "preflight": "npm run lint && npm run build && npm run typecheck && npm run test"
   },
   "dependencies": {
     "@google/gemini-cli": "file:../cli",
     "@google/gemini-cli-core": "file:../core",
     "@monaco-editor/react": "^4.7.0",
     "@xterm/xterm": "^5.5.0",
+    "electron-store": "^8.2.0",
     "lucide-react": "^0.539.0",
     "monaco-editor": "^0.52.2",
     "node-pty": "^1.1.0-beta34",

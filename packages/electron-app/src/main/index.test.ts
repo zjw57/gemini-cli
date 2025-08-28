@@ -5,11 +5,19 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type {
+  App,
+  IpcMain,
+  BrowserWindow as ElectronBrowserWindow,
+} from 'electron';
+import type * as PTY from 'node-pty';
+import type { Mock } from 'vitest';
 
 // --- Mocks ---
 
 const mockPtyProcess = {
   onData: vi.fn(() => ({ dispose: vi.fn() })),
+  onExit: vi.fn(() => ({ dispose: vi.fn() })),
   write: vi.fn(),
   resize: vi.fn(),
   kill: vi.fn(),
@@ -45,6 +53,9 @@ vi.mock('electron', () => ({
     on: vi.fn(),
     handle: vi.fn(),
   },
+  dialog: {
+    showErrorBox: vi.fn(),
+  },
 }));
 
 vi.mock('@google/gemini-cli/dist/src/config/settings.js', () => ({
@@ -78,6 +89,17 @@ vi.mock('@google/gemini-cli/dist/src/ui/themes/theme-manager.js', () => ({
 vi.mock('os', () => ({
   default: {
     platform: vi.fn(() => 'darwin'),
+    homedir: vi.fn(() => '/home/user'),
+  },
+}));
+
+vi.mock('fs', () => ({
+  default: {
+    existsSync: vi.fn(() => true),
+    watch: vi.fn(() => ({ close: vi.fn() })),
+    promises: {
+      mkdir: vi.fn(() => Promise.resolve()),
+    },
   },
 }));
 
@@ -86,10 +108,10 @@ vi.mock('os', () => ({
 const wait = () => new Promise((resolve) => setImmediate(resolve));
 
 describe('main process (index.ts)', () => {
-  let app;
-  let BrowserWindow;
-  let ipcMain;
-  let pty;
+  let app: App;
+  let BrowserWindow: typeof ElectronBrowserWindow;
+  let ipcMain: IpcMain;
+  let pty: typeof PTY;
 
   beforeEach(async () => {
     vi.resetModules(); // Ensure the main script runs fresh for each test
@@ -122,10 +144,10 @@ describe('main process (index.ts)', () => {
     await wait();
 
     // Find the 'terminal.keystroke' handler
-    const keystrokeHandler = ipcMain.on.mock.calls.find(
-      (call) => call[0] === 'terminal.keystroke',
-    )[1];
-    keystrokeHandler(null, 'a');
+    const keystrokeHandler = (
+      ipcMain.on as Mock
+    ).mock.calls.find((call) => call[0] === 'terminal.keystroke')![1];
+    (keystrokeHandler as (event: unknown, key: string) => void)(null, 'a');
     expect(mockPtyProcess.write).toHaveBeenCalledWith('a');
   });
 
@@ -134,10 +156,13 @@ describe('main process (index.ts)', () => {
     await app.whenReady();
     await wait();
 
-    const resizeHandler = ipcMain.on.mock.calls.find(
-      (call) => call[0] === 'terminal.resize',
-    )[1];
-    resizeHandler(null, { cols: 100, rows: 50 });
+    const resizeHandler = (
+      ipcMain.on as Mock
+    ).mock.calls.find((call) => call[0] === 'terminal.resize')![1];
+    (resizeHandler as (event: unknown, size: object) => void)(null, {
+      cols: 100,
+      rows: 50,
+    });
     expect(mockPtyProcess.resize).toHaveBeenCalledWith(100, 50);
   });
 
@@ -146,10 +171,10 @@ describe('main process (index.ts)', () => {
     await app.whenReady();
     await wait();
 
-    const settingsGetHandler = ipcMain.handle.mock.calls.find(
-      (call) => call[0] === 'settings:get',
-    )[1];
-    const settings = await settingsGetHandler();
+    const settingsGetHandler = (
+      ipcMain.handle as Mock
+    ).mock.calls.find((call) => call[0] === 'settings:get')![1];
+    const settings = await (settingsGetHandler as () => Promise<unknown>)();
     expect(settings).toHaveProperty('merged');
   });
 
@@ -158,14 +183,17 @@ describe('main process (index.ts)', () => {
     await app.whenReady();
     await wait();
 
-    const settingsSetHandler = ipcMain.handle.mock.calls.find(
-      (call) => call[0] === 'settings:set',
-    )[1];
+    const settingsSetHandler = (
+      ipcMain.handle as Mock
+    ).mock.calls.find((call) => call[0] === 'settings:set')![1];
 
     // Check that pty.spawn has been called once initially
     expect(pty.spawn).toHaveBeenCalledTimes(1);
 
-    await settingsSetHandler(null, { changes: { vimMode: true } });
+    await (settingsSetHandler as (event: unknown, args: unknown) => Promise<unknown>)(
+      null,
+      { changes: { vimMode: true } },
+    );
 
     // Check that pty.spawn was called again after settings changed
     expect(pty.spawn).toHaveBeenCalledTimes(2);
@@ -179,10 +207,10 @@ describe('main process (index.ts)', () => {
     await app.whenReady();
     await wait(); // Ensure ptyProcess is created
 
-    const beforeQuitHandler = app.on.mock.calls.find(
-      (call) => call[0] === 'before-quit',
-    )[1];
-    beforeQuitHandler();
+    const beforeQuitHandler = (
+      app.on as Mock
+    ).mock.calls.find((call) => call[0] === 'before-quit')![1];
+    (beforeQuitHandler as () => void)();
     expect(mockPtyProcess.kill).toHaveBeenCalled();
   });
 
@@ -191,10 +219,10 @@ describe('main process (index.ts)', () => {
     await app.whenReady();
     await wait();
 
-    const windowAllClosedHandler = app.on.mock.calls.find(
-      (call) => call[0] === 'window-all-closed',
-    )[1];
-    windowAllClosedHandler();
+    const windowAllClosedHandler = (
+      app.on as Mock
+    ).mock.calls.find((call) => call[0] === 'window-all-closed')![1];
+    (windowAllClosedHandler as () => void)();
     expect(app.quit).toHaveBeenCalled();
   });
 });

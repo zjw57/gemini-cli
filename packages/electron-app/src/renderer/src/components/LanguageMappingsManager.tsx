@@ -14,7 +14,11 @@ export function LanguageMappingsManager() {
   const [newLanguage, setNewLanguage] = useState('');
 
   useEffect(() => {
-    setMappings(getLanguageMap());
+    const fetchLanguageMap = async () => {
+      const map = await getLanguageMap();
+      setMappings(map);
+    };
+    fetchLanguageMap();
   }, []);
 
   const handleAddMapping = () => {

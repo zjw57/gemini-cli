@@ -21,18 +21,17 @@ const defaultSettings: Partial<Settings> = {
   hideTips: false,
   hideBanner: false,
   telemetry: {
-    enable: true,
+    enabled: true,
   },
   fileFiltering: {
     respectGitIgnore: true,
     respectGeminiIgnore: true,
   },
   showMemoryUsage: false,
-  maxSessionTurns: 20,
+  maxSessionTurns: -1,
   memoryImportFormat: 'tree',
   disableAutoUpdate: false,
   mcpServers: {},
-  env: '',
 };
 
 // Helper to get nested properties safely
@@ -196,7 +195,7 @@ const SETTINGS_CONFIG = [
     category: 'Updates & Telemetry',
   },
   {
-    key: 'telemetry.enable',
+    key: 'telemetry.enabled',
     label: 'Enable Telemetry',
     description: 'Enables telemetry to help improve the application.',
     type: 'checkbox',
@@ -329,21 +328,31 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   useEffect(() => {
     if (isOpen) {
-      window.electron?.themes?.get().then(setAvailableThemes);
+      window.electron?.themes
+        ?.get()
+        .then(setAvailableThemes)
+        .catch((err: Error) =>
+          console.error('Failed to get themes', err),
+        );
     }
   }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && window.electron?.settings) {
-      window.electron.settings.get().then((loadedSettings) => {
-        const mergedSettings = loadedSettings.merged || {};
-        const initialSettingsState: Partial<Settings> = {
-          ...defaultSettings,
-          ...mergedSettings,
-        };
+      window.electron.settings
+        .get()
+        .then((loadedSettings) => {
+          const mergedSettings = loadedSettings.merged || {};
+          const initialSettingsState: Partial<Settings> = {
+            ...defaultSettings,
+            ...mergedSettings,
+          };
 
-        setSettings(initialSettingsState);
-      });
+          setSettings(initialSettingsState);
+        })
+        .catch((err: Error) =>
+          console.error('Failed to get settings', err),
+        );
     }
   }, [isOpen, scope]);
 
@@ -359,9 +368,20 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     [settings],
   );
 
-  const handleClose = () => {
-    window.electron.settings.set({ changes: settings, scope });
-    window.electron.settings.restartTerminal();
+  const handleClose = async () => {
+    try {
+      await window.electron.settings.set({
+        changes: settings as Partial<Settings>,
+        scope,
+      });
+    } catch (error) {
+      console.error('Failed to set settings:', error);
+    }
+    try {
+      await window.electron.settings.restartTerminal();
+    } catch (error) {
+      console.error('Failed to restart terminal:', error);
+    }
     onClose();
   };
 
@@ -382,7 +402,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <input
             type="number"
             id={key}
-            value={value}
+            value={value as number}
             onChange={(e) => handleChange(key, parseInt(e.target.value, 10))}
           />
         );
@@ -391,7 +411,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <input
             type="text"
             id={key}
-            value={value}
+            value={value as string}
             onChange={(e) => handleChange(key, e.target.value)}
           />
         );
@@ -407,7 +427,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         return (
           <select
             id={key}
-            value={value}
+            value={value as string}
             onChange={(e) => handleChange(key, e.target.value)}
           >
             {options?.map((option) => (
@@ -488,9 +508,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <label>{config.label}</label>
                   <p>{config.description}</p>
                 </div>
-                <div className="setting-control">
-                  {config.render?.(settings, handleChange)}
-                </div>
+                <div className="setting-control">{config.render?.()}</div>
               </div>
             ) : (
               <div className="setting-item" key={config.key}>

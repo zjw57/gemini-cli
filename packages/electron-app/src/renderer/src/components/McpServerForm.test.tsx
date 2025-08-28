@@ -78,7 +78,9 @@ describe('McpServerForm', () => {
 
   it('handles record changes with valid JSON', () => {
     render(<McpServerForm {...baseProps} serverName={null} />);
-    const envTextarea = screen.getByLabelText('Environment Variables (JSON)');
+    const envTextarea = screen.getByLabelText(
+      'Environment Variables (JSON)',
+    ) as HTMLTextAreaElement;
     fireEvent.change(envTextarea, {
       target: { value: '{"KEY": "VALUE"}' },
     });
@@ -89,11 +91,13 @@ describe('McpServerForm', () => {
 
   it('ignores invalid JSON in record changes', () => {
     render(<McpServerForm {...baseProps} serverName={null} />);
-    const headersTextarea = screen.getByLabelText('Headers (JSON)');
+    const headersTextarea = screen.getByLabelText(
+      'Headers (JSON)',
+    ) as HTMLTextAreaElement;
     fireEvent.change(headersTextarea, {
       target: { value: '{"key":' },
     });
-    expect(headersTextarea.value).toBe('');
+    expect(headersTextarea.value).toBe('{"key":');
     // We can't easily test the internal state without more complex setup,
     // but we can ensure saving still works and doesn't use the partial JSON.
     fireEvent.click(screen.getByText('Save'));

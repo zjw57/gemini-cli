@@ -27,7 +27,7 @@ describe('LanguageMappingsManager', () => {
       js: 'javascript',
     };
     // Cast to mock to set return value
-    (languageUtils.getLanguageMap as vi.Mock).mockReturnValue(initialMappings);
+    (languageUtils.getLanguageMap as import('vitest').Mock).mockReturnValue(initialMappings);
 
     render(<LanguageMappingsManager />);
 
@@ -37,7 +37,7 @@ describe('LanguageMappingsManager', () => {
   });
 
   it('should add a new mapping when the "Add" button is clicked', () => {
-    (languageUtils.getLanguageMap as vi.Mock).mockReturnValue({});
+    (languageUtils.getLanguageMap as import('vitest').Mock).mockReturnValue({});
     render(<LanguageMappingsManager />);
 
     const extInput = screen.getByPlaceholderText('.ext') as HTMLInputElement;
@@ -63,7 +63,7 @@ describe('LanguageMappingsManager', () => {
   });
 
   it('should handle adding an extension without a leading dot', () => {
-    (languageUtils.getLanguageMap as vi.Mock).mockReturnValue({});
+    (languageUtils.getLanguageMap as import('vitest').Mock).mockReturnValue({});
     render(<LanguageMappingsManager />);
 
     const extInput = screen.getByPlaceholderText('.ext');
@@ -85,7 +85,7 @@ describe('LanguageMappingsManager', () => {
       ts: 'typescript',
       js: 'javascript',
     };
-    (languageUtils.getLanguageMap as vi.Mock).mockReturnValue(initialMappings);
+    (languageUtils.getLanguageMap as import('vitest').Mock).mockReturnValue(initialMappings);
 
     render(<LanguageMappingsManager />);
 
@@ -114,7 +114,7 @@ describe('LanguageMappingsManager', () => {
   });
 
   it('should not add a mapping if extension or language is empty', () => {
-    (languageUtils.getLanguageMap as vi.Mock).mockReturnValue({});
+    (languageUtils.getLanguageMap as import('vitest').Mock).mockReturnValue({});
     render(<LanguageMappingsManager />);
 
     const addButton = screen.getByText('Add');

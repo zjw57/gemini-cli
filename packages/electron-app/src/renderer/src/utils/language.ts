@@ -34,28 +34,28 @@ const defaultExtensionToLanguageMap: Record<string, string> = {
   dockerfile: 'dockerfile',
 };
 
-export function getLanguageMap(): Record<string, string> {
+export async function getLanguageMap(): Promise<Record<string, string>> {
   try {
-    const storedMap = localStorage.getItem('extensionToLanguageMap');
+    const storedMap = await window.electron.languageMap.get();
     if (storedMap) {
-      return { ...defaultExtensionToLanguageMap, ...JSON.parse(storedMap) };
+      return { ...defaultExtensionToLanguageMap, ...storedMap };
     }
   } catch (error) {
-    console.error('Error reading language map from local storage:', error);
+    console.error('Error reading language map from main process:', error);
   }
   return defaultExtensionToLanguageMap;
 }
 
 export function saveLanguageMap(map: Record<string, string>) {
   try {
-    localStorage.setItem('extensionToLanguageMap', JSON.stringify(map));
+    window.electron.languageMap.set(map);
   } catch (error) {
-    console.error('Error saving language map to local storage:', error);
+    console.error('Error saving language map to main process:', error);
   }
 }
 
-export function getLanguageForFilePath(filePath: string): string {
+export async function getLanguageForFilePath(filePath: string): Promise<string> {
   const extension = filePath.split('.').pop()?.toLowerCase() ?? '';
-  const languageMap = getLanguageMap();
+  const languageMap = await getLanguageMap();
   return languageMap[extension] || 'plaintext';
 }

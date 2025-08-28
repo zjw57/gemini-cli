@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DiffEditor, DiffOnMount } from '@monaco-editor/react';
+import { DiffEditor, type DiffOnMount } from '@monaco-editor/react';
 import * as React from 'react';
 import { getLanguageForFilePath } from '../utils/language.js';
 import { useTheme } from '../contexts/ThemeContext.js';
@@ -39,12 +39,19 @@ export function GeminiEditor({
   onClose,
 }: GeminiEditorProps) {
   const [modifiedContent, setModifiedContent] = React.useState(newContent);
+  const [language, setLanguage] = React.useState('plaintext');
   const theme = useTheme();
   const isModified = modifiedContent !== newContent;
 
   React.useEffect(() => {
     setModifiedContent(newContent);
   }, [newContent]);
+
+  React.useEffect(() => {
+    if (open) {
+      getLanguageForFilePath(filePath).then(setLanguage);
+    }
+  }, [open, filePath]);
 
   const handleClose = () => {
     if (isModified) {
@@ -134,7 +141,7 @@ export function GeminiEditor({
             <DiffEditor
               original={oldContent}
               modified={modifiedContent}
-              language={getLanguageForFilePath(filePath)}
+              language={language}
               onMount={handleEditorMount}
               theme={editorTheme}
               options={{

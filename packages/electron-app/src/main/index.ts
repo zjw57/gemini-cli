@@ -5,12 +5,16 @@
  */
 
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
-import { join, extname } from 'path';
+import { join, extname } from 'node:path';
 import * as pty from 'node-pty';
-import os from 'os';
-import fs from 'fs';
-import crypto from 'crypto';
+import os from 'node:os';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
 import process from 'node:process';
+import Store from 'electron-store';
+import type { Settings } from '@google/gemini-cli/dist/src/config/settings.js';
+
+const store = new Store();
 
 // It's good practice to handle uncaught exceptions, especially in production.
 process.on('uncaughtException', (error) => {
@@ -26,6 +30,22 @@ const iconPath = join(__dirname, '..', '..', 'src', 'resources', 'icon.png');
 let ptyProcess: pty.IPty | null = null;
 let ptyOnDataDisposable: pty.IDisposable | null = null;
 let fileWatcher: fs.FSWatcher | null = null;
+
+// Define a more specific type for custom themes.
+interface CustomTheme {
+  type: 'custom';
+  name: string;
+  [key: string]: string;
+}
+
+interface CliSettings {
+  terminalCwd?: string;
+  env?: string | Record<string, string>;
+  theme?: string;
+  customThemes?: Record<string, CustomTheme>;
+  mcpServers?: unknown;
+  [key: string]: unknown;
+}
 
 async function setupFileWatcher(mainWindow: BrowserWindow) {
   const diffDir = join(os.homedir(), '.gemini', 'tmp', 'diff');
@@ -88,7 +108,8 @@ async function getTerminalCwd() {
   const { loadSettings } = await import(
     '@google/gemini-cli/dist/src/config/settings.js'
   );
-  const { merged: settings } = await loadSettings(os.homedir());
+  const { merged } = await loadSettings(os.homedir());
+  const settings = merged as CliSettings;
   if (settings.terminalCwd && typeof settings.terminalCwd === 'string') {
     return settings.terminalCwd;
   }
@@ -126,7 +147,8 @@ async function startPtyProcess(mainWindow: BrowserWindow) {
   const { loadSettings } = await import(
     '@google/gemini-cli/dist/src/config/settings.js'
   );
-  const { merged: settings } = await loadSettings(os.homedir());
+  const { merged } = await loadSettings(os.homedir());
+  const settings = merged as CliSettings;
 
   const env: Record<string, string> = {};
   if (typeof settings.env === 'string') {
@@ -225,7 +247,8 @@ async function getThemeFromSettings() {
   const { themeManager } = await import(
     '@google/gemini-cli/dist/src/ui/themes/theme-manager.js'
   );
-  const { merged: settings } = await loadSettings(os.homedir());
+  const { merged } = await loadSettings(os.homedir());
+  const settings = merged as CliSettings;
   const themeName = settings.theme;
   if (!themeName) {
     return undefined;
@@ -239,29 +262,25 @@ function isObject(item: unknown): item is Record<string, unknown> {
   return !!(item && typeof item === 'object' && !Array.isArray(item));
 }
 
-function deepMerge<T extends object, U extends object>(
-  target: T,
-  source: U,
-): T & U {
+function deepMerge<T extends object, U extends object>(target: T, source: U): T & U {
   const output = { ...target } as T & U;
 
   if (isObject(target) && isObject(source)) {
-    Object.keys(source).forEach((key) => {
-      const sourceKey = key as keyof U;
-      const targetKey = key as keyof T;
-      if (isObject(source[sourceKey])) {
-        if (!(key in target)) {
-          Object.assign(output, { [key]: source[sourceKey] });
-        } else {
-          output[targetKey] = deepMerge(
-            target[targetKey] as object,
-            source[sourceKey] as object,
+    for (const key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        const sourceValue = source[key as keyof U];
+        const targetValue = (target as Record<string, unknown>)[key];
+
+        if (isObject(sourceValue) && isObject(targetValue)) {
+          (output as Record<string, unknown>)[key] = deepMerge(
+            targetValue,
+            sourceValue,
           );
+        } else {
+          (output as Record<string, unknown>)[key] = sourceValue;
         }
-      } else {
-        Object.assign(output, { [key]: source[sourceKey] });
       }
-    });
+    }
   }
 
   return output;
@@ -335,7 +354,7 @@ async function createWindow() {
         '@google/gemini-cli/dist/src/config/settings.js'
       );
       const settings = await loadSettings(os.homedir());
-      const merged = settings.merged;
+      const merged = settings.merged as CliSettings;
 
       if (typeof merged.env === 'object' && merged.env !== null) {
         merged.env = Object.entries(merged.env)
@@ -361,7 +380,8 @@ async function createWindow() {
       const { themeManager } = await import(
         '@google/gemini-cli/dist/src/ui/themes/theme-manager.js'
       );
-      const { merged: settings } = await loadSettings(os.homedir());
+      const { merged } = await loadSettings(os.homedir());
+      const settings = merged as CliSettings;
       themeManager.loadCustomThemes(settings.customThemes);
       return themeManager.getAvailableThemes();
     });
@@ -375,7 +395,7 @@ async function createWindow() {
         try {
           const loadedSettings = await loadSettings(os.homedir());
 
-          let scopeEnum: SettingScope;
+          let scopeEnum: (typeof SettingScope)[keyof typeof SettingScope];
           if (scope === 'Workspace') {
             scopeEnum = SettingScope.Workspace;
           } else if (scope === 'System') {
@@ -387,23 +407,27 @@ async function createWindow() {
           const settingsFile = loadedSettings.forScope(scopeEnum);
 
           // Create a mutable copy of the settings
-          const newSettings = { ...settingsFile.settings };
+          const newSettings = { ...settingsFile.settings } as CliSettings;
+          const typedChanges = changes as CliSettings;
 
           // When updating mcpServers, we want to replace the whole object, not merge it,
           // to ensure deletions are persisted.
-          if (changes.mcpServers) {
-            newSettings.mcpServers = changes.mcpServers;
-            delete changes.mcpServers;
+          if (typedChanges.mcpServers) {
+            newSettings.mcpServers = typedChanges.mcpServers;
+            delete typedChanges.mcpServers;
           }
 
-          if (changes.env) {
-            newSettings.env = changes.env;
-            delete changes.env;
+          if (typedChanges.env) {
+            newSettings.env = typedChanges.env;
+            delete typedChanges.env;
           }
 
-          const mergedSettings = deepMerge(newSettings, changes);
+          const mergedSettings = deepMerge(newSettings, typedChanges);
 
-          saveSettings({ path: settingsFile.path, settings: mergedSettings });
+          saveSettings({
+            path: settingsFile.path,
+            settings: mergedSettings as unknown as Settings,
+          });
 
           // Re-read theme and update main window
           const newTheme = await getThemeFromSettings();
@@ -418,6 +442,12 @@ async function createWindow() {
         }
       },
     );
+
+    ipcMain.handle('language-map:get', async () => store.get('languageMap', {}));
+
+    ipcMain.handle('language-map:set', async (_event, map) => {
+      store.set('languageMap', map);
+    });
 
     // Send theme to renderer process
     mainWindow.webContents.on('did-finish-load', () => {
@@ -439,7 +469,7 @@ app
   .whenReady()
   .then(() => {
     if (os.platform() === 'darwin') {
-      app.dock.setIcon(iconPath);
+      app.dock?.setIcon(iconPath);
     }
     createWindow();
 

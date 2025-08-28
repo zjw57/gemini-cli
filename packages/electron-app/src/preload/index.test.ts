@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { IElectronAPI } from '../renderer/src/types/global';
 
 // Mock the 'electron' module
 const mockIpcRenderer = {
@@ -24,7 +25,7 @@ vi.mock('electron', () => ({
 }));
 
 describe('preload script', () => {
-  let exposedApi;
+  let exposedApi: IElectronAPI;
 
   beforeEach(async () => {
     vi.resetModules(); // Reset modules before each test

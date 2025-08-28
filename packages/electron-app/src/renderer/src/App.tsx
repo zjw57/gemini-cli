@@ -51,7 +51,7 @@ function debounce<T extends (...args: unknown[]) => void>(
   return (...args: Parameters<T>) => {
     clearTimeout(timer);
     timer = setTimeout(() => {
-      func.apply(this, args);
+      func(...args);
     }, timeout);
   };
 }
@@ -60,7 +60,7 @@ import { ThemeContext } from './contexts/ThemeContext';
 
 function App() {
   const termRef = useRef<HTMLDivElement>(null);
-  const term = useRef<Terminal>();
+  const term = useRef<Terminal | null>(null);
   const [cliTheme, setCliTheme] = useState(darkTheme);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [editorState, setEditorState] = useState<GeminiEditorState>({
@@ -90,40 +90,38 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const removeListener = window.electron.theme.onInit(
-      (_event, receivedTheme: Record<string, Record<string, string>>) => {
-        console.log('Received theme from main process:', receivedTheme);
-        if (receivedTheme.colors) {
-          // It's a CLI theme object, convert it to an xterm.js theme object
-          const xtermTheme = {
-            background: receivedTheme.colors.Background,
-            foreground: receivedTheme.colors.Foreground,
-            cursor: receivedTheme.colors.Foreground,
-            selectionBackground: '#44475a', // A default, might need improvement
-            black: '#000000',
-            red: receivedTheme.colors.AccentRed,
-            green: receivedTheme.colors.AccentGreen,
-            yellow: receivedTheme.colors.AccentYellow,
-            blue: receivedTheme.colors.AccentBlue,
-            magenta: receivedTheme.colors.AccentPurple,
-            cyan: receivedTheme.colors.AccentCyan,
-            white: '#bfbfbf', // A default
-            brightBlack: '#4d4d4d', // A default
-            brightRed: receivedTheme.colors.AccentRed,
-            brightGreen: receivedTheme.colors.AccentGreen,
-            brightYellow: receivedTheme.colors.AccentYellow,
-            brightBlue: receivedTheme.colors.AccentBlue,
-            brightMagenta: receivedTheme.colors.AccentPurple,
-            brightCyan: receivedTheme.colors.AccentCyan,
-            brightWhite: '#e6e6e6', // A default
-          };
-          setCliTheme(xtermTheme);
-        } else if (receivedTheme.background) {
-          // It's already an xterm.js-like theme
-          setCliTheme(receivedTheme);
-        }
-      },
-    );
+    const removeListener = window.electron.theme.onInit((_event, receivedTheme) => {
+      console.log('Received theme from main process:', receivedTheme);
+      if (receivedTheme.colors) {
+        // It's a CLI theme object, convert it to an xterm.js theme object
+        const xtermTheme = {
+          background: receivedTheme.colors.Background,
+          foreground: receivedTheme.colors.Foreground,
+          cursor: receivedTheme.colors.Foreground,
+          selectionBackground: '#44475a', // A default, might need improvement
+          black: '#000000',
+          red: receivedTheme.colors.AccentRed,
+          green: receivedTheme.colors.AccentGreen,
+          yellow: receivedTheme.colors.AccentYellow,
+          blue: receivedTheme.colors.AccentBlue,
+          magenta: receivedTheme.colors.AccentPurple,
+          cyan: receivedTheme.colors.AccentCyan,
+          white: '#bfbfbf', // A default
+          brightBlack: '#4d4d4d', // A default
+          brightRed: receivedTheme.colors.AccentRed,
+          brightGreen: receivedTheme.colors.AccentGreen,
+          brightYellow: receivedTheme.colors.AccentYellow,
+          brightBlue: receivedTheme.colors.AccentBlue,
+          brightMagenta: receivedTheme.colors.AccentPurple,
+          brightCyan: receivedTheme.colors.AccentCyan,
+          brightWhite: '#e6e6e6', // A default
+        };
+        setCliTheme(xtermTheme);
+      } else if (receivedTheme.background) {
+        // It's already an xterm.js-like theme
+        setCliTheme({ ...darkTheme, ...receivedTheme });
+      }
+    });
 
     return () => {
       removeListener();
@@ -236,13 +234,14 @@ function App() {
             justifyContent: 'center',
             fontWeight: 'bold',
             fontSize: '12px',
-            // @ts-expect-error -webkit-app-region is a valid property in Electron
-            '-webkit-app-region': 'drag',
+            WebkitAppRegion: 'drag',
             flexShrink: 0,
             position: 'relative',
             userSelect: 'none',
-            borderBottom: `1px solid ${cliTheme.selectionBackground || '#44475a'}`,
-          }}
+            borderBottom: `1px solid ${
+              cliTheme.selectionBackground || '#44475a'
+            }`,
+          } as React.CSSProperties}
         >
           <span style={{ flex: 1, textAlign: 'center' }}>Gemini CLI</span>
           <div
@@ -253,7 +252,7 @@ function App() {
               display: 'flex',
               gap: '10px',
               WebkitAppRegion: 'no-drag',
-            }}
+            } as React.CSSProperties}
           >
             <button
               onClick={() => setIsSettingsOpen(true)}
@@ -291,11 +290,15 @@ function App() {
               oldContent={editorState.oldContent}
               newContent={editorState.newContent}
               onClose={async (result) => {
-                const response = await window.electron.resolveDiff({
-                  ...result,
-                  diffPath: editorState.diffPath,
-                });
-                console.log('resolveDiff response:', response);
+                try {
+                  const response = await window.electron.resolveDiff({
+                    ...result,
+                    diffPath: editorState.diffPath,
+                  });
+                  console.log('resolveDiff response:', response);
+                } catch (error) {
+                  console.error('Failed to resolve diff:', error);
+                }
                 setEditorState({ ...editorState, open: false });
               }}
             />

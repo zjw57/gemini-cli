@@ -6,7 +6,9 @@
 
 import { render, fireEvent, screen, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { IpcRendererEvent } from 'electron';
 import App from './App';
+import type { IncomingTheme, XtermTheme } from './types/global';
 
 // --- Mocks ---
 
@@ -17,7 +19,8 @@ const mockTerm = {
   write: vi.fn(),
   clear: vi.fn(),
   onData: vi.fn(() => ({ dispose: vi.fn() })),
-  options: {},
+  onKey: vi.fn(),
+  options: {} as { theme?: Partial<XtermTheme> },
 };
 vi.mock('@xterm/xterm', () => ({
   Terminal: vi.fn(() => mockTerm),
@@ -38,17 +41,19 @@ vi.mock('lucide-react', () => ({
 
 // Mock child components
 vi.mock('./components/SettingsModal', () => {
-  const MockSettingsModal = ({ isOpen, onClose }) =>
+  const MockSettingsModal = ({ 
+    isOpen,
+    onClose,
+  }: { 
+    isOpen: boolean;
+    onClose: () => void;
+  }) =>
     isOpen ? (
       <div data-testid="settings-modal">
         <button onClick={onClose}>Close Modal</button>
       </div>
     ) : null;
   MockSettingsModal.displayName = 'MockSettingsModal';
-  MockSettingsModal.propTypes = {
-    isOpen: vi.fn(),
-    onClose: vi.fn(),
-  };
   return { SettingsModal: MockSettingsModal };
 });
 
@@ -78,9 +83,16 @@ const mockElectronApi = {
 // --- Test Suite ---
 
 describe('App', () => {
-  let onThemeInitCallback;
-  let onTerminalDataCallback;
-  let onTerminalResetCallback;
+  let onThemeInitCallback: (
+    event: IpcRendererEvent | null,
+    theme: IncomingTheme,
+  ) => void;
+  let onTerminalDataCallback: (
+    event: IpcRendererEvent | null,
+    data: string,
+  ) => void;
+  let onTerminalResetCallback: (event: IpcRendererEvent | null) => void;
+  let onKeyCallback: (data: { key: string; domEvent: KeyboardEvent }) => void;
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -99,6 +111,12 @@ describe('App', () => {
       onTerminalResetCallback = callback;
       return vi.fn();
     });
+    mockTerm.onKey.mockImplementation(
+      (callback: (data: { key: string; domEvent: KeyboardEvent }) => void) => {
+        onKeyCallback = callback;
+        return { dispose: vi.fn() };
+      },
+    );
     mockElectronApi.onMainWindowResize.mockReturnValue(vi.fn());
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -122,7 +140,7 @@ describe('App', () => {
 
     // Check that event listeners were attached
     expect(mockElectronApi.terminal.onData).toHaveBeenCalled();
-    expect(mockTerm.onData).toHaveBeenCalled();
+    expect(mockTerm.onKey).toHaveBeenCalled();
     expect(mockElectronApi.terminal.onReset).toHaveBeenCalled();
 
     // Check that ResizeObserver was set up
@@ -167,8 +185,8 @@ describe('App', () => {
       onThemeInitCallback(null, newTheme);
     });
 
-    expect(mockTerm.options.theme.background).toBe('#000');
-    expect(mockTerm.options.theme.foreground).toBe('#fff');
+    expect(mockTerm.options.theme?.background).toBe('#000');
+    expect(mockTerm.options.theme?.foreground).toBe('#fff');
   });
 
   it('writes incoming terminal data to the terminal', () => {
@@ -187,15 +205,16 @@ describe('App', () => {
   it('sends keystrokes from the terminal to the main process', () => {
     render(<App />);
     vi.runAllTimers();
-    const onDataCallback = mockTerm.onData.mock.calls[0][0];
-    const key = 'a';
 
     // Simulate user typing in the terminal
     act(() => {
-      onDataCallback(key);
+      onKeyCallback({
+        key: 'a',
+        domEvent: new KeyboardEvent('keydown', { key: 'a' }),
+      });
     });
 
-    expect(mockElectronApi.terminal.sendKey).toHaveBeenCalledWith(key);
+    expect(mockElectronApi.terminal.sendKey).toHaveBeenCalledWith('a');
   });
 
   it('clears the terminal on reset event', () => {
@@ -204,7 +223,7 @@ describe('App', () => {
 
     // Simulate reset event from the main process
     act(() => {
-      onTerminalResetCallback();
+      onTerminalResetCallback(null);
     });
 
     expect(mockTerm.clear).toHaveBeenCalled();
@@ -213,3 +232,4 @@ describe('App', () => {
     );
   });
 });
+

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import * as React from 'react';
 import { GeminiEditor } from './GeminiEditor';
 import * as ThemeContext from '../contexts/ThemeContext';
@@ -31,10 +31,10 @@ vi.mock('@monaco-editor/react', () => ({
         getModifiedEditor: () => ({
           onDidChangeModelContent: (callback: () => void) => {
             // Store the callback to be called later
-            (window as CustomWindow).monacoChangeCallback = callback;
+            (window as unknown as CustomWindow).monacoChangeCallback = callback;
             return { dispose: vi.fn() };
           },
-          getValue: () => (window as CustomWindow).mockModifiedContent,
+          getValue: () => (window as unknown as CustomWindow).mockModifiedContent,
         }),
       };
       onMount(mockEditor);
@@ -46,9 +46,12 @@ vi.mock('@monaco-editor/react', () => ({
           data-testid="mock-modified-content"
           value={modified}
           onChange={(e) => {
-            (window as CustomWindow).mockModifiedContent = e.target.value;
-            if ((window as CustomWindow).monacoChangeCallback) {
-              (window as CustomWindow).monacoChangeCallback();
+            (window as unknown as CustomWindow).mockModifiedContent =
+              e.target.value;
+            const callback =
+              (window as unknown as CustomWindow).monacoChangeCallback;
+            if (callback) {
+              callback();
             }
           }}
         />
@@ -84,12 +87,12 @@ describe('GeminiEditor', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    (ThemeContext.useTheme as vi.Mock).mockReturnValue(mockTheme);
-    (languageUtils.getLanguageForFilePath as vi.Mock).mockReturnValue(
+    (ThemeContext.useTheme as import('vitest').Mock).mockReturnValue(mockTheme);
+    (languageUtils.getLanguageForFilePath as import('vitest').Mock).mockResolvedValue(
       'javascript',
     );
-    (window as CustomWindow).monacoChangeCallback = null;
-    (window as CustomWindow).mockModifiedContent = '';
+    (window as unknown as CustomWindow).monacoChangeCallback = null;
+    (window as unknown as CustomWindow).mockModifiedContent = '';
   });
 
   const defaultProps = {
@@ -146,55 +149,63 @@ describe('GeminiEditor', () => {
   });
 
   it('should use vs-dark theme for dark backgrounds', async () => {
-    (ThemeContext.useTheme as vi.Mock).mockReturnValue(mockTheme);
+    (ThemeContext.useTheme as import('vitest').Mock).mockReturnValue(mockTheme);
     const { rerender } = render(<GeminiEditor {...defaultProps} />);
     const editor = vi.mocked((await import('@monaco-editor/react')).DiffEditor);
-    expect(editor).toHaveBeenCalledWith(
-      expect.objectContaining({
-        theme: 'vs-dark',
-      }),
-      undefined,
-    );
+    await waitFor(() => {
+      expect(editor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          theme: 'vs-dark',
+        }),
+        undefined,
+      );
+    });
 
     // Test with a non-hex color, should default to dark
-    (ThemeContext.useTheme as vi.Mock).mockReturnValue({
+    (ThemeContext.useTheme as import('vitest').Mock).mockReturnValue({
       ...mockTheme,
       background: 'rgb(40, 44, 52)',
     });
     rerender(<GeminiEditor {...defaultProps} />);
-    expect(editor).toHaveBeenCalledWith(
-      expect.objectContaining({
-        theme: 'vs-dark',
-      }),
-      undefined,
-    );
+    await waitFor(() => {
+      expect(editor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          theme: 'vs-dark',
+        }),
+        undefined,
+      );
+    });
   });
 
   it('should use vs-light theme for light backgrounds', async () => {
-    (ThemeContext.useTheme as vi.Mock).mockReturnValue(mockLightTheme);
+    (ThemeContext.useTheme as import('vitest').Mock).mockReturnValue(mockLightTheme);
     render(<GeminiEditor {...defaultProps} />);
     const editor = vi.mocked((await import('@monaco-editor/react')).DiffEditor);
-    expect(editor).toHaveBeenCalledWith(
-      expect.objectContaining({
-        theme: 'vs-light',
-      }),
-      undefined,
-    );
+    await waitFor(() => {
+      expect(editor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          theme: 'vs-light',
+        }),
+        undefined,
+      );
+    });
   });
 
   it('should get the correct language for the file path', async () => {
-    (languageUtils.getLanguageForFilePath as vi.Mock).mockReturnValue('python');
+    (languageUtils.getLanguageForFilePath as import('vitest').Mock).mockResolvedValue('python');
     render(<GeminiEditor {...defaultProps} filePath="/path/to/script.py" />);
     const editor = vi.mocked((await import('@monaco-editor/react')).DiffEditor);
     expect(languageUtils.getLanguageForFilePath).toHaveBeenCalledWith(
       '/path/to/script.py',
     );
-    expect(editor).toHaveBeenCalledWith(
-      expect.objectContaining({
-        language: 'python',
-      }),
-      undefined,
-    );
+    await waitFor(() => {
+      expect(editor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          language: 'python',
+        }),
+        undefined,
+      );
+    });
   });
 
   it('should update modified content when newContent prop changes', () => {

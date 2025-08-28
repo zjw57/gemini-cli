@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 
 contextBridge.exposeInMainWorld('electron', {
   onMainWindowResize: (
@@ -61,6 +61,11 @@ contextBridge.exposeInMainWorld('electron', {
     set: (settings: { changes: Record<string, unknown>; scope?: string }) =>
       ipcRenderer.invoke('settings:set', settings),
     restartTerminal: () => ipcRenderer.send('settings:restart-terminal'),
+  },
+  languageMap: {
+    get: () => ipcRenderer.invoke('language-map:get'),
+    set: (map: Record<string, string>) =>
+      ipcRenderer.invoke('language-map:set', map),
   },
   onShowGeminiEditor: (
     callback: (
