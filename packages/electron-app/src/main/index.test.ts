@@ -178,7 +178,10 @@ describe('main process (index.ts)', () => {
     expect(settings).toHaveProperty('merged');
   });
 
-  it('handles settings:set and restarts pty', async () => {
+  it('handles settings:set and updates theme', async () => {
+    const { saveSettings } = await import(
+      '@google/gemini-cli/dist/src/config/settings.js'
+    );
     await import('./index');
     await app.whenReady();
     await wait();
@@ -187,16 +190,17 @@ describe('main process (index.ts)', () => {
       ipcMain.handle as Mock
     ).mock.calls.find((call) => call[0] === 'settings:set')![1];
 
-    // Check that pty.spawn has been called once initially
-    expect(pty.spawn).toHaveBeenCalledTimes(1);
+    await (
+      settingsSetHandler as (
+        event: unknown,
+        args: { changes: object; scope: string },
+      ) => Promise<unknown>
+    )(null, { changes: { vimMode: true }, scope: 'User' });
 
-    await (settingsSetHandler as (event: unknown, args: unknown) => Promise<unknown>)(
-      null,
-      { changes: { vimMode: true } },
-    );
-
-    // Check that pty.spawn was called again after settings changed
-    expect(pty.spawn).toHaveBeenCalledTimes(2);
+    expect(saveSettings).toHaveBeenCalledWith({
+      path: '/fake/path',
+      settings: { vimMode: true },
+    });
     expect(mockWebContents.send).toHaveBeenCalledWith('theme:init', {
       colors: { Background: '#000' },
     });

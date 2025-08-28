@@ -10,7 +10,8 @@
   "workspaces": [
     "*"
   ],
-  "main": "out/main/index.js",
+  "type": "module",
+  "main": "out/main/index.cjs",
   "scripts": {
     "dev": "npx electron-vite dev",
     "build": "npm run build:all --prefix ../.. && npx electron-vite build",

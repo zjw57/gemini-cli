@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LanguageMappingsManager } from './LanguageMappingsManager';
 import * as languageUtils from '../utils/language';
 
@@ -21,19 +21,21 @@ describe('LanguageMappingsManager', () => {
     vi.resetAllMocks();
   });
 
-  it('should load and display initial language mappings', () => {
+  it('should load and display initial language mappings', async () => {
     const initialMappings = {
       ts: 'typescript',
       js: 'javascript',
     };
     // Cast to mock to set return value
-    (languageUtils.getLanguageMap as import('vitest').Mock).mockReturnValue(initialMappings);
+    (languageUtils.getLanguageMap as import('vitest').Mock).mockResolvedValue(initialMappings);
 
     render(<LanguageMappingsManager />);
 
-    expect(languageUtils.getLanguageMap).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('.ts → typescript')).toBeInTheDocument();
-    expect(screen.getByText('.js → javascript')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(languageUtils.getLanguageMap).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('.ts → typescript')).toBeInTheDocument();
+      expect(screen.getByText('.js → javascript')).toBeInTheDocument();
+    });
   });
 
   it('should add a new mapping when the "Add" button is clicked', () => {
@@ -80,36 +82,38 @@ describe('LanguageMappingsManager', () => {
     });
   });
 
-  it('should remove a mapping when the remove button is clicked', () => {
+  it('should remove a mapping when the remove button is clicked', async () => {
     const initialMappings = {
       ts: 'typescript',
       js: 'javascript',
     };
-    (languageUtils.getLanguageMap as import('vitest').Mock).mockReturnValue(initialMappings);
+    (languageUtils.getLanguageMap as import('vitest').Mock).mockResolvedValue(initialMappings);
 
     render(<LanguageMappingsManager />);
 
-    expect(screen.getByText('.ts → typescript')).toBeInTheDocument();
+    await waitFor(async () => {
+      expect(screen.getByText('.ts → typescript')).toBeInTheDocument();
 
-    // There are two remove buttons, get the one for the 'ts' mapping
-    const tsMappingItem = screen
-      .getByText('.ts → typescript')
-      .closest('.mapping-item');
-    const removeButton = tsMappingItem?.querySelector(
-      '.remove-button',
-    ) as HTMLElement;
+      // There are two remove buttons, get the one for the 'ts' mapping
+      const tsMappingItem = screen
+        .getByText('.ts → typescript')
+        .closest('.mapping-item');
+      const removeButton = tsMappingItem?.querySelector(
+        '.remove-button',
+      ) as HTMLElement;
 
-    fireEvent.click(removeButton);
+      fireEvent.click(removeButton);
 
-    // Check that the mapping is removed from the UI
-    expect(screen.queryByText('.ts → typescript')).not.toBeInTheDocument();
+      // Check that the mapping is removed from the UI
+      expect(screen.queryByText('.ts → typescript')).not.toBeInTheDocument();
 
-    // Check that the other mapping still exists
-    expect(screen.getByText('.js → javascript')).toBeInTheDocument();
+      // Check that the other mapping still exists
+      expect(screen.getByText('.js → javascript')).toBeInTheDocument();
 
-    // Check that saveLanguageMap was called with the mapping removed
-    expect(languageUtils.saveLanguageMap).toHaveBeenCalledWith({
-      js: 'javascript',
+      // Check that saveLanguageMap was called with the mapping removed
+      expect(languageUtils.saveLanguageMap).toHaveBeenCalledWith({
+        js: 'javascript',
+      });
     });
   });
 

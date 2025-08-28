@@ -70,6 +70,10 @@ global.ResizeObserver = vi.fn(() => ({
 const mockElectronApi = {
   theme: {
     onInit: vi.fn(),
+    set: vi.fn(),
+  },
+  themes: {
+    get: vi.fn().mockResolvedValue([]),
   },
   terminal: {
     onData: vi.fn(),
@@ -77,7 +81,18 @@ const mockElectronApi = {
     sendKey: vi.fn(),
     resize: vi.fn(),
   },
+  settings: {
+    get: vi.fn().mockResolvedValue({ merged: {} }),
+    set: vi.fn(),
+    restartTerminal: vi.fn(),
+  },
+  languageMap: {
+    get: vi.fn().mockResolvedValue({}),
+    set: vi.fn(),
+  },
   onMainWindowResize: vi.fn(),
+  onShowGeminiEditor: vi.fn(),
+  resolveDiff: vi.fn(),
 };
 
 // --- Test Suite ---
@@ -118,9 +133,10 @@ describe('App', () => {
       },
     );
     mockElectronApi.onMainWindowResize.mockReturnValue(vi.fn());
+    mockElectronApi.onShowGeminiEditor.mockImplementation(() => vi.fn());
+    mockElectronApi.resolveDiff.mockResolvedValue({ success: true });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).electron = mockElectronApi;
+    window.electron = mockElectronApi;
   });
 
   afterEach(() => {

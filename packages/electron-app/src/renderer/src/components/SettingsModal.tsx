@@ -357,15 +357,25 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   }, [isOpen, scope]);
 
   const handleChange = useCallback(
-    (
+    async (
       field: string,
       value: string | boolean | number | Record<string, unknown>,
     ) => {
       const newSettings = { ...settings };
       set(newSettings, field, value);
       setSettings(newSettings);
+
+      const changes = { [field]: value };
+      try {
+        await window.electron.settings.set({
+          changes,
+          scope,
+        });
+      } catch (error) {
+        console.error('Failed to set settings:', error);
+      }
     },
-    [settings],
+    [settings, scope],
   );
 
   const handleClose = async () => {

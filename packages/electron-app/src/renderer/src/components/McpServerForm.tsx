@@ -29,10 +29,22 @@ export function McpServerForm({
   const [config, setConfig] = useState<Partial<MCPServerConfig>>(
     serverConfig || {},
   );
+  // Separate state for the raw JSON string to avoid losing user input
+  const [headersJson, setHeadersJson] = useState('');
+  const [envJson, setEnvJson] = useState('');
 
   useEffect(() => {
     setName(serverName || '');
-    setConfig(serverConfig || {});
+    const initialConfig = serverConfig || {};
+    setConfig(initialConfig);
+    setHeadersJson(
+      initialConfig.headers
+        ? JSON.stringify(initialConfig.headers, null, 2)
+        : '',
+    );
+    setEnvJson(
+      initialConfig.env ? JSON.stringify(initialConfig.env, null, 2) : '',
+    );
   }, [serverName, serverConfig]);
 
   const handleSave = () => {
@@ -61,7 +73,7 @@ export function McpServerForm({
 
   const handleChange = (
     field: keyof MCPServerConfig,
-    value: string | boolean | number | string[] | Record<string, string>,
+    value: string | boolean | number | string[] | Record<string, string> | undefined,
   ) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
   };
@@ -79,14 +91,22 @@ export function McpServerForm({
     );
   };
 
-  const handleRecordChange = (field: 'env' | 'headers', value: string) => {
+  const handleRecordChange = (
+    field: 'env' | 'headers',
+    value: string,
+    setter: (val: string) => void,
+  ) => {
+    setter(value); // Update the raw JSON string immediately
     try {
+      // Only update the actual config if the JSON is valid
       const parsed = JSON.parse(value);
       if (typeof parsed === 'object' && !Array.isArray(parsed)) {
         handleChange(field, parsed);
       }
     } catch (_e) {
-      // Ignore parse errors, wait for valid JSON
+      // If JSON is invalid, do nothing with the config,
+      // but the user's input is preserved in the textarea.
+      handleChange(field, undefined);
     }
   };
 
@@ -152,8 +172,8 @@ export function McpServerForm({
         <label htmlFor="env">Environment Variables (JSON)</label>
         <textarea
           id="env"
-          value={config.env ? JSON.stringify(config.env, null, 2) : ''}
-          onChange={(e) => handleRecordChange('env', e.target.value)}
+          value={envJson}
+          onChange={(e) => handleRecordChange('env', e.target.value, setEnvJson)}
         />
       </div>
 
@@ -182,8 +202,10 @@ export function McpServerForm({
         <label htmlFor="headers">Headers (JSON)</label>
         <textarea
           id="headers"
-          value={config.headers ? JSON.stringify(config.headers, null, 2) : ''}
-          onChange={(e) => handleRecordChange('headers', e.target.value)}
+          value={headersJson}
+          onChange={(e) =>
+            handleRecordChange('headers', e.target.value, setHeadersJson)
+          }
         />
       </div>
 

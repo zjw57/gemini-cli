@@ -300,7 +300,7 @@ async function createWindow() {
       trafficLightPosition: { x: 15, y: 10 },
       backgroundColor: cliTheme ? cliTheme.colors.Background : '#282a36',
       webPreferences: {
-        preload: join(__dirname, '../preload/index.js'),
+        preload: join(__dirname, '../preload/index.cjs'),
         sandbox: false,
       },
     });

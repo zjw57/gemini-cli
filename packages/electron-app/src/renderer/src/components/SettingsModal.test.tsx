@@ -22,20 +22,38 @@ vi.mock('./McpServerManager', () => ({
 const mockSettingsGet = vi.fn();
 const mockSettingsSet = vi.fn();
 const mockThemesGet = vi.fn();
+const mockRestartTerminal = vi.fn();
 
 describe('SettingsModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Mock the global electron API by attaching it to the existing window
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).electron = {
+    window.electron = {
       settings: {
         get: mockSettingsGet,
         set: mockSettingsSet,
+        restartTerminal: mockRestartTerminal,
       },
       themes: {
         get: mockThemesGet,
       },
+      onMainWindowResize: vi.fn(() => vi.fn()),
+      terminal: {
+        onData: vi.fn(() => vi.fn()),
+        sendKey: vi.fn(),
+        resize: vi.fn(),
+        onReset: vi.fn(() => vi.fn()),
+      },
+      theme: {
+        set: vi.fn(),
+        onInit: vi.fn(() => vi.fn()),
+      },
+      languageMap: {
+        get: vi.fn().mockResolvedValue({}),
+        set: vi.fn(),
+      },
+      onShowGeminiEditor: vi.fn(() => vi.fn()),
+      resolveDiff: vi.fn().mockResolvedValue({ success: true }),
     };
 
     // Provide default mock implementations
@@ -74,11 +92,13 @@ describe('SettingsModal', () => {
     expect(sidebar?.querySelector('.active')?.textContent).toBe('Appearance');
   });
 
-  it('calls onClose when the close button is clicked', () => {
+  it('calls onClose when the close button is clicked', async () => {
     const handleClose = vi.fn();
     render(<SettingsModal isOpen={true} onClose={handleClose} />);
     fireEvent.click(screen.getByText('Close'));
-    expect(handleClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(handleClose).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('switches categories when a sidebar item is clicked', () => {

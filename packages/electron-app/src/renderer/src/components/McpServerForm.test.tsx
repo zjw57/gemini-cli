@@ -84,9 +84,7 @@ describe('McpServerForm', () => {
     fireEvent.change(envTextarea, {
       target: { value: '{"KEY": "VALUE"}' },
     });
-    expect(envTextarea.value).toBe(
-      JSON.stringify(JSON.parse('{"KEY": "VALUE"}'), null, 2),
-    );
+    expect(envTextarea.value).toBe('{"KEY": "VALUE"}');
   });
 
   it('ignores invalid JSON in record changes', () => {
