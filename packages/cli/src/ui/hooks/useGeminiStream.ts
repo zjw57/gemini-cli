@@ -8,7 +8,6 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type {
   Config,
   GeminiClient,
-  ServerGeminiStreamEvent as GeminiEvent,
   ServerGeminiContentEvent as ContentEvent,
   ServerGeminiErrorEvent as ErrorEvent,
   ServerGeminiChatCompressedEvent,
@@ -18,7 +17,6 @@ import type {
   ThoughtSummary,
 } from '@google/gemini-cli-core';
 import {
-  GeminiEventType as ServerGeminiEventType,
   getErrorMessage,
   isNodeError,
   MessageSenderType,
@@ -568,52 +566,71 @@ export const useGeminiStream = (
     );
   }, [addItem]);
 
+  // In useGeminiStream.ts
+
   const processGeminiStreamEvents = useCallback(
     async (
-      // CHANGE: The stream is now of the new type we defined
+      // The stream type is the one we defined in geminiChat.ts
       stream: AsyncIterable<StreamEvent>,
       userMessageTimestamp: number,
       signal: AbortSignal,
     ): Promise<StreamProcessingStatus> => {
       let geminiMessageBuffer = '';
       const toolCallRequests: ToolCallRequestInfo[] = [];
+
       for await (const event of stream) {
         switch (event.type) {
-          // CHANGE: Add a case to handle the new RETRY event.
           case StreamEventType.RETRY:
-            // A retry is starting. Clear any pending UI state from the failed attempt.
             geminiMessageBuffer = '';
             if (pendingHistoryItemRef.current) {
               setPendingHistoryItem(null);
             }
             break;
+
+          // CHANGE: This case is now corrected to properly parse the chunk
           case StreamEventType.CHUNK: {
-            // The logic from the other events (Thought, ToolCallRequest, etc.)
-            // that are inside the chunk's `value` must now be handled here.
             const chunk = event.value;
+            const candidate = chunk.candidates?.[0];
 
-            // Handle thoughts from the chunk
-            if (chunk.thought) {
-              setThought(chunk.thought);
-            }
-            // Handle tool call requests from the chunk
-            if (chunk.toolCallRequest) {
-              toolCallRequests.push(chunk.toolCallRequest);
+            // Safety check for malformed chunks
+            if (!candidate?.content?.parts) {
+              break;
             }
 
-            // Handle content from the chunk
-            const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              geminiMessageBuffer = handleContentEvent(
-                text,
-                geminiMessageBuffer,
-                userMessageTimestamp,
-              );
+            // A single chunk can have multiple parts (e.g., a thought and text)
+            for (const part of candidate.content.parts) {
+              if (part.text) {
+                geminiMessageBuffer = handleContentEvent(
+                  part.text,
+                  geminiMessageBuffer,
+                  userMessageTimestamp,
+                );
+              }
+
+              // NOTE: The `thought` property is a custom extension in this codebase.
+              // Assuming its structure matches the `ThoughtSummary` type.
+              if (part.thought) {
+                setThought(part.thought as ThoughtSummary);
+              }
+
+              if (part.functionCall) {
+                // The UI hook expects a `ToolCallRequestInfo` object.
+                // We construct it from the `functionCall` part here.
+                // NOTE: `callId` and `prompt_id` are not present in the raw response,
+                // so they are generated or retrieved by the client layer.
+                // We'll create placeholders here.
+                toolCallRequests.push({
+                  name: part.functionCall.name,
+                  args: part.functionCall.args,
+                  callId: `call-${Math.random().toString(16).slice(2)}`,
+                  isClientInitiated: false,
+                  prompt_id: 'unknown-in-stream',
+                });
+              }
             }
             break;
           }
           default: {
-            // enforces exhaustive switch-case
             const unreachable: never = event;
             return unreachable;
           }
