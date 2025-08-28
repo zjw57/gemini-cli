@@ -521,6 +521,7 @@ describe('uninstallExtension', () => {
 describe('performWorkspaceExtensionMigration', () => {
   let tempWorkspaceDir: string;
   let tempHomeDir: string;
+  let tempSystemDir: string;
 
   beforeEach(() => {
     tempWorkspaceDir = fs.mkdtempSync(
@@ -529,6 +530,10 @@ describe('performWorkspaceExtensionMigration', () => {
     tempHomeDir = fs.mkdtempSync(
       path.join(os.tmpdir(), 'gemini-cli-test-home-'),
     );
+    tempSystemDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'gemini-cli-test-system-'),
+    );
+    vi.mocked(getSystemSettingsBasePath).mockReturnValue(tempSystemDir);
     vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
   });
 
@@ -575,19 +580,18 @@ describe('performWorkspaceExtensionMigration', () => {
       EXTENSIONS_DIRECTORY_NAME,
     );
     fs.mkdirSync(workspaceExtensionsDir, { recursive: true });
-
     const ext1Path = createExtension(workspaceExtensionsDir, 'ext1', '1.0.0');
-
-    const extensions = [
+    const extensionsToMigrate = [
       loadExtension(ext1Path)!,
       {
-        path: '/ext/path/1',
+        path: '/ext/path/2',
         config: { name: 'ext2', version: '1.0.0' },
         contextFiles: [],
       },
     ];
 
-    const failed = await performWorkspaceExtensionMigration(extensions);
+    const failed =
+      await performWorkspaceExtensionMigration(extensionsToMigrate);
     expect(failed).toEqual(['ext2']);
   });
 });
@@ -715,7 +719,6 @@ describe('disableExtension', () => {
       path.join(os.tmpdir(), 'gemini-cli-test-system-'),
     );
     vi.mocked(getSystemSettingsBasePath).mockReturnValue(tempSystemDir);
-
     vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
     vi.spyOn(process, 'cwd').mockReturnValue(tempWorkspaceDir);
   });
