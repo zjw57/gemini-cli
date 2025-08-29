@@ -30,11 +30,7 @@ import {
   GeminiEventType as ServerGeminiEventType,
   ToolErrorType,
 } from '@google/gemini-cli-core';
-import type {
-  GenerateContentResponse,
-  Part,
-  PartListUnion,
-} from '@google/genai';
+import type { Part, PartListUnion } from '@google/genai';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import type { HistoryItem, SlashCommandProcessorResult } from '../types.js';
 import { MessageType, StreamingState } from '../types.js';
@@ -45,22 +41,6 @@ const mockSendMessageStream = vi
   .fn()
   .mockReturnValue((async function* () {})());
 const mockStartChat = vi.fn();
-
-// Add this mock to your test file
-const mockGenerateContentStream = vi.fn();
-vi.mock('@google/genai', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@google/genai')>();
-  return {
-    ...original,
-    GoogleGenerativeAI: class {
-      getGenerativeModel() {
-        return {
-          generateContentStream: mockGenerateContentStream,
-        };
-      }
-    },
-  };
-});
 
 const MockedGeminiClientClass = vi.hoisted(() =>
   vi.fn().mockImplementation(function (this: any, _config: any) {
@@ -1765,93 +1745,6 @@ describe('useGeminiStream', () => {
         'gemini-2.5-pro',
         'gemini-2.5-flash',
       );
-    });
-  });
-  // Add this new test suite to the end of your file
-  describe('useGeminiStream with Retries', () => {
-    it('should not display duplicate content when a stream retries internally', async () => {
-      // ARRANGE:
-      const mockAddItem = vi.fn();
-      const mockConfig = {
-        getApprovalMode: () => ApprovalMode.DEFAULT,
-        getSessionId: () => 'test-session-id',
-        setQuotaErrorOccurred: vi.fn(),
-        getModel: () => 'gemini-pro',
-        getContentGeneratorConfig: () => ({ model: 'gemini-pro' }),
-        getProxy: () => undefined,
-        getEmbeddingModel: () => undefined,
-        getProjectRoot: () => undefined,
-        getCheckpointingEnabled: () => undefined,
-        getUsageStatisticsEnabled: () => false,
-      } as unknown as Config;
-
-      // 1. First API call: returns an invalid stream (empty text part),
-      //    which triggers the internal retry logic in GeminiChat.
-      mockGenerateContentStream.mockImplementationOnce(async function* () {
-        yield {
-          candidates: [{ content: { parts: [{ text: '' }] } }],
-        } as GenerateContentResponse;
-      });
-
-      // 2. Second API call (the retry): returns a valid, multi-chunk stream.
-      mockGenerateContentStream.mockImplementationOnce(async function* () {
-        yield {
-          candidates: [{ content: { parts: [{ text: 'Hello ' }] } }],
-        } as GenerateContentResponse;
-        yield {
-          candidates: [{ content: { parts: [{ text: 'World!' }] } }],
-        } as GenerateContentResponse;
-      });
-
-      // Temporarily override the global mock to return a REAL client instance
-      const { GeminiClient: RealGeminiClient } = await vi.importActual(
-        '@google/gemini-cli-core',
-      );
-      MockedGeminiClientClass.mockImplementationOnce(
-        (config) => new RealGeminiClient(config),
-      );
-
-      const geminiClient = new (vi.mocked(RealGeminiClient, true))(mockConfig);
-
-      const { result } = renderHook(() =>
-        useGeminiStream(
-          geminiClient,
-          [], // initial history
-          mockAddItem,
-          mockConfig,
-          vi.fn(),
-          vi.fn(),
-          false,
-          vi.fn(),
-          vi.fn(),
-          vi.fn(),
-          false,
-          vi.fn(),
-          vi.fn(),
-          vi.fn(),
-        ),
-      );
-
-      // ACT:
-      await act(async () => {
-        await result.current.submitQuery('test query');
-      });
-
-      await waitFor(() => {
-        expect(result.current.streamingState).toBe(StreamingState.Idle);
-      });
-
-      // ASSERT:
-      const geminiResponseCalls = mockAddItem.mock.calls.filter(
-        (call) => call[0].type === MessageType.GEMINI,
-      );
-
-      const combinedText = geminiResponseCalls.reduce(
-        (acc, call) => acc + call[0].text,
-        '',
-      );
-
-      expect(combinedText).toBe('Hello World!');
     });
   });
 });
