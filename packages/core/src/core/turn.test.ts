@@ -260,7 +260,7 @@ describe('Turn', () => {
               { id: 'fc2', name: 'tool2', args: undefined },
               { id: 'fc3', name: undefined, args: undefined },
             ],
-          } as unknown as GenerateContentResponse,
+          },
         };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
@@ -331,6 +331,7 @@ describe('Turn', () => {
     it('should yield finished event for MAX_TOKENS finish reason', async () => {
       const mockResponseStream = (async function* () {
         yield {
+          type: StreamEventType.CHUNK,
           value: {
             candidates: [
               {
@@ -343,7 +344,7 @@ describe('Turn', () => {
               },
             ],
           },
-        } as unknown as GenerateContentResponse;
+        };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
 
@@ -368,6 +369,7 @@ describe('Turn', () => {
     it('should yield finished event for SAFETY finish reason', async () => {
       const mockResponseStream = (async function* () {
         yield {
+          type: StreamEventType.CHUNK,
           value: {
             candidates: [
               {
@@ -376,7 +378,7 @@ describe('Turn', () => {
               },
             ],
           },
-        } as unknown as GenerateContentResponse;
+        };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
 
@@ -398,6 +400,7 @@ describe('Turn', () => {
     it('should not yield finished event when there is no finish reason', async () => {
       const mockResponseStream = (async function* () {
         yield {
+          type: StreamEventType.CHUNK,
           value: {
             candidates: [
               {
@@ -408,7 +411,7 @@ describe('Turn', () => {
               },
             ],
           },
-        } as unknown as GenerateContentResponse;
+        };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
 
@@ -433,6 +436,7 @@ describe('Turn', () => {
     it('should handle multiple responses with different finish reasons', async () => {
       const mockResponseStream = (async function* () {
         yield {
+          type: StreamEventType.CHUNK,
           value: {
             candidates: [
               {
@@ -441,9 +445,10 @@ describe('Turn', () => {
               },
             ],
           },
-        } as unknown as GenerateContentResponse;
+        };
         yield {
           value: {
+            type: StreamEventType.CHUNK,
             candidates: [
               {
                 content: { parts: [{ text: 'Second part' }] },
@@ -451,7 +456,7 @@ describe('Turn', () => {
               },
             ],
           },
-        } as unknown as GenerateContentResponse;
+        };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
 
@@ -490,7 +495,7 @@ describe('Turn', () => {
                 finishReason: 'STOP',
               },
             ],
-          } as unknown as GenerateContentResponse,
+          },
         };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
@@ -537,7 +542,7 @@ describe('Turn', () => {
               },
             ],
           },
-        } as unknown as GenerateContentResponse;
+        };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
 
@@ -563,6 +568,7 @@ describe('Turn', () => {
     it('should not yield citation event if there is no finish reason', async () => {
       const mockResponseStream = (async function* () {
         yield {
+          type: StreamEventType.CHUNK,
           value: {
             candidates: [
               {
@@ -579,7 +585,7 @@ describe('Turn', () => {
               },
             ],
           },
-        } as unknown as GenerateContentResponse;
+        };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
 
@@ -624,7 +630,7 @@ describe('Turn', () => {
               },
             ],
           },
-        } as unknown as GenerateContentResponse;
+        };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
 
@@ -679,7 +685,7 @@ describe('Turn', () => {
           type: StreamEventType.CHUNK,
           value: {
             candidates: [{ content: { parts: [{ text: 'Success' }] } }],
-          } as GenerateContentResponse,
+          },
         };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
