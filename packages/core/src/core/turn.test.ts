@@ -13,6 +13,7 @@ import { Turn, GeminiEventType } from './turn.js';
 import type { GenerateContentResponse, Part, Content } from '@google/genai';
 import { reportError } from '../utils/errorReporting.js';
 import type { GeminiChat } from './geminiChat.js';
+import { StreamEventType } from './geminiChat.js';
 
 const mockSendMessageStream = vi.fn();
 const mockGetHistory = vi.fn();
@@ -35,7 +36,8 @@ vi.mock('../utils/errorReporting', () => ({
   reportError: vi.fn(),
 }));
 
-vi.mock('../utils/generateContentResponseUtilities', () => ({
+// Use the actual implementation from partUtils now that it's provided.
+vi.mock('../utils/partUtils.js', () => ({
   getResponseText: (resp: GenerateContentResponse) =>
     resp.candidates?.[0]?.content?.parts?.map((part) => part.text).join('') ||
     undefined,
@@ -78,11 +80,17 @@ describe('Turn', () => {
     it('should yield content events for text parts', async () => {
       const mockResponseStream = (async function* () {
         yield {
-          candidates: [{ content: { parts: [{ text: 'Hello' }] } }],
-        } as unknown as GenerateContentResponse;
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [{ content: { parts: [{ text: 'Hello' }] } }],
+          } as GenerateContentResponse,
+        };
         yield {
-          candidates: [{ content: { parts: [{ text: ' world' }] } }],
-        } as unknown as GenerateContentResponse;
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [{ content: { parts: [{ text: ' world' }] } }],
+          } as GenerateContentResponse,
+        };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
 
@@ -113,16 +121,23 @@ describe('Turn', () => {
     it('should yield tool_call_request events for function calls', async () => {
       const mockResponseStream = (async function* () {
         yield {
-          functionCalls: [
-            {
-              id: 'fc1',
-              name: 'tool1',
-              args: { arg1: 'val1' },
-              isClientInitiated: false,
-            },
-            { name: 'tool2', args: { arg2: 'val2' }, isClientInitiated: false }, // No ID
-          ],
-        } as unknown as GenerateContentResponse;
+          type: StreamEventType.CHUNK,
+          value: {
+            functionCalls: [
+              {
+                id: 'fc1',
+                name: 'tool1',
+                args: { arg1: 'val1' },
+                isClientInitiated: false,
+              },
+              {
+                name: 'tool2',
+                args: { arg2: 'val2' },
+                isClientInitiated: false,
+              }, // No ID
+            ],
+          } as unknown as GenerateContentResponse,
+        };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
 
@@ -168,18 +183,24 @@ describe('Turn', () => {
       const abortController = new AbortController();
       const mockResponseStream = (async function* () {
         yield {
-          candidates: [{ content: { parts: [{ text: 'First part' }] } }],
-        } as unknown as GenerateContentResponse;
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [{ content: { parts: [{ text: 'First part' }] } }],
+          } as GenerateContentResponse,
+        };
         abortController.abort();
         yield {
-          candidates: [
-            {
-              content: {
-                parts: [{ text: 'Second part - should not be processed' }],
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: 'Second part - should not be processed' }],
+                },
               },
-            },
-          ],
-        } as unknown as GenerateContentResponse;
+            ],
+          } as GenerateContentResponse,
+        };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
 
@@ -289,20 +310,22 @@ describe('Turn', () => {
     it('should yield finished event when response has finish reason', async () => {
       const mockResponseStream = (async function* () {
         yield {
-          candidates: [
-            {
-              content: { parts: [{ text: 'Partial response' }] },
-              finishReason: 'STOP',
-            },
-          ],
-        } as unknown as GenerateContentResponse;
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [
+              {
+                content: { parts: [{ text: 'Partial response' }] },
+                finishReason: 'STOP',
+              },
+            ],
+          } as GenerateContentResponse,
+        };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
 
       const events = [];
-      const reqParts: Part[] = [{ text: 'Test finish reason' }];
       for await (const event of turn.run(
-        reqParts,
+        [{ text: 'Test finish reason' }],
         new AbortController().signal,
       )) {
         events.push(event);
@@ -448,21 +471,24 @@ describe('Turn', () => {
     it('should yield citation and finished events when response has citationMetadata', async () => {
       const mockResponseStream = (async function* () {
         yield {
-          candidates: [
-            {
-              content: { parts: [{ text: 'Some text.' }] },
-              citationMetadata: {
-                citations: [
-                  {
-                    uri: 'https://example.com/source1',
-                    title: 'Source 1 Title',
-                  },
-                ],
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [
+              {
+                content: { parts: [{ text: 'Some text.' }] },
+                citationMetadata: {
+                  citations: [
+                    {
+                      uri: 'https://example.com/source1',
+                      title: 'Source 1 Title',
+                    },
+                  ],
+                },
+                finishReason: 'STOP',
               },
-              finishReason: 'STOP',
-            },
-          ],
-        } as unknown as GenerateContentResponse;
+            ],
+          } as unknown as GenerateContentResponse,
+        };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
 
@@ -634,6 +660,29 @@ describe('Turn', () => {
 
       expect(reportError).not.toHaveBeenCalled();
     });
+
+    it('should yield a Retry event when it receives one from the chat stream', async () => {
+      const mockResponseStream = (async function* () {
+        yield { type: StreamEventType.RETRY };
+        yield {
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [{ content: { parts: [{ text: 'Success' }] } }],
+          } as GenerateContentResponse,
+        };
+      })();
+      mockSendMessageStream.mockResolvedValue(mockResponseStream);
+
+      const events = [];
+      for await (const event of turn.run([], new AbortController().signal)) {
+        events.push(event);
+      }
+
+      expect(events).toEqual([
+        { type: GeminiEventType.Retry },
+        { type: GeminiEventType.Content, value: 'Success' },
+      ]);
+    });
   });
 
   describe('getDebugResponses', () => {
@@ -645,8 +694,8 @@ describe('Turn', () => {
         functionCalls: [{ name: 'debugTool' }],
       } as unknown as GenerateContentResponse;
       const mockResponseStream = (async function* () {
-        yield resp1;
-        yield resp2;
+        yield { type: StreamEventType.CHUNK, value: resp1 };
+        yield { type: StreamEventType.CHUNK, value: resp2 };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
       const reqParts: Part[] = [{ text: 'Hi' }];
