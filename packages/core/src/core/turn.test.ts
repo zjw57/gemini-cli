@@ -700,6 +700,31 @@ describe('Turn', () => {
         { type: GeminiEventType.Content, value: 'Success' },
       ]);
     });
+    it('should yield a Retry event when it receives one from the chat stream', async () => {
+      // ARRANGE: Mock the chat stream to yield a RETRY event followed by a CHUNK.
+      const mockResponseStream = (async function* () {
+        yield { type: StreamEventType.RETRY };
+        yield {
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [{ content: { parts: [{ text: 'Success' }] } }],
+          } as GenerateContentResponse,
+        };
+      })();
+      mockSendMessageStream.mockResolvedValue(mockResponseStream);
+
+      // ACT: Consume the stream from turn.run() and collect the events.
+      const events = [];
+      for await (const event of turn.run([], new AbortController().signal)) {
+        events.push(event);
+      }
+
+      // ASSERT: Check that the yielded events include the Retry event and the subsequent content.
+      expect(events).toEqual([
+        { type: GeminiEventType.Retry },
+        { type: GeminiEventType.Content, value: 'Success' },
+      ]);
+    });
   });
 
   describe('getDebugResponses', () => {
