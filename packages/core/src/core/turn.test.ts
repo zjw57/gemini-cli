@@ -37,7 +37,7 @@ vi.mock('../utils/errorReporting', () => ({
 }));
 
 // Use the actual implementation from partUtils now that it's provided.
-vi.mock('../utils/partUtils.js', () => ({
+vi.mock('../utils/generateContentResponseUtilities.js', () => ({
   getResponseText: (resp: GenerateContentResponse) =>
     resp.candidates?.[0]?.content?.parts?.map((part) => part.text).join('') ||
     undefined,
@@ -513,24 +513,27 @@ describe('Turn', () => {
     it('should yield a single citation event for multiple citations in one response', async () => {
       const mockResponseStream = (async function* () {
         yield {
-          candidates: [
-            {
-              content: { parts: [{ text: 'Some text.' }] },
-              citationMetadata: {
-                citations: [
-                  {
-                    uri: 'https://example.com/source2',
-                    title: 'Title2',
-                  },
-                  {
-                    uri: 'https://example.com/source1',
-                    title: 'Title1',
-                  },
-                ],
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [
+              {
+                content: { parts: [{ text: 'Some text.' }] },
+                citationMetadata: {
+                  citations: [
+                    {
+                      uri: 'https://example.com/source2',
+                      title: 'Title2',
+                    },
+                    {
+                      uri: 'https://example.com/source1',
+                      title: 'Title1',
+                    },
+                  ],
+                },
+                finishReason: 'STOP',
               },
-              finishReason: 'STOP',
-            },
-          ],
+            ],
+          },
         } as unknown as GenerateContentResponse;
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
@@ -595,24 +598,27 @@ describe('Turn', () => {
     it('should ignore citations without a URI', async () => {
       const mockResponseStream = (async function* () {
         yield {
-          candidates: [
-            {
-              content: { parts: [{ text: 'Some text.' }] },
-              citationMetadata: {
-                citations: [
-                  {
-                    uri: 'https://example.com/source1',
-                    title: 'Good Source',
-                  },
-                  {
-                    // uri is undefined
-                    title: 'Bad Source',
-                  },
-                ],
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [
+              {
+                content: { parts: [{ text: 'Some text.' }] },
+                citationMetadata: {
+                  citations: [
+                    {
+                      uri: 'https://example.com/source1',
+                      title: 'Good Source',
+                    },
+                    {
+                      // uri is undefined
+                      title: 'Bad Source',
+                    },
+                  ],
+                },
+                finishReason: 'STOP',
               },
-              finishReason: 'STOP',
-            },
-          ],
+            ],
+          },
         } as unknown as GenerateContentResponse;
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
