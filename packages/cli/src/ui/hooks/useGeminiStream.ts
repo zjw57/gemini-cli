@@ -662,6 +662,8 @@ export const useGeminiStream = (
       handleFinishedEvent,
       handleMaxSessionTurnsEvent,
       handleCitationEvent,
+      pendingHistoryItemRef,
+      setPendingHistoryItem,
     ],
   );
 
