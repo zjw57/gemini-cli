@@ -927,6 +927,42 @@ describe('GeminiChat', () => {
   });
 
   describe('sendMessageStream with retries', () => {
+    it('should yield a RETRY event when an invalid stream is encountered', async () => {
+      // ARRANGE: Mock the stream to fail once, then succeed.
+      vi.mocked(mockModelsModule.generateContentStream)
+        .mockImplementationOnce(async () =>
+          // First attempt: An invalid stream with an empty text part.
+          (async function* () {
+            yield {
+              candidates: [{ content: { parts: [{ text: '' }] } }],
+            } as unknown as GenerateContentResponse;
+          })(),
+        )
+        .mockImplementationOnce(async () =>
+          // Second attempt (the retry): A minimal valid stream.
+          (async function* () {
+            yield {
+              candidates: [{ content: { parts: [{ text: 'Success' }] } }],
+            } as unknown as GenerateContentResponse;
+          })(),
+        );
+
+      // ACT: Send a message and collect all events from the stream.
+      const stream = await chat.sendMessageStream(
+        { message: 'test' },
+        'prompt-id-yield-retry',
+      );
+      const events: StreamEvent[] = [];
+      for await (const event of stream) {
+        events.push(event);
+      }
+
+      // ASSERT: Check that a RETRY event was present in the stream's output.
+      const retryEvent = events.find((e) => e.type === StreamEventType.RETRY);
+
+      expect(retryEvent).toBeDefined();
+      expect(retryEvent?.type).toBe(StreamEventType.RETRY);
+    });
     it('should retry on invalid content, succeed, and report metrics', async () => {
       // Use mockImplementationOnce to provide a fresh, promise-wrapped generator for each attempt.
       vi.mocked(mockModelsModule.generateContentStream)
