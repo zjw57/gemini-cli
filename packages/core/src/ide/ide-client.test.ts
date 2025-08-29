@@ -28,12 +28,13 @@ import {
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-vi.mock('node:fs', async (importOriginal) => {
+vi.mock('node:fs', async importOriginal => {
   const actual = await importOriginal();
   return {
     ...(actual as object),
     promises: {
       readFile: vi.fn(),
+      readdir: vi.fn(),
     },
     realpathSync: (p: string) => p,
     existsSync: () => false,
@@ -100,13 +101,42 @@ describe('IdeClient', () => {
   });
 
   describe('connect', () => {
-    it('should connect using HTTP when port is provided in config file', async () => {
-      const config = { port: '8080' };
+    it('should connect using HTTP when port is provided in config file (new format)', async () => {
+      const config = { port: '8080', ppid: 12345 };
+      vi.mocked(fs.promises.readdir).mockResolvedValue([
+        'gemini-ide-server-54321.json',
+      ]);
       vi.mocked(fs.promises.readFile).mockResolvedValue(JSON.stringify(config));
 
       const ideClient = await IdeClient.getInstance();
       await ideClient.connect();
 
+      expect(fs.promises.readdir).toHaveBeenCalledWith('/tmp');
+      expect(fs.promises.readFile).toHaveBeenCalledWith(
+        path.join('/tmp', 'gemini-ide-server-54321.json'),
+        'utf8',
+      );
+      expect(StreamableHTTPClientTransport).toHaveBeenCalledWith(
+        new URL('http://localhost:8080/mcp'),
+        expect.any(Object),
+      );
+      expect(mockClient.connect).toHaveBeenCalledWith(mockHttpTransport);
+      expect(ideClient.getConnectionStatus().status).toBe(
+        IDEConnectionStatus.Connected,
+      );
+    });
+
+    it('should connect using HTTP when port is provided in config file (old format)', async () => {
+      const config = { port: '8080' }; // No ppid
+      vi.mocked(fs.promises.readdir).mockResolvedValue([
+        'gemini-ide-server-12345.json',
+      ]);
+      vi.mocked(fs.promises.readFile).mockResolvedValue(JSON.stringify(config));
+
+      const ideClient = await IdeClient.getInstance();
+      await ideClient.connect();
+
+      expect(fs.promises.readdir).toHaveBeenCalledWith('/tmp');
       expect(fs.promises.readFile).toHaveBeenCalledWith(
         path.join('/tmp', 'gemini-ide-server-12345.json'),
         'utf8',
@@ -122,7 +152,13 @@ describe('IdeClient', () => {
     });
 
     it('should connect using stdio when stdio config is provided in file', async () => {
-      const config = { stdio: { command: 'test-cmd', args: ['--foo'] } };
+      const config = {
+        stdio: { command: 'test-cmd', args: ['--foo'] },
+        ppid: 12345,
+      };
+      vi.mocked(fs.promises.readdir).mockResolvedValue([
+        'gemini-ide-server-54321.json',
+      ]);
       vi.mocked(fs.promises.readFile).mockResolvedValue(JSON.stringify(config));
 
       const ideClient = await IdeClient.getInstance();
@@ -142,7 +178,11 @@ describe('IdeClient', () => {
       const config = {
         port: '8080',
         stdio: { command: 'test-cmd', args: ['--foo'] },
+        ppid: 12345,
       };
+      vi.mocked(fs.promises.readdir).mockResolvedValue([
+        'gemini-ide-server-54321.json',
+      ]);
       vi.mocked(fs.promises.readFile).mockResolvedValue(JSON.stringify(config));
 
       const ideClient = await IdeClient.getInstance();
@@ -156,9 +196,7 @@ describe('IdeClient', () => {
     });
 
     it('should connect using HTTP when port is provided in environment variables', async () => {
-      vi.mocked(fs.promises.readFile).mockRejectedValue(
-        new Error('File not found'),
-      );
+      vi.mocked(fs.promises.readdir).mockResolvedValue([]);
       process.env['GEMINI_CLI_IDE_SERVER_PORT'] = '9090';
 
       const ideClient = await IdeClient.getInstance();
@@ -175,9 +213,7 @@ describe('IdeClient', () => {
     });
 
     it('should connect using stdio when stdio config is in environment variables', async () => {
-      vi.mocked(fs.promises.readFile).mockRejectedValue(
-        new Error('File not found'),
-      );
+      vi.mocked(fs.promises.readdir).mockResolvedValue([]);
       process.env['GEMINI_CLI_IDE_SERVER_STDIO_COMMAND'] = 'env-cmd';
       process.env['GEMINI_CLI_IDE_SERVER_STDIO_ARGS'] = '["--bar"]';
 
@@ -195,7 +231,10 @@ describe('IdeClient', () => {
     });
 
     it('should prioritize file config over environment variables', async () => {
-      const config = { port: '8080' };
+      const config = { port: '8080', ppid: 12345 };
+      vi.mocked(fs.promises.readdir).mockResolvedValue([
+        'gemini-ide-server-54321.json',
+      ]);
       vi.mocked(fs.promises.readFile).mockResolvedValue(JSON.stringify(config));
       process.env['GEMINI_CLI_IDE_SERVER_PORT'] = '9090';
 
@@ -212,9 +251,7 @@ describe('IdeClient', () => {
     });
 
     it('should be disconnected if no config is found', async () => {
-      vi.mocked(fs.promises.readFile).mockRejectedValue(
-        new Error('File not found'),
-      );
+      vi.mocked(fs.promises.readdir).mockResolvedValue([]);
 
       const ideClient = await IdeClient.getInstance();
       await ideClient.connect();

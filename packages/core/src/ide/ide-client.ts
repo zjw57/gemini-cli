@@ -373,19 +373,105 @@ export class IdeClient {
   }
 
   private async getConnectionConfigFromFile(): Promise<
-    (ConnectionConfig & { workspacePath?: string }) | undefined
+    (ConnectionConfig & { workspacePath?: string; ppid?: number }) | undefined
   > {
     if (!this.ideProcessInfo) {
-      return {};
+      return undefined;
     }
+
     try {
-      const portFile = path.join(
-        os.tmpdir(),
-        `gemini-ide-server-${this.ideProcessInfo.pid}.json`,
+      const tmpDir = os.tmpdir();
+      const files = await fs.promises.readdir(tmpDir);
+      const portFiles = files.filter(f =>
+        /^gemini-ide-server-\d+\.json$/.test(f),
       );
-      const portFileContents = await fs.promises.readFile(portFile, 'utf8');
-      return JSON.parse(portFileContents);
-    } catch (_) {
+
+      if (portFiles.length === 0) {
+        return undefined;
+      }
+
+      const potentialConfigs: Array<(ConnectionConfig & {
+        workspacePath?: string;
+        ppid?: number;
+      })> = [];
+      for (const file of portFiles) {
+        try {
+          const filePath = path.join(tmpDir, file);
+          const fileContents = await fs.promises.readFile(filePath, 'utf8');
+          const config = JSON.parse(fileContents);
+
+          let isMatch = false;
+          if (config.ppid !== undefined) {
+            // New way: check ppid field in file content
+            isMatch = config.ppid === this.ideProcessInfo.pid;
+          } else {
+            // Old way: check pid from filename
+            const match = file.match(/^gemini-ide-server-(\d+)\.json$/);
+            if (match && match[1]) {
+              const pidFromFile = parseInt(match[1], 10);
+              isMatch = pidFromFile === this.ideProcessInfo.pid;
+            }
+          }
+
+          if (isMatch) {
+            potentialConfigs.push(config);
+          }
+        } catch (e) {
+          // Ignore files that can't be read or parsed
+          logger.debug(
+            `Could not read or parse IDE server info file ${file}:`,
+            e,
+          );
+        }
+      }
+
+      if (potentialConfigs.length === 0) {
+        return undefined;
+      }
+
+      if (potentialConfigs.length === 1) {
+        return potentialConfigs[0];
+      }
+
+      // Multiple configs found, filter by workspace
+      let candidates = potentialConfigs;
+      const workspaceMatchingConfigs = candidates.filter(config => {
+        const ideWorkspacePath = config.workspacePath;
+        if (!ideWorkspacePath) {
+          return false;
+        }
+        const ideWorkspacePaths = ideWorkspacePath.split(path.delimiter);
+        const realCwd = getRealPath(process.cwd());
+        return ideWorkspacePaths.some(workspacePath => {
+          const idePath = getRealPath(workspacePath);
+          return isSubpath(idePath, realCwd);
+        });
+      });
+
+      if (workspaceMatchingConfigs.length > 0) {
+        candidates = workspaceMatchingConfigs;
+      } else {
+        // If no configs match the workspace, we can't be sure which one to use.
+        return undefined;
+      }
+
+      if (candidates.length === 1) {
+        return candidates[0];
+      }
+
+      // Multiple candidates still, try to match by port from env var.
+      const portFromEnv = this.getPortFromEnv();
+      if (portFromEnv) {
+        const matchingConfig = candidates.find(c => c.port === portFromEnv);
+        if (matchingConfig) {
+          return matchingConfig;
+        }
+      }
+
+      // If no port match, or no env var, return the first one.
+      return candidates[0];
+    } catch (e) {
+      logger.debug('Error getting IDE connection config from file:', e);
       return undefined;
     }
   }
