@@ -49,6 +49,13 @@ import {
   NextSpeakerCheckEvent,
 } from '../telemetry/types.js';
 import type { IdeContext, File } from '../ide/ideContext.js';
+import type { StreamEvent } from './geminiChat.js';
+
+export type ClientStreamEvent =
+  | StreamEvent
+  | { type: typeof GeminiEventType.MaxSessionTurns }
+  | { type: typeof GeminiEventType.ChatCompressed; value: ChatCompressionInfo }
+  | { type: typeof GeminiEventType.LoopDetected };
 
 function isThinkingSupported(model: string) {
   if (model.startsWith('gemini-2.5')) return true;
@@ -443,7 +450,7 @@ export class GeminiClient {
     prompt_id: string,
     turns: number = MAX_TURNS,
     originalModel?: string,
-  ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
+  ): AsyncGenerator<ClientStreamEvent> {
     if (this.lastPromptId !== prompt_id) {
       this.loopDetector.reset(prompt_id);
       this.lastPromptId = prompt_id;
@@ -454,28 +461,21 @@ export class GeminiClient {
       this.sessionTurnCount > this.config.getMaxSessionTurns()
     ) {
       yield { type: GeminiEventType.MaxSessionTurns };
-      return new Turn(this.getChat(), prompt_id);
-    }
-    // Ensure turns never exceeds MAX_TURNS to prevent infinite loops
-    const boundedTurns = Math.min(turns, MAX_TURNS);
-    if (!boundedTurns) {
-      return new Turn(this.getChat(), prompt_id);
+      return;
     }
 
-    // Track the original model from the first call to detect model switching
+    const boundedTurns = Math.min(turns, MAX_TURNS);
+    if (!boundedTurns) {
+      return;
+    }
+
     const initialModel = originalModel || this.config.getModel();
 
     const compressed = await this.tryCompressChat(prompt_id);
-
     if (compressed) {
       yield { type: GeminiEventType.ChatCompressed, value: compressed };
     }
 
-    // Prevent context updates from being sent while a tool call is
-    // waiting for a response. The Gemini API requires that a functionResponse
-    // part from the user immediately follows a functionCall part from the model
-    // in the conversation history . The IDE context is not discarded; it will
-    // be included in the next regular message sent to the model.
     const history = this.getHistory();
     const lastMessage =
       history.length > 0 ? history[history.length - 1] : undefined;
@@ -498,36 +498,49 @@ export class GeminiClient {
       this.forceFullIdeContext = false;
     }
 
-    const turn = new Turn(this.getChat(), prompt_id);
-
     const loopDetected = await this.loopDetector.turnStarted(signal);
     if (loopDetected) {
       yield { type: GeminiEventType.LoopDetected };
-      return turn;
+      return;
     }
 
-    const resultStream = turn.run(request, signal);
-    for await (const event of resultStream) {
-      if (this.loopDetector.addAndCheck(event)) {
-        yield { type: GeminiEventType.LoopDetected };
-        return turn;
-      }
+    // Call the new, refactored sendMessageStream from GeminiChat
+    const chatStream = await this.getChat().sendMessageStream(
+      { message: request },
+      prompt_id,
+    );
+
+    // This section gathers the necessary info from the stream
+    // to make the continuation decision later.
+    let finishReason: string | undefined;
+    let hasToolCall = false;
+
+    for await (const event of chatStream) {
+      // Pass the event through to the consumer (useGeminiStream)
       yield event;
-      if (event.type === GeminiEventType.Error) {
-        return turn;
+
+      // Inspect the event for our logic
+      if (event.type === 'chunk') {
+        const candidate = event.value.candidates?.[0];
+        if (candidate?.finishReason) {
+          finishReason = candidate.finishReason;
+        }
+        if (candidate?.content?.parts.some((p) => p.functionCall)) {
+          hasToolCall = true;
+        }
       }
     }
-    if (!turn.pendingToolCalls.length && signal && !signal.aborted) {
-      // Check if model was switched during the call (likely due to quota error)
+
+    // This is the restored logic block you asked about.
+    // It runs *after* the stream from GeminiChat is complete.
+    if (!hasToolCall && signal && !signal.aborted) {
       const currentModel = this.config.getModel();
       if (currentModel !== initialModel) {
-        // Model was switched (likely due to quota error fallback)
-        // Don't continue with recursive call to prevent unwanted Flash execution
-        return turn;
+        return; // Model was switched, so we stop.
       }
 
       if (this.config.getSkipNextSpeakerCheck()) {
-        return turn;
+        return;
       }
 
       const nextSpeakerCheck = await checkNextSpeaker(
@@ -539,14 +552,13 @@ export class GeminiClient {
         this.config,
         new NextSpeakerCheckEvent(
           prompt_id,
-          turn.finishReason?.toString() || '',
+          finishReason || '',
           nextSpeakerCheck?.next_speaker || '',
         ),
       );
       if (nextSpeakerCheck?.next_speaker === 'model') {
         const nextRequest = [{ text: 'Please continue.' }];
-        // This recursive call's events will be yielded out, but the final
-        // turn object will be from the top-level call.
+        // This makes the recursive call to continue the conversation
         yield* this.sendMessageStream(
           nextRequest,
           signal,
@@ -556,7 +568,6 @@ export class GeminiClient {
         );
       }
     }
-    return turn;
   }
 
   async generateJson(
