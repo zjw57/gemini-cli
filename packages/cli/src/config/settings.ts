@@ -295,106 +295,33 @@ function mergeSettings(
   // 2. User Settings
   // 3. Workspace Settings
   // 4. System Settings (as overrides)
-  //
-  // For properties that are arrays (e.g., includeDirectories), the arrays
-  // are concatenated. For objects (e.g., customThemes), they are merged.
-  return {
-    ...systemDefaults,
-    ...user,
-    ...safeWorkspaceWithoutFolderTrust,
-    ...system,
-    ui: {
-      ...(systemDefaults.ui || {}),
-      ...(user.ui || {}),
-      ...(safeWorkspaceWithoutFolderTrust.ui || {}),
-      ...(system.ui || {}),
-      customThemes: {
-        ...(systemDefaults.ui?.customThemes || {}),
-        ...(user.ui?.customThemes || {}),
-        ...(safeWorkspaceWithoutFolderTrust.ui?.customThemes || {}),
-        ...(system.ui?.customThemes || {}),
-      },
-    },
-    security: {
-      ...(systemDefaults.security || {}),
-      ...(user.security || {}),
-      ...(safeWorkspaceWithoutFolderTrust.security || {}),
-      ...(system.security || {}),
-    },
-    mcp: {
-      ...(systemDefaults.mcp || {}),
-      ...(user.mcp || {}),
-      ...(safeWorkspaceWithoutFolderTrust.mcp || {}),
-      ...(system.mcp || {}),
-    },
-    mcpServers: {
-      ...(systemDefaults.mcpServers || {}),
-      ...(user.mcpServers || {}),
-      ...(safeWorkspaceWithoutFolderTrust.mcpServers || {}),
-      ...(system.mcpServers || {}),
-    },
-    context: {
-      ...(systemDefaults.context || {}),
-      ...(user.context || {}),
-      ...(safeWorkspaceWithoutFolderTrust.context || {}),
-      ...(system.context || {}),
-      includeDirectories: [
-        ...(systemDefaults.context?.includeDirectories || []),
-        ...(user.context?.includeDirectories || []),
-        ...(safeWorkspaceWithoutFolderTrust.context?.includeDirectories || []),
-        ...(system.context?.includeDirectories || []),
-      ],
-    },
-    model: {
-      ...(systemDefaults.model || {}),
-      ...(user.model || {}),
-      ...(safeWorkspaceWithoutFolderTrust.model || {}),
-      ...(system.model || {}),
-      chatCompression: {
-        ...(systemDefaults.model?.chatCompression || {}),
-        ...(user.model?.chatCompression || {}),
-        ...(safeWorkspaceWithoutFolderTrust.model?.chatCompression || {}),
-        ...(system.model?.chatCompression || {}),
-      },
-    },
-    advanced: {
-      ...(systemDefaults.advanced || {}),
-      ...(user.advanced || {}),
-      ...(safeWorkspaceWithoutFolderTrust.advanced || {}),
-      ...(system.advanced || {}),
-      excludedEnvVars: [
-        ...new Set([
-          ...(systemDefaults.advanced?.excludedEnvVars || []),
-          ...(user.advanced?.excludedEnvVars || []),
-          ...(safeWorkspaceWithoutFolderTrust.advanced?.excludedEnvVars || []),
-          ...(system.advanced?.excludedEnvVars || []),
-        ]),
-      ],
-    },
-    extensions: {
-      ...(systemDefaults.extensions || {}),
-      ...(user.extensions || {}),
-      ...(safeWorkspaceWithoutFolderTrust.extensions || {}),
-      ...(system.extensions || {}),
-      disabled: [
-        ...new Set([
-          ...(systemDefaults.extensions?.disabled || []),
-          ...(user.extensions?.disabled || []),
-          ...(safeWorkspaceWithoutFolderTrust.extensions?.disabled || []),
-          ...(system.extensions?.disabled || []),
-        ]),
-      ],
-      workspacesWithMigrationNudge: [
-        ...new Set([
-          ...(systemDefaults.extensions?.workspacesWithMigrationNudge || []),
-          ...(user.extensions?.workspacesWithMigrationNudge || []),
-          ...(safeWorkspaceWithoutFolderTrust.extensions
-            ?.workspacesWithMigrationNudge || []),
-          ...(system.extensions?.workspacesWithMigrationNudge || []),
-        ]),
-      ],
-    },
+  const customizer = (
+    objValue: unknown,
+    srcValue: unknown,
+    key: string,
+  ): unknown[] | undefined => {
+    if (Array.isArray(objValue)) {
+      const srcArray = Array.isArray(srcValue) ? srcValue : [srcValue];
+      if (key === 'includeDirectories') {
+        return objValue.concat(srcArray);
+      }
+      // For all other arrays, concatenate and deduplicate.
+      return [...new Set(objValue.concat(srcArray))];
+    }
+    // Return undefined to let mergeWith handle default merging for other types.
+    return undefined;
   };
+
+  const result =  mergeWith(
+    {}, // Start with an empty object
+    systemDefaults,
+    user,
+    safeWorkspaceWithoutFolderTrust,
+    system,
+    customizer,
+  );
+  console.log(result)
+  return result
 }
 
 export class LoadedSettings {

@@ -194,11 +194,12 @@ export class ToolRegistry {
         tool = tool.asFullyQualifiedTool();
       } else {
         // Decide on behavior: throw error, log warning, or allow overwrite
-        console.warn(
+        console.log(
           `Tool with name "${tool.name}" is already registered. Overwriting.`,
         );
       }
     }
+    console.log(`registering ${tool.name}`)
     this.tools.set(tool.name, tool);
   }
 
