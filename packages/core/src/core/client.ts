@@ -251,7 +251,7 @@ export class GeminiClient {
         ? {
             ...this.generateContentConfig,
             thinkingConfig: {
-              thinkingBudget: -1,
+              thinkingBudget: 32768,
               includeThoughts: true,
             },
           }
