@@ -439,10 +439,10 @@ export class SubAgentScope {
         let textResponse = '';
         for await (const resp of responseStream) {
           if (abortController.signal.aborted) return;
-          if (resp.type == StreamEventType.CHUNK && resp.value.functionCalls) {
+          if (resp.type === StreamEventType.CHUNK && resp.value.functionCalls) {
             functionCalls.push(...resp.value.functionCalls);
           }
-          if (resp.type == StreamEventType.CHUNK && resp.value.text) {
+          if (resp.type === StreamEventType.CHUNK && resp.value.text) {
             textResponse += resp.value.text;
           }
         }
