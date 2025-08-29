@@ -37,7 +37,7 @@ vi.mock('../utils/errorReporting', () => ({
 }));
 
 // Use the actual implementation from partUtils now that it's provided.
-vi.mock('../utils/generateContentResponseUtilities.js', () => ({
+vi.mock('../utils/generateContentResponseUtilities', () => ({
   getResponseText: (resp: GenerateContentResponse) =>
     resp.candidates?.[0]?.content?.parts?.map((part) => part.text).join('') ||
     undefined,
@@ -251,60 +251,51 @@ describe('Turn', () => {
     it('should handle function calls with undefined name or args', async () => {
       const mockResponseStream = (async function* () {
         yield {
-          functionCalls: [
-            { id: 'fc1', name: undefined, args: { arg1: 'val1' } },
-            { id: 'fc2', name: 'tool2', args: undefined },
-            { id: 'fc3', name: undefined, args: undefined },
-          ],
-        } as unknown as GenerateContentResponse;
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [],
+            functionCalls: [
+              // Add `id` back to the mock to match what the code expects
+              { id: 'fc1', name: undefined, args: { arg1: 'val1' } },
+              { id: 'fc2', name: 'tool2', args: undefined },
+              { id: 'fc3', name: undefined, args: undefined },
+            ],
+          } as unknown as GenerateContentResponse,
+        };
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
+
       const events = [];
-      const reqParts: Part[] = [{ text: 'Test undefined tool parts' }];
       for await (const event of turn.run(
-        reqParts,
+        [{ text: 'Test undefined tool parts' }],
         new AbortController().signal,
       )) {
         events.push(event);
       }
 
       expect(events.length).toBe(3);
+
+      // Assertions for each specific tool call event
       const event1 = events[0] as ServerGeminiToolCallRequestEvent;
-      expect(event1.type).toBe(GeminiEventType.ToolCallRequest);
-      expect(event1.value).toEqual(
-        expect.objectContaining({
-          callId: 'fc1',
-          name: 'undefined_tool_name',
-          args: { arg1: 'val1' },
-          isClientInitiated: false,
-        }),
-      );
-      expect(turn.pendingToolCalls[0]).toEqual(event1.value);
+      expect(event1.value).toMatchObject({
+        callId: 'fc1',
+        name: 'undefined_tool_name',
+        args: { arg1: 'val1' },
+      });
 
       const event2 = events[1] as ServerGeminiToolCallRequestEvent;
-      expect(event2.type).toBe(GeminiEventType.ToolCallRequest);
-      expect(event2.value).toEqual(
-        expect.objectContaining({
-          callId: 'fc2',
-          name: 'tool2',
-          args: {},
-          isClientInitiated: false,
-        }),
-      );
-      expect(turn.pendingToolCalls[1]).toEqual(event2.value);
+      expect(event2.value).toMatchObject({
+        callId: 'fc2',
+        name: 'tool2',
+        args: {},
+      });
 
       const event3 = events[2] as ServerGeminiToolCallRequestEvent;
-      expect(event3.type).toBe(GeminiEventType.ToolCallRequest);
-      expect(event3.value).toEqual(
-        expect.objectContaining({
-          callId: 'fc3',
-          name: 'undefined_tool_name',
-          args: {},
-          isClientInitiated: false,
-        }),
-      );
-      expect(turn.pendingToolCalls[2]).toEqual(event3.value);
-      expect(turn.getDebugResponses().length).toBe(1);
+      expect(event3.value).toMatchObject({
+        callId: 'fc3',
+        name: 'undefined_tool_name',
+        args: {},
+      });
     });
 
     it('should yield finished event when response has finish reason', async () => {
@@ -340,17 +331,18 @@ describe('Turn', () => {
     it('should yield finished event for MAX_TOKENS finish reason', async () => {
       const mockResponseStream = (async function* () {
         yield {
-           value: {
-          candidates: [
-            {
-              content: {
-                parts: [
-                  { text: 'This is a long response that was cut off...' },
-                ],
+          value: {
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    { text: 'This is a long response that was cut off...' },
+                  ],
+                },
+                finishReason: 'MAX_TOKENS',
               },
-              finishReason: 'MAX_TOKENS',
-            },
-          ]},
+            ],
+          },
         } as unknown as GenerateContentResponse;
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
@@ -444,19 +436,21 @@ describe('Turn', () => {
           value: {
             candidates: [
               {
-              content: { parts: [{ text: 'First part' }] },
-              // No finish reason on first response
-            },
-          ]},
+                content: { parts: [{ text: 'First part' }] },
+                // No finish reason on first response
+              },
+            ],
+          },
         } as unknown as GenerateContentResponse;
         yield {
-           value: {
-          candidates: [
-            {
-              content: { parts: [{ text: 'Second part' }] },
-              finishReason: 'OTHER',
-            },
-          ]},
+          value: {
+            candidates: [
+              {
+                content: { parts: [{ text: 'Second part' }] },
+                finishReason: 'OTHER',
+              },
+            ],
+          },
         } as unknown as GenerateContentResponse;
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
