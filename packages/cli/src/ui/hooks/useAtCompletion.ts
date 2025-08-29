@@ -5,7 +5,12 @@
  */
 
 import { useEffect, useReducer, useRef } from 'react';
-import { Config, FileSearch, escapePath } from '@google/gemini-cli-core';
+import {
+  Config,
+  FileSearch,
+  FileSearchFactory,
+  escapePath,
+} from '@google/gemini-cli-core';
 import {
   Suggestion,
   MAX_SUGGESTIONS_TO_SHOW,
@@ -127,6 +132,13 @@ export function useAtCompletion(props: UseAtCompletionProps): void {
   // Reacts to user input (`pattern`) ONLY.
   useEffect(() => {
     if (!enabled) {
+      // reset when first getting out of completion suggestions
+      if (
+        state.status === AtCompletionStatus.READY ||
+        state.status === AtCompletionStatus.ERROR
+      ) {
+        dispatch({ type: 'RESET' });
+      }
       return;
     }
     if (pattern === null) {
@@ -149,7 +161,7 @@ export function useAtCompletion(props: UseAtCompletionProps): void {
   useEffect(() => {
     const initialize = async () => {
       try {
-        const searcher = new FileSearch({
+        const searcher = FileSearchFactory.create({
           projectRoot: cwd,
           ignoreDirs: [],
           useGitignore:
@@ -158,6 +170,8 @@ export function useAtCompletion(props: UseAtCompletionProps): void {
             config?.getFileFilteringOptions()?.respectGeminiIgnore ?? true,
           cache: true,
           cacheTtl: 30, // 30 seconds
+          enableRecursiveFileSearch:
+            config?.getEnableRecursiveFileSearch() ?? true,
         });
         await searcher.initialize();
         fileSearch.current = searcher;
@@ -184,7 +198,7 @@ export function useAtCompletion(props: UseAtCompletionProps): void {
 
       slowSearchTimer.current = setTimeout(() => {
         dispatch({ type: 'SET_LOADING', payload: true });
-      }, 100);
+      }, 200);
 
       try {
         const results = await fileSearch.current.search(state.pattern, {

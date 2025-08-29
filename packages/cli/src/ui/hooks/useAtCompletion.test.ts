@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useAtCompletion } from './useAtCompletion.js';
-import { Config, FileSearch } from '@google/gemini-cli-core';
+import { Config, FileSearch, FileSearchFactory } from '@google/gemini-cli-core';
 import {
   createTmpDir,
   cleanupTmpDir,
@@ -50,6 +50,7 @@ describe('useAtCompletion', () => {
         respectGitIgnore: true,
         respectGeminiIgnore: true,
       })),
+      getEnableRecursiveFileSearch: () => true,
     } as unknown as Config;
     vi.clearAllMocks();
   });
@@ -113,8 +114,8 @@ describe('useAtCompletion', () => {
       expect(result.current.suggestions.map((s) => s.value)).toEqual([
         'src/',
         'src/components/',
-        'src/components/Button.tsx',
         'src/index.js',
+        'src/components/Button.tsx',
       ]);
     });
 
@@ -156,7 +157,7 @@ describe('useAtCompletion', () => {
       });
     });
 
-    it('should NOT show a loading indicator for subsequent searches that complete under 100ms', async () => {
+    it('should NOT show a loading indicator for subsequent searches that complete under 200ms', async () => {
       const structure: FileSystemStructure = { 'a.txt': '', 'b.txt': '' };
       testRootDir = await createTmpDir(structure);
 
@@ -185,18 +186,29 @@ describe('useAtCompletion', () => {
       expect(result.current.isLoadingSuggestions).toBe(false);
     });
 
-    it('should show a loading indicator and clear old suggestions for subsequent searches that take longer than 100ms', async () => {
+    it('should show a loading indicator and clear old suggestions for subsequent searches that take longer than 200ms', async () => {
       const structure: FileSystemStructure = { 'a.txt': '', 'b.txt': '' };
       testRootDir = await createTmpDir(structure);
 
-      // Spy on the search method to introduce an artificial delay
-      const originalSearch = FileSearch.prototype.search;
-      vi.spyOn(FileSearch.prototype, 'search').mockImplementation(
-        async function (...args) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
-          return originalSearch.apply(this, args);
-        },
-      );
+      const realFileSearch = FileSearchFactory.create({
+        projectRoot: testRootDir,
+        ignoreDirs: [],
+        useGitignore: true,
+        useGeminiignore: true,
+        cache: false,
+        cacheTtl: 0,
+        enableRecursiveFileSearch: true,
+      });
+      await realFileSearch.initialize();
+
+      const mockFileSearch: FileSearch = {
+        initialize: vi.fn().mockResolvedValue(undefined),
+        search: vi.fn().mockImplementation(async (...args) => {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          return realFileSearch.search(...args);
+        }),
+      };
+      vi.spyOn(FileSearchFactory, 'create').mockReturnValue(mockFileSearch);
 
       const { result, rerender } = renderHook(
         ({ pattern }) =>
@@ -240,14 +252,15 @@ describe('useAtCompletion', () => {
       testRootDir = await createTmpDir(structure);
 
       const abortSpy = vi.spyOn(AbortController.prototype, 'abort');
-      const searchSpy = vi
-        .spyOn(FileSearch.prototype, 'search')
-        .mockImplementation(async (...args) => {
-          const delay = args[0] === 'a' ? 500 : 50;
+      const mockFileSearch: FileSearch = {
+        initialize: vi.fn().mockResolvedValue(undefined),
+        search: vi.fn().mockImplementation(async (pattern: string) => {
+          const delay = pattern === 'a' ? 500 : 50;
           await new Promise((resolve) => setTimeout(resolve, delay));
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return [args[0] as any];
-        });
+          return [pattern];
+        }),
+      };
+      vi.spyOn(FileSearchFactory, 'create').mockReturnValue(mockFileSearch);
 
       const { result, rerender } = renderHook(
         ({ pattern }) =>
@@ -257,7 +270,10 @@ describe('useAtCompletion', () => {
 
       // Wait for the hook to be ready (initialization is complete)
       await waitFor(() => {
-        expect(searchSpy).toHaveBeenCalledWith('a', expect.any(Object));
+        expect(mockFileSearch.search).toHaveBeenCalledWith(
+          'a',
+          expect.any(Object),
+        );
       });
 
       // Now that the first search is in-flight, trigger the second one.
@@ -277,9 +293,69 @@ describe('useAtCompletion', () => {
       );
 
       // The search spy should have been called for both patterns.
-      expect(searchSpy).toHaveBeenCalledWith('b', expect.any(Object));
+      expect(mockFileSearch.search).toHaveBeenCalledWith(
+        'b',
+        expect.any(Object),
+      );
+    });
+  });
 
-      vi.restoreAllMocks();
+  describe('State Management', () => {
+    it('should reset the state when disabled after being in a READY state', async () => {
+      const structure: FileSystemStructure = { 'a.txt': '' };
+      testRootDir = await createTmpDir(structure);
+
+      const { result, rerender } = renderHook(
+        ({ enabled }) =>
+          useTestHarnessForAtCompletion(enabled, 'a', mockConfig, testRootDir),
+        { initialProps: { enabled: true } },
+      );
+
+      // Wait for the hook to be ready and have suggestions
+      await waitFor(() => {
+        expect(result.current.suggestions.map((s) => s.value)).toEqual([
+          'a.txt',
+        ]);
+      });
+
+      // Now, disable the hook
+      rerender({ enabled: false });
+
+      // The suggestions should be cleared immediately because of the RESET action
+      expect(result.current.suggestions).toEqual([]);
+    });
+
+    it('should reset the state when disabled after being in an ERROR state', async () => {
+      testRootDir = await createTmpDir({});
+
+      // Force an error during initialization
+      const mockFileSearch: FileSearch = {
+        initialize: vi
+          .fn()
+          .mockRejectedValue(new Error('Initialization failed')),
+        search: vi.fn(),
+      };
+      vi.spyOn(FileSearchFactory, 'create').mockReturnValue(mockFileSearch);
+
+      const { result, rerender } = renderHook(
+        ({ enabled }) =>
+          useTestHarnessForAtCompletion(enabled, '', mockConfig, testRootDir),
+        { initialProps: { enabled: true } },
+      );
+
+      // Wait for the hook to enter the error state
+      await waitFor(() => {
+        expect(result.current.isLoadingSuggestions).toBe(false);
+      });
+      expect(result.current.suggestions).toEqual([]); // No suggestions on error
+
+      // Now, disable the hook
+      rerender({ enabled: false });
+
+      // The state should still be reset (though visually it's the same)
+      // We can't directly inspect the internal state, but we can ensure it doesn't crash
+      // and the suggestions remain empty.
+      expect(result.current.suggestions).toEqual([]);
     });
   });
 
@@ -375,6 +451,43 @@ describe('useAtCompletion', () => {
 
       await cleanupTmpDir(rootDir1);
       await cleanupTmpDir(rootDir2);
+    });
+
+    it('should perform a non-recursive search when enableRecursiveFileSearch is false', async () => {
+      const structure: FileSystemStructure = {
+        'file.txt': '',
+        src: {
+          'index.js': '',
+        },
+      };
+      testRootDir = await createTmpDir(structure);
+
+      const nonRecursiveConfig = {
+        getEnableRecursiveFileSearch: () => false,
+        getFileFilteringOptions: vi.fn(() => ({
+          respectGitIgnore: true,
+          respectGeminiIgnore: true,
+        })),
+      } as unknown as Config;
+
+      const { result } = renderHook(() =>
+        useTestHarnessForAtCompletion(
+          true,
+          '',
+          nonRecursiveConfig,
+          testRootDir,
+        ),
+      );
+
+      await waitFor(() => {
+        expect(result.current.suggestions.length).toBeGreaterThan(0);
+      });
+
+      // Should only contain top-level items
+      expect(result.current.suggestions.map((s) => s.value)).toEqual([
+        'src/',
+        'file.txt',
+      ]);
     });
   });
 });
