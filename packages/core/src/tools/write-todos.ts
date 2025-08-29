@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BaseTool, Icon, ToolResult } from './tools.js';
-import { SchemaValidator } from '../utils/schemaValidator.js';
+import type { ToolInvocation } from './tools.js';
+import { BaseDeclarativeTool, BaseToolInvocation, Kind, type ToolResult } from './tools.js';
 import { Type } from '@google/genai';
+
 // Adapted from langchain/deepagents for experimentation
 export const WRITE_TODOS_DESCRIPTION = `Use this tool to create and manage a structured task list for your current work session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
 It also helps the user understand the progress of the task and overall progress of their requests.
@@ -113,18 +114,57 @@ export interface WriteTodosToolParams {
   todos: Todo[];
 }
 
-export class WriteTodosTool extends BaseTool<WriteTodosToolParams, ToolResult> {
+class WriteTodosToolInvocation extends BaseToolInvocation<
+  WriteTodosToolParams,
+  ToolResult
+> {
+  getDescription(): string {
+    const count = this.params.todos?.length ?? 0;
+    if (count === 0) {
+      return 'Cleared todo list';
+    }
+    return `Set ${count} todo(s)`;
+  }
+
+  async execute(
+    _signal: AbortSignal,
+    _updateOutput?: (output: string) => void
+  ): Promise<ToolResult> {
+    WriteTodosTool.todos = this.params.todos;
+
+    const todoListString = WriteTodosTool.todos
+      .map(
+        (todo, index) => `${index + 1}. [${todo.status}] ${todo.description}`
+      )
+      .join('\n');
+
+    const llmContent =
+      WriteTodosTool.todos.length > 0
+        ? `Successfully updated the todo list. The current list is now:\n${todoListString}`
+        : 'Successfully cleared the todo list.';
+
+    return {
+      llmContent,
+      returnDisplay: llmContent,
+    };
+  }
+}
+
+export class WriteTodosTool extends BaseDeclarativeTool<
+  WriteTodosToolParams,
+  ToolResult
+> {
   static readonly Name: string = 'write_todos_list';
 
   // In-memory store for the session's todos.
-  private static todos: Todo[] = [];
+  static todos: Todo[] = [];
 
   constructor() {
     super(
       WriteTodosTool.Name,
       'Write Todos',
       WRITE_TODOS_DESCRIPTION,
-      Icon.Checklist,
+      Kind.Other,
       {
         properties: {
           todos: {
@@ -151,7 +191,7 @@ export class WriteTodosTool extends BaseTool<WriteTodosToolParams, ToolResult> {
         },
         required: ['todos'],
         type: Type.OBJECT,
-      },
+      }
     );
   }
 
@@ -172,14 +212,11 @@ export class WriteTodosTool extends BaseTool<WriteTodosToolParams, ToolResult> {
     WriteTodosTool.todos = [];
   }
 
-  validateToolParams(params: WriteTodosToolParams): string | null {
-    const errors = SchemaValidator.validate(this.schema.parameters, params);
-    if (errors) {
-      return errors;
-    }
-
+  protected override validateToolParamValues(
+    params: WriteTodosToolParams
+  ): string | null {
     const inProgressCount = params.todos.filter(
-      (todo) => todo.status === 'in_progress',
+      (todo) => todo.status === 'in_progress'
     ).length;
     if (inProgressCount > 1) {
       return 'Invalid parameters: Only one task can be "in_progress" at a time.';
@@ -188,42 +225,10 @@ export class WriteTodosTool extends BaseTool<WriteTodosToolParams, ToolResult> {
     return null;
   }
 
-  getDescription(params: WriteTodosToolParams): string {
-    const count = params.todos?.length ?? 0;
-    if (count === 0) {
-      return 'Cleared todo list';
-    }
-    return `Set ${count} todo(s)`;
-  }
-
-  async execute(
-    params: WriteTodosToolParams,
-    _signal: AbortSignal,
-  ): Promise<ToolResult> {
-    const validationError = this.validateToolParams(params);
-    if (validationError) {
-      return {
-        llmContent: `Error: Invalid parameters provided. Reason: ${validationError}`,
-        returnDisplay: validationError,
-      };
-    }
-
-    WriteTodosTool.todos = params.todos;
-
-    const todoListString = WriteTodosTool.todos
-      .map(
-        (todo, index) => `${index + 1}. [${todo.status}] ${todo.description}`,
-      )
-      .join('\n');
-
-    const llmContent =
-      WriteTodosTool.todos.length > 0
-        ? `Successfully updated the todo list. The current list is now:\n${todoListString}`
-        : 'Successfully cleared the todo list.';
-
-    return {
-      llmContent,
-      returnDisplay: llmContent,
-    };
+  protected createInvocation(
+    params: WriteTodosToolParams
+  ): ToolInvocation<WriteTodosToolParams, ToolResult> {
+    return new WriteTodosToolInvocation(params);
   }
 }
+
