@@ -107,7 +107,16 @@ import { appEvents, AppEvent } from '../utils/events.js';
 import { isNarrowWidth } from './utils/isNarrowWidth.js';
 import { useWorkspaceMigration } from './hooks/useWorkspaceMigration.js';
 import { WorkspaceMigrationDialog } from './components/WorkspaceMigrationDialog.js';
-import { isWorkspaceTrusted } from '../config/trustedFolders.js';
+import {
+  isWorkspaceTrusted
+} from '../config/trustedFolders.js';
+import {
+  type Extension,
+  loadExtensions,
+} from '../config/extension.js';
+import {
+  mergeMcpServers
+} from '../config/config.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 // Maximum number of queued messages to display in UI to prevent performance issues
@@ -118,6 +127,7 @@ interface AppProps {
   settings: LoadedSettings;
   startupWarnings?: string[];
   version: string;
+  initialExtensions: Extension[];
 }
 
 function isToolExecuting(pendingHistoryItems: HistoryItemWithoutId[]) {
@@ -150,7 +160,23 @@ export const AppWrapper = (props: AppProps) => {
   );
 };
 
-const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
+const App = ({
+  config,
+  settings,
+  startupWarnings = [],
+  version,
+  initialExtensions,
+}: AppProps) => {
+  const [extensions, setExtensions] = useState(initialExtensions);
+  const reloadExtensions = useCallback(() => {
+    const refreshedExtensions = loadExtensions(process.cwd());
+    setExtensions(refreshedExtensions);
+  }, []);
+
+  useEffect(() => {
+    const mcpServers = mergeMcpServers(settings.merged, extensions);
+    config.refreshMcpServers(mcpServers);
+  }, [extensions, config, settings.merged]);
   const isFocused = useFocus();
   useBracketedPaste();
   const [updateInfo, setUpdateInfo] = useState<UpdateObject | null>(null);
@@ -612,6 +638,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     toggleVimEnabled,
     setIsProcessing,
     setGeminiMdFileCount,
+    reloadExtensions,
   );
 
   const buffer = useTextBuffer({
@@ -1023,11 +1050,11 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
           key={staticKey}
           items={[
             <Box flexDirection="column" key="header">
-              {!(
-                settings.merged.ui?.hideBanner || config.getScreenReader()
-              ) && <Header version={version} nightly={nightly} />}
+              {!(settings.merged.ui?.hideBanner || config.getScreenReader()) && (
+                <Header version={version} nightly={nightly} />
+              )}
               {!(settings.merged.ui?.hideTips || config.getScreenReader()) && (
-                <Tips config={config} />
+                <Tips config={config} extensions={extensions} />
               )}
             </Box>,
             ...history.map((h) => (

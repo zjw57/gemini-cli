@@ -55,6 +55,7 @@ export const useSlashCommandProcessor = (
   toggleVimEnabled: () => Promise<boolean>,
   setIsProcessing: (isProcessing: boolean) => void,
   setGeminiMdFileCount: (count: number) => void,
+  reloadExtensions: () => void,
 ) => {
   const session = useSessionStats();
   const [commands, setCommands] = useState<readonly SlashCommand[]>([]);
@@ -76,9 +77,8 @@ export const useSlashCommandProcessor = (
     onConfirm: (confirmed: boolean) => void;
   }>(null);
 
-  const [sessionShellAllowlist, setSessionShellAllowlist] = useState(
-    new Set<string>(),
-  );
+  const [sessionShellAllowlist, setSessionShellAllowlist] =
+    useState(new Set<string>());
   const gitService = useMemo(() => {
     if (!config?.getProjectRoot()) {
       return;
@@ -183,6 +183,7 @@ export const useSlashCommandProcessor = (
         toggleVimEnabled,
         setGeminiMdFileCount,
         reloadCommands,
+        reloadExtensions,
       },
       session: {
         stats: session.stats,
@@ -207,6 +208,7 @@ export const useSlashCommandProcessor = (
       sessionShellAllowlist,
       setGeminiMdFileCount,
       reloadCommands,
+      reloadExtensions,
     ],
   );
 
@@ -416,7 +418,7 @@ export const useSlashCommandProcessor = (
                     content: result.content,
                   };
                 case 'confirm_shell_commands': {
-                  const { outcome, approvedCommands } = await new Promise<{
+                  const { outcome, approvedCommands } = await new Promise<{ 
                     outcome: ToolConfirmationOutcome;
                     approvedCommands?: string[];
                   }>((resolve) => {
@@ -456,7 +458,7 @@ export const useSlashCommandProcessor = (
                   );
                 }
                 case 'confirm_action': {
-                  const { confirmed } = await new Promise<{
+                  const { confirmed } = await new Promise<{ 
                     confirmed: boolean;
                   }>((resolve) => {
                     setConfirmationRequest({

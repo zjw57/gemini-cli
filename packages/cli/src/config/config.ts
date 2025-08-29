@@ -647,7 +647,10 @@ function allowedMcpServers(
   return mcpServers;
 }
 
-function mergeMcpServers(settings: Settings, extensions: Extension[]) {
+export function mergeMcpServers(
+  settings: Settings,
+  extensions: Extension[],
+): Record<string, MCPServerConfig> {
   const mcpServers = { ...(settings.mcpServers || {}) };
   for (const extension of extensions) {
     Object.entries(extension.config.mcpServers || {}).forEach(

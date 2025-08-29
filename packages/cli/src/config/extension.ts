@@ -133,6 +133,10 @@ export function loadExtensions(workspaceDir: string): Extension[] {
   return Array.from(uniqueExtensions.values());
 }
 
+export function refreshExtensions(workspaceDir: string): Extension[] {
+  return loadExtensions(workspaceDir);
+}
+
 export function loadUserExtensions(): Extension[] {
   const userExtensions = loadExtensionsFromDir(os.homedir());
 
@@ -168,7 +172,7 @@ export function loadExtensionsFromDir(dir: string): Extension[] {
 export function loadExtension(extensionDir: string): Extension | null {
   if (!fs.statSync(extensionDir).isDirectory()) {
     console.error(
-      `Warning: unexpected file ${extensionDir} in extensions directory.`,
+      `Warning: unexpected file ${extensionDir} in extensions directory.`, 
     );
     return null;
   }
@@ -190,7 +194,7 @@ export function loadExtension(extensionDir: string): Extension | null {
     }) as unknown as ExtensionConfig;
     if (!config.name || !config.version) {
       console.error(
-        `Invalid extension config in ${configFilePath}: missing name or version.`,
+        `Invalid extension config in ${configFilePath}: missing name or version.`, 
       );
       return null;
     }
@@ -359,7 +363,7 @@ export async function installExtension(
     const newExtension = loadExtension(localSourcePath);
     if (!newExtension) {
       throw new Error(
-        `Invalid extension at ${installMetadata.source}. Please make sure it has a valid gemini-extension.json file.`,
+        `Invalid extension at ${installMetadata.source}. Please make sure it has a valid gemini-extension.json file.`, 
       );
     }
 
@@ -375,7 +379,7 @@ export async function installExtension(
       )
     ) {
       throw new Error(
-        `Extension "${newExtensionName}" is already installed. Please uninstall it first.`,
+        `Extension "${newExtensionName}" is already installed. Please uninstall it first.`, 
       );
     }
 
@@ -424,19 +428,19 @@ export function toOutputString(extension: Extension): string {
     output += `\n Source: ${extension.installMetadata.source}`;
   }
   if (extension.contextFiles.length > 0) {
-    output += `\n Context files:`;
+    output += `\n Context files:`
     extension.contextFiles.forEach((contextFile) => {
       output += `\n  ${contextFile}`;
     });
   }
   if (extension.config.mcpServers) {
-    output += `\n MCP servers:`;
+    output += `\n MCP servers:`
     Object.keys(extension.config.mcpServers).forEach((key) => {
       output += `\n  ${key}`;
     });
   }
   if (extension.config.excludeTools) {
-    output += `\n Excluded tools:`;
+    output += `\n Excluded tools:`
     extension.config.excludeTools.forEach((tool) => {
       output += `\n  ${tool}`;
     });
@@ -454,12 +458,12 @@ export async function updateExtension(
   );
   if (!extension) {
     throw new Error(
-      `Extension "${extensionName}" not found. Run gemini extensions list to see available extensions.`,
+      `Extension "${extensionName}" not found. Run gemini extensions list to see available extensions.`, 
     );
   }
   if (!extension.installMetadata) {
     throw new Error(
-      `Extension cannot be updated because it is missing the .gemini-extension.install.json file. To update manually, uninstall and then reinstall the updated version.`,
+      `Extension cannot be updated because it is missing the .gemini-extension.install.json file. To update manually, uninstall and then reinstall the updated version.`, 
     );
   }
   const originalVersion = extension.config.version;

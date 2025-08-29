@@ -5,42 +5,121 @@
  */
 
 import {
+  disableExtension,
+  enableExtension,
+  loadUserExtensions,
+  refreshExtensions,
+  toOutputString,
+} from '../../config/extension.js';
+import { SettingScope } from '../../config/settings.js';
+import {
   type CommandContext,
-  type SlashCommand,
   CommandKind,
+  type SlashCommand,
+  type SlashCommandActionReturn,
 } from './types.js';
-import { MessageType } from '../types.js';
+
+const listCommand: SlashCommand = {
+  name: 'list',
+  description: 'Lists installed extensions.',
+  kind: CommandKind.BUILT_IN,
+  action: async (): Promise<SlashCommandActionReturn> => {
+    const extensions = loadUserExtensions();
+    if (extensions.length === 0) {
+      return {
+        type: 'message',
+        messageType: 'info',
+        content: 'No extensions installed.',
+      };
+    }
+
+    return {
+      type: 'message',
+      messageType: 'info',
+      content: extensions
+        .map((extension) => toOutputString(extension))
+        .join('  \n\n'),
+    };
+  },
+};
+
+const enableCommand: SlashCommand = {
+  name: 'enable',
+  description: 'Enables an extension.',
+  kind: CommandKind.BUILT_IN,
+  action: async (
+    context: CommandContext,
+    args: string,
+  ): Promise<SlashCommandActionReturn> => {
+    const [name] = args.split(' ');
+    if (!name) {
+      return {
+        type: 'message',
+        messageType: 'error',
+        content: 'Usage: /extensions enable <name>',
+      };
+    }
+
+    enableExtension(name, [SettingScope.User, SettingScope.Workspace]);
+
+    return {
+      type: 'message',
+      messageType: 'info',
+      content: `Extension "${name}" successfully enabled.`, 
+    };
+  },
+};
+
+const disableCommand: SlashCommand = {
+  name: 'disable',
+  description: 'Disables an extension.',
+  kind: CommandKind.BUILT_IN,
+  action: async (
+    context: CommandContext,
+    args: string,
+  ): Promise<SlashCommandActionReturn> => {
+    const [name] = args.split(' ');
+    if (!name) {
+      return {
+        type: 'message',
+        messageType: 'error',
+        content: 'Usage: /extensions disable <name>',
+      };
+    }
+
+    disableExtension(name, SettingScope.User);
+
+    return {
+      type: 'message',
+      messageType: 'info',
+      content: `Extension "${name}" successfully disabled.`, 
+    };
+  },
+};
+
+const refreshCommand: SlashCommand = {
+  name: 'refresh',
+  description: 'Refreshes all extensions.',
+  kind: CommandKind.BUILT_IN,
+  action: async (
+    context: CommandContext,
+    args: string,
+  ): Promise<SlashCommandActionReturn> => {
+    refreshExtensions(process.cwd());
+    context.ui.reloadCommands();
+    return {
+      type: 'message',
+      messageType: 'info',
+      content: 'Extensions refreshed.',
+    };
+  },
+};
 
 export const extensionsCommand: SlashCommand = {
   name: 'extensions',
-  description: 'list active extensions',
+  description: 'Manages extensions.',
   kind: CommandKind.BUILT_IN,
-  action: async (context: CommandContext): Promise<void> => {
-    const activeExtensions = context.services.config
-      ?.getExtensions()
-      .filter((ext) => ext.isActive);
-    if (!activeExtensions || activeExtensions.length === 0) {
-      context.ui.addItem(
-        {
-          type: MessageType.INFO,
-          text: 'No active extensions.',
-        },
-        Date.now(),
-      );
-      return;
-    }
-
-    const extensionLines = activeExtensions.map(
-      (ext) => `  - \u001b[36m${ext.name} (v${ext.version})\u001b[0m`,
-    );
-    const message = `Active extensions:\n\n${extensionLines.join('\n')}\n`;
-
-    context.ui.addItem(
-      {
-        type: MessageType.INFO,
-        text: message,
-      },
-      Date.now(),
-    );
-  },
+  subCommands: [listCommand, enableCommand, disableCommand, refreshCommand],
+  action: async (context: CommandContext, args: string) =>
+    listCommand.action!(context, args),
 };

@@ -61,6 +61,7 @@ export interface CommandContext {
     toggleVimEnabled: () => Promise<boolean>;
     setGeminiMdFileCount: (count: number) => void;
     reloadCommands: () => void;
+    reloadExtensions: () => void;
   };
   // Session-specific data
   session: {

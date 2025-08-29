@@ -22,11 +22,23 @@ import { themeManager } from './ui/themes/theme-manager.js';
 import { getStartupWarnings } from './utils/startupWarnings.js';
 import { getUserStartupWarnings } from './utils/userStartupWarnings.js';
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
-import { runNonInteractive } from './nonInteractiveCli.js';
-import { loadExtensions } from './config/extension.js';
-import { cleanupCheckpoints, registerCleanup } from './utils/cleanup.js';
-import { getCliVersion } from './utils/version.js';
-import type { Config } from '@google/gemini-cli-core';
+import {
+  runNonInteractive
+} from './nonInteractiveCli.js';
+import {
+  loadExtensions,
+  type Extension
+} from './config/extension.js';
+import {
+  cleanupCheckpoints,
+  registerCleanup
+} from './utils/cleanup.js';
+import {
+  getCliVersion
+} from './utils/version.js';
+import type {
+  Config
+} from '@google/gemini-cli-core';
 import {
   sessionId,
   logUserPrompt,
@@ -37,14 +49,31 @@ import {
   IdeConnectionType,
   FatalConfigError,
 } from '@google/gemini-cli-core';
-import { validateAuthMethod } from './config/auth.js';
-import { setMaxSizedBoxDebugging } from './ui/components/shared/MaxSizedBox.js';
-import { validateNonInteractiveAuth } from './validateNonInterActiveAuth.js';
-import { detectAndEnableKittyProtocol } from './ui/utils/kittyProtocolDetector.js';
-import { checkForUpdates } from './ui/utils/updateCheck.js';
-import { handleAutoUpdate } from './utils/handleAutoUpdate.js';
-import { appEvents, AppEvent } from './utils/events.js';
-import { SettingsContext } from './ui/contexts/SettingsContext.js';
+import {
+  validateAuthMethod
+} from './config/auth.js';
+import {
+  setMaxSizedBoxDebugging
+} from './ui/components/shared/MaxSizedBox.js';
+import {
+  validateNonInteractiveAuth
+} from './validateNonInterActiveAuth.js';
+import {
+  detectAndEnableKittyProtocol
+} from './ui/utils/kittyProtocolDetector.js';
+import {
+  checkForUpdates
+} from './ui/utils/updateCheck.js';
+import {
+  handleAutoUpdate
+} from './utils/handleAutoUpdate.js';
+import {
+  appEvents,
+  AppEvent
+} from './utils/events.js';
+import {
+  SettingsContext
+} from './ui/contexts/SettingsContext.js';
 
 export function validateDnsResolutionOrder(
   order: string | undefined,
@@ -168,6 +197,7 @@ export async function startInteractiveUI(
   settings: LoadedSettings,
   startupWarnings: string[],
   workspaceRoot: string,
+  extensions: Extension[],
 ) {
   const version = await getCliVersion();
   // Detect and enable Kitty keyboard protocol once at startup
@@ -181,6 +211,7 @@ export async function startInteractiveUI(
           settings={settings}
           startupWarnings={startupWarnings}
           version={version}
+          initialExtensions={extensions}
         />
       </SettingsContext.Provider>
     </React.StrictMode>,
@@ -395,7 +426,13 @@ export async function main() {
 
   // Render UI, passing necessary config values. Check that there is no command line question.
   if (config.isInteractive()) {
-    await startInteractiveUI(config, settings, startupWarnings, workspaceRoot);
+    await startInteractiveUI(
+      config,
+      settings,
+      startupWarnings,
+      workspaceRoot,
+      extensions,
+    );
     return;
   }
   // If not a TTY, read from stdin
