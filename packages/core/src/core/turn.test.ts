@@ -340,6 +340,7 @@ describe('Turn', () => {
     it('should yield finished event for MAX_TOKENS finish reason', async () => {
       const mockResponseStream = (async function* () {
         yield {
+           value: {
           candidates: [
             {
               content: {
@@ -349,7 +350,7 @@ describe('Turn', () => {
               },
               finishReason: 'MAX_TOKENS',
             },
-          ],
+          ]},
         } as unknown as GenerateContentResponse;
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
@@ -375,12 +376,14 @@ describe('Turn', () => {
     it('should yield finished event for SAFETY finish reason', async () => {
       const mockResponseStream = (async function* () {
         yield {
-          candidates: [
-            {
-              content: { parts: [{ text: 'Content blocked' }] },
-              finishReason: 'SAFETY',
-            },
-          ],
+          value: {
+            candidates: [
+              {
+                content: { parts: [{ text: 'Content blocked' }] },
+                finishReason: 'SAFETY',
+              },
+            ],
+          },
         } as unknown as GenerateContentResponse;
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
@@ -403,12 +406,16 @@ describe('Turn', () => {
     it('should not yield finished event when there is no finish reason', async () => {
       const mockResponseStream = (async function* () {
         yield {
-          candidates: [
-            {
-              content: { parts: [{ text: 'Response without finish reason' }] },
-              // No finishReason property
-            },
-          ],
+          value: {
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: 'Response without finish reason' }],
+                },
+                // No finishReason property
+              },
+            ],
+          },
         } as unknown as GenerateContentResponse;
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
@@ -434,20 +441,22 @@ describe('Turn', () => {
     it('should handle multiple responses with different finish reasons', async () => {
       const mockResponseStream = (async function* () {
         yield {
-          candidates: [
-            {
+          value: {
+            candidates: [
+              {
               content: { parts: [{ text: 'First part' }] },
               // No finish reason on first response
             },
-          ],
+          ]},
         } as unknown as GenerateContentResponse;
         yield {
+           value: {
           candidates: [
             {
               content: { parts: [{ text: 'Second part' }] },
               finishReason: 'OTHER',
             },
-          ],
+          ]},
         } as unknown as GenerateContentResponse;
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
@@ -560,20 +569,22 @@ describe('Turn', () => {
     it('should not yield citation event if there is no finish reason', async () => {
       const mockResponseStream = (async function* () {
         yield {
-          candidates: [
-            {
-              content: { parts: [{ text: 'Some text.' }] },
-              citationMetadata: {
-                citations: [
-                  {
-                    uri: 'https://example.com/source1',
-                    title: 'Source 1 Title',
-                  },
-                ],
+          value: {
+            candidates: [
+              {
+                content: { parts: [{ text: 'Some text.' }] },
+                citationMetadata: {
+                  citations: [
+                    {
+                      uri: 'https://example.com/source1',
+                      title: 'Source 1 Title',
+                    },
+                  ],
+                },
+                // No finishReason
               },
-              // No finishReason
-            },
-          ],
+            ],
+          },
         } as unknown as GenerateContentResponse;
       })();
       mockSendMessageStream.mockResolvedValue(mockResponseStream);
