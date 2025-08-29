@@ -12,7 +12,7 @@ import type {
   Part,
   GenerateContentResponse,
 } from '@google/genai';
-import { GeminiChat, EmptyStreamError } from './geminiChat.js';
+import { GeminiChat, EmptyStreamError, StreamEventType } from './geminiChat.js';
 import type { Config } from '../config/config.js';
 import { setSimulate429 } from '../utils/testUtils.js';
 
@@ -948,7 +948,7 @@ describe('GeminiChat', () => {
         { message: 'test' },
         'prompt-id-retry-success',
       );
-      const chunks = [];
+      const chunks: StreamEvent[] = [];
       for await (const chunk of stream) {
         chunks.push(chunk);
       }
@@ -958,11 +958,17 @@ describe('GeminiChat', () => {
       expect(mockLogContentRetry).toHaveBeenCalledTimes(1);
       expect(mockLogContentRetryFailure).not.toHaveBeenCalled();
       expect(mockModelsModule.generateContentStream).toHaveBeenCalledTimes(2);
+
+      // Check for a retry event
+      expect(chunks.some((c) => c.type === StreamEventType.RETRY)).toBe(true);
+
+      // Check for the successful content chunk
       expect(
         chunks.some(
           (c) =>
-            c.candidates?.[0]?.content?.parts?.[0]?.text ===
-            'Successful response',
+            c.type === StreamEventType.CHUNK &&
+            c.value.candidates?.[0]?.content?.parts?.[0]?.text ===
+              'Successful response',
         ),
       ).toBe(true);
 
