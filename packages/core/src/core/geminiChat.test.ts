@@ -1325,4 +1325,67 @@ describe('GeminiChat', () => {
     }
     expect(turn4.parts[0].text).toBe('second response');
   });
+
+  it('should discard valid partial content from a failed attempt upon retry', async () => {
+    // ARRANGE: Mock the stream to fail on the first attempt after yielding some valid content.
+    vi.mocked(mockModelsModule.generateContentStream)
+      .mockImplementationOnce(async () =>
+        // First attempt: yields one valid chunk, then one invalid chunk
+        (async function* () {
+          yield {
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: 'This valid part should be discarded' }],
+                },
+              },
+            ],
+          } as unknown as GenerateContentResponse;
+          yield {
+            candidates: [{ content: { parts: [{ text: '' }] } }], // Invalid chunk triggers retry
+          } as unknown as GenerateContentResponse;
+        })(),
+      )
+      .mockImplementationOnce(async () =>
+        // Second attempt (the retry): succeeds
+        (async function* () {
+          yield {
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: 'Successful final response' }],
+                },
+              },
+            ],
+          } as unknown as GenerateContentResponse;
+        })(),
+      );
+
+    // ACT: Send a message and consume the stream
+    const stream = await chat.sendMessageStream(
+      { message: 'test' },
+      'prompt-id-discard-test',
+    );
+    const events: StreamEvent[] = [];
+    for await (const event of stream) {
+      events.push(event);
+    }
+
+    // ASSERT
+    // Check that a retry happened
+    expect(mockModelsModule.generateContentStream).toHaveBeenCalledTimes(2);
+    expect(events.some((e) => e.type === StreamEventType.RETRY)).toBe(true);
+
+    // Check the final recorded history
+    const history = chat.getHistory();
+    expect(history.length).toBe(2); // user turn + final model turn
+
+    const modelTurn = history[1]!;
+    // The model turn should only contain the text from the successful attempt
+    expect(modelTurn!.parts![0]!.text).toBe('Successful final response');
+    // It should NOT contain any text from the failed attempt
+    expect(modelTurn!.parts![0]!.text).not.toContain(
+      'This valid part should be discarded',
+    );
+  });
 });
