@@ -90,11 +90,13 @@ export class EndSessionEvent implements BaseTelemetryEvent {
   'event.name': 'end_session';
   'event.timestamp': string;
   session_id?: string;
+  session_rating?: number;
 
-  constructor(config?: Config) {
+  constructor(config?: Config, session_rating?: number) {
     this['event.name'] = 'end_session';
     this['event.timestamp'] = new Date().toISOString();
     this.session_id = config?.getSessionId();
+    this.session_rating = session_rating;
   }
 }
 

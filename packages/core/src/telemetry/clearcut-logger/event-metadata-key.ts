@@ -325,4 +325,11 @@ export enum EventMetadataKey {
 
   // Logs the total duration in milliseconds for a content retry failure.
   GEMINI_CLI_CONTENT_RETRY_FAILURE_TOTAL_DURATION_MS = 81,
+
+  // ==========================================================================
+  // Session End Event Keys
+  // ===========================================================================
+
+  // Logs the session rating.
+  GEMINI_CLI_SESSION_RATING = 83,
 }

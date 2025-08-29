@@ -44,6 +44,7 @@ import { AuthInProgress } from './components/AuthInProgress.js';
 import { EditorSettingsDialog } from './components/EditorSettingsDialog.js';
 import { FolderTrustDialog } from './components/FolderTrustDialog.js';
 import { ShellConfirmationDialog } from './components/ShellConfirmationDialog.js';
+import { PostSessionFeedbackDialog } from './components/PostSessionFeedbackDialog.js';
 import { RadioButtonSelect } from './components/shared/RadioButtonSelect.js';
 import { Colors } from './colors.js';
 import { loadHierarchicalGeminiMemory } from '../config/config.js';
@@ -105,6 +106,7 @@ import { appEvents, AppEvent } from '../utils/events.js';
 import { isNarrowWidth } from './utils/isNarrowWidth.js';
 import { useWorkspaceMigration } from './hooks/useWorkspaceMigration.js';
 import { WorkspaceMigrationDialog } from './components/WorkspaceMigrationDialog.js';
+import { usePostSessionFeedbackCommand } from './hooks/usePostSessionFeedbackCommand.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 // Maximum number of queued messages to display in UI to prevent performance issues
@@ -322,6 +324,12 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       setUserTier(config.getGeminiClient()?.getUserTier());
     }
   }, [config, isAuthenticating]);
+
+  const {
+    isPostSessionFeedbackDialogOpen,
+    openPostSessionFeedbackDialog,
+    handleSessionRatingSelect
+  } = usePostSessionFeedbackCommand(config);
 
   const {
     isEditorDialogOpen,
@@ -556,6 +564,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     toggleVimEnabled,
     setIsProcessing,
     setGeminiMdFileCount,
+    openPostSessionFeedbackDialog,
   );
 
   const buffer = useTextBuffer({
@@ -733,15 +742,19 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
         if (isAuthenticating) {
           return;
         }
-        if (!ctrlCPressedOnce) {
-          cancelOngoingRequest?.();
-        }
-        handleExit(ctrlCPressedOnce, setCtrlCPressedOnce, ctrlCTimerRef);
+        // TODO: check config for opt-out
+        console.log('Opening feedback dialog for ctrl+C...');
       } else if (keyMatchers[Command.EXIT](key)) {
         if (buffer.text.length > 0) {
           return;
         }
-        handleExit(ctrlDPressedOnce, setCtrlDPressedOnce, ctrlDTimerRef);
+        console.log('Opening feedback dialog for ctrl+D...');
+        openPostSessionFeedbackDialog().then((completed) => {
+          if (completed) {
+            console.log('Quitting...');
+            handleSlashCommand('/quit');
+          }
+        });
       } else if (
         keyMatchers[Command.SHOW_MORE_LINES](key) &&
         !enteringConstrainHeightMode
@@ -1044,6 +1057,8 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
             />
           ) : shellConfirmationRequest ? (
             <ShellConfirmationDialog request={shellConfirmationRequest} />
+          ) : isPostSessionFeedbackDialogOpen ? (
+            <PostSessionFeedbackDialog onSelect={handleSessionRatingSelect} />
           ) : confirmationRequest ? (
             <Box flexDirection="column">
               {confirmationRequest.prompt}

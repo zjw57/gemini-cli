@@ -30,6 +30,7 @@ export {
   logConversationFinishedEvent,
   logKittySequenceOverflow,
   logChatCompression,
+  logEndSession,
 } from './loggers.js';
 export type { SlashCommandEvent, ChatCompressionEvent } from './types.js';
 export {

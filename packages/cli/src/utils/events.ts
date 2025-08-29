@@ -9,6 +9,7 @@ import { EventEmitter } from 'node:events';
 export enum AppEvent {
   OpenDebugConsole = 'open-debug-console',
   LogError = 'log-error',
+  ClosePostSessionFeedbackDialog = 'close-post-session-feedback-dialog',
 }
 
 export const appEvents = new EventEmitter();

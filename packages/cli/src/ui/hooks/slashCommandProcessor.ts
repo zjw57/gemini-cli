@@ -55,6 +55,7 @@ export const useSlashCommandProcessor = (
   toggleVimEnabled: () => Promise<boolean>,
   setIsProcessing: (isProcessing: boolean) => void,
   setGeminiMdFileCount: (count: number) => void,
+  openPostSessionFeedbackDialog: () => Promise<boolean>,
 ) => {
   const session = useSessionStats();
   const [commands, setCommands] = useState<readonly SlashCommand[]>([]);
@@ -403,10 +404,12 @@ export const useSlashCommandProcessor = (
                   return { type: 'handled' };
                 }
                 case 'quit':
+                  console.log('About to open feedback dialog...');
+                  //await openPostSessionFeedbackDialog();
                   setQuittingMessages(result.messages);
                   setTimeout(async () => {
                     await runExitCleanup();
-                    process.exit(0);
+                    //process.exit(0);
                   }, 100);
                   return { type: 'handled' };
 

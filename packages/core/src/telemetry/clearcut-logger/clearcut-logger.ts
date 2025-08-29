@@ -24,6 +24,7 @@ import type {
   InvalidChunkEvent,
   ContentRetryEvent,
   ContentRetryFailureEvent,
+  EndSessionEvent,
 } from '../types.js';
 import { EventMetadataKey } from './event-metadata-key.js';
 import type { Config } from '../../config/config.js';
@@ -331,6 +332,7 @@ export class ClearcutLogger {
   }
 
   logStartSessionEvent(event: StartSessionEvent): void {
+    console.log('Logging start session event...');
     const data: EventValue[] = [
       {
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_START_SESSION_MODEL,
@@ -776,9 +778,23 @@ export class ClearcutLogger {
     this.flushIfNeeded();
   }
 
-  logEndSessionEvent(): void {
-    // Flush immediately on session end.
-    this.enqueueLogEvent(this.createLogEvent(EventNames.END_SESSION, []));
+  logEndSessionEvent(event: EndSessionEvent): void {
+    console.log('Logging end session event...');
+    const data: EventValue[] = [];
+
+    if (event.session_rating) {
+      console.log('Session rating: %d', event.session_rating);
+      data.push({
+        gemini_cli_key:
+          EventMetadataKey.GEMINI_CLI_SESSION_RATING,
+        value: String(event.session_rating),
+      });
+    }
+
+    this.enqueueLogEvent(
+      this.createLogEvent(EventNames.END_SESSION, data),
+    );
+
     this.flushToClearcut().catch((error) => {
       console.debug('Error flushing to Clearcut:', error);
     });
@@ -903,10 +919,6 @@ export class ClearcutLogger {
     } else {
       throw new Error('Unsupported proxy type');
     }
-  }
-
-  shutdown() {
-    this.logEndSessionEvent();
   }
 
   private requeueFailedEvents(eventsToSend: LogEventEntry[][]): void {

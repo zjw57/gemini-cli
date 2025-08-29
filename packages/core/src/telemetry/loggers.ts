@@ -26,6 +26,7 @@ import {
   EVENT_INVALID_CHUNK,
   EVENT_CONTENT_RETRY,
   EVENT_CONTENT_RETRY_FAILURE,
+  EVENT_END_SESSION,
 } from './constants.js';
 import type {
   ApiErrorEvent,
@@ -47,6 +48,7 @@ import type {
   InvalidChunkEvent,
   ContentRetryEvent,
   ContentRetryFailureEvent,
+  EndSessionEvent,
 } from './types.js';
 import {
   recordApiErrorMetrics,
@@ -579,4 +581,25 @@ export function logContentRetryFailure(
   };
   logger.emit(logRecord);
   recordContentRetryFailure(config);
+}
+
+export function logEndSession(
+  config: Config,
+  event: EndSessionEvent,
+): void {
+  ClearcutLogger.getInstance(config)?.logEndSessionEvent(event);
+  if (!isTelemetrySdkInitialized()) return;
+
+  const attributes: LogAttributes = {
+    ...getCommonAttributes(config),
+    ...event,
+    'event.name': EVENT_END_SESSION,
+  };
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const logRecord: LogRecord = {
+    body: `End of session`,
+    attributes,
+  };
+  logger.emit(logRecord);
 }
