@@ -54,7 +54,12 @@ export enum GeminiEventType {
   MaxSessionTurns = 'max_session_turns',
   Finished = 'finished',
   LoopDetected = 'loop_detected',
+  Retry = 'retry',
 }
+
+export type ServerGeminiRetryEvent = {
+  type: GeminiEventType.Retry;
+};
 
 export interface StructuredError {
   message: string;
@@ -160,7 +165,8 @@ export type ServerGeminiStreamEvent =
   | ServerGeminiThoughtEvent
   | ServerGeminiMaxSessionTurnsEvent
   | ServerGeminiFinishedEvent
-  | ServerGeminiLoopDetectedEvent;
+  | ServerGeminiLoopDetectedEvent
+  | ServerGeminiRetryEvent;
 
 // A turn manages the agentic loop turn within the server context.
 export class Turn {
@@ -192,12 +198,20 @@ export class Turn {
         this.prompt_id,
       );
 
-      for await (const resp of responseStream) {
+      for await (const event of responseStream) {
         if (signal?.aborted) {
           yield { type: GeminiEventType.UserCancelled };
-          // Do not add resp to debugResponses if aborted before processing
           return;
         }
+
+        // Handle the new RETRY event
+        if (event.type === 'retry') {
+          // Or StreamEventType.RETRY if imported
+          yield { type: GeminiEventType.Retry };
+          continue; // Skip to the next event in the stream
+        }
+
+        const resp = event.value;
         this.debugResponses.push(resp);
 
         const thoughtPart = resp.candidates?.[0]?.content?.parts?.[0];
