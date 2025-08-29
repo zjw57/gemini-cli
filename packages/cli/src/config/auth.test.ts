@@ -33,16 +33,16 @@ describe('validateAuthMethod', () => {
   });
 
   describe('USE_GEMINI', () => {
-    it('should return null if GEMINI_API_KEY is set', () => {
-      vi.stubEnv('GEMINI_API_KEY', 'test-key');
-      expect(validateAuthMethod(AuthType.USE_GEMINI)).toBeNull();
-    });
-
     it('should return an error message if GEMINI_API_KEY is not set', () => {
       vi.stubEnv('GEMINI_API_KEY', '');
       expect(validateAuthMethod(AuthType.USE_GEMINI)).toBe(
         'GEMINI_API_KEY environment variable not found. Add that to your environment and try again (no reload needed if using .env)!',
       );
+      
+    it('should return null if GEMINI_API_KEY is set', () => {
+      vi.stubEnv('GEMINI_API_KEY', 'test-key');
+      expect(validateAuthMethod(AuthType.USE_GEMINI)).toBeNull();
+    });
     });
   });
 
