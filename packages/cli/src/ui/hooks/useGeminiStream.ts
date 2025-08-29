@@ -8,7 +8,8 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type {
   Config,
   GeminiClient,
-  ServerGeminiStreamEvent as GeminiEvent,
+  ClientStreamEvent, // <-- Import the new event type from the client
+  ServerGeminiStreamEvent as OldGeminiEvent, // <-- Rename the old alias
   ServerGeminiContentEvent as ContentEvent,
   ServerGeminiErrorEvent as ErrorEvent,
   ServerGeminiChatCompressedEvent,
@@ -31,6 +32,7 @@ import {
   ConversationFinishedEvent,
   ApprovalMode,
   parseAndFormatApiError,
+  StreamEventType,
 } from '@google/gemini-cli-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
 import type {
@@ -568,58 +570,77 @@ export const useGeminiStream = (
 
   const processGeminiStreamEvents = useCallback(
     async (
-      stream: AsyncIterable<GeminiEvent>,
+      stream: AsyncIterable<ClientStreamEvent>,
       userMessageTimestamp: number,
       signal: AbortSignal,
     ): Promise<StreamProcessingStatus> => {
       let geminiMessageBuffer = '';
       const toolCallRequests: ToolCallRequestInfo[] = [];
-      for await (const event of stream) {
-        switch (event.type) {
-          case ServerGeminiEventType.Thought:
-            setThought(event.value);
-            break;
-          case ServerGeminiEventType.Content:
-            geminiMessageBuffer = handleContentEvent(
-              event.value,
-              geminiMessageBuffer,
-              userMessageTimestamp,
-            );
-            break;
-          case ServerGeminiEventType.ToolCallRequest:
-            toolCallRequests.push(event.value);
-            break;
-          case ServerGeminiEventType.UserCancelled:
-            handleUserCancelledEvent(userMessageTimestamp);
-            break;
-          case ServerGeminiEventType.Error:
-            handleErrorEvent(event.value, userMessageTimestamp);
-            break;
-          case ServerGeminiEventType.ChatCompressed:
-            handleChatCompressionEvent(event.value);
-            break;
-          case ServerGeminiEventType.ToolCallConfirmation:
-          case ServerGeminiEventType.ToolCallResponse:
-            // do nothing
-            break;
-          case ServerGeminiEventType.MaxSessionTurns:
-            handleMaxSessionTurnsEvent();
-            break;
-          case ServerGeminiEventType.Finished:
-            handleFinishedEvent(
-              event as ServerGeminiFinishedEvent,
-              userMessageTimestamp,
-            );
-            break;
-          case ServerGeminiEventType.LoopDetected:
-            // handle later because we want to move pending history to history
-            // before we add loop detected message to history
-            loopDetectedRef.current = true;
-            break;
-          default: {
-            // enforces exhaustive switch-case
-            const unreachable: never = event;
-            return unreachable;
+
+      for await (const clientEvent of stream) {
+        if (signal?.aborted) {
+          // The sendMessageStream from the client should handle this,
+          // but as a safeguard:
+          handleUserCancelledEvent(userMessageTimestamp);
+          return StreamProcessingStatus.UserCancelled;
+        }
+
+        // Handle the new RETRY event directly
+        if (clientEvent.type === StreamEventType.RETRY) {
+          geminiMessageBuffer = '';
+          if (pendingHistoryItemRef.current) {
+            setPendingHistoryItem(null); // Clear pending UI from the failed attempt
+          }
+          continue; // Skip to the next event in the stream
+        }
+
+        // The CHUNK event is now just a wrapper, but we don't need to process it.
+        // The other events are the old ones we can process directly.
+        if (clientEvent.type !== StreamEventType.CHUNK) {
+          let event = clientEvent as OldGeminiEvent;
+          switch (event.type) {
+            case ServerGeminiEventType.Thought:
+              setThought(event.value);
+              break;
+            case ServerGeminiEventType.Content:
+              geminiMessageBuffer = handleContentEvent(
+                event.value,
+                geminiMessageBuffer,
+                userMessageTimestamp,
+              );
+              break;
+            case ServerGeminiEventType.ToolCallRequest:
+              toolCallRequests.push(event.value);
+              break;
+            case ServerGeminiEventType.UserCancelled:
+              handleUserCancelledEvent(userMessageTimestamp);
+              break;
+            case ServerGeminiEventType.Error:
+              handleErrorEvent(event.value, userMessageTimestamp);
+              break;
+            case ServerGeminiEventType.ChatCompressed:
+              handleChatCompressionEvent(event.value);
+              break;
+            case ServerGeminiEventType.ToolCallConfirmation:
+            case ServerGeminiEventType.ToolCallResponse:
+              // do nothing
+              break;
+            case ServerGeminiEventType.MaxSessionTurns:
+              handleMaxSessionTurnsEvent();
+              break;
+            case ServerGeminiEventType.Finished:
+              handleFinishedEvent(
+                event as ServerGeminiFinishedEvent,
+                userMessageTimestamp,
+              );
+              break;
+            case ServerGeminiEventType.LoopDetected:
+              loopDetectedRef.current = true;
+              break;
+            default: {
+              const unreachable: never = event;
+              return unreachable;
+            }
           }
         }
       }
