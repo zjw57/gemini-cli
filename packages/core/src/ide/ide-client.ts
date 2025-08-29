@@ -382,7 +382,7 @@ export class IdeClient {
     try {
       const tmpDir = os.tmpdir();
       const files = await fs.promises.readdir(tmpDir);
-      const portFiles = files.filter(f =>
+      const portFiles = files.filter((f) =>
         /^gemini-ide-server-\d+\.json$/.test(f),
       );
 
@@ -390,10 +390,12 @@ export class IdeClient {
         return undefined;
       }
 
-      const potentialConfigs: Array<(ConnectionConfig & {
-        workspacePath?: string;
-        ppid?: number;
-      })> = [];
+      const potentialConfigs: Array<
+        ConnectionConfig & {
+          workspacePath?: string;
+          ppid?: number;
+        }
+      > = [];
       for (const file of portFiles) {
         try {
           const filePath = path.join(tmpDir, file);
@@ -435,14 +437,14 @@ export class IdeClient {
 
       // Multiple configs found, filter by workspace
       let candidates = potentialConfigs;
-      const workspaceMatchingConfigs = candidates.filter(config => {
+      const workspaceMatchingConfigs = candidates.filter((config) => {
         const ideWorkspacePath = config.workspacePath;
         if (!ideWorkspacePath) {
           return false;
         }
         const ideWorkspacePaths = ideWorkspacePath.split(path.delimiter);
         const realCwd = getRealPath(process.cwd());
-        return ideWorkspacePaths.some(workspacePath => {
+        return ideWorkspacePaths.some((workspacePath) => {
           const idePath = getRealPath(workspacePath);
           return isSubpath(idePath, realCwd);
         });
@@ -462,7 +464,7 @@ export class IdeClient {
       // Multiple candidates still, try to match by port from env var.
       const portFromEnv = this.getPortFromEnv();
       if (portFromEnv) {
-        const matchingConfig = candidates.find(c => c.port === portFromEnv);
+        const matchingConfig = candidates.find((c) => c.port === portFromEnv);
         if (matchingConfig) {
           return matchingConfig;
         }
