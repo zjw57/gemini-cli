@@ -29,8 +29,7 @@ import {
   ConversationFinishedEvent,
   ApprovalMode,
   parseAndFormatApiError,
-  StreamEventType,
-  type StreamEvent,
+  GeminiEventType,
 } from '@google/gemini-cli-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
 import type {
@@ -60,6 +59,10 @@ import {
 } from './useReactToolScheduler.js';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import { useKeypress } from './useKeypress.js';
+import {
+  StreamEventType,
+  type StreamEvent,
+} from '@google/gemini-cli-core/src/core/geminiChat.js';
 
 enum StreamProcessingStatus {
   Completed,
@@ -644,7 +647,7 @@ export const useGeminiStream = (
 
       if (lastFinishReason) {
         handleFinishedEvent(
-          { type: 'finished', value: lastFinishReason },
+          { type: GeminiEventType.Finished, value: lastFinishReason },
           userMessageTimestamp,
         );
       }
