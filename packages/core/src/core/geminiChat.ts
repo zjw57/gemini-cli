@@ -352,7 +352,7 @@ export class GeminiChat {
   async sendMessageStream(
     params: SendMessageParameters,
     prompt_id: string,
-  ): Promise<AsyncGenerator<GenerateContentResponse>> {
+  ): Promise<AsyncGenerator<StreamEvent>> {
     await this.sendPromise;
 
     let streamDoneResolver: () => void;
