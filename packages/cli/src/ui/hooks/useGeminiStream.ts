@@ -635,6 +635,12 @@ export const useGeminiStream = (
             // before we add loop detected message to history
             loopDetectedRef.current = true;
             break;
+          case ServerGeminiEventType.Retry:
+            geminiMessageBuffer = '';
+            if (pendingHistoryItemRef.current) {
+              setPendingHistoryItem(null); // Clear pending UI from the failed attempt
+            }
+            break;
           default: {
             // enforces exhaustive switch-case
             const unreachable: never = event;
