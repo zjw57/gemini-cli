@@ -12,7 +12,12 @@ import type {
   Part,
   GenerateContentResponse,
 } from '@google/genai';
-import { GeminiChat, EmptyStreamError, StreamEventType } from './geminiChat.js';
+import {
+  GeminiChat,
+  EmptyStreamError,
+  StreamEventType,
+  type StreamEvent,
+} from './geminiChat.js';
 import type { Config } from '../config/config.js';
 import { setSimulate429 } from '../utils/testUtils.js';
 
@@ -1209,7 +1214,7 @@ describe('GeminiChat', () => {
       { message: 'test empty stream' },
       'prompt-id-empty-stream',
     );
-    const chunks = [];
+    const chunks: StreamEvent[] = [];
     for await (const chunk of stream) {
       chunks.push(chunk);
     }
@@ -1219,8 +1224,9 @@ describe('GeminiChat', () => {
     expect(
       chunks.some(
         (c) =>
-          c.candidates?.[0]?.content?.parts?.[0]?.text ===
-          'Successful response after empty',
+          c.type === StreamEventType.CHUNK &&
+          c.value.candidates?.[0]?.content?.parts?.[0]?.text ===
+            'Successful response after empty',
       ),
     ).toBe(true);
 
