@@ -220,6 +220,7 @@ export const useGeminiStream = (
     setPendingHistoryItem(null);
     onCancelSubmit();
     setIsResponding(false);
+    setThought(null); // Reset thought on cancel
   }, [
     streamingState,
     addItem,
@@ -578,6 +579,8 @@ export const useGeminiStream = (
       let geminiMessageBuffer = '';
       const toolCallRequests: ToolCallRequestInfo[] = [];
 
+      let lastFinishReason: FinishReason | undefined;
+
       for await (const event of stream) {
         switch (event.type) {
           case StreamEventType.RETRY:
@@ -586,11 +589,13 @@ export const useGeminiStream = (
               setPendingHistoryItem(null);
             }
             break;
-
-          // CHANGE: This case is now corrected to properly parse the chunk
           case StreamEventType.CHUNK: {
             const chunk = event.value;
             const candidate = chunk.candidates?.[0];
+
+            if (candidate?.finishReason) {
+              lastFinishReason = candidate.finishReason;
+            }
 
             // Safety check for malformed chunks
             if (!candidate?.content?.parts) {
@@ -609,8 +614,8 @@ export const useGeminiStream = (
 
               // NOTE: The `thought` property is a custom extension in this codebase.
               // Assuming its structure matches the `ThoughtSummary` type.
-              if (part.thought) {
-                setThought(part.thought as ThoughtSummary);
+              if ((part as any).thought) {
+                setThought((part as any).thought as ThoughtSummary);
               }
 
               if (part.functionCall) {
@@ -636,6 +641,14 @@ export const useGeminiStream = (
           }
         }
       }
+
+      if (lastFinishReason) {
+        handleFinishedEvent(
+          { type: 'finished', value: lastFinishReason },
+          userMessageTimestamp,
+        );
+      }
+
       if (toolCallRequests.length > 0) {
         scheduleToolCalls(toolCallRequests, signal);
       }
@@ -643,6 +656,7 @@ export const useGeminiStream = (
     },
     [
       handleContentEvent,
+      handleFinishedEvent,
       scheduleToolCalls,
       pendingHistoryItemRef,
       setPendingHistoryItem,
@@ -738,6 +752,7 @@ export const useGeminiStream = (
             },
             userMessageTimestamp,
           );
+          setThought(null);
         }
       } finally {
         setIsResponding(false);

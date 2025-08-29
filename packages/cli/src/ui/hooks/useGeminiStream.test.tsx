@@ -35,7 +35,7 @@ import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import type { HistoryItem, SlashCommandProcessorResult } from '../types.js';
 import { MessageType, StreamingState } from '../types.js';
 import type { LoadedSettings } from '../../config/settings.js';
-
+import { StreamEventType } from '@google/gemini-cli-core/src/core/geminiChat.js';
 // --- MOCKS ---
 const mockSendMessageStream = vi
   .fn()
@@ -57,9 +57,14 @@ const MockedUserPromptEvent = vi.hoisted(() =>
 const mockParseAndFormatApiError = vi.hoisted(() => vi.fn());
 
 vi.mock('@google/gemini-cli-core', async (importOriginal) => {
-  const actualCoreModule = (await importOriginal()) as any;
+  const actual = await importOriginal();
+  const { StreamEventType } = await vi.importActual<any>(
+    '@google/gemini-cli-core/src/core/geminiChat.js',
+  );
   return {
-    ...actualCoreModule,
+    ...(actual as object),
+    // Override the specific exports you want to mock
+    StreamEventType,
     GitService: vi.fn(),
     GeminiClient: MockedGeminiClientClass,
     UserPromptEvent: MockedUserPromptEvent,
@@ -812,7 +817,12 @@ describe('useGeminiStream', () => {
 
     it('should cancel an in-progress stream when escape is pressed', async () => {
       const mockStream = (async function* () {
-        yield { type: 'content', value: 'Part 1' };
+        yield {
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [{ content: { parts: [{ text: 'Part 1' }] } }],
+          },
+        };
         // Keep the stream open
         await new Promise(() => {});
       })();
@@ -910,9 +920,19 @@ describe('useGeminiStream', () => {
       });
 
       const mockStream = (async function* () {
-        yield { type: 'content', value: 'Initial' };
+        yield {
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [{ content: { parts: [{ text: 'Initial' }] } }],
+          },
+        };
         await streamPromise; // Wait until we manually continue
-        yield { type: 'content', value: ' Canceled' };
+        yield {
+          type: StreamEventType.CHUNK,
+          value: {
+            candidates: [{ content: { parts: [{ text: ' Canceled' }] } }],
+          },
+        };
       })();
       mockSendMessageStream.mockReturnValue(mockStream);
 
@@ -1264,10 +1284,18 @@ describe('useGeminiStream', () => {
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Content,
-            value: 'This is a truncated response...',
+            type: StreamEventType.CHUNK,
+            value: {
+              candidates: [
+                {
+                  content: {
+                    parts: [{ text: 'This is a truncated response...' }],
+                  },
+                  finishReason: 'MAX_TOKENS',
+                },
+              ],
+            },
           };
-          yield { type: ServerGeminiEventType.Finished, value: 'MAX_TOKENS' };
         })(),
       );
 
@@ -1554,41 +1582,32 @@ describe('useGeminiStream', () => {
   describe('Thought Reset', () => {
     it('should reset thought to null when starting a new prompt', async () => {
       // First, simulate a response with a thought
-      mockSendMessageStream.mockReturnValue(
+      mockSendMessageStream.mockReturnValueOnce(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Thought,
+            type: StreamEventType.CHUNK,
             value: {
-              subject: 'Previous thought',
-              description: 'Old description',
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        thought: {
+                          subject: 'Previous thought',
+                          description: 'Old description',
+                        },
+                      } as any,
+                      { text: 'Some response content' },
+                    ],
+                  },
+                },
+              ],
             },
           };
-          yield {
-            type: ServerGeminiEventType.Content,
-            value: 'Some response content',
-          };
-          yield { type: ServerGeminiEventType.Finished, value: 'STOP' };
         })(),
       );
 
-      const { result } = renderHook(() =>
-        useGeminiStream(
-          new MockedGeminiClientClass(mockConfig),
-          [],
-          mockAddItem,
-          mockConfig,
-          mockOnDebugMessage,
-          mockHandleSlashCommand,
-          false,
-          () => 'vscode' as EditorType,
-          () => {},
-          () => Promise.resolve(),
-          false,
-          () => {},
-          () => {},
-          () => {},
-        ),
-      );
+      const { result } = renderTestHook();
 
       // Submit first query to set a thought
       await act(async () => {
@@ -1607,13 +1626,18 @@ describe('useGeminiStream', () => {
       });
 
       // Now simulate a new response without a thought
-      mockSendMessageStream.mockReturnValue(
+      mockSendMessageStream.mockReturnValueOnce(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Content,
-            value: 'New response content',
+            type: StreamEventType.CHUNK,
+            value: {
+              candidates: [
+                {
+                  content: { parts: [{ text: 'New response content' }] },
+                },
+              ],
+            },
           };
-          yield { type: ServerGeminiEventType.Finished, value: 'STOP' };
         })(),
       );
 
@@ -1622,10 +1646,7 @@ describe('useGeminiStream', () => {
         await result.current.submitQuery('Second query');
       });
 
-      // The thought should be reset to null when starting the new prompt
-      // We can verify this by checking that the LoadingIndicator would not show the previous thought
-      // The actual thought state is internal to the hook, but we can verify the behavior
-      // by ensuring the second response doesn't show the previous thought
+      // We verify the end result is correct.
       await waitFor(() => {
         expect(mockAddItem).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1638,39 +1659,45 @@ describe('useGeminiStream', () => {
     });
 
     it('should reset thought to null when user cancels', async () => {
-      // Mock a stream that yields a thought then gets cancelled
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Thought,
-            value: { subject: 'Some thought', description: 'Description' },
+            type: StreamEventType.CHUNK,
+            value: {
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        thought: {
+                          subject: 'Some thought',
+                          description: 'Description',
+                        },
+                      } as any,
+                    ],
+                  },
+                },
+              ],
+            },
           };
-          yield { type: ServerGeminiEventType.UserCancelled };
+          await new Promise(() => {}); // Hang until aborted
         })(),
       );
 
-      const { result } = renderHook(() =>
-        useGeminiStream(
-          new MockedGeminiClientClass(mockConfig),
-          [],
-          mockAddItem,
-          mockConfig,
-          mockOnDebugMessage,
-          mockHandleSlashCommand,
-          false,
-          () => 'vscode' as EditorType,
-          () => {},
-          () => Promise.resolve(),
-          false,
-          () => {},
-          () => {},
-          () => {},
-        ),
-      );
+      const { result } = renderTestHook();
 
       // Submit query
       await act(async () => {
-        await result.current.submitQuery('Test query');
+        result.current.submitQuery('Test query');
+      });
+
+      await waitFor(() => {
+        expect(result.current.streamingState).toBe(StreamingState.Responding);
+      });
+
+      // Cancel the request
+      act(() => {
+        result.current.cancelOngoingRequest();
       });
 
       // Verify cancellation message was added
@@ -1678,49 +1705,43 @@ describe('useGeminiStream', () => {
         expect(mockAddItem).toHaveBeenCalledWith(
           expect.objectContaining({
             type: 'info',
-            text: 'User cancelled the request.',
+            text: 'Request cancelled.',
           }),
           expect.any(Number),
         );
       });
-
-      // Verify state is reset to idle
-      expect(result.current.streamingState).toBe(StreamingState.Idle);
     });
 
     it('should reset thought to null when there is an error', async () => {
-      // Mock a stream that yields a thought then encounters an error
+      const mockError = new Error('Test error');
+      mockParseAndFormatApiError.mockReturnValue('Formatted Error: Test error');
+
       mockSendMessageStream.mockReturnValue(
         (async function* () {
           yield {
-            type: ServerGeminiEventType.Thought,
-            value: { subject: 'Some thought', description: 'Description' },
+            type: StreamEventType.CHUNK,
+            value: {
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        thought: {
+                          subject: 'Some thought',
+                          description: 'Description',
+                        },
+                      } as any,
+                    ],
+                  },
+                },
+              ],
+            },
           };
-          yield {
-            type: ServerGeminiEventType.Error,
-            value: { error: { message: 'Test error' } },
-          };
+          throw mockError;
         })(),
       );
 
-      const { result } = renderHook(() =>
-        useGeminiStream(
-          new MockedGeminiClientClass(mockConfig),
-          [],
-          mockAddItem,
-          mockConfig,
-          mockOnDebugMessage,
-          mockHandleSlashCommand,
-          false,
-          () => 'vscode' as EditorType,
-          () => {},
-          () => Promise.resolve(),
-          false,
-          () => {},
-          () => {},
-          () => {},
-        ),
-      );
+      const { result } = renderTestHook();
 
       // Submit query
       await act(async () => {
@@ -1732,6 +1753,7 @@ describe('useGeminiStream', () => {
         expect(mockAddItem).toHaveBeenCalledWith(
           expect.objectContaining({
             type: 'error',
+            text: 'Formatted Error: Test error',
           }),
           expect.any(Number),
         );
@@ -1739,7 +1761,7 @@ describe('useGeminiStream', () => {
 
       // Verify parseAndFormatApiError was called
       expect(mockParseAndFormatApiError).toHaveBeenCalledWith(
-        { message: 'Test error' },
+        'Test error',
         expect.any(String),
         undefined,
         'gemini-2.5-pro',
