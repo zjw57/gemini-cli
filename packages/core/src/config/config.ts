@@ -53,6 +53,7 @@ export type { MCPOAuthConfig, AnyToolInvocation };
 import type { AnyToolInvocation } from '../tools/tools.js';
 import { WorkspaceContext } from '../utils/workspaceContext.js';
 import { Storage } from './storage.js';
+import type { ShellExecutionConfig } from '../services/shellExecutionService.js';
 import { FileExclusions } from '../utils/ignorePatterns.js';
 
 export enum ApprovalMode {
@@ -205,8 +206,7 @@ export interface ConfigParameters {
   useRipgrep?: boolean;
   shouldUseNodePtyShell?: boolean;
   skipNextSpeakerCheck?: boolean;
-  terminalWidth?: number;
-  terminalHeight?: number;
+  shellExecutionConfig?: ShellExecutionConfig;
   extensionManagement?: boolean;
   enablePromptCompletion?: boolean;
 }
@@ -279,8 +279,10 @@ export class Config {
   private readonly useRipgrep: boolean;
   private readonly shouldUseNodePtyShell: boolean;
   private readonly skipNextSpeakerCheck: boolean;
-  private terminalWidth: number;
-  private terminalHeight: number;
+  private shellExecutionConfig: {
+    terminalWidth: number;
+    terminalHeight: number;
+  };
   private readonly extensionManagement: boolean;
   private readonly enablePromptCompletion: boolean = false;
   private initialized: boolean = false;
@@ -356,8 +358,10 @@ export class Config {
     this.useRipgrep = params.useRipgrep ?? false;
     this.shouldUseNodePtyShell = params.shouldUseNodePtyShell ?? false;
     this.skipNextSpeakerCheck = params.skipNextSpeakerCheck ?? false;
-    this.terminalWidth = params.terminalWidth ?? 80;
-    this.terminalHeight = params.terminalHeight ?? 24;
+    this.shellExecutionConfig = {
+      terminalWidth: params.shellExecutionConfig?.terminalWidth ?? 80,
+      terminalHeight: params.shellExecutionConfig?.terminalHeight ?? 24,
+    };
     this.extensionManagement = params.extensionManagement ?? false;
     this.storage = new Storage(this.targetDir);
     this.enablePromptCompletion = params.enablePromptCompletion ?? false;
@@ -792,20 +796,17 @@ export class Config {
     return this.skipNextSpeakerCheck;
   }
 
-  getTerminalWidth(): number {
-    return this.terminalWidth;
+  getShellExecutionConfig(): { terminalWidth: number; terminalHeight: number } {
+    return this.shellExecutionConfig;
   }
 
-  setTerminalWidth(width: number): void {
-    this.terminalWidth = width;
-  }
-
-  getTerminalHeight(): number {
-    return this.terminalHeight;
-  }
-
-  setTerminalHeight(height: number): void {
-    this.terminalHeight = height;
+  setShellExecutionConfig(config: ShellExecutionConfig): void {
+    this.shellExecutionConfig = {
+      terminalWidth:
+        config.terminalWidth ?? this.shellExecutionConfig.terminalWidth,
+      terminalHeight:
+        config.terminalHeight ?? this.shellExecutionConfig.terminalHeight,
+    };
   }
   getScreenReader(): boolean {
     return this.accessibility.screenReader ?? false;

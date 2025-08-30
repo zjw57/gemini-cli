@@ -155,8 +155,7 @@ describe('ShellTool', () => {
         expect.any(Function),
         mockAbortSignal,
         false,
-        undefined,
-        undefined,
+        {},
       );
       expect(result.llmContent).toContain('Background PIDs: 54322');
       expect(vi.mocked(fs.unlinkSync)).toHaveBeenCalledWith(tmpFile);
@@ -183,8 +182,7 @@ describe('ShellTool', () => {
         expect.any(Function),
         mockAbortSignal,
         false,
-        undefined,
-        undefined,
+        {},
       );
     });
 

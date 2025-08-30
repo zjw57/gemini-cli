@@ -13,31 +13,12 @@ import type { IPty } from '@lydell/node-pty';
 import { getCachedEncodingForBuffer } from '../utils/systemEncoding.js';
 import { isBinary } from '../utils/textUtils.js';
 import pkg from '@xterm/headless';
-import stripAnsi from 'strip-ansi';
+import { serializeTerminalToString } from '../utils/terminalSerializer.js';
 const { Terminal } = pkg;
 
 const SIGKILL_TIMEOUT_MS = 200;
 
-const getVisibleText = (terminal: pkg.Terminal): string => {
-  const buffer = terminal.buffer.active;
-  const lines: string[] = [];
-  for (let i = buffer.viewportY; i < buffer.viewportY + terminal.rows; i++) {
-    const line = buffer.getLine(i);
-    const lineContent = line ? line.translateToString(true) : '';
-    lines.push(lineContent);
-  }
-  return lines.join('\n').trimEnd();
-};
 
-const getCursorPosition = (
-  terminal: pkg.Terminal,
-): { x: number; y: number } => {
-  const buffer = terminal.buffer.active;
-  return {
-    x: buffer.cursorX,
-    y: buffer.cursorY,
-  };
-};
 
 /** A structured result from a shell command execution. */
 export interface ShellExecutionResult {
@@ -67,6 +48,11 @@ export interface ShellExecutionHandle {
   result: Promise<ShellExecutionResult>;
 }
 
+export interface ShellExecutionConfig {
+  terminalWidth?: number;
+  terminalHeight?: number;
+}
+
 /**
  * Describes a structured event emitted during shell command execution.
  */
@@ -76,11 +62,6 @@ export type ShellOutputEvent =
       type: 'data';
       /** The decoded string chunk. */
       chunk: string;
-      /** The cursor position. */
-      cursor?: {
-        x: number;
-        y: number;
-      };
     }
   | {
       /** Signals that the output stream has been identified as binary. */
@@ -121,8 +102,7 @@ export class ShellExecutionService {
     onOutputEvent: (event: ShellOutputEvent) => void,
     abortSignal: AbortSignal,
     shouldUseNodePty: boolean,
-    terminalColumns?: number,
-    terminalRows?: number,
+    shellExecutionConfig: ShellExecutionConfig,
   ): Promise<ShellExecutionHandle> {
     if (shouldUseNodePty) {
       const ptyInfo = await getPty();
@@ -133,8 +113,7 @@ export class ShellExecutionService {
             cwd,
             onOutputEvent,
             abortSignal,
-            terminalColumns,
-            terminalRows,
+            shellExecutionConfig,
             ptyInfo,
           );
         } catch (_e) {
@@ -168,7 +147,7 @@ export class ShellExecutionService {
         env: {
           ...process.env,
           GEMINI_CLI: '1',
-          TERM: 'xterm',
+          TERM: 'xterm-256color',
           PAGER: 'cat',
         },
       });
@@ -213,16 +192,15 @@ export class ShellExecutionService {
 
           const decoder = stream === 'stdout' ? stdoutDecoder : stderrDecoder;
           const decodedChunk = decoder.decode(data, { stream: true });
-          const strippedChunk = stripAnsi(decodedChunk);
 
           if (stream === 'stdout') {
-            stdout += strippedChunk;
+            stdout += decodedChunk;
           } else {
-            stderr += strippedChunk;
+            stderr += decodedChunk;
           }
 
           if (isStreamingRawContent) {
-            onOutputEvent({ type: 'data', chunk: strippedChunk });
+            onOutputEvent({ type: 'data', chunk: decodedChunk });
           } else {
             const totalBytes = outputChunks.reduce(
               (sum, chunk) => sum + chunk.length,
@@ -294,13 +272,13 @@ export class ShellExecutionService {
           if (stdoutDecoder) {
             const remaining = stdoutDecoder.decode();
             if (remaining) {
-              stdout += stripAnsi(remaining);
+              stdout += remaining;
             }
           }
           if (stderrDecoder) {
             const remaining = stderrDecoder.decode();
             if (remaining) {
-              stderr += stripAnsi(remaining);
+              stderr += remaining;
             }
           }
 
@@ -334,8 +312,7 @@ export class ShellExecutionService {
     cwd: string,
     onOutputEvent: (event: ShellOutputEvent) => void,
     abortSignal: AbortSignal,
-    terminalColumns: number | undefined,
-    terminalRows: number | undefined,
+    shellExecutionConfig: ShellExecutionConfig,
     ptyInfo: PtyImplementation,
   ): ShellExecutionHandle {
     if (!ptyInfo) {
@@ -343,8 +320,8 @@ export class ShellExecutionService {
       throw new Error('PTY implementation not found');
     }
     try {
-      const cols = terminalColumns ?? 80;
-      const rows = terminalRows ?? 30;
+      const cols = shellExecutionConfig.terminalWidth ?? 80;
+      const rows = shellExecutionConfig.terminalHeight ?? 30;
       const isWindows = os.platform() === 'win32';
       const shell = isWindows ? 'cmd.exe' : 'bash';
       const args = isWindows
@@ -359,7 +336,8 @@ export class ShellExecutionService {
         env: {
           ...process.env,
           GEMINI_CLI: '1',
-          TERM: 'xterm',
+          TERM: 'xterm-256color',
+          PAGER: 'cat',
         },
         handleFlowControl: true,
       });
@@ -369,7 +347,6 @@ export class ShellExecutionService {
           allowProposedApi: true,
           cols,
           rows,
-          cursorBlink: true,
         });
 
         this.activePtys.set(ptyProcess.pid, { ptyProcess, headlessTerminal });
@@ -377,7 +354,6 @@ export class ShellExecutionService {
         let processingChain = Promise.resolve();
         let decoder: TextDecoder | null = null;
         let output = '';
-        let lastCursor = { x: -1, y: -1 };
         const outputChunks: Buffer[] = [];
         const error: Error | null = null;
         let exited = false;
@@ -385,35 +361,38 @@ export class ShellExecutionService {
         let isStreamingRawContent = true;
         const MAX_SNIFF_SIZE = 4096;
         let sniffedBytes = 0;
-
         let writeInProgress = false;
+        let renderTimeout: NodeJS.Timeout | null = null;
 
-        const render = () => {
-          if (!isStreamingRawContent) {
-            return;
+        const render = (finalRender = false) => {
+          if (renderTimeout) {
+            clearTimeout(renderTimeout);
           }
-          const newStrippedOutput = getVisibleText(headlessTerminal);
-          const cursorPosition = getCursorPosition(headlessTerminal);
-          if (
-            output !== newStrippedOutput ||
-            cursorPosition.x !== lastCursor.x ||
-            cursorPosition.y !== lastCursor.y
-          ) {
-            output = newStrippedOutput;
-            lastCursor = cursorPosition;
-            onOutputEvent({
-              type: 'data',
-              chunk: newStrippedOutput,
-              cursor: cursorPosition,
-            });
+
+          const renderFn = () => {
+            if (!isStreamingRawContent) {
+              return;
+            }
+            const newStrippedOutput =
+              serializeTerminalToString(headlessTerminal);
+            if (output !== newStrippedOutput) {
+              output = newStrippedOutput;
+              onOutputEvent({
+                type: 'data',
+                chunk: newStrippedOutput,
+              });
+            }
+          };
+
+          if (finalRender) {
+            renderFn();
+          } else {
+            renderTimeout = setTimeout(renderFn, 17);
           }
         };
 
         headlessTerminal.onCursorMove(() => {
           if (writeInProgress) {
-            return;
-          }
-          if (!isStreamingRawContent) {
             return;
           }
           render();
@@ -479,9 +458,7 @@ export class ShellExecutionService {
             this.activePtys.delete(ptyProcess.pid);
 
             processingChain.then(() => {
-              if (isStreamingRawContent) {
-                render();
-              }
+              render(true);
               const finalBuffer = Buffer.concat(outputChunks);
 
               resolve({

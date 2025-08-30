@@ -87,8 +87,10 @@ vi.mock('./config.js', async () => {
         getUsageStatisticsEnabled: vi.fn().mockReturnValue(false),
         setFlashFallbackHandler: vi.fn(),
         initialize: vi.fn().mockResolvedValue(undefined),
-        getTerminalWidth: () => 80,
-        getTerminalHeight: () => 24,
+        getShellExecutionConfig: () => ({
+          terminalWidth: 80,
+          terminalHeight: 24,
+        }),
       } as unknown as Config;
       return config;
     }),

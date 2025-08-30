@@ -16,6 +16,7 @@ import type {
   SandboxConfig,
   GeminiClient,
   AuthType,
+  ShellExecutionConfig,
 } from '@google/gemini-cli-core';
 import {
   ApprovalMode,
@@ -94,10 +95,10 @@ interface MockServerConfig {
   getGeminiClient: Mock<() => GeminiClient | undefined>;
   getUserTier: Mock<() => Promise<string | undefined>>;
   getIdeClient: Mock<() => { getCurrentIde: Mock<() => string | undefined> }>;
-  getTerminalWidth: Mock<() => number | undefined>;
-  getTerminalHeight: Mock<() => number | undefined>;
-  setTerminalWidth: Mock<(width: number) => void>;
-  setTerminalHeight: Mock<(height: number) => void>;
+  getShellExecutionConfig: Mock<
+    () => { terminalWidth: number; terminalHeight: number }
+  >;
+  setShellExecutionConfig: Mock<(config: ShellExecutionConfig) => void>;
   getScreenReader: Mock<() => boolean>;
 }
 
@@ -180,10 +181,11 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
           getConnectionStatus: vi.fn(() => 'connected'),
         })),
         isTrustedFolder: vi.fn(() => true),
-        getTerminalWidth: vi.fn(() => 80),
-        getTerminalHeight: vi.fn(() => 24),
-        setTerminalWidth: vi.fn(),
-        setTerminalHeight: vi.fn(),
+        getShellExecutionConfig: vi.fn(() => ({
+          terminalWidth: 80,
+          terminalHeight: 24,
+        })),
+        setShellExecutionConfig: vi.fn(),
         getScreenReader: vi.fn(() => false),
       };
     });

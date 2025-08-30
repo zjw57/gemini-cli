@@ -106,7 +106,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
             {isThisShellFocused &&
             typeof resultDisplay === 'string' &&
             cursorPosition ? (
-              <TerminalOutput output={resultDisplay} cursor={cursorPosition} />
+              <TerminalOutput output={resultDisplay} />
             ) : typeof resultDisplay === 'string' && renderOutputAsMarkdown ? (
               <Box flexDirection="column">
                 <MarkdownDisplay
