@@ -167,8 +167,10 @@ describe('CoreToolScheduler', () => {
         model: 'test-model',
         authType: 'oauth-personal',
       }),
-      getTerminalWidth: () => 90,
-      getTerminalHeight: () => 30,
+      getShellExecutionConfig: () => ({
+        terminalWidth: 90,
+        terminalHeight: 30,
+      }),
       getToolRegistry: () => mockToolRegistry,
     } as unknown as Config;
 
@@ -266,8 +268,10 @@ describe('CoreToolScheduler with payload', () => {
         model: 'test-model',
         authType: 'oauth-personal',
       }),
-      getTerminalWidth: () => 90,
-      getTerminalHeight: () => 30,
+      getShellExecutionConfig: () => ({
+        terminalWidth: 90,
+        terminalHeight: 30,
+      }),
       getToolRegistry: () => mockToolRegistry,
     } as unknown as Config;
 
@@ -574,8 +578,10 @@ describe('CoreToolScheduler edit cancellation', () => {
         model: 'test-model',
         authType: 'oauth-personal',
       }),
-      getTerminalWidth: () => 90,
-      getTerminalHeight: () => 30,
+      getShellExecutionConfig: () => ({
+        terminalWidth: 90,
+        terminalHeight: 30,
+      }),
       getToolRegistry: () => mockToolRegistry,
     } as unknown as Config;
 
@@ -667,8 +673,10 @@ describe('CoreToolScheduler YOLO mode', () => {
         model: 'test-model',
         authType: 'oauth-personal',
       }),
-      getTerminalWidth: () => 90,
-      getTerminalHeight: () => 30,
+      getShellExecutionConfig: () => ({
+        terminalWidth: 90,
+        terminalHeight: 30,
+      }),
       getToolRegistry: () => mockToolRegistry,
     } as unknown as Config;
 
@@ -759,8 +767,10 @@ describe('CoreToolScheduler request queueing', () => {
         model: 'test-model',
         authType: 'oauth-personal',
       }),
-      getTerminalWidth: () => 90,
-      getTerminalHeight: () => 30,
+      getShellExecutionConfig: () => ({
+        terminalWidth: 90,
+        terminalHeight: 30,
+      }),
       getToolRegistry: () => mockToolRegistry,
     } as unknown as Config;
 
@@ -878,6 +888,10 @@ describe('CoreToolScheduler request queueing', () => {
         model: 'test-model',
         authType: 'oauth-personal',
       }),
+      getShellExecutionConfig: () => ({
+        terminalWidth: 80,
+        terminalHeight: 24,
+      }),
       getTerminalWidth: vi.fn(() => 80),
       getTerminalHeight: vi.fn(() => 24),
     } as unknown as Config;
@@ -959,8 +973,10 @@ describe('CoreToolScheduler request queueing', () => {
         model: 'test-model',
         authType: 'oauth-personal',
       }),
-      getTerminalWidth: () => 90,
-      getTerminalHeight: () => 30,
+      getShellExecutionConfig: () => ({
+        terminalWidth: 90,
+        terminalHeight: 30,
+      }),
       getToolRegistry: () => mockToolRegistry,
     } as unknown as Config;
 
@@ -1021,8 +1037,10 @@ describe('CoreToolScheduler request queueing', () => {
       setApprovalMode: (mode: ApprovalMode) => {
         approvalMode = mode;
       },
-      getTerminalWidth: () => 90,
-      getTerminalHeight: () => 30,
+      getShellExecutionConfig: () => ({
+        terminalWidth: 90,
+        terminalHeight: 30,
+      }),
     } as unknown as Config;
 
     const testTool = new TestApprovalTool(mockConfig);

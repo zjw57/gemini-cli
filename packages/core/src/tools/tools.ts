@@ -7,6 +7,7 @@
 import type { FunctionDeclaration, PartListUnion } from '@google/genai';
 import { ToolErrorType } from './tool-error.js';
 import type { DiffUpdateResult } from '../ide/ideContext.js';
+import type { ShellExecutionConfig } from '../services/shellExecutionService.js';
 import { SchemaValidator } from '../utils/schemaValidator.js';
 
 /**
@@ -52,8 +53,7 @@ export interface ToolInvocation<
   execute(
     signal: AbortSignal,
     updateOutput?: (output: string) => void,
-    terminalColumns?: number,
-    terminalRows?: number,
+    shellExecutionConfig?: ShellExecutionConfig,
   ): Promise<TResult>;
 }
 
@@ -82,8 +82,7 @@ export abstract class BaseToolInvocation<
   abstract execute(
     signal: AbortSignal,
     updateOutput?: (output: string) => void,
-    terminalColumns?: number,
-    terminalRows?: number,
+    shellExecutionConfig?: ShellExecutionConfig,
   ): Promise<TResult>;
 }
 
@@ -202,16 +201,10 @@ export abstract class DeclarativeTool<
     params: TParams,
     signal: AbortSignal,
     updateOutput?: (output: string) => void,
-    terminalColumns?: number,
-    terminalRows?: number,
+    shellExecutionConfig?: ShellExecutionConfig,
   ): Promise<TResult> {
     const invocation = this.build(params);
-    return invocation.execute(
-      signal,
-      updateOutput,
-      terminalColumns,
-      terminalRows,
-    );
+    return invocation.execute(signal, updateOutput, shellExecutionConfig);
   }
 
   /**

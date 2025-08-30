@@ -18,6 +18,7 @@ import type {
   ToolCallConfirmationDetails,
   ToolResult,
   ToolInvocation,
+  ShellExecutionConfig,
 } from '@google/gemini-cli-core';
 import { expect, vi } from 'vitest';
 
@@ -44,15 +45,13 @@ export class MockToolInvocation extends BaseToolInvocation<object, ToolResult> {
   execute(
     signal: AbortSignal,
     updateOutput?: (output: string) => void,
-    terminalColumns?: number,
-    terminalRows?: number,
+    shellExecutionConfig?: ShellExecutionConfig,
   ): Promise<ToolResult> {
     return this.tool.execute(
       this.params,
       signal,
       updateOutput,
-      terminalColumns,
-      terminalRows,
+      shellExecutionConfig,
     );
   }
 }

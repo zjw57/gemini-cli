@@ -25,6 +25,7 @@ import type {
   ToolInvocation,
   AnyDeclarativeTool,
   AnyToolInvocation,
+  ShellExecutionConfig,
 } from '@google/gemini-cli-core';
 import {
   ToolConfirmationOutcome,
@@ -62,8 +63,7 @@ const mockConfig = {
     model: 'test-model',
     authType: 'oauth-personal',
   }),
-  getTerminalWidth: () => 80,
-  getTerminalHeight: () => 24,
+  getShellExecutionConfig: () => ({ terminalWidth: 80, terminalHeight: 24 }),
 } as unknown as Config;
 
 class MockToolInvocation extends BaseToolInvocation<object, ToolResult> {
@@ -87,15 +87,13 @@ class MockToolInvocation extends BaseToolInvocation<object, ToolResult> {
   execute(
     signal: AbortSignal,
     updateOutput?: (output: string) => void,
-    terminalColumns?: number,
-    terminalRows?: number,
+    shellExecutionConfig?: ShellExecutionConfig,
   ): Promise<ToolResult> {
     return this.tool.execute(
       this.params,
       signal,
       updateOutput,
-      terminalColumns,
-      terminalRows,
+      shellExecutionConfig,
     );
   }
 }
@@ -226,8 +224,7 @@ describe('useReactToolScheduler in YOLO Mode', () => {
       request.args,
       expect.any(AbortSignal),
       undefined,
-      80,
-      24,
+      { terminalHeight: 24, terminalWidth: 80 },
     );
 
     // Check that onComplete was called with success
@@ -378,8 +375,7 @@ describe('useReactToolScheduler', () => {
       request.args,
       expect.any(AbortSignal),
       undefined,
-      80,
-      24,
+      { terminalHeight: 24, terminalWidth: 80 },
     );
     expect(onComplete).toHaveBeenCalledWith([
       expect.objectContaining({

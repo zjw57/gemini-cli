@@ -21,8 +21,8 @@ const SIGKILL_TIMEOUT_MS = 200;
 const getVisibleText = (terminal: pkg.Terminal): string => {
   const buffer = terminal.buffer.active;
   const lines: string[] = [];
-  for (let i = buffer.viewportY; i < buffer.viewportY + terminal.rows; i++) {
-    const line = buffer.getLine(i);
+  for (let i = 0; i < terminal.rows; i++) {
+    const line = buffer.getLine(buffer.viewportY + i);
     const lineContent = line ? line.translateToString(true) : '';
     lines.push(lineContent);
   }
@@ -65,6 +65,11 @@ export interface ShellExecutionHandle {
   pid: number | undefined;
   /** A promise that resolves with the complete execution result. */
   result: Promise<ShellExecutionResult>;
+}
+
+export interface ShellExecutionConfig {
+  terminalWidth?: number;
+  terminalHeight?: number;
 }
 
 /**
@@ -121,8 +126,7 @@ export class ShellExecutionService {
     onOutputEvent: (event: ShellOutputEvent) => void,
     abortSignal: AbortSignal,
     shouldUseNodePty: boolean,
-    terminalColumns?: number,
-    terminalRows?: number,
+    shellExecutionConfig: ShellExecutionConfig,
   ): Promise<ShellExecutionHandle> {
     if (shouldUseNodePty) {
       const ptyInfo = await getPty();
@@ -133,8 +137,7 @@ export class ShellExecutionService {
             cwd,
             onOutputEvent,
             abortSignal,
-            terminalColumns,
-            terminalRows,
+            shellExecutionConfig,
             ptyInfo,
           );
         } catch (_e) {
@@ -334,8 +337,7 @@ export class ShellExecutionService {
     cwd: string,
     onOutputEvent: (event: ShellOutputEvent) => void,
     abortSignal: AbortSignal,
-    terminalColumns: number | undefined,
-    terminalRows: number | undefined,
+    shellExecutionConfig: ShellExecutionConfig,
     ptyInfo: PtyImplementation,
   ): ShellExecutionHandle {
     if (!ptyInfo) {
@@ -343,8 +345,8 @@ export class ShellExecutionService {
       throw new Error('PTY implementation not found');
     }
     try {
-      const cols = terminalColumns ?? 80;
-      const rows = terminalRows ?? 30;
+      const cols = shellExecutionConfig.terminalWidth ?? 80;
+      const rows = shellExecutionConfig.terminalHeight ?? 30;
       const isWindows = os.platform() === 'win32';
       const shell = isWindows ? 'cmd.exe' : 'bash';
       const args = isWindows
@@ -360,6 +362,7 @@ export class ShellExecutionService {
           ...process.env,
           GEMINI_CLI: '1',
           TERM: 'xterm',
+          PAGER: 'cat',
         },
         handleFlowControl: true,
       });
@@ -369,7 +372,6 @@ export class ShellExecutionService {
           allowProposedApi: true,
           cols,
           rows,
-          cursorBlink: true,
         });
 
         this.activePtys.set(ptyProcess.pid, { ptyProcess, headlessTerminal });

@@ -110,8 +110,7 @@ describe('ShellExecutionService', () => {
       onOutputEventMock,
       abortController.signal,
       true,
-      80,
-      24,
+      { terminalWidth: 80, terminalHeight: 24 },
     );
 
     await new Promise((resolve) => process.nextTick(resolve));
@@ -192,8 +191,7 @@ describe('ShellExecutionService', () => {
         onOutputEventMock,
         abortController.signal,
         true,
-        80,
-        24,
+        { terminalWidth: 80, terminalHeight: 24 },
       );
       mockPtyProcess.onExit.mock.calls[0][0]({ exitCode: 0, signal: null });
       await handle.result;
@@ -314,6 +312,7 @@ describe('ShellExecutionService', () => {
         onOutputEventMock,
         new AbortController().signal,
         true,
+        {},
       );
       const result = await handle.result;
 
@@ -457,8 +456,7 @@ describe('ShellExecutionService child_process fallback', () => {
       onOutputEventMock,
       abortController.signal,
       true,
-      80,
-      24,
+      { terminalWidth: 80, terminalHeight: 24 },
     );
 
     await new Promise((resolve) => process.nextTick(resolve));
@@ -648,6 +646,7 @@ describe('ShellExecutionService child_process fallback', () => {
         onOutputEventMock,
         abortController.signal,
         true,
+        {},
       );
 
       abortController.abort();
@@ -822,6 +821,7 @@ describe('ShellExecutionService execution method selection', () => {
       onOutputEventMock,
       abortController.signal,
       true, // shouldUseNodePty
+      { terminalWidth: 80, terminalHeight: 24 },
     );
 
     // Simulate exit to allow promise to resolve
@@ -842,6 +842,7 @@ describe('ShellExecutionService execution method selection', () => {
       onOutputEventMock,
       abortController.signal,
       false, // shouldUseNodePty
+      {},
     );
 
     // Simulate exit to allow promise to resolve
@@ -864,6 +865,7 @@ describe('ShellExecutionService execution method selection', () => {
       onOutputEventMock,
       abortController.signal,
       true, // shouldUseNodePty
+      { terminalWidth: 80, terminalHeight: 24 },
     );
 
     // Simulate exit to allow promise to resolve

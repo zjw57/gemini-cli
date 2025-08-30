@@ -881,13 +881,21 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       refreshStatic();
     }, 300);
 
-    config.setTerminalHeight(terminalHeight * 0.5);
-    config.setTerminalWidth(terminalWidth * 0.5);
+    config.setShellExecutionConfig({
+      terminalWidth: Math.floor(terminalWidth - 20),
+      terminalHeight: Math.floor(availableTerminalHeight - 10),
+    });
 
     return () => {
       clearTimeout(handler);
     };
-  }, [terminalWidth, terminalHeight, refreshStatic, config]);
+  }, [
+    terminalWidth,
+    terminalHeight,
+    availableTerminalHeight,
+    refreshStatic,
+    config,
+  ]);
 
   useEffect(() => {
     if (streamingState === StreamingState.Idle && staticNeedsRefresh) {
@@ -920,11 +928,17 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     if (activeShellPtyId) {
       ShellExecutionService.resizePty(
         activeShellPtyId,
-        Math.floor(terminalWidth * 0.5),
-        Math.floor(terminalHeight * 0.5),
+        Math.floor(terminalWidth - 20),
+        Math.floor(availableTerminalHeight - 10),
       );
     }
-  }, [terminalHeight, terminalWidth, activeShellPtyId, geminiClient]);
+  }, [
+    terminalHeight,
+    terminalWidth,
+    availableTerminalHeight,
+    activeShellPtyId,
+    geminiClient,
+  ]);
 
   useEffect(() => {
     if (
