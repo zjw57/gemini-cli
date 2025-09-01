@@ -376,18 +376,95 @@ export class IdeClient {
     (ConnectionConfig & { workspacePath?: string }) | undefined
   > {
     if (!this.ideProcessInfo) {
-      return {};
-    }
-    try {
-      const portFile = path.join(
-        os.tmpdir(),
-        `gemini-ide-server-${this.ideProcessInfo.pid}.json`,
-      );
-      const portFileContents = await fs.promises.readFile(portFile, 'utf8');
-      return JSON.parse(portFileContents);
-    } catch (_) {
       return undefined;
     }
+
+    const tmpdir = os.tmpdir();
+    let files: string[];
+    try {
+      files = await fs.promises.readdir(tmpdir);
+    } catch (_e) {
+      // Failed to read tmpdir, no config file.
+      return undefined;
+    }
+
+    const serverFiles = files.filter((f) => f.startsWith('gemini-ide-server-'));
+
+    if (serverFiles.length === 0) {
+      return undefined;
+    }
+
+    // Rule 1: if there is a single file that matches "gemini-ide-server-" &
+    // that file name == "gemini-ide-server-{this.ideProcessInfo.pid}.json",
+    // then return that file.
+    if (serverFiles.length === 1) {
+      const expectedFile = `gemini-ide-server-${this.ideProcessInfo.pid}.json`;
+      if (serverFiles[0] === expectedFile) {
+        try {
+          const portFile = path.join(tmpdir, serverFiles[0]);
+          const portFileContents = await fs.promises.readFile(portFile, 'utf8');
+          return JSON.parse(portFileContents);
+        } catch (_e) {
+          // Ignore read error, proceed to rule 2 logic which will re-read.
+        }
+      }
+    }
+
+    // Rule 2: find all files that match "gemini-ide-server-".
+    // remove any files where the ppid in the file does not match ideProcessInfo.
+    // also filter out any files where the workspacePath is either "" or !isWithinWorkspace.
+    // if multiple files remain, use the file where the port matches the env var port
+    const expectedFile = `gemini-ide-server-${this.ideProcessInfo.pid}.json`;
+    const otherServerFiles = serverFiles.filter(
+      (file) => file !== expectedFile,
+    );
+    const potentialConfigs = [];
+    for (const file of otherServerFiles) {
+      try {
+        const portFile = path.join(tmpdir, file);
+        const portFileContents = await fs.promises.readFile(portFile, 'utf8');
+        const config = JSON.parse(portFileContents);
+        potentialConfigs.push(config);
+      } catch (_e) {
+        // Ignore files that can't be read or parsed
+      }
+    }
+
+    let filteredConfigs = potentialConfigs.filter(
+      (config) => config.ppid === this.ideProcessInfo!.pid,
+    );
+
+    filteredConfigs = filteredConfigs.filter((config) => {
+      if (!config.workspacePath || config.workspacePath === '') {
+        return false;
+      }
+      const { isValid } = IdeClient.validateWorkspacePath(
+        config.workspacePath,
+        this.currentIdeDisplayName,
+        process.cwd(),
+      );
+      return isValid;
+    });
+
+    if (filteredConfigs.length === 0) {
+      return undefined;
+    }
+
+    if (filteredConfigs.length === 1) {
+      return filteredConfigs[0];
+    }
+
+    const portFromEnv = this.getPortFromEnv();
+    if (portFromEnv) {
+      const configFromEnv = filteredConfigs.find(
+        (config) => config.port === portFromEnv,
+      );
+      if (configFromEnv) {
+        return configFromEnv;
+      }
+    }
+
+    return undefined;
   }
 
   private createProxyAwareFetch() {
