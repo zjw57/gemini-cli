@@ -433,6 +433,7 @@ export class SubAgentScope {
         const responseStream = await chat.sendMessageStream(
           messageParams,
           promptId,
+          this.modelConfig.model,
         );
 
         const functionCalls: FunctionCall[] = [];

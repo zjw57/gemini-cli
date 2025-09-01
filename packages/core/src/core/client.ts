@@ -38,6 +38,7 @@ import { AuthType, createContentGenerator } from './contentGenerator.js';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
 import {
   DEFAULT_GEMINI_FLASH_MODEL,
+  DEFAULT_GEMINI_MODEL,
   DEFAULT_THINKING_MODE,
 } from '../config/models.js';
 import { LoopDetectionService } from '../services/loopDetectionService.js';
@@ -53,6 +54,7 @@ import {
   NextSpeakerCheckEvent,
 } from '../telemetry/types.js';
 import type { IdeContext, File } from '../ide/ideContext.js';
+import type { RoutingContext } from '../routing/routingStrategy.js';
 
 export function isThinkingSupported(model: string) {
   if (model.startsWith('gemini-2.5')) return true;
@@ -132,6 +134,8 @@ export class GeminiClient {
    * being forced and did it fail?
    */
   private hasFailedCompressionAttempt = false;
+
+  private currentSequenceModel: string | null = null;
 
   constructor(private readonly config: Config) {
     if (config.getProxy()) {
@@ -254,6 +258,10 @@ export class GeminiClient {
     try {
       const userMemory = this.config.getUserMemory();
       const systemInstruction = getCoreSystemPrompt(userMemory);
+      // TODO(abhipatel) - This logic will need to change once we support
+      // classifier based routing. If the model is not 'auto' it will need a
+      // check for thinking (it will be an override model), otherwise, the
+      // models used for routing all support thinking.
       const model = this.config.getModel();
       const generateContentConfigWithThinking = isThinkingSupported(model)
         ? {
@@ -461,11 +469,13 @@ export class GeminiClient {
     signal: AbortSignal,
     prompt_id: string,
     turns: number = MAX_TURNS,
-    originalModel?: string,
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
+    const wasInFallbackModeInitially = this.config.isInFallbackMode();
+
     if (this.lastPromptId !== prompt_id) {
       this.loopDetector.reset(prompt_id);
       this.lastPromptId = prompt_id;
+      this.currentSequenceModel = null;
     }
     this.sessionTurnCount++;
     if (
@@ -481,10 +491,13 @@ export class GeminiClient {
       return new Turn(this.getChat(), prompt_id);
     }
 
-    // Track the original model from the first call to detect model switching
-    const initialModel = originalModel || this.config.getModel();
-
-    const compressed = await this.tryCompressChat(prompt_id);
+    const compressed = await this.tryCompressChat(
+      // Use Pro for compression unless we're in fallback mode.
+      this.config.isInFallbackMode()
+        ? DEFAULT_GEMINI_FLASH_MODEL
+        : DEFAULT_GEMINI_MODEL,
+      prompt_id,
+    );
 
     if (compressed.compressionStatus === CompressionStatus.COMPRESSED) {
       yield { type: GeminiEventType.ChatCompressed, value: compressed };
@@ -519,13 +532,36 @@ export class GeminiClient {
 
     const turn = new Turn(this.getChat(), prompt_id);
 
+    let modelToUse: string;
+
+    if (this.currentSequenceModel) {
+      // A model is already locked in for this multi-turn sequence.
+      modelToUse = this.currentSequenceModel;
+    } else {
+      // This is the first turn of a sequence, so we ask the router.
+      const routingContext: RoutingContext = {
+        history: this.getChat().getHistory(/*curated=*/ true),
+        request,
+        promptId: prompt_id,
+        signal,
+        model: this.config.getModel(),
+      };
+
+      const router = this.config.getModelRouterService();
+      const decision = await router.route(routingContext);
+      modelToUse = decision.model;
+
+      // Lock this model for subsequent turns in this sequence.
+      this.currentSequenceModel = modelToUse;
+    }
+
     const loopDetected = await this.loopDetector.turnStarted(signal);
     if (loopDetected) {
       yield { type: GeminiEventType.LoopDetected };
       return turn;
     }
 
-    const resultStream = turn.run(request, signal);
+    const resultStream = turn.run(request, signal, modelToUse);
     for await (const event of resultStream) {
       if (this.loopDetector.addAndCheck(event)) {
         yield { type: GeminiEventType.LoopDetected };
@@ -538,8 +574,8 @@ export class GeminiClient {
     }
     if (!turn.pendingToolCalls.length && signal && !signal.aborted) {
       // Check if model was switched during the call (likely due to quota error)
-      const currentModel = this.config.getModel();
-      if (currentModel !== initialModel) {
+      const isInFallbackModeNow = this.config.isInFallbackMode();
+      if (!wasInFallbackModeInitially && isInFallbackModeNow) {
         // Model was switched (likely due to quota error fallback)
         // Don't continue with recursive call to prevent unwanted Flash execution
         return turn;
@@ -571,7 +607,6 @@ export class GeminiClient {
           signal,
           prompt_id,
           boundedTurns - 1,
-          initialModel,
         );
       }
     }
@@ -582,12 +617,9 @@ export class GeminiClient {
     contents: Content[],
     schema: Record<string, unknown>,
     abortSignal: AbortSignal,
-    model?: string,
+    model: string,
     config: GenerateContentConfig = {},
   ): Promise<Record<string, unknown>> {
-    // Use current model from config instead of hardcoded Flash model
-    const modelToUse =
-      model || this.config.getModel() || DEFAULT_GEMINI_FLASH_MODEL;
     try {
       const userMemory = this.config.getUserMemory();
       const systemInstruction = getCoreSystemPrompt(userMemory);
@@ -600,7 +632,7 @@ export class GeminiClient {
       const apiCall = () =>
         this.getContentGenerator().generateContent(
           {
-            model: modelToUse,
+            model,
             config: {
               ...requestConfig,
               systemInstruction,
@@ -614,7 +646,7 @@ export class GeminiClient {
 
       const result = await retryWithBackoff(apiCall, {
         onPersistent429: async (authType?: string, error?: unknown) =>
-          await this.handleFlashFallback(authType, error),
+          await this.handleFlashFallback(model, authType, error),
         authType: this.config.getContentGeneratorConfig()?.authType,
       });
 
@@ -637,7 +669,7 @@ export class GeminiClient {
       if (text.startsWith(prefix) && text.endsWith(suffix)) {
         logMalformedJsonResponse(
           this.config,
-          new MalformedJsonResponseEvent(modelToUse),
+          new MalformedJsonResponseEvent(model),
         );
         text = text
           .substring(prefix.length, text.length - suffix.length)
@@ -691,9 +723,8 @@ export class GeminiClient {
     contents: Content[],
     generationConfig: GenerateContentConfig,
     abortSignal: AbortSignal,
-    model?: string,
+    model: string,
   ): Promise<GenerateContentResponse> {
-    const modelToUse = model ?? this.config.getModel();
     const configToUse: GenerateContentConfig = {
       ...this.generateContentConfig,
       ...generationConfig,
@@ -712,7 +743,7 @@ export class GeminiClient {
       const apiCall = () =>
         this.getContentGenerator().generateContent(
           {
-            model: modelToUse,
+            model,
             config: requestConfig,
             contents,
           },
@@ -721,7 +752,7 @@ export class GeminiClient {
 
       const result = await retryWithBackoff(apiCall, {
         onPersistent429: async (authType?: string, error?: unknown) =>
-          await this.handleFlashFallback(authType, error),
+          await this.handleFlashFallback(model, authType, error),
         authType: this.config.getContentGeneratorConfig()?.authType,
       });
       return result;
@@ -732,7 +763,7 @@ export class GeminiClient {
 
       await reportError(
         error,
-        `Error generating content via API with model ${modelToUse}.`,
+        `Error generating content via API with model ${model}.`,
         {
           requestContents: contents,
           requestConfig: configToUse,
@@ -740,7 +771,7 @@ export class GeminiClient {
         'generateContent-api',
       );
       throw new Error(
-        `Failed to generate content with model ${modelToUse}: ${getErrorMessage(error)}`,
+        `Failed to generate content with model ${model}: ${getErrorMessage(error)}`,
       );
     }
   }
@@ -781,6 +812,7 @@ export class GeminiClient {
   }
 
   async tryCompressChat(
+    model: string,
     prompt_id: string,
     force: boolean = false,
   ): Promise<ChatCompressionInfo> {
@@ -797,8 +829,6 @@ export class GeminiClient {
         compressionStatus: CompressionStatus.NOOP,
       };
     }
-
-    const model = this.config.getModel();
 
     const { totalTokens: originalTokenCount } =
       await this.getContentGenerator().countTokens({
@@ -861,6 +891,7 @@ export class GeminiClient {
         },
       },
       prompt_id,
+      model,
     );
     const chat = await this.startChat([
       {
@@ -878,6 +909,8 @@ export class GeminiClient {
     const { totalTokens: newTokenCount } =
       await this.getContentGenerator().countTokens({
         // model might change after calling `sendMessage`, so we get the newest value from config
+        // TODO(abhipatel) - We must address this when the config contains something like
+        // 'auto' since that can't actually be used for this request.
         model: this.config.getModel(),
         contents: chat.getHistory(),
       });
@@ -925,6 +958,7 @@ export class GeminiClient {
    * Uses a fallback handler if provided by the config; otherwise, returns null.
    */
   private async handleFlashFallback(
+    currentModel: string,
     authType?: string,
     error?: unknown,
   ): Promise<string | null> {
@@ -933,7 +967,6 @@ export class GeminiClient {
       return null;
     }
 
-    const currentModel = this.config.getModel();
     const fallbackModel = DEFAULT_GEMINI_FLASH_MODEL;
 
     // Don't fallback if already using Flash model
@@ -951,12 +984,11 @@ export class GeminiClient {
           error,
         );
         if (accepted !== false && accepted !== null) {
-          this.config.setModel(fallbackModel);
           this.config.setFallbackMode(true);
           return fallbackModel;
         }
         // Check if the model was switched manually in the handler
-        if (this.config.getModel() === fallbackModel) {
+        if (currentModel === fallbackModel) {
           return null; // Model was switched but don't continue with current prompt
         }
       } catch (error) {

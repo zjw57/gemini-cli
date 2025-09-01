@@ -48,6 +48,7 @@ import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import { logCliConfiguration, logIdeConnection } from '../telemetry/loggers.js';
 import { IdeConnectionEvent, IdeConnectionType } from '../telemetry/types.js';
+import { ModelRouterService } from '../routing/modelRouterService.js';
 
 // Re-export OAuth config type
 export type { MCPOAuthConfig, AnyToolInvocation };
@@ -216,6 +217,7 @@ export interface ConfigParameters {
 export class Config {
   private toolRegistry!: ToolRegistry;
   private promptRegistry!: PromptRegistry;
+  private modelRouterService: ModelRouterService;
   private readonly sessionId: string;
   private fileSystemService: FileSystemService;
   private contentGeneratorConfig!: ContentGeneratorConfig;
@@ -372,6 +374,8 @@ export class Config {
     if (this.telemetrySettings.enabled) {
       initializeTelemetry(this);
     }
+
+    this.modelRouterService = new ModelRouterService(this);
   }
 
   /**
@@ -444,7 +448,7 @@ export class Config {
   }
 
   getModel(): string {
-    return this.contentGeneratorConfig?.model || this.model;
+    return this.model;
   }
 
   setModel(newModel: string): void {
@@ -614,6 +618,10 @@ export class Config {
 
   getTelemetryOutfile(): string | undefined {
     return this.telemetrySettings.outfile;
+  }
+
+  getModelRouterService(): ModelRouterService {
+    return this.modelRouterService;
   }
 
   getGeminiClient(): GeminiClient {

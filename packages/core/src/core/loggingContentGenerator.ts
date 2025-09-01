@@ -61,13 +61,14 @@ export class LoggingContentGenerator implements ContentGenerator {
   private _logApiResponse(
     durationMs: number,
     prompt_id: string,
+    model: string,
     usageMetadata?: GenerateContentResponseUsageMetadata,
     responseText?: string,
   ): void {
     logApiResponse(
       this.config,
       new ApiResponseEvent(
-        this.config.getModel(),
+        model,
         durationMs,
         prompt_id,
         this.config.getContentGeneratorConfig()?.authType,
@@ -80,6 +81,7 @@ export class LoggingContentGenerator implements ContentGenerator {
   private _logApiError(
     durationMs: number,
     error: unknown,
+    model: string, 
     prompt_id: string,
   ): void {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -88,7 +90,7 @@ export class LoggingContentGenerator implements ContentGenerator {
     logApiError(
       this.config,
       new ApiErrorEvent(
-        this.config.getModel(),
+        model,
         errorMessage,
         durationMs,
         prompt_id,
@@ -113,13 +115,14 @@ export class LoggingContentGenerator implements ContentGenerator {
       this._logApiResponse(
         durationMs,
         userPromptId,
+        req.model,
         response.usageMetadata,
         JSON.stringify(response),
       );
       return response;
     } catch (error) {
       const durationMs = Date.now() - startTime;
-      this._logApiError(durationMs, error, userPromptId);
+      this._logApiError(durationMs, error, req.model, userPromptId);
       throw error;
     }
   }
@@ -136,16 +139,17 @@ export class LoggingContentGenerator implements ContentGenerator {
       stream = await this.wrapped.generateContentStream(req, userPromptId);
     } catch (error) {
       const durationMs = Date.now() - startTime;
-      this._logApiError(durationMs, error, userPromptId);
+      this._logApiError(durationMs, error, req.model, userPromptId);
       throw error;
     }
 
-    return this.loggingStreamWrapper(stream, startTime, userPromptId);
+    return this.loggingStreamWrapper(stream, startTime, req.model, userPromptId);
   }
 
   private async *loggingStreamWrapper(
     stream: AsyncGenerator<GenerateContentResponse>,
     startTime: number,
+    model: string,
     userPromptId: string,
   ): AsyncGenerator<GenerateContentResponse> {
     let lastResponse: GenerateContentResponse | undefined;
@@ -163,7 +167,7 @@ export class LoggingContentGenerator implements ContentGenerator {
       }
     } catch (error) {
       const durationMs = Date.now() - startTime;
-      this._logApiError(durationMs, error, userPromptId);
+      this._logApiError(durationMs, error, model, userPromptId);
       throw error;
     }
     const durationMs = Date.now() - startTime;
@@ -171,6 +175,7 @@ export class LoggingContentGenerator implements ContentGenerator {
       this._logApiResponse(
         durationMs,
         userPromptId,
+        model,
         lastUsageMetadata,
         JSON.stringify(responses),
       );

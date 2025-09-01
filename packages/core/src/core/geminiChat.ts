@@ -166,6 +166,7 @@ export class GeminiChat {
    * Uses a fallback handler if provided by the config; otherwise, returns null.
    */
   private async handleFlashFallback(
+    currentModel: string,
     authType?: string,
     error?: unknown,
   ): Promise<string | null> {
@@ -174,7 +175,6 @@ export class GeminiChat {
       return null;
     }
 
-    const currentModel = this.config.getModel();
     const fallbackModel = DEFAULT_GEMINI_FLASH_MODEL;
 
     // Don't fallback if already using Flash model
@@ -192,12 +192,11 @@ export class GeminiChat {
           error,
         );
         if (accepted !== false && accepted !== null) {
-          this.config.setModel(fallbackModel);
           this.config.setFallbackMode(true);
           return fallbackModel;
         }
         // Check if the model was switched manually in the handler
-        if (this.config.getModel() === fallbackModel) {
+        if (currentModel === fallbackModel) {
           return null; // Model was switched but don't continue with current prompt
         }
       } catch (error) {
@@ -234,6 +233,7 @@ export class GeminiChat {
   async sendMessage(
     params: SendMessageParameters,
     prompt_id: string,
+    model: string
   ): Promise<GenerateContentResponse> {
     await this.sendPromise;
     const userContent = createUserContent(params.message);
@@ -243,12 +243,10 @@ export class GeminiChat {
 
     try {
       const apiCall = () => {
-        const modelToUse = this.config.getModel() || DEFAULT_GEMINI_FLASH_MODEL;
-
         // Prevent Flash model calls immediately after quota error
         if (
           this.config.getQuotaErrorOccurred() &&
-          modelToUse === DEFAULT_GEMINI_FLASH_MODEL
+          model === DEFAULT_GEMINI_FLASH_MODEL
         ) {
           throw new Error(
             'Please submit a new query to continue with the Flash model.',
@@ -257,7 +255,7 @@ export class GeminiChat {
 
         return this.contentGenerator.generateContent(
           {
-            model: modelToUse,
+            model,
             contents: requestContents,
             config: { ...this.generationConfig, ...params.config },
           },
@@ -276,7 +274,7 @@ export class GeminiChat {
           return false; // Don't retry other errors by default
         },
         onPersistent429: async (authType?: string, error?: unknown) =>
-          await this.handleFlashFallback(authType, error),
+          await this.handleFlashFallback(model, authType, error),
         authType: this.config.getContentGeneratorConfig()?.authType,
       });
 
@@ -340,6 +338,7 @@ export class GeminiChat {
   async sendMessageStream(
     params: SendMessageParameters,
     prompt_id: string,
+    model: string,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
     await this.sendPromise;
 
@@ -372,6 +371,7 @@ export class GeminiChat {
               params,
               prompt_id,
               userContent,
+              model,
             );
 
             for await (const chunk of stream) {
@@ -436,13 +436,12 @@ export class GeminiChat {
     params: SendMessageParameters,
     prompt_id: string,
     userContent: Content,
+    model: string,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
     const apiCall = () => {
-      const modelToUse = this.config.getModel();
-
       if (
         this.config.getQuotaErrorOccurred() &&
-        modelToUse === DEFAULT_GEMINI_FLASH_MODEL
+        model === DEFAULT_GEMINI_FLASH_MODEL
       ) {
         throw new Error(
           'Please submit a new query to continue with the Flash model.',
@@ -451,7 +450,7 @@ export class GeminiChat {
 
       return this.contentGenerator.generateContentStream(
         {
-          model: modelToUse,
+          model,
           contents: requestContents,
           config: { ...this.generationConfig, ...params.config },
         },
@@ -469,7 +468,7 @@ export class GeminiChat {
         return false;
       },
       onPersistent429: async (authType?: string, error?: unknown) =>
-        await this.handleFlashFallback(authType, error),
+        await this.handleFlashFallback(model, authType, error),
       authType: this.config.getContentGeneratorConfig()?.authType,
     });
 

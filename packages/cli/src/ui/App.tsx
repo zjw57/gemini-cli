@@ -510,7 +510,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
           // If user chose to continue with fallback, we don't need to stop the current prompt
           if (shouldContinueWithFallback) {
             // Switch to fallback model for future use
-            config.setModel(fallbackModel);
             config.setFallbackMode(true);
             logFlashFallback(
               config,
@@ -533,7 +532,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       }
 
       // Switch model for future use but return false to stop current retry
-      config.setModel(fallbackModel);
       config.setFallbackMode(true);
       logFlashFallback(
         config,
