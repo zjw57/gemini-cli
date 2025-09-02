@@ -114,7 +114,7 @@ function validateHistory(history: Content[]) {
     if (expectFunctionResponse) {
       if (turn.role !== 'user' || !hasFunctionResponse) {
         throw new Error(
-          `Invalid history: expected a user turn with a functionResponse.`,
+          'Invalid history: expected a user turn with a functionResponse.',
         );
       }
       expectFunctionResponse = false;
@@ -131,7 +131,7 @@ function validateHistory(history: Content[]) {
     if (turn.role === 'user') {
       if (hasFunctionResponse) {
         throw new Error(
-          `Invalid history: got a user turn with a functionResponse when none was expected.`,
+          'Invalid history: got a user turn with a functionResponse when none was expected.',
         );
       }
       expectedRole = 'model';
@@ -148,7 +148,7 @@ function validateHistory(history: Content[]) {
   // the history is incomplete.
   if (expectFunctionResponse) {
     throw new Error(
-      `Invalid history: ended with a model turn with a functionCall, but no functionResponse followed.`,
+      'Invalid history: ended with a model turn with a functionCall, but no functionResponse followed.',
     );
   }
 }
