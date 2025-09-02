@@ -12,7 +12,9 @@ import { Type } from '@google/genai';
 export const WRITE_TODOS_DESCRIPTION = `Use this tool to create and manage a structured task list for your current work session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
 It also helps the user understand the progress of the task and overall progress of their requests.
 
-Use this tool when:
+## When to Use This Tool
+Use this tool proactively in these scenarios:
+
 1. Complex multi-step tasks - When a task requires 3 or more distinct steps or actions
 2. Non-trivial and complex tasks - Tasks that require careful planning or multiple operations
 3. User explicitly requests todo list - When the user directly asks you to use the todo list
@@ -52,6 +54,27 @@ The assistant used the todo list because:
 </reasoning>
 </example>
 
+<example>
+User: Help me plan a comprehensive marketing campaign for our new product launch, including social media, email marketing, and press releases.
+Assistant: I'll help you plan a comprehensive marketing campaign for your product launch. Let me create a todo list to organize all the components.
+*Creates todo list with the following items:*
+1. Define target audience and key messaging
+2. Create social media content calendar and posting schedule
+3. Design email marketing sequence and automation flows
+4. Draft press release and identify media contacts
+5. Set up tracking and analytics for campaign performance
+6. Create visual assets and brand materials
+7. Coordinate launch timeline and deliverables
+*Begins working on the first task*
+
+<reasoning>
+The assistant used the todo list because:
+1. Marketing campaign planning involves multiple distinct channels and activities
+2. Each component requires careful coordination and planning
+3. The systematic approach ensures all aspects of the launch are covered
+4. Progress tracking helps maintain timeline and deliverables
+</reasoning>
+</example>
 
 <example>
 User: Help me rename the function getCwd to getCurrentWorkingDirectory across my project
@@ -69,19 +92,60 @@ The assistant used the todo list because:
 </reasoning>
 </example>
 
+<example>
+User: I need help organizing my home office: decluttering the desk, setting up a filing system, organizing digital files, and creating a daily workflow.
+Assistant: I'll help you organize your home office systematically. Let me create a todo list to track each area of organization.
+*Creates todo list with items like: 1) Sort and declutter desk items, 2) Set up physical filing system for documents, 3) Organize digital files and folders, 4) Create daily workflow and productivity systems, 5) Establish maintenance routines*
+Let's start with decluttering your desk space to create a clean foundation for the other organizational systems.
+
+<reasoning>
+The assistant used the todo list because:
+1. The user provided multiple distinct organizational tasks
+2. Each area requires different approaches and careful planning
+3. Home organization benefits from systematic, step-by-step completion
+4. Progress tracking ensures all areas are addressed thoroughly
+</reasoning>
+</example>
+
 ## Examples of When NOT to Use the Todo List
 
 <example>
 User: How do I print 'Hello World' in Python?
 Assistant: In Python, you can print "Hello World" with this simple code:
 
-\`\`\`python
+python
 print("Hello World")
-\`\`\`
+
 This will output the text "Hello World" to the console when executed.</assistant>
 
 <reasoning>
 The assistant did not use the todo list because this is a single, trivial task that can be completed in one step. There's no need to track multiple tasks or steps for such a straightforward request.
+</reasoning>
+</example>
+
+<example>
+User: What's the best way to water houseplants?
+Assistant: The best way to water houseplants depends on the specific plant type, but here are some general guidelines:
+
+- Check soil moisture by inserting your finger about 1-2 inches into the soil
+- Water thoroughly when the top inch feels dry, allowing water to drain from the bottom
+- Use room temperature water and water in the morning when possible
+- Avoid overwatering, which is more harmful than underwatering for most plants
+
+Different plants have different needs, so it's important to research your specific varieties for optimal care.
+
+<reasoning>
+The assistant did not use the todo list because this is an informational request with no actual tasks to complete. The user is simply asking for advice and explanation, not for the assistant to perform multiple steps or activities.
+</reasoning>
+</example>
+
+<example>
+User: Can you add a comment to the calculateTotal function to explain what it does?
+Assistant: Sure, let me add a comment to the calculateTotal function to explain what it does.
+* Uses the Edit tool to add a comment to the calculateTotal function *
+
+<reasoning>
+The assistant did not use the todo list because this is a single, straightforward task confined to one location. Adding a comment doesn't require tracking multiple steps or systematic organization.
 </reasoning>
 </example>
 
@@ -98,6 +162,35 @@ The assistant did not use the todo list because this is a single information loo
 </reasoning>
 </example>
 
+## Task States and Management
+
+1. **Task States**: Use these states to track progress:
+   - pending: Task not yet started
+   - in_progress: Currently working on (limit to ONE task at a time)
+   - completed: Task finished successfully
+
+2. **Task Management**:
+   - Update task status in real-time as you work
+   - Mark tasks complete IMMEDIATELY after finishing (don't batch completions)
+   - Only have ONE task in_progress at any time
+   - Complete current tasks before starting new ones
+   - Remove tasks that are no longer relevant from the list entirely
+
+3. **Task Completion Requirements**:
+   - ONLY mark a task as completed when you have FULLY accomplished it
+   - If you encounter errors, blockers, or cannot finish, keep the task as in_progress
+   - When blocked, create a new task describing what needs to be resolved
+   - Never mark a task as completed if:
+     - There are unresolved issues or errors
+     - Work is partial or incomplete
+     - You encountered blockers that prevent completion
+     - You couldn't find necessary resources or dependencies
+     - Quality standards haven't been met
+
+4. **Task Breakdown**:
+   - Create specific, actionable items
+   - Break complex tasks into smaller, manageable steps
+   - Use clear, descriptive task names
 
 When in doubt, use this tool. Being proactive with task management demonstrates attentiveness and ensures you complete all requirements successfully.`;
 export type TodoStatus = 'pending' | 'in_progress' | 'completed';
