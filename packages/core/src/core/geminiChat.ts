@@ -79,16 +79,77 @@ function isValidContent(content: Content): boolean {
 }
 
 /**
- * Validates the history contains the correct roles.
+ * Validates the history array to ensure it follows the required alternating
+ * role structure and correctly handles tool-related turns.
  *
- * @throws Error if the history does not start with a user turn.
- * @throws Error if the history contains an invalid role.
+ * @remarks
+ * The validation enforces the following rules:
+ * 1. The history must begin with a `user` role.
+ * 2. Roles must alternate between `user` and `model`.
+ * 3. A `model` turn with a `functionCall` must be followed by a `user`
+ *    turn with a `functionResponse`.
+ *
+ * @throws {Error} If the history violates any of the validation rules.
  */
 function validateHistory(history: Content[]) {
-  for (const content of history) {
-    if (content.role !== 'user' && content.role !== 'model') {
-      throw new Error(`Role must be user or model, but got ${content.role}.`);
+  if (history.length === 0) {
+    return;
+  }
+
+  let expectedRole: 'user' | 'model' = 'user';
+  let expectFunctionResponse = false;
+
+  for (const turn of history) {
+    // Basic role check
+    if (turn.role !== 'user' && turn.role !== 'model') {
+      throw new Error(
+        `Role must be user or model, but got ${turn.role}.`,
+      );
     }
+
+    const hasFunctionCall = turn.parts?.some((p) => p.functionCall) ?? false;
+    const hasFunctionResponse =
+      turn.parts?.some((p) => p.functionResponse) ?? false;
+
+    if (expectFunctionResponse) {
+      if (turn.role !== 'user' || !hasFunctionResponse) {
+        throw new Error(
+          `Invalid history: expected a user turn with a functionResponse.`,
+        );
+      }
+      expectFunctionResponse = false;
+      expectedRole = 'model';
+      continue;
+    }
+
+    if (turn.role !== expectedRole) {
+      throw new Error(
+        `Invalid history: expected a '${expectedRole}' turn but got a '${turn.role}' turn.`,
+      );
+    }
+
+    if (turn.role === 'user') {
+      if (hasFunctionResponse) {
+        throw new Error(
+          `Invalid history: got a user turn with a functionResponse when none was expected.`,
+        );
+      }
+      expectedRole = 'model';
+    } else {
+      // turn.role === 'model'
+      if (hasFunctionCall) {
+        expectFunctionResponse = true;
+      }
+      expectedRole = 'user';
+    }
+  }
+
+  // After the loop, if we are still expecting a function response, it means
+  // the history is incomplete.
+  if (expectFunctionResponse) {
+    throw new Error(
+      `Invalid history: ended with a model turn with a functionCall, but no functionResponse followed.`,
+    );
   }
 }
 
