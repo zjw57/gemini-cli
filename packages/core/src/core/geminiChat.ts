@@ -86,8 +86,8 @@ function isValidContent(content: Content): boolean {
  * The validation enforces the following rules:
  * 1. The history must begin with a `user` role.
  * 2. Roles must alternate between `user` and `model`.
- * 3. A `model` turn with a `functionCall` must be followed by a `user`
- *    turn with a `functionResponse`.
+ * 3. A `model` turn with N `functionCall` parts must be followed by a `user`
+ *    turn with N `functionResponse` parts.
  *
  * @throws {Error} If the history violates any of the validation rules.
  */
@@ -97,34 +97,42 @@ function validateHistory(history: Content[]) {
   }
 
   let expectedRole: 'user' | 'model' = 'user';
-  let expectFunctionResponse = false;
+  let functionCallsCount = 0;
 
   for (const turn of history) {
     // Basic role check
     if (turn.role !== 'user' && turn.role !== 'model') {
-      throw new Error(
-        `Role must be user or model, but got ${turn.role}.`,
-      );
+      throw new Error('Role must be user or model, but got ' + turn.role + '.');
     }
 
-    const hasFunctionCall = turn.parts?.some((p) => p.functionCall) ?? false;
     const hasFunctionResponse =
       turn.parts?.some((p) => p.functionResponse) ?? false;
+    const functionResponseCount =
+      turn.parts?.filter((p) => p.functionResponse).length ?? 0;
 
-    if (expectFunctionResponse) {
+    if (functionCallsCount > 0) {
       if (turn.role !== 'user' || !hasFunctionResponse) {
         throw new Error(
           'Invalid history: expected a user turn with a functionResponse.',
         );
       }
-      expectFunctionResponse = false;
+      if (functionResponseCount !== functionCallsCount) {
+        throw new Error(
+          'Invalid history: number of functionResponses does not match number of functionCalls.',
+        );
+      }
+      functionCallsCount = 0;
       expectedRole = 'model';
       continue;
     }
 
     if (turn.role !== expectedRole) {
       throw new Error(
-        `Invalid history: expected a '${expectedRole}' turn but got a '${turn.role}' turn.`,
+        'Invalid history: expected a ' +
+          expectedRole +
+          ' turn but got a ' +
+          turn.role +
+          ' turn.',
       );
     }
 
@@ -137,16 +145,20 @@ function validateHistory(history: Content[]) {
       expectedRole = 'model';
     } else {
       // turn.role === 'model'
-      if (hasFunctionCall) {
-        expectFunctionResponse = true;
+      const functionCallCountInTurn =
+        turn.parts?.filter((p) => p.functionCall).length ?? 0;
+      if (functionCallCountInTurn > 0) {
+        functionCallsCount = functionCallCountInTurn;
+        expectedRole = 'user';
+      } else {
+        expectedRole = 'user';
       }
-      expectedRole = 'user';
     }
   }
 
   // After the loop, if we are still expecting a function response, it means
   // the history is incomplete.
-  if (expectFunctionResponse) {
+  if (functionCallsCount > 0) {
     throw new Error(
       'Invalid history: ended with a model turn with a functionCall, but no functionResponse followed.',
     );
