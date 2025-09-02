@@ -190,7 +190,7 @@ export function loadExtension(extensionDir: string): Extension | null {
   try {
     const configContent = fs.readFileSync(configFilePath, 'utf-8');
     const config = recursivelyHydrateStrings(JSON.parse(configContent), {
-      extensionPath: effectiveExtensionPath, // Use effective path for hydration
+      extensionPath: effectiveExtensionPath,
       '/': path.sep,
       pathSeparator: path.sep,
     }) as unknown as ExtensionConfig;

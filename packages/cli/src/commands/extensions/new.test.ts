@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { newCommand } from './new.js';
 import yargs from 'yargs';
 import * as fsPromises from 'node:fs/promises';
+import type { Dirent } from 'node:fs';
 
 vi.mock('node:fs/promises');
 
@@ -21,7 +22,7 @@ describe('extensions new command', () => {
       { name: 'context', isDirectory: () => true },
       { name: 'custom-commands', isDirectory: () => true },
       { name: 'mcp-server', isDirectory: () => true },
-    ] as any);
+    ] as Dirent[]);
   });
 
   it('should fail if no path is provided', async () => {
