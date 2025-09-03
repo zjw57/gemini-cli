@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import stripAnsi from 'strip-ansi';
 import type { PtyImplementation } from '../utils/getPty.js';
 import { getPty } from '../utils/getPty.js';
 import { spawn as cpSpawn } from 'node:child_process';
@@ -17,8 +18,6 @@ import { serializeTerminalToString } from '../utils/terminalSerializer.js';
 const { Terminal } = pkg;
 
 const SIGKILL_TIMEOUT_MS = 200;
-
-
 
 /** A structured result from a shell command execution. */
 export interface ShellExecutionResult {
@@ -51,6 +50,8 @@ export interface ShellExecutionHandle {
 export interface ShellExecutionConfig {
   terminalWidth?: number;
   terminalHeight?: number;
+  pager?: string;
+  showColor?: boolean;
 }
 
 /**
@@ -78,6 +79,17 @@ interface ActivePty {
   ptyProcess: IPty;
   headlessTerminal: pkg.Terminal;
 }
+
+const getVisibleText = (terminal: pkg.Terminal): string => {
+  const buffer = terminal.buffer.active;
+  const lines: string[] = [];
+  for (let i = 0; i < terminal.rows; i++) {
+    const line = buffer.getLine(buffer.viewportY + i);
+    const lineContent = line ? line.translateToString(true) : '';
+    lines.push(lineContent);
+  }
+  return lines.join('\n').trimEnd();
+};
 
 /**
  * A centralized service for executing shell commands with robust process
@@ -200,7 +212,7 @@ export class ShellExecutionService {
           }
 
           if (isStreamingRawContent) {
-            onOutputEvent({ type: 'data', chunk: decodedChunk });
+            onOutputEvent({ type: 'data', chunk: stripAnsi(decodedChunk) });
           } else {
             const totalBytes = outputChunks.reduce(
               (sum, chunk) => sum + chunk.length,
@@ -225,7 +237,7 @@ export class ShellExecutionService {
 
           resolve({
             rawOutput: finalBuffer,
-            output: combinedOutput.trim(),
+            output: stripAnsi(combinedOutput).trim(),
             exitCode: code,
             signal: signal ? os.constants.signals[signal] : null,
             error,
@@ -337,7 +349,7 @@ export class ShellExecutionService {
           ...process.env,
           GEMINI_CLI: '1',
           TERM: 'xterm-256color',
-          PAGER: 'cat',
+          PAGER: shellExecutionConfig.pager ?? 'cat',
         },
         handleFlowControl: true,
       });
@@ -353,7 +365,7 @@ export class ShellExecutionService {
 
         let processingChain = Promise.resolve();
         let decoder: TextDecoder | null = null;
-        let output = '';
+        let output: string | null = null;
         const outputChunks: Buffer[] = [];
         const error: Error | null = null;
         let exited = false;
@@ -361,7 +373,6 @@ export class ShellExecutionService {
         let isStreamingRawContent = true;
         const MAX_SNIFF_SIZE = 4096;
         let sniffedBytes = 0;
-        let writeInProgress = false;
         let renderTimeout: NodeJS.Timeout | null = null;
 
         const render = (finalRender = false) => {
@@ -373,8 +384,9 @@ export class ShellExecutionService {
             if (!isStreamingRawContent) {
               return;
             }
-            const newStrippedOutput =
-              serializeTerminalToString(headlessTerminal);
+            const newStrippedOutput = shellExecutionConfig.showColor
+              ? serializeTerminalToString(headlessTerminal)
+              : getVisibleText(headlessTerminal);
             if (output !== newStrippedOutput) {
               output = newStrippedOutput;
               onOutputEvent({
@@ -391,10 +403,7 @@ export class ShellExecutionService {
           }
         };
 
-        headlessTerminal.onCursorMove(() => {
-          if (writeInProgress) {
-            return;
-          }
+        headlessTerminal.onScroll(() => {
           render();
         });
 
@@ -425,9 +434,7 @@ export class ShellExecutionService {
 
                 if (isStreamingRawContent) {
                   const decodedChunk = decoder.decode(data, { stream: true });
-                  writeInProgress = true;
                   headlessTerminal.write(decodedChunk, () => {
-                    writeInProgress = false;
                     render();
                     resolve();
                   });
@@ -463,7 +470,7 @@ export class ShellExecutionService {
 
               resolve({
                 rawOutput: finalBuffer,
-                output,
+                output: output ?? '',
                 exitCode,
                 signal: signal ?? null,
                 error,
@@ -541,6 +548,23 @@ export class ShellExecutionService {
       try {
         activePty.ptyProcess.resize(cols, rows);
         activePty.headlessTerminal.resize(cols, rows);
+      } catch (_e) {
+        // Ignore errors if the pty has already exited.
+      }
+    }
+  }
+
+  /**
+   * Scrolls the pseudo-terminal (PTY) of a running process.
+   *
+   * @param pid The process ID of the target PTY.
+   * @param lines The number of lines to scroll.
+   */
+  static scrollPty(pid: number, lines: number): void {
+    const activePty = this.activePtys.get(pid);
+    if (activePty) {
+      try {
+        activePty.headlessTerminal.scrollLines(lines);
       } catch (_e) {
         // Ignore errors if the pty has already exited.
       }

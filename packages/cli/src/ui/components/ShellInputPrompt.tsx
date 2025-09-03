@@ -29,7 +29,16 @@ export const ShellInputPrompt: React.FC<ShellInputPromptProps> = ({
 
   const handleInput = useCallback(
     (key: Key) => {
-      if (!focus) {
+      if (!focus || !activeShellPtyId) {
+        return;
+      }
+      if (key.ctrl && key.shift && key.name === 'up') {
+        ShellExecutionService.scrollPty(activeShellPtyId, -1);
+        return;
+      }
+
+      if (key.ctrl && key.shift && key.name === 'down') {
+        ShellExecutionService.scrollPty(activeShellPtyId, 1);
         return;
       }
 
@@ -38,7 +47,7 @@ export const ShellInputPrompt: React.FC<ShellInputPromptProps> = ({
         handleShellInputSubmit(ansiSequence);
       }
     },
-    [focus, handleShellInputSubmit],
+    [focus, handleShellInputSubmit, activeShellPtyId],
   );
 
   useKeypress(handleInput, { isActive: focus });

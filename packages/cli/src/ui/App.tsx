@@ -227,10 +227,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   const [showEscapePrompt, setShowEscapePrompt] = useState(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [shellInputFocused, setShellInputFocused] = useState(false);
-  const [cursorPosition, setCursorPosition] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
   const {
     showWorkspaceMigrationDialog,
     workspaceExtensions,
@@ -606,7 +602,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     terminalWidth,
     terminalHeight,
     shellInputFocused,
-    setCursorPosition,
   );
 
   const pendingHistoryItems = useMemo(
@@ -882,7 +877,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     }, 300);
 
     config.setShellExecutionConfig({
-      terminalWidth: Math.floor(terminalWidth * 0.80),
+      terminalWidth: Math.floor(terminalWidth * 0.8),
       terminalHeight: Math.floor(availableTerminalHeight - 10),
     });
 
@@ -928,7 +923,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     if (activeShellPtyId) {
       ShellExecutionService.resizePty(
         activeShellPtyId,
-        Math.floor(terminalWidth * 0.80),
+        Math.floor(terminalWidth * 0.8),
         Math.floor(availableTerminalHeight - 10),
       );
     }
@@ -1050,7 +1045,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                 isFocused={!isEditorDialogOpen}
                 activeShellPtyId={activeShellPtyId}
                 shellInputFocused={shellInputFocused}
-                cursorPosition={cursorPosition}
               />
             ))}
             <ShowMoreLines constrainHeight={constrainHeight} />

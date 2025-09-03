@@ -72,7 +72,6 @@ export const useShellCommandProcessor = (
   setShellInputFocused: (value: boolean) => void,
   terminalWidth?: number,
   terminalHeight?: number,
-  setCursorPosition?: (position: { x: number; y: number } | null) => void,
 ) => {
   const [activeShellPtyId, setActiveShellPtyId] = useState<number | null>(null);
   const handleShellCommand = useCallback(
@@ -342,7 +341,6 @@ export const useShellCommandProcessor = (
       setShellInputFocused,
       terminalHeight,
       terminalWidth,
-      setCursorPosition,
     ],
   );
 

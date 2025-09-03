@@ -15,7 +15,6 @@ const enum Attribute {
 }
 
 const enum ColorMode {
-  // eslint-disable-next-line @typescript-eslint/no-shadow
   DEFAULT = 0,
   PALETTE = 1,
   RGB = 2,
@@ -23,8 +22,8 @@ const enum ColorMode {
 
 class Cell {
   private readonly attributes: number = 0;
-  public fg = 0;
-  public bg = 0;
+  fg = 0;
+  bg = 0;
 
   constructor(
     private readonly cell: IBufferCell | null,
@@ -75,19 +74,19 @@ class Cell {
     }
   }
 
-  public isCursor(): boolean {
+  isCursor(): boolean {
     return this.x === this.cursorX && this.y === this.cursorY;
   }
 
-  public getChars(): string {
+  getChars(): string {
     return this.cell?.getChars() || ' ';
   }
 
-  public isAttribute(attribute: Attribute): boolean {
+  isAttribute(attribute: Attribute): boolean {
     return (this.attributes & attribute) !== 0;
   }
 
-  public equals(other: Cell): boolean {
+  equals(other: Cell): boolean {
     return (
       this.attributes === other.attributes &&
       this.fg === other.fg &&
@@ -96,7 +95,7 @@ class Cell {
   }
 }
 
-function sgr(values: (string | number)[]): string {
+function sgr(values: Array<string | number>): string {
   return `\x1b[${values.join(';')}m`;
 }
 
@@ -109,7 +108,7 @@ export function serializeTerminalToString(terminal: Terminal): string {
   let lastCell = new Cell(null, -1, -1, cursorX, cursorY);
 
   for (let y = 0; y < terminal.rows; y++) {
-    const line = buffer.getLine(y);
+    const line = buffer.getLine(buffer.viewportY + y);
     if (!line) {
       result += '\n';
       continue;
@@ -120,7 +119,7 @@ export function serializeTerminalToString(terminal: Terminal): string {
       const cell = new Cell(cellData || null, x, y, cursorX, cursorY);
 
       if (!cell.equals(lastCell)) {
-        const codes: (string | number)[] = [0];
+        const codes: Array<string | number> = [0];
         if (cell.isAttribute(Attribute.inverse) || cell.isCursor()) {
           codes.push(7);
         }
@@ -159,13 +158,13 @@ export function serializeTerminalToString(terminal: Terminal): string {
         }
         result += sgr(codes);
       }
-      
+
       result += cell.getChars();
       lastCell = cell;
     }
 
-    if(!line.isWrapped){
-      result += '\n'
+    if (!line.isWrapped) {
+      result += '\n';
     }
   }
 

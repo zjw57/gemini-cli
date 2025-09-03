@@ -14,7 +14,6 @@ import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
 import { GeminiRespondingSpinner } from '../GeminiRespondingSpinner.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
 import { ShellInputPrompt } from '../ShellInputPrompt.js';
-import { TerminalOutput } from '../TerminalOutput.js';
 import { SHELL_COMMAND_NAME } from '../../constants.js';
 import { theme } from '../../semantic-colors.js';
 import type { Config } from '@google/gemini-cli-core';
@@ -37,7 +36,6 @@ export interface ToolMessageProps extends IndividualToolCallDisplay {
   activeShellPtyId?: number | null;
   shellInputFocused?: boolean;
   config?: Config;
-  cursorPosition?: { x: number; y: number } | null;
 }
 
 export const ToolMessage: React.FC<ToolMessageProps> = ({
@@ -53,7 +51,6 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
   shellInputFocused,
   ptyId,
   config,
-  cursorPosition,
 }) => {
   const isThisShellFocused =
     (name === SHELL_COMMAND_NAME || name === 'Shell') &&
@@ -103,11 +100,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
       {resultDisplay && (
         <Box paddingLeft={STATUS_INDICATOR_WIDTH} width="100%" marginTop={1}>
           <Box flexDirection="column">
-            {isThisShellFocused &&
-            typeof resultDisplay === 'string' &&
-            cursorPosition ? (
-              <TerminalOutput output={resultDisplay} />
-            ) : typeof resultDisplay === 'string' && renderOutputAsMarkdown ? (
+            {typeof resultDisplay === 'string' && renderOutputAsMarkdown ? (
               <Box flexDirection="column">
                 <MarkdownDisplay
                   text={resultDisplay}

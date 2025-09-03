@@ -50,6 +50,13 @@ vi.mock('../utils/getPty.js', () => ({
   getPty: mockGetPty,
 }));
 
+const shellExecutionConfig = {
+  terminalWidth: 80,
+  terminalHeight: 24,
+  pager: 'cat',
+  showColor: false,
+};
+
 const mockProcessKill = vi
   .spyOn(process, 'kill')
   .mockImplementation(() => true);
@@ -110,7 +117,7 @@ describe('ShellExecutionService', () => {
       onOutputEventMock,
       abortController.signal,
       true,
-      { terminalWidth: 80, terminalHeight: 24 },
+      shellExecutionConfig,
     );
 
     await new Promise((resolve) => process.nextTick(resolve));
@@ -191,60 +198,11 @@ describe('ShellExecutionService', () => {
         onOutputEventMock,
         abortController.signal,
         true,
-        { terminalWidth: 80, terminalHeight: 24 },
+        shellExecutionConfig,
       );
       mockPtyProcess.onExit.mock.calls[0][0]({ exitCode: 0, signal: null });
       await handle.result;
       expect(handle.pid).toBe(12345);
-    });
-
-    it('should emit data on cursor move even if text is unchanged', async () => {
-      vi.useFakeTimers();
-      const { result } = await simulateExecution('vi file.txt', async (pty) => {
-        pty.onData.mock.calls[0][0]('initial text');
-        await vi.advanceTimersByTimeAsync(17); // Allow first render to happen
-
-        // Manually trigger a render to simulate cursor move
-        const activePty = (
-          ShellExecutionService as unknown as {
-            activePtys: Map<
-              number,
-              {
-                headlessTerminal: {
-                  buffer: { active: { cursorX: number } };
-                  write: (data: string, cb?: () => void) => void;
-                };
-              }
-            >;
-          }
-        ).activePtys.get(pty.pid);
-        Object.defineProperty(
-          activePty!.headlessTerminal.buffer.active,
-          'cursorX',
-          { value: 1, writable: true, configurable: true },
-        );
-        // We can't directly call the internal render, so we'll write an escape
-        // code that is likely to trigger a render. This is a bit of a hack,
-        // but it's the most reliable way to test this behavior without
-        // exposing the internal render function.
-        // We can't directly call the internal render, so we'll simulate
-        // receiving an escape code from the pty, which is a more realistic
-        // way to trigger a render.
-        pty.onData.mock.calls[0][0]('[s'); // Save cursor position
-        await vi.advanceTimersByTimeAsync(17); // Allow second render to happen
-        pty.onExit.mock.calls[0][0]({ exitCode: 0, signal: null });
-      });
-
-      expect(result.output).toContain('initial text');
-      // Once for initial text, once for cursor move.
-      expect(onOutputEventMock).toHaveBeenCalledTimes(2);
-      const secondCallEvent = onOutputEventMock.mock.calls[1][0];
-      if (secondCallEvent.type === 'data') {
-        expect(secondCallEvent.chunk).toContain('initial text');
-      } else {
-        expect.fail('Second event was not a data event');
-      }
-      vi.useRealTimers();
     });
   });
 
@@ -453,7 +411,7 @@ describe('ShellExecutionService child_process fallback', () => {
       onOutputEventMock,
       abortController.signal,
       true,
-      { terminalWidth: 80, terminalHeight: 24 },
+      shellExecutionConfig,
     );
 
     await new Promise((resolve) => process.nextTick(resolve));
@@ -818,7 +776,7 @@ describe('ShellExecutionService execution method selection', () => {
       onOutputEventMock,
       abortController.signal,
       true, // shouldUseNodePty
-      { terminalWidth: 80, terminalHeight: 24 },
+      shellExecutionConfig,
     );
 
     // Simulate exit to allow promise to resolve
@@ -862,7 +820,7 @@ describe('ShellExecutionService execution method selection', () => {
       onOutputEventMock,
       abortController.signal,
       true, // shouldUseNodePty
-      { terminalWidth: 80, terminalHeight: 24 },
+      shellExecutionConfig,
     );
 
     // Simulate exit to allow promise to resolve
