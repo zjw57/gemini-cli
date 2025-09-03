@@ -25,17 +25,23 @@ const mockModelsModule = {
   batchEmbedContents: vi.fn(),
 } as unknown as Models;
 
-const { mockLogInvalidChunk, mockLogContentRetry, mockLogContentRetryFailure } =
-  vi.hoisted(() => ({
-    mockLogInvalidChunk: vi.fn(),
-    mockLogContentRetry: vi.fn(),
-    mockLogContentRetryFailure: vi.fn(),
-  }));
+const {
+  mockLogInvalidChunk,
+  mockLogContentRetry,
+  mockLogContentRetryFailure,
+  mockLogInvalidHistory,
+} = vi.hoisted(() => ({
+  mockLogInvalidChunk: vi.fn(),
+  mockLogContentRetry: vi.fn(),
+  mockLogContentRetryFailure: vi.fn(),
+  mockLogInvalidHistory: vi.fn(),
+}));
 
 vi.mock('../telemetry/loggers.js', () => ({
   logInvalidChunk: mockLogInvalidChunk,
   logContentRetry: mockLogContentRetry,
   logContentRetryFailure: mockLogContentRetryFailure,
+  logInvalidHistory: mockLogInvalidHistory,
 }));
 
 describe('GeminiChat', () => {
@@ -704,6 +710,43 @@ describe('GeminiChat', () => {
       const secondToLastTurn = history[2]!;
       expect(secondToLastTurn.role).toBe('user');
       expect(secondToLastTurn?.parts![0]!.functionResponse).toBeDefined();
+    });
+
+    it('should log an invalid history event with history text', async () => {
+      const invalidHistory: Content[] = [
+        { role: 'user', parts: [{ text: 'Message 1' }] },
+      ];
+      chat.setHistory(invalidHistory);
+
+      const mockStream = (async function* () {
+        yield {
+          candidates: [{ content: { parts: [{ text: 'some response' }] } }],
+        } as unknown as GenerateContentResponse;
+      })();
+      vi.mocked(mockModelsModule.generateContentStream).mockResolvedValue(
+        mockStream,
+      );
+
+      const stream = await chat.sendMessageStream(
+        { message: 'Message 2' },
+        'prompt-id-invalid-history',
+      );
+      for await (const _ of stream) {
+        // do nothing
+      }
+
+      expect(mockLogInvalidHistory).toHaveBeenCalledTimes(1);
+      const event = mockLogInvalidHistory.mock.calls[0][1];
+      expect(event.error_message).toContain(
+        'Invalid history: expected a model turn but got a user turn.',
+      );
+      expect(event.history_length).toBe(2);
+      expect(event.history_text).toBeDefined();
+      const parsedHistory = JSON.parse(event.history_text);
+      expect(parsedHistory).toEqual([
+        { role: 'user', parts: [{ text: 'Message 1' }] },
+        { role: 'user', parts: [{ text: 'Message 2' }] },
+      ]);
     });
 
     it('should call generateContentStream with the correct parameters', async () => {

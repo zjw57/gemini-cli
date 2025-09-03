@@ -455,7 +455,11 @@ export class GeminiChat {
     if (!valid) {
       logInvalidHistory(
         this.config,
-        new InvalidHistoryEvent(error!, requestContents.length),
+        new InvalidHistoryEvent(
+          error!,
+          requestContents.length,
+          JSON.stringify(requestContents),
+        ),
       );
     }
 

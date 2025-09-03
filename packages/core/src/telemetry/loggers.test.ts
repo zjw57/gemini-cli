@@ -924,5 +924,28 @@ describe('loggers', () => {
 
       expect(metrics.recordInvalidHistory).toHaveBeenCalledWith(mockConfig);
     });
+
+    it('logs the history_text when provided', () => {
+      const mockConfig = makeFakeConfig();
+      const historyText = JSON.stringify([
+        { role: 'user', parts: [{ text: 'hello' }] },
+      ]);
+      const event = new InvalidHistoryEvent('some error', 123, historyText);
+
+      logInvalidHistory(mockConfig, event);
+
+      expect(mockLogger.emit).toHaveBeenCalledWith({
+        body: 'Invalid history detected.',
+        attributes: {
+          'session.id': 'test-session-id',
+          'user.email': 'test-user@example.com',
+          'event.name': EVENT_INVALID_HISTORY,
+          'event.timestamp': '2025-01-01T00:00:00.000Z',
+          'error.message': 'some error',
+          'history.length': 123,
+          'history.text': historyText,
+        },
+      });
+    });
   });
 });

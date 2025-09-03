@@ -603,6 +603,10 @@ export function logInvalidHistory(
     'history.length': event.history_length,
   };
 
+  if (event.history_text) {
+    attributes['history.text'] = event.history_text;
+  }
+
   const logger = logs.getLogger(SERVICE_NAME);
   const logRecord: LogRecord = {
     body: `Invalid history detected.`,
