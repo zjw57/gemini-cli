@@ -5,11 +5,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { NonInteractiveConfig } from './validateNonInterActiveAuth.js';
 import { validateNonInteractiveAuth } from './validateNonInterActiveAuth.js';
 import { AuthType } from '@google/gemini-cli-core';
 import * as auth from './config/auth.js';
-import { LoadedSettings } from './config/settings.js';
+import { type LoadedSettings } from './config/settings.js';
 
 describe('validateNonInterActiveAuth', () => {
   let originalEnvGeminiApiKey: string | undefined;
@@ -284,7 +283,7 @@ describe('validateNonInterActiveAuth', () => {
 
   it('exits if currentAuthType does not match enforcedAuthType', async () => {
     mockSettings.merged.security.auth.enforcedType = AuthType.LOGIN_WITH_GOOGLE;
-    mockSettings.merged.security.auth.selectedType = AuthType.USE_GEMINI;
+    process.env['GOOGLE_GENAI_USE_VERTEXAI'] = 'true';
     const nonInteractiveConfig = {
       refreshAuth: refreshAuthMock,
     };
@@ -300,7 +299,7 @@ describe('validateNonInterActiveAuth', () => {
       expect((e as Error).message).toContain('process.exit(1) called');
     }
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'The configured auth type is oauth-personal, but the current auth type is gemini-api-key. Please re-authenticate with the correct type.',
+      'The configured auth type is oauth-personal, but the current auth type is vertex-ai. Please re-authenticate with the correct type.',
     );
     expect(processExitSpy).toHaveBeenCalledWith(1);
   });

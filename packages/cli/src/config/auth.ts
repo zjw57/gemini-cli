@@ -5,7 +5,7 @@
  */
 
 import { AuthType } from '@google/gemini-cli-core';
-import { loadEnvironment, loadSettings, type LoadedSettings } from './settings.js';
+import { loadEnvironment, loadSettings } from './settings.js';
 
 export function validateAuthMethod(authMethod: string): string | null {
   loadEnvironment(loadSettings().merged);
@@ -40,8 +40,4 @@ export function validateAuthMethod(authMethod: string): string | null {
   }
 
   return 'Invalid auth method selected.';
-};
-
-export function getAuthType(settings: LoadedSettings): AuthType | undefined {
-  return settings.merged.security?.auth?.selectedType;
 }

@@ -335,7 +335,8 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     if (
       settings.merged.security?.auth?.enforcedType &&
       settings.merged.security?.auth.selectedType &&
-      settings.merged.security?.auth.enforcedType !== settings.merged.security?.auth.selectedType
+      settings.merged.security?.auth.enforcedType !==
+        settings.merged.security?.auth.selectedType
     ) {
       setAuthError(
         `Authentication is enforced to be ${settings.merged.security?.auth.enforcedType}, but you are currently using ${settings.merged.security?.auth.selectedType}.`,
@@ -343,9 +344,11 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       openAuthDialog();
     } else if (
       settings.merged.security?.auth?.selectedType &&
-      !settings.merged.security?.auth.useExternal
+      !settings.merged.security?.auth?.useExternal
     ) {
-      const error = validateAuthMethod(settings.merged.security?.auth.selectedType);
+      const error = validateAuthMethod(
+        settings.merged.security.auth.selectedType,
+      );
       if (error) {
         setAuthError(error);
         openAuthDialog();

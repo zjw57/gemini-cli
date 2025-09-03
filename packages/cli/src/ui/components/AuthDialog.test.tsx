@@ -435,7 +435,7 @@ describe('AuthDialog', () => {
           settings: {
             security: {
               auth: {
-                enforcedType: AuthType.LOGIN_WITH_GOOGLE,
+                enforcedType: AuthType.USE_VERTEX_AI,
               },
             },
           },
@@ -445,7 +445,7 @@ describe('AuthDialog', () => {
           settings: {
             security: {
               auth: {
-                selectedType: AuthType.LOGIN_WITH_GOOGLE,
+                selectedType: AuthType.USE_VERTEX_AI,
               },
             },
           },
@@ -459,7 +459,6 @@ describe('AuthDialog', () => {
           settings: {},
           path: '',
         },
-        [],
         true,
         new Set(),
       );
@@ -468,158 +467,7 @@ describe('AuthDialog', () => {
         <AuthDialog onSelect={() => {}} settings={settings} />,
       );
 
-      expect(lastFrame()).toContain('Authentication Enforced');
-      expect(lastFrame()).toContain(
-        'Your configuration is enforcing a specific authentication method: oauth-personal',
-      );
-    });
-
-    it('should not display the switch button if the selected auth type matches the enforced one', () => {
-      const settings: LoadedSettings = new LoadedSettings(
-        {
-          settings: {
-            security: {
-              auth: {
-                enforcedType: AuthType.LOGIN_WITH_GOOGLE,
-              },
-            },
-            ui: { customThemes: {} },
-            mcpServers: {},
-          },
-          path: '',
-        },
-        {
-          settings: {
-            security: {
-              auth: {
-                selectedType: AuthType.LOGIN_WITH_GOOGLE,
-              },
-            },
-            ui: { customThemes: {} },
-            mcpServers: {},
-          },
-          path: '',
-        },
-        {
-          settings: { ui: { customThemes: {} }, mcpServers: {} },
-          path: '',
-        },
-        {
-          settings: { ui: { customThemes: {} }, mcpServers: {} },
-          path: '',
-        },
-        [],
-        true,
-        new Set(),
-      );
-
-      const { lastFrame } = renderWithProviders(
-        <AuthDialog onSelect={() => {}} settings={settings} />,
-      );
-
-      expect(lastFrame()).not.toContain('Switch to login-with-google');
-    });
-
-    it('should display the switch button if the selected auth type does not match the enforced one', () => {
-      const settings: LoadedSettings = new LoadedSettings(
-        {
-          settings: {
-            security: {
-              auth: {
-                enforcedType: AuthType.LOGIN_WITH_GOOGLE,
-              },
-            },
-            ui: { customThemes: {} },
-            mcpServers: {},
-          },
-          path: '',
-        },
-        {
-          settings: {
-            security: {
-              auth: {
-                selectedType: AuthType.USE_GEMINI,
-              },
-            },
-            ui: { customThemes: {} },
-            mcpServers: {},
-          },
-          path: '',
-        },
-        {
-          settings: { ui: { customThemes: {} }, mcpServers: {} },
-          path: '',
-        },
-        {
-          settings: { ui: { customThemes: {} }, mcpServers: {} },
-          path: '',
-        },
-        [],
-        true,
-        new Set(),
-      );
-
-      const { lastFrame } = renderWithProviders(
-        <AuthDialog onSelect={() => {}} settings={settings} />,
-      );
-
-      expect(lastFrame()).toContain('Switch to oauth-personal');
-    });
-
-    it('should call onSelect with the enforced auth type when the switch button is clicked', async () => {
-      const onSelect = vi.fn();
-      const settings: LoadedSettings = new LoadedSettings(
-        {
-          settings: {
-            security: {
-              auth: {
-                enforcedType: AuthType.LOGIN_WITH_GOOGLE,
-              },
-            },
-            ui: { customThemes: {} },
-            mcpServers: {},
-          },
-          path: '',
-        },
-        {
-          settings: {
-            security: {
-              auth: {
-                selectedType: AuthType.USE_GEMINI,
-              },
-            },
-            ui: { customThemes: {} },
-            mcpServers: {},
-          },
-          path: '',
-        },
-        {
-          settings: { ui: { customThemes: {} }, mcpServers: {} },
-          path: '',
-        },
-        {
-          settings: { ui: { customThemes: {} }, mcpServers: {} },
-          path: '',
-        },
-        [],
-        true,
-        new Set(),
-      );
-
-      const { stdin, unmount } = renderWithProviders(
-        <AuthDialog onSelect={onSelect} settings={settings} />,
-      );
-      await wait();
-
-      // Simulate pressing enter key
-      stdin.write('\r');
-      await wait();
-
-      expect(onSelect).toHaveBeenCalledWith(
-        AuthType.LOGIN_WITH_GOOGLE,
-        SettingScope.User,
-      );
-      unmount();
+      expect(lastFrame()).toContain('1. Vertex AI');
     });
   });
 });

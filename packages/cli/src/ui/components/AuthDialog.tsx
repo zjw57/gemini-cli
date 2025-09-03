@@ -14,7 +14,6 @@ import { SettingScope } from '../../config/settings.js';
 import { AuthType } from '@google/gemini-cli-core';
 import { validateAuthMethod } from '../../config/auth.js';
 import { useKeypress } from '../hooks/useKeypress.js';
-import { Button } from './shared/Button.js';
 
 interface AuthDialogProps {
   onSelect: (authMethod: AuthType | undefined, scope: SettingScope) => void;
@@ -44,9 +43,9 @@ export function AuthDialog({
       return initialErrorMessage;
     }
 
-    const defaultAuthType = settings.merged.security?.auth?.enforcedType
-      ? settings.merged.security?.auth?.enforcedType
-      : parseDefaultAuthType(process.env['GEMINI_DEFAULT_AUTH_TYPE']);
+    const defaultAuthType = parseDefaultAuthType(
+      process.env['GEMINI_DEFAULT_AUTH_TYPE'],
+    );
 
     if (process.env['GEMINI_DEFAULT_AUTH_TYPE'] && defaultAuthType === null) {
       return (
@@ -63,7 +62,7 @@ export function AuthDialog({
     }
     return null;
   });
-  const items = [
+  let items = [
     {
       label: 'Login with Google',
       value: AuthType.LOGIN_WITH_GOOGLE,
@@ -83,7 +82,13 @@ export function AuthDialog({
     { label: 'Vertex AI', value: AuthType.USE_VERTEX_AI },
   ];
 
-  const initialAuthIndex = items.findIndex((item) => {
+  if (settings.merged.security?.auth?.enforcedType) {
+    items = items.filter(
+      (item) => item.value === settings.merged.security?.auth?.enforcedType,
+    );
+  }
+
+  let initialAuthIndex = items.findIndex((item) => {
     if (settings.merged.security?.auth?.selectedType) {
       return item.value === settings.merged.security.auth.selectedType;
     }
@@ -101,6 +106,9 @@ export function AuthDialog({
 
     return item.value === AuthType.LOGIN_WITH_GOOGLE;
   });
+  if (settings.merged.security?.auth?.enforcedType) {
+    initialAuthIndex = 0;
+  }
 
   const handleAuthSelect = (authMethod: AuthType) => {
     const error = validateAuthMethod(authMethod);
@@ -132,57 +140,6 @@ export function AuthDialog({
     },
     { isActive: true },
   );
-
-  if (settings.merged.security?.auth?.enforcedType) {
-    const switchAuthType = settings.merged.security?.auth?.selectedType !== undefined && settings.merged.security?.auth?.enforcedType !==
-          settings.merged.security?.auth?.selectedType;
-      console.log(switchAuthType);
-      console.log(settings.merged.security?.auth?.enforcedType);
-    return (
-      <Box
-        borderStyle="round"
-        borderColor={Colors.Gray}
-        flexDirection="column"
-        padding={1}
-        width="100%"
-      >
-        <Text bold>Authentication Enforced</Text>
-        <Box marginTop={1}>
-          <Text>
-            Your configuration is enforcing a specific authentication method:{' '}
-            {settings.merged.security?.auth?.enforcedType}
-          </Text>
-        </Box>
-        
-        {switchAuthType ? (
-          <Box marginTop={1}>
-            <Button
-              onSelect={() =>
-                onSelect(settings.merged.security?.auth?.enforcedType!, SettingScope.User)
-              }
-            >
-              Switch to {settings.merged.security?.auth?.enforcedType}
-            </Button>
-          </Box>
-        ) : (
-          <Box marginTop={1}>
-            <Button
-              onSelect={() =>
-                onSelect(settings.merged.security?.auth?.enforcedType!, SettingScope.User)
-              }
-            >
-              Authenticate using {settings.merged.security?.auth?.enforcedType}
-            </Button>
-          </Box>
-        )}
-        {errorMessage && (
-          <Box marginTop={1}>
-            <Text color={Colors.AccentRed}>{errorMessage}</Text>
-          </Box>
-        )}
-      </Box>
-    );
-  }
 
   return (
     <Box

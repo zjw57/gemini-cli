@@ -7,7 +7,7 @@
 import type { Config } from '@google/gemini-cli-core';
 import { AuthType } from '@google/gemini-cli-core';
 import { USER_SETTINGS_PATH } from './config/settings.js';
-import { validateAuthMethod, getAuthType } from './config/auth.js';
+import { validateAuthMethod } from './config/auth.js';
 import { type LoadedSettings } from './config/settings.js';
 
 function getAuthTypeFromEnv(): AuthType | undefined {
@@ -31,7 +31,7 @@ export async function validateNonInteractiveAuth(
 ) {
   const enforcedType = settings.merged.security?.auth?.enforcedType;
   if (enforcedType) {
-    const currentAuthType = getAuthType(settings);
+    const currentAuthType = getAuthTypeFromEnv();
     if (currentAuthType !== enforcedType) {
       console.error(
         `The configured auth type is ${enforcedType}, but the current auth type is ${currentAuthType}. Please re-authenticate with the correct type.`,
