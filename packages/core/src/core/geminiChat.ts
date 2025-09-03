@@ -26,11 +26,13 @@ import type { StructuredError } from './turn.js';
 import {
   logContentRetry,
   logContentRetryFailure,
+  logFlashFallback,
   logInvalidChunk,
 } from '../telemetry/loggers.js';
 import {
   ContentRetryEvent,
   ContentRetryFailureEvent,
+  FlashFallbackEvent,
   InvalidChunkEvent,
 } from '../telemetry/types.js';
 import { isFunctionResponse } from '../utils/messageInspectors.js';
@@ -195,10 +197,12 @@ export class GeminiChat {
         if (accepted !== false && accepted !== null) {
           this.config.setModel(fallbackModel);
           this.config.setFallbackMode(true); 
-          const lastMessage = this.history[this.history.length - 1];
-          if (lastMessage && isFunctionResponse(lastMessage)) {     
-            this.history.pop();
-          }
+          // Create a new FlashFallbackEvent
+          const flashFallbackEvent: FlashFallbackEvent = {
+            auth_type: authType
+          };
+          // Log the event
+          logFlashFallback(this.config, flashFallbackEvent);
           return fallbackModel;
         }
         // Check if the model was switched manually in the handler

@@ -44,10 +44,12 @@ import { LoopDetectionService } from '../services/loopDetectionService.js';
 import { ideContext } from '../ide/ideContext.js';
 import {
   logChatCompression,
+  logFlashFallback,
   logNextSpeakerCheck,
   logMalformedJsonResponse,
 } from '../telemetry/loggers.js';
 import {
+  FlashFallbackEvent,
   makeChatCompressionEvent,
   MalformedJsonResponseEvent,
   NextSpeakerCheckEvent,
@@ -949,6 +951,7 @@ export class GeminiClient {
         if (accepted !== false && accepted !== null) {
           this.config.setModel(fallbackModel);
           this.config.setFallbackMode(true);
+          logFlashFallback(this.config, new FlashFallbackEvent(authType));
           return fallbackModel;
         }
         // Check if the model was switched manually in the handler
