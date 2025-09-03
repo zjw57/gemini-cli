@@ -12,7 +12,7 @@ import type {
   Part,
   GenerateContentResponse,
 } from '@google/genai';
-import { GeminiChat, EmptyStreamError, checkHistory } from './geminiChat.js';
+import { GeminiChat, EmptyStreamError, validateHistory } from './geminiChat.js';
 import type { Config } from '../config/config.js';
 import { setSimulate429 } from '../utils/testUtils.js';
 
@@ -1320,12 +1320,12 @@ describe('checkHistory', () => {
 
   it('should return valid for an empty history', () => {
     const history: Content[] = [];
-    expect(checkHistory(history)).toEqual({ valid: true, error: null });
+    expect(validateHistory(history)).toEqual({ valid: true, error: null });
   });
 
   it('should return valid for a single user turn', () => {
     const history: Content[] = [{ role: 'user', parts: [{ text: 'Hello' }] }];
-    expect(checkHistory(history)).toEqual({ valid: true, error: null });
+    expect(validateHistory(history)).toEqual({ valid: true, error: null });
   });
 
   it('should return valid for a simple user-model alternation', () => {
@@ -1333,7 +1333,7 @@ describe('checkHistory', () => {
       { role: 'user', parts: [{ text: 'Hello' }] },
       { role: 'model', parts: [{ text: 'Hi there' }] },
     ];
-    expect(checkHistory(history)).toEqual({ valid: true, error: null });
+    expect(validateHistory(history)).toEqual({ valid: true, error: null });
   });
 
   it('should return valid for a valid single tool call sequence', () => {
@@ -1348,7 +1348,7 @@ describe('checkHistory', () => {
         parts: [{ functionResponse: { name: 'get_weather', response: {} } }],
       },
     ];
-    expect(checkHistory(history)).toEqual({ valid: true, error: null });
+    expect(validateHistory(history)).toEqual({ valid: true, error: null });
   });
 
   it('should return valid for a valid multi-tool call sequence', () => {
@@ -1369,14 +1369,14 @@ describe('checkHistory', () => {
         ],
       },
     ];
-    expect(checkHistory(history)).toEqual({ valid: true, error: null });
+    expect(validateHistory(history)).toEqual({ valid: true, error: null });
   });
 
   // --- INVALID HISTORIES ---
 
   it('should return invalid if history starts with a model turn', () => {
     const history: Content[] = [{ role: 'model', parts: [{ text: 'Hello' }] }];
-    const result = checkHistory(history);
+    const result = validateHistory(history);
     expect(result.valid).toBe(false);
     expect(result.error).toBe(
       'Invalid history: expected a user turn but got a model turn.',
@@ -1388,7 +1388,7 @@ describe('checkHistory', () => {
       { role: 'user', parts: [{ text: 'Hello' }] },
       { role: 'user', parts: [{ text: 'Still me' }] },
     ];
-    const result = checkHistory(history);
+    const result = validateHistory(history);
     expect(result.valid).toBe(false);
     expect(result.error).toBe(
       'Invalid history: expected a model turn but got a user turn.',
@@ -1401,7 +1401,7 @@ describe('checkHistory', () => {
       { role: 'model', parts: [{ text: 'Hi' }] },
       { role: 'model', parts: [{ text: 'Still me' }] },
     ];
-    const result = checkHistory(history);
+    const result = validateHistory(history);
     expect(result.valid).toBe(false);
     expect(result.error).toBe(
       'Invalid history: expected a user turn but got a model turn.',
@@ -1416,7 +1416,7 @@ describe('checkHistory', () => {
         parts: [{ functionCall: { name: 'get_weather', args: {} } }],
       },
     ];
-    const result = checkHistory(history);
+    const result = validateHistory(history);
     expect(result.valid).toBe(false);
     expect(result.error).toBe(
       'Invalid history: ended with a model turn with a functionCall, but no functionResponse followed.',
@@ -1438,7 +1438,7 @@ describe('checkHistory', () => {
         parts: [{ functionResponse: { name: 'tool1', response: {} } }],
       },
     ];
-    const result = checkHistory(history);
+    const result = validateHistory(history);
     expect(result.valid).toBe(false);
     expect(result.error).toBe(
       'Invalid history: number of functionResponses does not match number of functionCalls.',
@@ -1454,7 +1454,7 @@ describe('checkHistory', () => {
       },
       { role: 'user', parts: [{ text: 'Nevermind' }] },
     ];
-    const result = checkHistory(history);
+    const result = validateHistory(history);
     expect(result.valid).toBe(false);
     expect(result.error).toBe(
       'Invalid history: expected a user turn with a functionResponse.',
@@ -1470,7 +1470,7 @@ describe('checkHistory', () => {
         parts: [{ functionResponse: { name: 'some_func', response: {} } }],
       },
     ];
-    const result = checkHistory(history);
+    const result = validateHistory(history);
     expect(result.valid).toBe(false);
     expect(result.error).toBe(
       'Invalid history: got a user turn with a functionResponse when none was expected.',

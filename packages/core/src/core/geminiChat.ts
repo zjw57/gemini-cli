@@ -101,7 +101,7 @@ type HistoryValidationResult = {
 /**
  * Visible for testing.
  */
-export function checkHistory(history: Content[]): HistoryValidationResult {
+export function validateHistory(history: Content[]): HistoryValidationResult {
   if (history.length === 0) {
     return { valid: true, error: null };
   }
@@ -186,26 +186,6 @@ export function checkHistory(history: Content[]): HistoryValidationResult {
 }
 
 /**
- * Validates the history array to ensure it follows the required alternating
- * role structure and correctly handles tool-related turns.
- *
- * @remarks
- * The validation enforces the following rules:
- * 1. The history must begin with a `user` role.
- * 2. Roles must alternate between `user` and `model`.
- * 3. A `model` turn with N `functionCall` parts must be followed by a `user`
- *    turn with N `functionResponse` parts.
- *
- * @throws {Error} If the history violates any of the validation rules.
- */
-function validateHistory(history: Content[]) {
-  const { valid, error } = checkHistory(history);
-  if (!valid) {
-    throw new Error(error!);
-  }
-}
-
-/**
  * Extracts the curated (valid) history from a comprehensive history.
  *
  * @remarks
@@ -271,7 +251,10 @@ export class GeminiChat {
     private readonly generationConfig: GenerateContentConfig = {},
     private history: Content[] = [],
   ) {
-    validateHistory(history);
+      const { valid, error } = validateHistory(history);
+      if (!valid) {
+        throw new Error(error!);
+      }
   }
 
   /**
@@ -468,7 +451,7 @@ export class GeminiChat {
     this.history.push(userContent);
     const requestContents = this.getHistory(true);
 
-    const { valid, error } = checkHistory(requestContents);
+    const { valid, error } = validateHistory(requestContents);
     if (!valid) {
       logInvalidHistory(
         this.config,
