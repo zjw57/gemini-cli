@@ -600,7 +600,7 @@ export function logInvalidHistory(
     'event.name': EVENT_INVALID_HISTORY,
     'event.timestamp': event['event.timestamp'],
     'error.message': event.error_message,
-    'history.size': event.history_size,
+    'history.length': event.history_length,
   };
 
   const logger = logs.getLogger(SERVICE_NAME);

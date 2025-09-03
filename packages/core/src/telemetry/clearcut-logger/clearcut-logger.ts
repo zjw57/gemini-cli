@@ -786,8 +786,8 @@ export class ClearcutLogger {
         value: event.error_message,
       },
       {
-        gemini_cli_key: EventMetadataKey.GEMINI_CLI_CHAT_HISTORY_SIZE,
-        value: String(event.history_size),
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_CHAT_HISTORY_LENGTH,
+        value: String(event.history_length),
       },
     ];
 

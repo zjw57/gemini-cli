@@ -918,7 +918,7 @@ describe('loggers', () => {
           'event.name': EVENT_INVALID_HISTORY,
           'event.timestamp': '2025-01-01T00:00:00.000Z',
           'error.message': 'some error',
-          'history.size': 123,
+          'history.length': 123,
         },
       });
 

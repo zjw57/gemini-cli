@@ -334,5 +334,5 @@ export enum EventMetadataKey {
   // ===========================================================================
   GEMINI_CLI_CHAT_HISTORY_VALIDATION_ERROR_MESSAGE = 84,
 
-  GEMINI_CLI_CHAT_HISTORY_SIZE = 85,
+  GEMINI_CLI_CHAT_HISTORY_LENGTH = 85,
 }

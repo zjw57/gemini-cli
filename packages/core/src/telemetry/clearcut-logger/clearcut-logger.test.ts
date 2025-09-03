@@ -387,7 +387,7 @@ describe('ClearcutLogger', () => {
         'some error',
       ]);
       expect(events[0]).toHaveMetadataValue([
-        EventMetadataKey.GEMINI_CLI_CHAT_HISTORY_SIZE,
+        EventMetadataKey.GEMINI_CLI_CHAT_HISTORY_LENGTH,
         '123',
       ]);
     });

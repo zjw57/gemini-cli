@@ -502,13 +502,13 @@ export class InvalidHistoryEvent implements BaseTelemetryEvent {
   'event.name': 'invalid_history';
   'event.timestamp': string;
   error_message: string;
-  history_size: number;
+  history_length: number;
 
-  constructor(error_message: string, history_size: number) {
+  constructor(error_message: string, history_length: number) {
     this['event.name'] = 'invalid_history';
     this['event.timestamp'] = new Date().toISOString();
     this.error_message = error_message;
-    this.history_size = history_size;
+    this.history_length = history_length;
   }
 }
 
