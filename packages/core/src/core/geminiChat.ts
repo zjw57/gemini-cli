@@ -27,11 +27,13 @@ import {
   logContentRetry,
   logContentRetryFailure,
   logInvalidChunk,
+  logInvalidHistory,
 } from '../telemetry/loggers.js';
 import {
   ContentRetryEvent,
   ContentRetryFailureEvent,
   InvalidChunkEvent,
+  InvalidHistoryEvent,
 } from '../telemetry/types.js';
 
 /**
@@ -78,8 +80,13 @@ function isValidContent(content: Content): boolean {
   return true;
 }
 
+type HistoryValidationResult = {
+  valid: boolean;
+  error: string | null;
+};
+
 /**
- * Validates the history array to ensure it follows the required alternating
+ * Checks the history array to ensure it follows the required alternating
  * role structure and correctly handles tool-related turns.
  *
  * @remarks
@@ -89,11 +96,14 @@ function isValidContent(content: Content): boolean {
  * 3. A `model` turn with N `functionCall` parts must be followed by a `user`
  *    turn with N `functionResponse` parts.
  *
- * @throws {Error} If the history violates any of the validation rules.
+ * @returns An object with a `valid` boolean and an `error` message if invalid.
  */
-function validateHistory(history: Content[]) {
+/**
+ * Visible for testing.
+ */
+export function checkHistory(history: Content[]): HistoryValidationResult {
   if (history.length === 0) {
-    return;
+    return { valid: true, error: null };
   }
 
   let expectedRole: 'user' | 'model' = 'user';
@@ -102,7 +112,10 @@ function validateHistory(history: Content[]) {
   for (const turn of history) {
     // Basic role check
     if (turn.role !== 'user' && turn.role !== 'model') {
-      throw new Error('Role must be user or model, but got ' + turn.role + '.');
+      return {
+        valid: false,
+        error: 'Role must be user or model, but got ' + turn.role + '.',
+      };
     }
 
     const hasFunctionResponse =
@@ -112,14 +125,18 @@ function validateHistory(history: Content[]) {
 
     if (functionCallsCount > 0) {
       if (turn.role !== 'user' || !hasFunctionResponse) {
-        throw new Error(
-          'Invalid history: expected a user turn with a functionResponse.',
-        );
+        return {
+          valid: false,
+          error:
+            'Invalid history: expected a user turn with a functionResponse.',
+        };
       }
       if (functionResponseCount !== functionCallsCount) {
-        throw new Error(
-          'Invalid history: number of functionResponses does not match number of functionCalls.',
-        );
+        return {
+          valid: false,
+          error:
+            'Invalid history: number of functionResponses does not match number of functionCalls.',
+        };
       }
       functionCallsCount = 0;
       expectedRole = 'model';
@@ -127,20 +144,24 @@ function validateHistory(history: Content[]) {
     }
 
     if (turn.role !== expectedRole) {
-      throw new Error(
-        'Invalid history: expected a ' +
+      return {
+        valid: false,
+        error:
+          'Invalid history: expected a ' +
           expectedRole +
           ' turn but got a ' +
           turn.role +
           ' turn.',
-      );
+      };
     }
 
     if (turn.role === 'user') {
       if (hasFunctionResponse) {
-        throw new Error(
-          'Invalid history: got a user turn with a functionResponse when none was expected.',
-        );
+        return {
+          valid: false,
+          error:
+            'Invalid history: got a user turn with a functionResponse when none was expected.',
+        };
       }
       expectedRole = 'model';
     } else {
@@ -159,9 +180,33 @@ function validateHistory(history: Content[]) {
   // After the loop, if we are still expecting a function response, it means
   // the history is incomplete.
   if (functionCallsCount > 0) {
-    throw new Error(
-      'Invalid history: ended with a model turn with a functionCall, but no functionResponse followed.',
-    );
+    return {
+      valid: false,
+      error:
+        'Invalid history: ended with a model turn with a functionCall, but no functionResponse followed.',
+    };
+  }
+
+  return { valid: true, error: null };
+}
+
+/**
+ * Validates the history array to ensure it follows the required alternating
+ * role structure and correctly handles tool-related turns.
+ *
+ * @remarks
+ * The validation enforces the following rules:
+ * 1. The history must begin with a `user` role.
+ * 2. Roles must alternate between `user` and `model`.
+ * 3. A `model` turn with N `functionCall` parts must be followed by a `user`
+ *    turn with N `functionResponse` parts.
+ *
+ * @throws {Error} If the history violates any of the validation rules.
+ */
+function validateHistory(history: Content[]) {
+  const { valid, error } = checkHistory(history);
+  if (!valid) {
+    throw new Error(error!);
   }
 }
 
@@ -427,6 +472,14 @@ export class GeminiChat {
     // Add user content to history ONCE before any attempts.
     this.history.push(userContent);
     const requestContents = this.getHistory(true);
+
+    const { valid, error } = checkHistory(requestContents);
+    if (!valid) {
+      logInvalidHistory(
+        this.config,
+        new InvalidHistoryEvent(error!, requestContents.length),
+      );
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self = this;
