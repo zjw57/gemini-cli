@@ -44,8 +44,8 @@ export function AuthDialog({
       return initialErrorMessage;
     }
 
-    const defaultAuthType = settings.merged.enforcedAuthType
-      ? settings.merged.enforcedAuthType
+    const defaultAuthType = settings.merged.security?.auth?.enforcedType
+      ? settings.merged.security?.auth?.enforcedType
       : parseDefaultAuthType(process.env['GEMINI_DEFAULT_AUTH_TYPE']);
 
     if (process.env['GEMINI_DEFAULT_AUTH_TYPE'] && defaultAuthType === null) {
@@ -133,7 +133,11 @@ export function AuthDialog({
     { isActive: true },
   );
 
-  if (settings.merged.enforcedAuthType) {
+  if (settings.merged.security?.auth?.enforcedType) {
+    const switchAuthType = settings.merged.security?.auth?.selectedType !== undefined && settings.merged.security?.auth?.enforcedType !==
+          settings.merged.security?.auth?.selectedType;
+      console.log(switchAuthType);
+      console.log(settings.merged.security?.auth?.enforcedType);
     return (
       <Box
         borderStyle="round"
@@ -146,18 +150,28 @@ export function AuthDialog({
         <Box marginTop={1}>
           <Text>
             Your configuration is enforcing a specific authentication method:{' '}
-            {settings.merged.enforcedAuthType}
+            {settings.merged.security?.auth?.enforcedType}
           </Text>
         </Box>
-        {settings.merged.enforcedAuthType !==
-          settings.merged.selectedAuthType && (
+        
+        {switchAuthType ? (
           <Box marginTop={1}>
             <Button
               onSelect={() =>
-                onSelect(settings.merged.enforcedAuthType!, SettingScope.User)
+                onSelect(settings.merged.security?.auth?.enforcedType!, SettingScope.User)
               }
             >
-              Switch to {settings.merged.enforcedAuthType}
+              Switch to {settings.merged.security?.auth?.enforcedType}
+            </Button>
+          </Box>
+        ) : (
+          <Box marginTop={1}>
+            <Button
+              onSelect={() =>
+                onSelect(settings.merged.security?.auth?.enforcedType!, SettingScope.User)
+              }
+            >
+              Authenticate using {settings.merged.security?.auth?.enforcedType}
             </Button>
           </Box>
         )}

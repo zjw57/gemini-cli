@@ -8,6 +8,7 @@ import type { Config } from '@google/gemini-cli-core';
 import { AuthType } from '@google/gemini-cli-core';
 import { USER_SETTINGS_PATH } from './config/settings.js';
 import { validateAuthMethod, getAuthType } from './config/auth.js';
+import { type LoadedSettings } from './config/settings.js';
 
 function getAuthTypeFromEnv(): AuthType | undefined {
   if (process.env['GOOGLE_GENAI_USE_GCA'] === 'true') {
@@ -28,19 +29,19 @@ export async function validateNonInteractiveAuth(
   nonInteractiveConfig: Config,
   settings: LoadedSettings,
 ) {
-  const { enforcedAuthType } = settings.merged;
-  if (enforcedAuthType) {
+  const enforcedType = settings.merged.security?.auth?.enforcedType;
+  if (enforcedType) {
     const currentAuthType = getAuthType(settings);
-    if (currentAuthType !== enforcedAuthType) {
+    if (currentAuthType !== enforcedType) {
       console.error(
-        `The configured auth type is ${enforcedAuthType}, but the current auth type is ${currentAuthType}. Please re-authenticate with the correct type.`,
+        `The configured auth type is ${enforcedType}, but the current auth type is ${currentAuthType}. Please re-authenticate with the correct type.`,
       );
       process.exit(1);
     }
   }
 
   const effectiveAuthType =
-    enforcedAuthType || getAuthTypeFromEnv() || configuredAuthType;
+    enforcedType || getAuthTypeFromEnv() || configuredAuthType;
 
   if (!effectiveAuthType) {
     console.error(

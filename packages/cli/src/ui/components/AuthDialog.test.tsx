@@ -443,25 +443,35 @@ describe('AuthDialog', () => {
       const settings: LoadedSettings = new LoadedSettings(
         {
           settings: {
-            enforcedAuthType: AuthType.LOGIN_WITH_GOOGLE,
-            customThemes: {},
-            mcpServers: {},
+            security: {
+              auth: {
+                enforcedType: AuthType.LOGIN_WITH_GOOGLE,
+              },
+            },
           },
           path: '',
         },
         {
           settings: {
-            selectedAuthType: AuthType.LOGIN_WITH_GOOGLE,
-            customThemes: {},
-            mcpServers: {},
+            security: {
+              auth: {
+                selectedType: AuthType.LOGIN_WITH_GOOGLE,
+              },
+            },
           },
           path: '',
         },
         {
-          settings: { customThemes: {}, mcpServers: {} },
+          settings: {},
+          path: '',
+        },
+        {
+          settings: {},
           path: '',
         },
         [],
+        true,
+        new Set(),
       );
 
       const { lastFrame } = renderWithProviders(
@@ -478,25 +488,39 @@ describe('AuthDialog', () => {
       const settings: LoadedSettings = new LoadedSettings(
         {
           settings: {
-            enforcedAuthType: AuthType.LOGIN_WITH_GOOGLE,
-            customThemes: {},
+            security: {
+              auth: {
+                enforcedType: AuthType.LOGIN_WITH_GOOGLE,
+              },
+            },
+            ui: { customThemes: {} },
             mcpServers: {},
           },
           path: '',
         },
         {
           settings: {
-            selectedAuthType: AuthType.LOGIN_WITH_GOOGLE,
-            customThemes: {},
+            security: {
+              auth: {
+                selectedType: AuthType.LOGIN_WITH_GOOGLE,
+              },
+            },
+            ui: { customThemes: {} },
             mcpServers: {},
           },
           path: '',
         },
         {
-          settings: { customThemes: {}, mcpServers: {} },
+          settings: { ui: { customThemes: {} }, mcpServers: {} },
+          path: '',
+        },
+        {
+          settings: { ui: { customThemes: {} }, mcpServers: {} },
           path: '',
         },
         [],
+        true,
+        new Set(),
       );
 
       const { lastFrame } = renderWithProviders(
@@ -510,25 +534,39 @@ describe('AuthDialog', () => {
       const settings: LoadedSettings = new LoadedSettings(
         {
           settings: {
-            enforcedAuthType: AuthType.LOGIN_WITH_GOOGLE,
-            customThemes: {},
+            security: {
+              auth: {
+                enforcedType: AuthType.LOGIN_WITH_GOOGLE,
+              },
+            },
+            ui: { customThemes: {} },
             mcpServers: {},
           },
           path: '',
         },
         {
           settings: {
-            selectedAuthType: AuthType.USE_GEMINI,
-            customThemes: {},
+            security: {
+              auth: {
+                selectedType: AuthType.USE_GEMINI,
+              },
+            },
+            ui: { customThemes: {} },
             mcpServers: {},
           },
           path: '',
         },
         {
-          settings: { customThemes: {}, mcpServers: {} },
+          settings: { ui: { customThemes: {} }, mcpServers: {} },
+          path: '',
+        },
+        {
+          settings: { ui: { customThemes: {} }, mcpServers: {} },
           path: '',
         },
         [],
+        true,
+        new Set(),
       );
 
       const { lastFrame } = renderWithProviders(
@@ -543,25 +581,39 @@ describe('AuthDialog', () => {
       const settings: LoadedSettings = new LoadedSettings(
         {
           settings: {
-            enforcedAuthType: AuthType.LOGIN_WITH_GOOGLE,
-            customThemes: {},
+            security: {
+              auth: {
+                enforcedType: AuthType.LOGIN_WITH_GOOGLE,
+              },
+            },
+            ui: { customThemes: {} },
             mcpServers: {},
           },
           path: '',
         },
         {
           settings: {
-            selectedAuthType: AuthType.USE_GEMINI,
-            customThemes: {},
+            security: {
+              auth: {
+                selectedType: AuthType.USE_GEMINI,
+              },
+            },
+            ui: { customThemes: {} },
             mcpServers: {},
           },
           path: '',
         },
         {
-          settings: { customThemes: {}, mcpServers: {} },
+          settings: { ui: { customThemes: {} }, mcpServers: {} },
+          path: '',
+        },
+        {
+          settings: { ui: { customThemes: {} }, mcpServers: {} },
           path: '',
         },
         [],
+        true,
+        new Set(),
       );
 
       const { stdin, unmount } = renderWithProviders(

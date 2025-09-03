@@ -34,14 +34,23 @@ describe('validateNonInterActiveAuth', () => {
     refreshAuthMock = vi.fn().mockResolvedValue('refreshed');
     mockSettings = {
       system: { path: '', settings: {} },
+      systemDefaults: { path: '', settings: {} },
       user: { path: '', settings: {} },
       workspace: { path: '', settings: {} },
       errors: [],
       setValue: vi.fn(),
       merged: {
-        enforcedAuthType: undefined,
+        security: {
+          auth: {
+            enforcedType: undefined,
+          },
+        },
       },
-    };
+      isTrusted: true,
+      migratedInMemorScopes: new Set(),
+      forScope: vi.fn(),
+      computeMergedSettings: vi.fn(),
+    } as unknown as LoadedSettings;
   });
 
   afterEach(() => {
@@ -89,7 +98,7 @@ describe('validateNonInterActiveAuth', () => {
     const nonInteractiveConfig = {
       refreshAuth: refreshAuthMock,
     };
-    await NonInteractiveConfig.validateNonInterActiveAuth(
+    await validateNonInteractiveAuth(
       undefined,
       undefined,
       nonInteractiveConfig,
@@ -257,8 +266,8 @@ describe('validateNonInterActiveAuth', () => {
   });
 
   it('uses enforcedAuthType if provided', async () => {
-    mockSettings.merged.enforcedAuthType = AuthType.USE_GEMINI;
-    mockSettings.merged.selectedAuthType = AuthType.USE_GEMINI;
+    mockSettings.merged.security.auth.enforcedType = AuthType.USE_GEMINI;
+    mockSettings.merged.security.auth.selectedType = AuthType.USE_GEMINI;
     // Set required env var for USE_GEMINI to ensure enforcedAuthType takes precedence
     process.env['GEMINI_API_KEY'] = 'fake-key';
     const nonInteractiveConfig = {
@@ -274,8 +283,8 @@ describe('validateNonInterActiveAuth', () => {
   });
 
   it('exits if currentAuthType does not match enforcedAuthType', async () => {
-    mockSettings.merged.enforcedAuthType = AuthType.LOGIN_WITH_GOOGLE;
-    mockSettings.merged.selectedAuthType = AuthType.USE_GEMINI;
+    mockSettings.merged.security.auth.enforcedType = AuthType.LOGIN_WITH_GOOGLE;
+    mockSettings.merged.security.auth.selectedType = AuthType.USE_GEMINI;
     const nonInteractiveConfig = {
       refreshAuth: refreshAuthMock,
     };
