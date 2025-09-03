@@ -251,10 +251,10 @@ export class GeminiChat {
     private readonly generationConfig: GenerateContentConfig = {},
     private history: Content[] = [],
   ) {
-      const { valid, error } = validateHistory(history);
-      if (!valid) {
-        throw new Error(error!);
-      }
+    const { valid, error } = validateHistory(history);
+    if (!valid) {
+      throw new Error(error!);
+    }
   }
 
   /**
