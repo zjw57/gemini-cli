@@ -259,31 +259,24 @@ export class WriteTodosTool extends BaseDeclarativeTool<
       WRITE_TODOS_DESCRIPTION,
       Kind.Other,
       {
-        properties: {
-          todos: {
-            type: Type.ARRAY,
-            description:
-              'The complete list of todo items. This will replace the existing list.',
-            items: {
-              type: Type.OBJECT,
-              description: 'A single todo item.',
-              properties: {
-                description: {
-                  type: Type.STRING,
-                  description: 'The description of the task.',
-                },
-                status: {
-                  type: Type.STRING,
-                  description: 'The current status of the task.',
-                  enum: ['pending', 'in_progress', 'completed'],
-                },
-              },
-              required: ['description', 'status'],
+        type: Type.ARRAY,
+        description: 'The complete list of todo items. This will replace the existing list.',
+        items: {
+          type: Type.OBJECT,
+          description: 'A single todo item.',
+          properties: {
+            description: {
+              type: Type.STRING,
+              description: 'The description of the task.',
+            },
+            status: {
+              type: Type.STRING,
+              description: 'The current status of the task.',
+              enum: ['pending', 'in_progress', 'completed'],
             },
           },
+          required: ['description', 'status'],
         },
-        required: ['todos'],
-        type: Type.OBJECT,
       }
     );
   }
@@ -306,11 +299,32 @@ export class WriteTodosTool extends BaseDeclarativeTool<
   }
 
   protected override validateToolParamValues(
-    params: WriteTodosToolParams
+    params: WriteTodosToolParams | Todo[]
   ): string | null {
-    const inProgressCount = params.todos.filter(
-      (todo) => todo.status === 'in_progress'
+    // Handle both direct array input and object with todos array
+    const todos = Array.isArray(params) ? params : 
+                 (params && Array.isArray(params.todos) ? params.todos : null);
+
+    if (!todos) {
+      return 'Input must be an array of todo items or an object with a todos array';
+    }
+
+    for (const todo of todos) {
+      if (typeof todo !== 'object' || todo === null) {
+        return 'Each todo item must be an object';
+      }
+      if (typeof todo.description !== 'string' || !todo.description.trim()) {
+        return 'Each todo must have a non-empty description string';
+      }
+      if (!['pending', 'in_progress', 'completed'].includes(todo.status)) {
+        return 'Each todo must have a valid status (pending, in_progress, or completed)';
+      }
+    }
+
+    const inProgressCount = todos.filter(
+      (todo: Todo) => todo.status === 'in_progress'
     ).length;
+    
     if (inProgressCount > 1) {
       return 'Invalid parameters: Only one task can be "in_progress" at a time.';
     }
@@ -319,9 +333,11 @@ export class WriteTodosTool extends BaseDeclarativeTool<
   }
 
   protected createInvocation(
-    params: WriteTodosToolParams
+    params: WriteTodosToolParams | Todo[]
   ): ToolInvocation<WriteTodosToolParams, ToolResult> {
-    return new WriteTodosToolInvocation(params);
+    // Ensure the input is properly formatted
+    const todos = Array.isArray(params) ? params : 
+                 (params && Array.isArray(params.todos) ? params.todos : []);
+    return new WriteTodosToolInvocation({ todos });
   }
 }
-
