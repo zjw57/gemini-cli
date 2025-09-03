@@ -146,12 +146,7 @@ export function checkHistory(history: Content[]): HistoryValidationResult {
     if (turn.role !== expectedRole) {
       return {
         valid: false,
-        error:
-          'Invalid history: expected a ' +
-          expectedRole +
-          ' turn but got a ' +
-          turn.role +
-          ' turn.',
+        error: `Invalid history: expected a ${expectedRole} turn but got a ${turn.role} turn.`,
       };
     }
 
