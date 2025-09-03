@@ -33,6 +33,7 @@ import {
   ContentRetryFailureEvent,
   InvalidChunkEvent,
 } from '../telemetry/types.js';
+import { isFunctionResponse } from '../utils/messageInspectors.js';
 
 /**
  * Options for retrying due to invalid content from the model.
@@ -193,7 +194,11 @@ export class GeminiChat {
         );
         if (accepted !== false && accepted !== null) {
           this.config.setModel(fallbackModel);
-          this.config.setFallbackMode(true);
+          this.config.setFallbackMode(true); 
+          const lastMessage = this.history[this.history.length - 1];
+          if (lastMessage && isFunctionResponse(lastMessage)) {     
+            this.history.pop();
+          }
           return fallbackModel;
         }
         // Check if the model was switched manually in the handler
