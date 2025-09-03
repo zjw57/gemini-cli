@@ -5,10 +5,10 @@
  */
 
 import { AuthType } from '@google/gemini-cli-core';
-import { loadEnvironment, LoadedSettings } from './settings.js';
+import { loadEnvironment, loadSettings, type LoadedSettings } from './settings.js';
 
-export const validateAuthMethod = (authMethod: string): string | null => {
-  loadEnvironment();
+export function validateAuthMethod(authMethod: string): string | null {
+  loadEnvironment(loadSettings(process.cwd()).merged);
   if (
     authMethod === AuthType.LOGIN_WITH_GOOGLE ||
     authMethod === AuthType.CLOUD_SHELL
@@ -43,5 +43,5 @@ export const validateAuthMethod = (authMethod: string): string | null => {
 };
 
 export function getAuthType(settings: LoadedSettings): AuthType | undefined {
-  return settings.merged.selectedAuthType;
+  return settings.merged.security?.auth?.selectedType;
 }

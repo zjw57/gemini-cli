@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { NonInteractiveConfig } from './validateNonInterActiveAuth.js';
 import { validateNonInteractiveAuth } from './validateNonInterActiveAuth.js';
 import { AuthType } from '@google/gemini-cli-core';
 import * as auth from './config/auth.js';
@@ -88,7 +89,7 @@ describe('validateNonInterActiveAuth', () => {
     const nonInteractiveConfig = {
       refreshAuth: refreshAuthMock,
     };
-    await validateNonInteractiveAuth(
+    await NonInteractiveConfig.validateNonInterActiveAuth(
       undefined,
       undefined,
       nonInteractiveConfig,
