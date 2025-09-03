@@ -213,6 +213,8 @@ export class Turn {
     signal: AbortSignal,
   ): AsyncGenerator<ServerGeminiStreamEvent> {
     try {
+      // Note: This assumes `sendMessageStream` yields events like
+      // { type: StreamEventType.RETRY } or { type: StreamEventType.CHUNK, value: GenerateContentResponse }
       const responseStream = await this.chat.sendMessageStream(
         {
           message: req,
@@ -223,19 +225,22 @@ export class Turn {
         this.prompt_id,
       );
 
-      for await (const event of responseStream) {
+      for await (const streamEvent of responseStream) {
         if (signal?.aborted) {
           yield { type: GeminiEventType.UserCancelled };
           return;
         }
 
         // Handle the new RETRY event
-        if (event.type === 'retry') {
+        if (streamEvent.type === 'retry') {
           yield { type: GeminiEventType.Retry };
           continue; // Skip to the next event in the stream
         }
 
-        const resp = event.value;
+        // Assuming other events are chunks with a `value` property
+        const resp = streamEvent.value as GenerateContentResponse;
+        if (!resp) continue; // Skip if there's no response body
+
         this.debugResponses.push(resp);
 
         const thoughtPart = resp.candidates?.[0]?.content?.parts?.[0];
@@ -281,6 +286,7 @@ export class Turn {
         // Check if response was truncated or stopped for various reasons
         const finishReason = resp.candidates?.[0]?.finishReason;
 
+        // This is the key change: Only yield 'Finished' if there is a finishReason.
         if (finishReason) {
           if (this.pendingCitations.size > 0) {
             yield {
@@ -291,14 +297,14 @@ export class Turn {
           }
 
           this.finishReason = finishReason;
+          yield {
+            type: GeminiEventType.Finished,
+            value: {
+              reason: finishReason,
+              usageMetadata: resp.usageMetadata,
+            },
+          };
         }
-        yield {
-          type: GeminiEventType.Finished,
-          value: {
-            reason: finishReason ? finishReason : undefined,
-            usageMetadata: resp.usageMetadata,
-          },
-        };
       }
     } catch (e) {
       if (signal.aborted) {

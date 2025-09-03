@@ -113,21 +113,7 @@ describe('Turn', () => {
 
       expect(events).toEqual([
         { type: GeminiEventType.Content, value: 'Hello' },
-        {
-          type: GeminiEventType.Finished,
-          value: {
-            reason: undefined,
-            usageMetadata: undefined,
-          },
-        },
         { type: GeminiEventType.Content, value: ' world' },
-        {
-          type: GeminiEventType.Finished,
-          value: {
-            reason: undefined,
-            usageMetadata: undefined,
-          },
-        },
       ]);
       expect(turn.getDebugResponses().length).toBe(2);
     });
@@ -164,7 +150,7 @@ describe('Turn', () => {
         events.push(event);
       }
 
-      expect(events.length).toBe(3);
+      expect(events.length).toBe(2);
       const event1 = events[0] as ServerGeminiToolCallRequestEvent;
       expect(event1.type).toBe(GeminiEventType.ToolCallRequest);
       expect(event1.value).toEqual(
@@ -225,13 +211,6 @@ describe('Turn', () => {
       }
       expect(events).toEqual([
         { type: GeminiEventType.Content, value: 'First part' },
-        {
-          type: GeminiEventType.Finished,
-          value: {
-            reason: undefined,
-            usageMetadata: undefined,
-          },
-        },
         { type: GeminiEventType.UserCancelled },
       ]);
       expect(turn.getDebugResponses().length).toBe(1);
@@ -294,7 +273,7 @@ describe('Turn', () => {
         events.push(event);
       }
 
-      expect(events.length).toBe(4);
+      expect(events.length).toBe(3);
 
       // Assertions for each specific tool call event
       const event1 = events[0] as ServerGeminiToolCallRequestEvent;
@@ -330,13 +309,13 @@ describe('Turn', () => {
                 finishReason: 'STOP',
               },
             ],
-          usageMetadata: {
-            promptTokenCount: 17,
-            candidatesTokenCount: 50,
-            cachedContentTokenCount: 10,
-            thoughtsTokenCount: 5,
-            toolUsePromptTokenCount: 2,
-          },
+            usageMetadata: {
+              promptTokenCount: 17,
+              candidatesTokenCount: 50,
+              cachedContentTokenCount: 10,
+              thoughtsTokenCount: 5,
+              toolUsePromptTokenCount: 2,
+            },
           } as GenerateContentResponse,
         };
       })();
@@ -475,10 +454,6 @@ describe('Turn', () => {
           type: GeminiEventType.Content,
           value: 'Response without finish reason',
         },
-        {
-          type: GeminiEventType.Finished,
-          value: { reason: undefined, usageMetadata: undefined },
-        },
       ]);
     });
 
@@ -520,13 +495,6 @@ describe('Turn', () => {
 
       expect(events).toEqual([
         { type: GeminiEventType.Content, value: 'First part' },
-        {
-          type: GeminiEventType.Finished,
-          value: {
-            reason: undefined,
-            usageMetadata: undefined,
-          },
-        },
         { type: GeminiEventType.Content, value: 'Second part' },
         {
           type: GeminiEventType.Finished,
@@ -664,10 +632,6 @@ describe('Turn', () => {
 
       expect(events).toEqual([
         { type: GeminiEventType.Content, value: 'Some text.' },
-        {
-          type: GeminiEventType.Finished,
-          value: { reason: undefined, usageMetadata: undefined },
-        },
       ]);
       // No Citation event (but we do get a Finished event with undefined reason)
       expect(events.some((e) => e.type === GeminiEventType.Citation)).toBe(
