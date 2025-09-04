@@ -8,21 +8,10 @@ defaults:
     shell: 'bash'
 
 jobs:
-  debug:
-    name: 'Debug Workflow Trigger'
-    runs-on: 'ubuntu-latest'
-    steps:
-      - name: 'Print actor and association'
-        run: |
-          echo "Workflow triggered by: ${{ github.actor }}"
-          echo "Association: ${{ github.author_association }}"
-
   eval:
-    needs: debug
     name: 'Eval'
     if: >-
-      github.repository == 'google-gemini/gemini-cli' &&
-      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.actor_association)
+      github.repository == 'google-gemini/gemini-cli'
     runs-on: 'ubuntu-latest'
     steps:
       - name: 'Checkout'
