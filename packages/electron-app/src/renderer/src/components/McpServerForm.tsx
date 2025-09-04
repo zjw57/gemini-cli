@@ -73,7 +73,13 @@ export function McpServerForm({
 
   const handleChange = (
     field: keyof MCPServerConfig,
-    value: string | boolean | number | string[] | Record<string, string> | undefined,
+    value:
+      | string
+      | boolean
+      | number
+      | string[]
+      | Record<string, string>
+      | undefined,
   ) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
   };
@@ -173,7 +179,9 @@ export function McpServerForm({
         <textarea
           id="env"
           value={envJson}
-          onChange={(e) => handleRecordChange('env', e.target.value, setEnvJson)}
+          onChange={(e) =>
+            handleRecordChange('env', e.target.value, setEnvJson)
+          }
         />
       </div>
 

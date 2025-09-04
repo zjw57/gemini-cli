@@ -5,6 +5,7 @@
  */
 
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
+import type { Settings } from '@google/gemini-cli';
 
 contextBridge.exposeInMainWorld('electron', {
   onMainWindowResize: (
@@ -58,7 +59,7 @@ contextBridge.exposeInMainWorld('electron', {
   },
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
-    set: (settings: { changes: Record<string, unknown>; scope?: string }) =>
+    set: (settings: { changes: Partial<Settings>; scope?: string }) =>
       ipcRenderer.invoke('settings:set', settings),
     restartTerminal: () => ipcRenderer.send('settings:restart-terminal'),
   },

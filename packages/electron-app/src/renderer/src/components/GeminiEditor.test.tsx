@@ -34,7 +34,8 @@ vi.mock('@monaco-editor/react', () => ({
             (window as unknown as CustomWindow).monacoChangeCallback = callback;
             return { dispose: vi.fn() };
           },
-          getValue: () => (window as unknown as CustomWindow).mockModifiedContent,
+          getValue: () =>
+            (window as unknown as CustomWindow).mockModifiedContent,
         }),
       };
       onMount(mockEditor);
@@ -48,8 +49,8 @@ vi.mock('@monaco-editor/react', () => ({
           onChange={(e) => {
             (window as unknown as CustomWindow).mockModifiedContent =
               e.target.value;
-            const callback =
-              (window as unknown as CustomWindow).monacoChangeCallback;
+            const callback = (window as unknown as CustomWindow)
+              .monacoChangeCallback;
             if (callback) {
               callback();
             }
@@ -88,9 +89,9 @@ describe('GeminiEditor', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     (ThemeContext.useTheme as import('vitest').Mock).mockReturnValue(mockTheme);
-    (languageUtils.getLanguageForFilePath as import('vitest').Mock).mockResolvedValue(
-      'javascript',
-    );
+    (
+      languageUtils.getLanguageForFilePath as import('vitest').Mock
+    ).mockResolvedValue('javascript');
     (window as unknown as CustomWindow).monacoChangeCallback = null;
     (window as unknown as CustomWindow).mockModifiedContent = '';
   });
@@ -178,7 +179,9 @@ describe('GeminiEditor', () => {
   });
 
   it('should use vs-light theme for light backgrounds', async () => {
-    (ThemeContext.useTheme as import('vitest').Mock).mockReturnValue(mockLightTheme);
+    (ThemeContext.useTheme as import('vitest').Mock).mockReturnValue(
+      mockLightTheme,
+    );
     render(<GeminiEditor {...defaultProps} />);
     const editor = vi.mocked((await import('@monaco-editor/react')).DiffEditor);
     await waitFor(() => {
@@ -192,7 +195,9 @@ describe('GeminiEditor', () => {
   });
 
   it('should get the correct language for the file path', async () => {
-    (languageUtils.getLanguageForFilePath as import('vitest').Mock).mockResolvedValue('python');
+    (
+      languageUtils.getLanguageForFilePath as import('vitest').Mock
+    ).mockResolvedValue('python');
     render(<GeminiEditor {...defaultProps} filePath="/path/to/script.py" />);
     const editor = vi.mocked((await import('@monaco-editor/react')).DiffEditor);
     expect(languageUtils.getLanguageForFilePath).toHaveBeenCalledWith(

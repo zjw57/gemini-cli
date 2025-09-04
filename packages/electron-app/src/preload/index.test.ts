@@ -131,7 +131,10 @@ describe('preload script', () => {
     });
 
     it('invokes settings:set', () => {
-      const settings = { changes: { vimMode: true }, scope: 'User' };
+      const settings = {
+        changes: { general: { vimMode: true } },
+        scope: 'User',
+      };
       exposedApi.settings.set(settings);
       expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(
         'settings:set',

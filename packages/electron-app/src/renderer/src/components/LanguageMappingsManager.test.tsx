@@ -27,7 +27,9 @@ describe('LanguageMappingsManager', () => {
       js: 'javascript',
     };
     // Cast to mock to set return value
-    (languageUtils.getLanguageMap as import('vitest').Mock).mockResolvedValue(initialMappings);
+    (languageUtils.getLanguageMap as import('vitest').Mock).mockResolvedValue(
+      initialMappings,
+    );
 
     render(<LanguageMappingsManager />);
 
@@ -87,7 +89,9 @@ describe('LanguageMappingsManager', () => {
       ts: 'typescript',
       js: 'javascript',
     };
-    (languageUtils.getLanguageMap as import('vitest').Mock).mockResolvedValue(initialMappings);
+    (languageUtils.getLanguageMap as import('vitest').Mock).mockResolvedValue(
+      initialMappings,
+    );
 
     render(<LanguageMappingsManager />);
 

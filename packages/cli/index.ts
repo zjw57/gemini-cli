@@ -16,7 +16,10 @@ export {
   SettingScope,
   type Settings,
 } from './src/config/settings.js';
-export { themeManager, type ThemeDisplay } from './src/ui/themes/theme-manager.js';
+export {
+  themeManager,
+  type ThemeDisplay,
+} from './src/ui/themes/theme-manager.js';
 
 // --- Global Entry Point ---
 main().catch((error) => {

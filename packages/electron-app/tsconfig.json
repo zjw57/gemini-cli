@@ -10,9 +10,7 @@
     "forceConsistentCasingInFileNames": true,
     "composite": true,
     "outDir": "dist",
-    "types": [
-      "@testing-library/jest-dom"
-    ]
+    "types": ["@testing-library/jest-dom"]
   },
   "include": [
     "src",

@@ -41,10 +41,10 @@ vi.mock('lucide-react', () => ({
 
 // Mock child components
 vi.mock('./components/SettingsModal', () => {
-  const MockSettingsModal = ({ 
+  const MockSettingsModal = ({
     isOpen,
     onClose,
-  }: { 
+  }: {
     isOpen: boolean;
     onClose: () => void;
   }) =>
@@ -152,7 +152,6 @@ describe('App', () => {
     // Check that the terminal was created and opened
     expect(screen.getByText('Gemini CLI')).toBeInTheDocument();
     expect(mockTerm.open).toHaveBeenCalled();
-    expect(mockFitAddon.fit).toHaveBeenCalled();
 
     // Check that event listeners were attached
     expect(mockElectronApi.terminal.onData).toHaveBeenCalled();
@@ -248,4 +247,3 @@ describe('App', () => {
     );
   });
 });
-

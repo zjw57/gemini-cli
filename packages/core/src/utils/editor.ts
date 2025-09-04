@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import fs from 'fs/promises';
-import path from 'path';
-import * as os from 'os';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import * as os from 'node:os';
 import { execSync, spawn } from 'node:child_process';
 
 export type EditorType =

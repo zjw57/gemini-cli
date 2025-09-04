@@ -262,7 +262,10 @@ function isObject(item: unknown): item is Record<string, unknown> {
   return !!(item && typeof item === 'object' && !Array.isArray(item));
 }
 
-function deepMerge<T extends object, U extends object>(target: T, source: U): T & U {
+function deepMerge<T extends object, U extends object>(
+  target: T,
+  source: U,
+): T & U {
   const output = { ...target } as T & U;
 
   if (isObject(target) && isObject(source)) {
@@ -368,7 +371,6 @@ async function createWindow() {
         system: settings.system,
         user: settings.user,
         workspace: settings.workspace,
-        errors: settings.errors,
         merged,
       };
     });
@@ -443,7 +445,9 @@ async function createWindow() {
       },
     );
 
-    ipcMain.handle('language-map:get', async () => store.get('languageMap', {}));
+    ipcMain.handle('language-map:get', async () =>
+      store.get('languageMap', {}),
+    );
 
     ipcMain.handle('language-map:set', async (_event, map) => {
       store.set('languageMap', map);

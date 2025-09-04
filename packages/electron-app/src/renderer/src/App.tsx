@@ -90,38 +90,40 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const removeListener = window.electron.theme.onInit((_event, receivedTheme) => {
-      console.log('Received theme from main process:', receivedTheme);
-      if (receivedTheme.colors) {
-        // It's a CLI theme object, convert it to an xterm.js theme object
-        const xtermTheme = {
-          background: receivedTheme.colors.Background,
-          foreground: receivedTheme.colors.Foreground,
-          cursor: receivedTheme.colors.Foreground,
-          selectionBackground: '#44475a', // A default, might need improvement
-          black: '#000000',
-          red: receivedTheme.colors.AccentRed,
-          green: receivedTheme.colors.AccentGreen,
-          yellow: receivedTheme.colors.AccentYellow,
-          blue: receivedTheme.colors.AccentBlue,
-          magenta: receivedTheme.colors.AccentPurple,
-          cyan: receivedTheme.colors.AccentCyan,
-          white: '#bfbfbf', // A default
-          brightBlack: '#4d4d4d', // A default
-          brightRed: receivedTheme.colors.AccentRed,
-          brightGreen: receivedTheme.colors.AccentGreen,
-          brightYellow: receivedTheme.colors.AccentYellow,
-          brightBlue: receivedTheme.colors.AccentBlue,
-          brightMagenta: receivedTheme.colors.AccentPurple,
-          brightCyan: receivedTheme.colors.AccentCyan,
-          brightWhite: '#e6e6e6', // A default
-        };
-        setCliTheme(xtermTheme);
-      } else if (receivedTheme.background) {
-        // It's already an xterm.js-like theme
-        setCliTheme({ ...darkTheme, ...receivedTheme });
-      }
-    });
+    const removeListener = window.electron.theme.onInit(
+      (_event, receivedTheme) => {
+        console.log('Received theme from main process:', receivedTheme);
+        if (receivedTheme.colors) {
+          // It's a CLI theme object, convert it to an xterm.js theme object
+          const xtermTheme = {
+            background: receivedTheme.colors.Background,
+            foreground: receivedTheme.colors.Foreground,
+            cursor: receivedTheme.colors.Foreground,
+            selectionBackground: '#44475a', // A default, might need improvement
+            black: '#000000',
+            red: receivedTheme.colors.AccentRed,
+            green: receivedTheme.colors.AccentGreen,
+            yellow: receivedTheme.colors.AccentYellow,
+            blue: receivedTheme.colors.AccentBlue,
+            magenta: receivedTheme.colors.AccentPurple,
+            cyan: receivedTheme.colors.AccentCyan,
+            white: '#bfbfbf', // A default
+            brightBlack: '#4d4d4d', // A default
+            brightRed: receivedTheme.colors.AccentRed,
+            brightGreen: receivedTheme.colors.AccentGreen,
+            brightYellow: receivedTheme.colors.AccentYellow,
+            brightBlue: receivedTheme.colors.AccentBlue,
+            brightMagenta: receivedTheme.colors.AccentPurple,
+            brightCyan: receivedTheme.colors.AccentCyan,
+            brightWhite: '#e6e6e6', // A default
+          };
+          setCliTheme(xtermTheme);
+        } else if (receivedTheme.background) {
+          // It's already an xterm.js-like theme
+          setCliTheme({ ...darkTheme, ...receivedTheme });
+        }
+      },
+    );
 
     return () => {
       removeListener();
@@ -225,34 +227,38 @@ function App() {
         }}
       >
         <div
-          style={{
-            height: '30px',
-            backgroundColor: cliTheme.background,
-            color: cliTheme.foreground,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 'bold',
-            fontSize: '12px',
-            WebkitAppRegion: 'drag',
-            flexShrink: 0,
-            position: 'relative',
-            userSelect: 'none',
-            borderBottom: `1px solid ${
-              cliTheme.selectionBackground || '#44475a'
-            }`,
-          } as React.CSSProperties}
+          style={
+            {
+              height: '30px',
+              backgroundColor: cliTheme.background,
+              color: cliTheme.foreground,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              fontSize: '12px',
+              WebkitAppRegion: 'drag',
+              flexShrink: 0,
+              position: 'relative',
+              userSelect: 'none',
+              borderBottom: `1px solid ${
+                cliTheme.selectionBackground || '#44475a'
+              }`,
+            } as React.CSSProperties
+          }
         >
           <span style={{ flex: 1, textAlign: 'center' }}>Gemini CLI</span>
           <div
-            style={{
-              position: 'absolute',
-              right: '10px',
-              top: '5px',
-              display: 'flex',
-              gap: '10px',
-              WebkitAppRegion: 'no-drag',
-            } as React.CSSProperties}
+            style={
+              {
+                position: 'absolute',
+                right: '10px',
+                top: '5px',
+                display: 'flex',
+                gap: '10px',
+                WebkitAppRegion: 'no-drag',
+              } as React.CSSProperties
+            }
           >
             <button
               onClick={() => setIsSettingsOpen(true)}

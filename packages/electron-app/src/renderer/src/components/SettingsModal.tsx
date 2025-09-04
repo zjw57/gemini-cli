@@ -15,24 +15,7 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-const defaultSettings: Partial<Settings> = {
-  theme: 'Default Dark',
-  vimMode: false,
-  hideTips: false,
-  hideBanner: false,
-  telemetry: {
-    enabled: true,
-  },
-  fileFiltering: {
-    respectGitIgnore: true,
-    respectGeminiIgnore: true,
-  },
-  showMemoryUsage: false,
-  maxSessionTurns: -1,
-  memoryImportFormat: 'tree',
-  disableAutoUpdate: false,
-  mcpServers: {},
-};
+const defaultSettings: Partial<Settings> = {};
 
 // Helper to get nested properties safely
 const get = (
@@ -331,9 +314,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       window.electron?.themes
         ?.get()
         .then(setAvailableThemes)
-        .catch((err: Error) =>
-          console.error('Failed to get themes', err),
-        );
+        .catch((err: Error) => console.error('Failed to get themes', err));
     }
   }, [isOpen]);
 
@@ -350,9 +331,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
           setSettings(initialSettingsState);
         })
-        .catch((err: Error) =>
-          console.error('Failed to get settings', err),
-        );
+        .catch((err: Error) => console.error('Failed to get settings', err));
     }
   }, [isOpen, scope]);
 
@@ -498,7 +477,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <div className="setting-control">
               <select
                 id="theme"
-                value={settings.theme}
+                value={settings.ui?.theme}
                 onChange={(e) => handleChange('theme', e.target.value)}
               >
                 {availableThemes.map((theme) => (

@@ -144,9 +144,9 @@ describe('main process (index.ts)', () => {
     await wait();
 
     // Find the 'terminal.keystroke' handler
-    const keystrokeHandler = (
-      ipcMain.on as Mock
-    ).mock.calls.find((call) => call[0] === 'terminal.keystroke')![1];
+    const keystrokeHandler = (ipcMain.on as Mock).mock.calls.find(
+      (call) => call[0] === 'terminal.keystroke',
+    )![1];
     (keystrokeHandler as (event: unknown, key: string) => void)(null, 'a');
     expect(mockPtyProcess.write).toHaveBeenCalledWith('a');
   });
@@ -156,9 +156,9 @@ describe('main process (index.ts)', () => {
     await app.whenReady();
     await wait();
 
-    const resizeHandler = (
-      ipcMain.on as Mock
-    ).mock.calls.find((call) => call[0] === 'terminal.resize')![1];
+    const resizeHandler = (ipcMain.on as Mock).mock.calls.find(
+      (call) => call[0] === 'terminal.resize',
+    )![1];
     (resizeHandler as (event: unknown, size: object) => void)(null, {
       cols: 100,
       rows: 50,
@@ -171,9 +171,9 @@ describe('main process (index.ts)', () => {
     await app.whenReady();
     await wait();
 
-    const settingsGetHandler = (
-      ipcMain.handle as Mock
-    ).mock.calls.find((call) => call[0] === 'settings:get')![1];
+    const settingsGetHandler = (ipcMain.handle as Mock).mock.calls.find(
+      (call) => call[0] === 'settings:get',
+    )![1];
     const settings = await (settingsGetHandler as () => Promise<unknown>)();
     expect(settings).toHaveProperty('merged');
   });
@@ -186,9 +186,9 @@ describe('main process (index.ts)', () => {
     await app.whenReady();
     await wait();
 
-    const settingsSetHandler = (
-      ipcMain.handle as Mock
-    ).mock.calls.find((call) => call[0] === 'settings:set')![1];
+    const settingsSetHandler = (ipcMain.handle as Mock).mock.calls.find(
+      (call) => call[0] === 'settings:set',
+    )![1];
 
     await (
       settingsSetHandler as (
@@ -211,9 +211,9 @@ describe('main process (index.ts)', () => {
     await app.whenReady();
     await wait(); // Ensure ptyProcess is created
 
-    const beforeQuitHandler = (
-      app.on as Mock
-    ).mock.calls.find((call) => call[0] === 'before-quit')![1];
+    const beforeQuitHandler = (app.on as Mock).mock.calls.find(
+      (call) => call[0] === 'before-quit',
+    )![1];
     (beforeQuitHandler as () => void)();
     expect(mockPtyProcess.kill).toHaveBeenCalled();
   });
@@ -223,9 +223,9 @@ describe('main process (index.ts)', () => {
     await app.whenReady();
     await wait();
 
-    const windowAllClosedHandler = (
-      app.on as Mock
-    ).mock.calls.find((call) => call[0] === 'window-all-closed')![1];
+    const windowAllClosedHandler = (app.on as Mock).mock.calls.find(
+      (call) => call[0] === 'window-all-closed',
+    )![1];
     (windowAllClosedHandler as () => void)();
     expect(app.quit).toHaveBeenCalled();
   });

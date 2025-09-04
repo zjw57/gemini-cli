@@ -54,7 +54,9 @@ export function saveLanguageMap(map: Record<string, string>) {
   }
 }
 
-export async function getLanguageForFilePath(filePath: string): Promise<string> {
+export async function getLanguageForFilePath(
+  filePath: string,
+): Promise<string> {
   const extension = filePath.split('.').pop()?.toLowerCase() ?? '';
   const languageMap = await getLanguageMap();
   return languageMap[extension] || 'plaintext';
