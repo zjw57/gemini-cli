@@ -566,7 +566,7 @@ export const SETTINGS_SCHEMA = {
     requiresRestart: true,
     default: {},
     description: 'Settings for built-in and custom tools.',
-    showInDialog: false,
+    showInDialog: true,
     properties: {
       sandbox: {
         type: 'object',
@@ -595,7 +595,7 @@ export const SETTINGS_SCHEMA = {
         requiresRestart: false,
         default: {},
         description: 'Settings for shell execution.',
-        showInDialog: false,
+        showInDialog: true,
         properties: {
           pager: {
             type: 'string',

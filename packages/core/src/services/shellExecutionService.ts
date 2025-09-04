@@ -91,11 +91,23 @@ const getVisibleText = (terminal: pkg.Terminal): string => {
   return lines.join('\n').trimEnd();
 };
 
+const getFullBufferText = (terminal: pkg.Terminal): string => {
+  const buffer = terminal.buffer.active;
+  const lines: string[] = [];
+  for (let i = 0; i < buffer.length; i++) {
+    const line = buffer.getLine(i);
+    const lineContent = line ? line.translateToString() : '';
+    lines.push(lineContent);
+  }
+  return lines.join('\n').trimEnd();
+};
+
 /**
  * A centralized service for executing shell commands with robust process
  * management, cross-platform compatibility, and streaming output capabilities.
- *
+ * 
  */
+
 export class ShellExecutionService {
   private static activePtys = new Map<number, ActivePty>();
   /**
@@ -471,7 +483,7 @@ export class ShellExecutionService {
 
               resolve({
                 rawOutput: finalBuffer,
-                output: output ?? '',
+                output: getFullBufferText(headlessTerminal),
                 exitCode,
                 signal: signal ?? null,
                 error,

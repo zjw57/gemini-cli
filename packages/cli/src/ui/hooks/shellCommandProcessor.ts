@@ -153,6 +153,8 @@ export const useShellCommandProcessor = (
                   break;
                 case 'binary_detected':
                   isBinaryStream = true;
+                  // Force an immediate UI update to show the binary detection message.
+                  shouldUpdate = true;
                   break;
                 case 'binary_progress':
                   isBinaryStream = true;
@@ -203,6 +205,8 @@ export const useShellCommandProcessor = (
             config.getShouldUseNodePtyShell(),
             config.getShellExecutionConfig(),
           );
+
+          console.log(terminalHeight, terminalWidth);
 
           executionPid = pid;
           if (pid) {

@@ -66,6 +66,10 @@ describe('useShellCommandProcessor', () => {
     mockConfig = {
       getTargetDir: () => '/test/dir',
       getShouldUseNodePtyShell: () => false,
+      getShellExecutionConfig: () => ({
+        terminalHeight: 20,
+        terminalWidth: 80,
+      }),
     } as Config;
     mockGeminiClient = { addHistory: vi.fn() } as unknown as GeminiClient;
 
@@ -144,8 +148,8 @@ describe('useShellCommandProcessor', () => {
       expect.any(Object),
       false,
       {
-        terminalHeight: undefined,
-        terminalWidth: undefined,
+        terminalHeight: 20,
+        terminalWidth: 80,
       },
     );
     expect(onExecMock).toHaveBeenCalledWith(expect.any(Promise));
@@ -247,8 +251,14 @@ describe('useShellCommandProcessor', () => {
       const initialState = setPendingHistoryItemMock.mock.calls[0][0];
       const stateAfterBinaryDetected = updaterFn1(initialState);
 
-      expect(stateAfterBinaryDetected.tools[0].resultDisplay).toBe(
-        '[Binary output detected. Halting stream...]',
+      expect(stateAfterBinaryDetected).toEqual(
+        expect.objectContaining({
+          tools: [
+            expect.objectContaining({
+              resultDisplay: '[Binary output detected. Halting stream...]',
+            }),
+          ],
+        }),
       );
 
       // Now test progress updates
@@ -267,8 +277,14 @@ describe('useShellCommandProcessor', () => {
         throw new Error('setPendingHistoryItem was not called');
       }
       const stateAfterProgress = updaterFn2(stateAfterBinaryDetected);
-      expect(stateAfterProgress.tools[0].resultDisplay).toBe(
-        '[Receiving binary output... 2.0 KB received]',
+      expect(stateAfterProgress).toEqual(
+        expect.objectContaining({
+          tools: [
+            expect.objectContaining({
+              resultDisplay: '[Receiving binary output... 2.0 KB received]',
+            }),
+          ],
+        }),
       );
     });
   });
@@ -288,8 +304,8 @@ describe('useShellCommandProcessor', () => {
       expect.any(Object),
       false,
       {
-        terminalHeight: undefined,
-        terminalWidth: undefined,
+        terminalHeight: 20,
+        terminalWidth: 80,
       },
     );
   });

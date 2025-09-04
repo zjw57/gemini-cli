@@ -366,7 +366,7 @@ export class Config {
       terminalWidth: params.shellExecutionConfig?.terminalWidth ?? 80,
       terminalHeight: params.shellExecutionConfig?.terminalHeight ?? 24,
       showColor: params.shellExecutionConfig?.showColor ?? false,
-      pager: params.shellExecutionConfig?.pager ?? 'cat'
+      pager: params.shellExecutionConfig?.pager ?? 'cat',
     };
     this.useSmartEdit = params.useSmartEdit ?? true;
     this.extensionManagement = params.extensionManagement ?? false;
@@ -829,10 +829,8 @@ export class Config {
         config.terminalWidth ?? this.shellExecutionConfig.terminalWidth,
       terminalHeight:
         config.terminalHeight ?? this.shellExecutionConfig.terminalHeight,
-      showColor: 
-        config.showColor ?? this.shellExecutionConfig.showColor,
-      pager:
-        config.pager ?? this.shellExecutionConfig.pager
+      showColor: config.showColor ?? this.shellExecutionConfig.showColor,
+      pager: config.pager ?? this.shellExecutionConfig.pager,
     };
   }
   getScreenReader(): boolean {

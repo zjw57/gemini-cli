@@ -313,8 +313,13 @@ describe('SettingsUtils', () => {
         expect(keys).not.toContain('general.preferredEditor'); // Now marked false
         expect(keys).not.toContain('security.auth.selectedType'); // Advanced setting
 
-        // Most string settings are now hidden, so let's just check they exclude advanced ones
-        expect(keys.every((key) => !key.startsWith('tool'))).toBe(true); // No tool-related settings
+        // Check that user-facing tool settings are included
+        expect(keys).toContain('tools.shell.pager');
+
+        // Check that advanced/hidden tool settings are excluded
+        expect(keys).not.toContain('tools.discoveryCommand');
+        expect(keys).not.toContain('tools.callCommand');
+        expect(keys.every((key) => !key.startsWith('advanced.'))).toBe(true);
       });
     });
 
