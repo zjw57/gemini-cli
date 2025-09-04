@@ -14,15 +14,11 @@ jobs:
       (github.actor == 'OWNER' || github.actor == 'MEMBER' || github.actor == 'COLLABORATOR')
     name: 'Eval'
     runs-on: 'ubuntu-latest'
-    strategy:
-      matrix:
-        node-version:
-          - '24.x'
     steps:
-      - name: 'Set up Node.js ${{ matrix.node-version }}'
+      - name: 'Set up Node.js 24.x'
         uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020' # ratchet:actions/setup-node@v4
         with:
-          node-version: '${{ matrix.node-version }}'
+          node-version: '24.x'
           cache: 'npm'
 
       - name: 'Set up Python'
