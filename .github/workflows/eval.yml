@@ -10,8 +10,7 @@ defaults:
 jobs:
   eval:
     if: |-
-      github.repository == 'google-gemini/gemini-cli' &&
-      (github.actor == 'agmsb')
+      github.repository == 'google-gemini/gemini-cli'
     name: 'Eval'
     runs-on: 'ubuntu-latest'
     steps:
