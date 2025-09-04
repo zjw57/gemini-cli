@@ -163,6 +163,12 @@ export enum EventMetadataKey {
   // Logs the Gemini CLI Git commit hash
   GEMINI_CLI_GIT_COMMIT_HASH = 55,
 
+  // Logs the Gemini CLI OS
+  GEMINI_CLI_OS = 82,
+
+  // Logs active user settings
+  GEMINI_CLI_USER_SETTINGS = 84,
+
   // ==========================================================================
   // Loop Detected Event Keys
   // ===========================================================================
@@ -322,4 +328,7 @@ export enum EventMetadataKey {
 
   // Logs the total duration in milliseconds for a content retry failure.
   GEMINI_CLI_CONTENT_RETRY_FAILURE_TOTAL_DURATION_MS = 81,
+
+  // Logs the current nodejs version
+  GEMINI_CLI_NODE_VERSION = 83,
 }

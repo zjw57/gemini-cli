@@ -352,7 +352,7 @@ describe('ShellExecutionService', () => {
 
       expect(mockPtySpawn).toHaveBeenCalledWith(
         'cmd.exe',
-        ['/c', 'dir "foo bar"'],
+        '/c dir "foo bar"',
         expect.any(Object),
       );
     });

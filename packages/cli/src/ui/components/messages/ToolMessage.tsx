@@ -14,7 +14,7 @@ import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
 import { GeminiRespondingSpinner } from '../GeminiRespondingSpinner.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
 import { ShellInputPrompt } from '../ShellInputPrompt.js';
-import { SHELL_COMMAND_NAME } from '../../constants.js';
+import { SHELL_COMMAND_NAME, TOOL_STATUS } from '../../constants.js';
 import { theme } from '../../semantic-colors.js';
 import type { Config } from '@google/gemini-cli-core';
 
@@ -149,28 +149,32 @@ const ToolStatusIndicator: React.FC<ToolStatusIndicatorProps> = ({
 }) => (
   <Box minWidth={STATUS_INDICATOR_WIDTH}>
     {status === ToolCallStatus.Pending && (
-      <Text color={Colors.AccentGreen}>o</Text>
+      <Text color={Colors.AccentGreen}>{TOOL_STATUS.PENDING}</Text>
     )}
     {status === ToolCallStatus.Executing && (
       <GeminiRespondingSpinner
         spinnerType="toggle"
-        nonRespondingDisplay={'⊷'}
+        nonRespondingDisplay={TOOL_STATUS.EXECUTING}
       />
     )}
     {status === ToolCallStatus.Success && (
-      <Text color={Colors.AccentGreen}>✓</Text>
+      <Text color={Colors.AccentGreen} aria-label={'Success:'}>
+        {TOOL_STATUS.SUCCESS}
+      </Text>
     )}
     {status === ToolCallStatus.Confirming && (
-      <Text color={Colors.AccentYellow}>?</Text>
+      <Text color={Colors.AccentYellow} aria-label={'Confirming:'}>
+        {TOOL_STATUS.CONFIRMING}
+      </Text>
     )}
     {status === ToolCallStatus.Canceled && (
-      <Text color={Colors.AccentYellow} bold>
-        -
+      <Text color={Colors.AccentYellow} aria-label={'Canceled:'} bold>
+        {TOOL_STATUS.CANCELED}
       </Text>
     )}
     {status === ToolCallStatus.Error && (
-      <Text color={Colors.AccentRed} bold>
-        x
+      <Text color={Colors.AccentRed} aria-label={'Error:'} bold>
+        {TOOL_STATUS.ERROR}
       </Text>
     )}
   </Box>

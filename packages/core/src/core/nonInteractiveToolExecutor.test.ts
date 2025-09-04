@@ -45,6 +45,8 @@ describe('executeToolCall', () => {
         terminalWidth: 90,
         terminalHeight: 30,
       }),
+      getUseSmartEdit: () => false,
+      getGeminiClient: () => null, // No client needed for these tests
     } as unknown as Config;
 
     abortController = new AbortController();
