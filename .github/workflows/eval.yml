@@ -36,15 +36,18 @@ jobs:
         env:
           GITHUB_TOKEN: '${{ secrets.EVAL_GH_TOKEN }}'
           GITHUB_REPOSITORY: '${{ vars.EVAL_GH_REPO }}'
-        run: git clone $EVAL_GH_REPO && cd agent-prototypes
+        run: git clone $EVAL_GH_REP0
 
       - name: 'Download evaluation data'
+        working-directory: ./agent-prototypes
         run: ./download_swebench_data.sh  
       
       - name: 'Install evaluation harness'
+        working-directory: ./agent-prototypes
         run: poetry install
       
       - name: 'Run evaluation harness'
+        working-directory: ./agent-prototypes
         env:
           GITHUB_TOKEN: '${{ secrets.EVAL_GH_TOKEN }}'
           DEFAULT_VERTEXAI_PROJECT: '${{ secrets.EVAL_VERTEXAI_PROJECT }}'
