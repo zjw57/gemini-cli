@@ -15,7 +15,7 @@ jobs:
       - name: 'Print actor and association'
         run: |
           echo "Workflow triggered by: ${{ github.actor }}"
-          echo "Actor's association: ${{ github.actor_association }}"
+          echo "Association: ${{ github.author_association }}"
 
   eval:
     needs: debug
