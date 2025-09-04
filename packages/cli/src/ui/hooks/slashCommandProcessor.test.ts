@@ -88,7 +88,6 @@ import {
   SlashCommandStatus,
   ToolConfirmationOutcome,
   makeFakeConfig,
-  type IdeClient,
 } from '@google/gemini-cli-core';
 
 function createTestCommand(
@@ -112,11 +111,6 @@ describe('useSlashCommandProcessor', () => {
   const mockSetQuittingMessages = vi.fn();
 
   const mockConfig = makeFakeConfig({});
-  vi.spyOn(mockConfig, 'getIdeClient').mockReturnValue({
-    addStatusChangeListener: vi.fn(),
-    removeStatusChangeListener: vi.fn(),
-  } as unknown as IdeClient);
-
   const mockSettings = {} as LoadedSettings;
 
   beforeEach(() => {
@@ -155,6 +149,7 @@ describe('useSlashCommandProcessor', () => {
         vi.fn(), // openSettingsDialog
         vi.fn(), // toggleVimEnabled
         setIsProcessing,
+        vi.fn(),
       ),
     );
 
