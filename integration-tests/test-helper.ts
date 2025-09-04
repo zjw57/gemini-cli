@@ -245,6 +245,7 @@ export class TestRig {
 
     const promise = new Promise<string>((resolve, reject) => {
       child.on('close', (code: number) => {
+        console.log(`Child process exited with code ${code}`);
         if (code === 0) {
           // Store the raw stdout for Podman telemetry parsing
           this._lastRunStdout = stdout;
@@ -296,6 +297,10 @@ export class TestRig {
           reject(new Error(`Process exited with code ${code}:\n${stderr}`));
         }
       });
+    });
+
+    child.on('error', (err) => {
+      console.error('Failed to start child process.', err);
     });
 
     return promise;
