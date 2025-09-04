@@ -947,6 +947,8 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     config.setShellExecutionConfig({
       terminalWidth: Math.floor(terminalWidth * 0.8),
       terminalHeight: Math.floor(availableTerminalHeight - 10),
+      pager: settings.merged.tools?.shell?.pager,
+      showColor: settings.merged.tools?.shell?.showColor,
     });
 
     return () => {
@@ -958,6 +960,8 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     availableTerminalHeight,
     refreshStatic,
     config,
+    settings.merged.tools?.shell?.showColor,
+    settings.merged.tools?.shell?.pager,
   ]);
 
   useEffect(() => {

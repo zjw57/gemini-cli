@@ -75,6 +75,8 @@ const MIGRATION_MAP: Record<string, string> = {
   sandbox: 'tools.sandbox',
   shouldUseNodePtyShell: 'tools.usePty',
   autoAccept: 'tools.autoAccept',
+  shellPager: 'tools.shell.pager',
+  shellShowColor: 'tools.shell.showColor',
   allowedTools: 'tools.allowed',
   coreTools: 'tools.core',
   excludeTools: 'tools.exclude',
@@ -410,6 +412,42 @@ function mergeSettings(
           ...(system.extensions?.workspacesWithMigrationNudge || []),
         ]),
       ],
+    },
+    tools: {
+      ...(systemDefaults.tools || {}),
+      ...(user.tools || {}),
+      ...(safeWorkspaceWithoutFolderTrust.tools || {}),
+      ...(system.tools || {}),
+      core: [
+        ...new Set([
+          ...(systemDefaults.tools?.core || []),
+          ...(user.tools?.core || []),
+          ...(safeWorkspaceWithoutFolderTrust.tools?.core || []),
+          ...(system.tools?.core || []),
+        ]),
+      ],
+      allowed: [
+        ...new Set([
+          ...(systemDefaults.tools?.allowed || []),
+          ...(user.tools?.allowed || []),
+          ...(safeWorkspaceWithoutFolderTrust.tools?.allowed || []),
+          ...(system.tools?.allowed || []),
+        ]),
+      ],
+      exclude: [
+        ...new Set([
+          ...(systemDefaults.tools?.exclude || []),
+          ...(user.tools?.exclude || []),
+          ...(safeWorkspaceWithoutFolderTrust.tools?.exclude || []),
+          ...(system.tools?.exclude || []),
+        ]),
+      ],
+      shell: {
+        ...(systemDefaults.tools?.shell || {}),
+        ...(user.tools?.shell || {}),
+        ...(safeWorkspaceWithoutFolderTrust.tools?.shell || {}),
+        ...(system.tools?.shell || {}),
+      },
     },
   };
 }

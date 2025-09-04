@@ -284,10 +284,7 @@ export class Config {
   private readonly useRipgrep: boolean;
   private readonly shouldUseNodePtyShell: boolean;
   private readonly skipNextSpeakerCheck: boolean;
-  private shellExecutionConfig: {
-    terminalWidth: number;
-    terminalHeight: number;
-  };
+  private shellExecutionConfig: ShellExecutionConfig;
   private readonly extensionManagement: boolean;
   private readonly enablePromptCompletion: boolean = false;
   private initialized: boolean = false;
@@ -368,6 +365,8 @@ export class Config {
     this.shellExecutionConfig = {
       terminalWidth: params.shellExecutionConfig?.terminalWidth ?? 80,
       terminalHeight: params.shellExecutionConfig?.terminalHeight ?? 24,
+      showColor: params.shellExecutionConfig?.showColor ?? false,
+      pager: params.shellExecutionConfig?.pager ?? 'cat'
     };
     this.useSmartEdit = params.useSmartEdit ?? true;
     this.extensionManagement = params.extensionManagement ?? false;
@@ -820,7 +819,7 @@ export class Config {
     return this.skipNextSpeakerCheck;
   }
 
-  getShellExecutionConfig(): { terminalWidth: number; terminalHeight: number } {
+  getShellExecutionConfig(): ShellExecutionConfig {
     return this.shellExecutionConfig;
   }
 
@@ -830,6 +829,10 @@ export class Config {
         config.terminalWidth ?? this.shellExecutionConfig.terminalWidth,
       terminalHeight:
         config.terminalHeight ?? this.shellExecutionConfig.terminalHeight,
+      showColor: 
+        config.showColor ?? this.shellExecutionConfig.showColor,
+      pager:
+        config.pager ?? this.shellExecutionConfig.pager
     };
   }
   getScreenReader(): boolean {
