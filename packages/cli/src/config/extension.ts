@@ -117,10 +117,7 @@ export function loadExtensions(
   const disabledExtensions = settings.extensions?.disabled ?? [];
   const allExtensions = [...loadUserExtensions()];
 
-  if (
-    (isWorkspaceTrusted(settings) ?? true) &&
-    !settings.experimental?.extensionManagement
-  ) {
+  if (isWorkspaceTrusted(settings) ?? true) {
     allExtensions.push(...getWorkspaceExtensions(workspaceDir));
   }
 
