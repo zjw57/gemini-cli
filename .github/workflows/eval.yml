@@ -34,8 +34,8 @@ jobs:
       - name: 'Clone evaluation harness'
         env:
           GITHUB_TOKEN: '${{ secrets.EVAL_GH_TOKEN }}'
-          GITHUB_REPOSITORY: '${{ vars.EVAL_GH_REPO }}'
-        run: git clone $GITHUB_REPOSITORY
+          EVAL_GH_REPO: '${{ vars.EVAL_GH_REPO }}'
+        run: git clone $EVAL_GH_REPO
 
       - name: 'Download evaluation data'
         working-directory: ./agent-prototypes
