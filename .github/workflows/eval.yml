@@ -9,8 +9,9 @@ defaults:
 
 jobs:
   eval:
-    if: |-
-      github.repository == 'google-gemini/gemini-cli'
+    if: >-
+      github.repository == 'google-gemini/gemini-cli' &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.actor_association)
     name: 'Eval'
     runs-on: 'ubuntu-latest'
     steps:
