@@ -110,16 +110,10 @@ export async function performWorkspaceExtensionMigration(
   return failedInstallNames;
 }
 
-export function loadExtensions(
-  workspaceDir: string = process.cwd(),
-): Extension[] {
-  const settings = loadSettings(workspaceDir).merged;
+export function loadExtensions(): Extension[] {
+  const settings = loadSettings().merged;
   const disabledExtensions = settings.extensions?.disabled ?? [];
   const allExtensions = [...loadUserExtensions()];
-
-  if (isWorkspaceTrusted(settings) ?? true) {
-    allExtensions.push(...getWorkspaceExtensions(workspaceDir));
-  }
 
   const uniqueExtensions = new Map<string, Extension>();
   for (const extension of allExtensions) {
@@ -602,7 +596,7 @@ function removeFromDisabledExtensions(
 export async function updateAllUpdatableExtensions(
   cwd: string = process.cwd(),
 ): Promise<ExtensionUpdateInfo[]> {
-  const extensions = loadExtensions(cwd).filter(
+  const extensions = loadExtensions().filter(
     (extension) => !!extension.installMetadata,
   );
   return await Promise.all(
