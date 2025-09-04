@@ -612,6 +612,7 @@ export async function loadCliConfig(
     enablePromptCompletion: settings.general?.enablePromptCompletion ?? false,
     eventEmitter: appEvents,
     useSmartEdit: argv.useSmartEdit ?? settings.useSmartEdit,
+    enforcedOAuthDomain: settings.security?.auth?.enforcedOAuthDomain,
   });
 }
 
@@ -653,7 +654,7 @@ function mergeMcpServers(settings: Settings, extensions: Extension[]) {
       ([key, server]) => {
         if (mcpServers[key]) {
           logger.warn(
-            `Skipping extension MCP config for server with key "${key}" as it already exists.`,
+            `Skipping extension MCP config for server with key \"${key}\" as it already exists.`,
           );
           return;
         }
