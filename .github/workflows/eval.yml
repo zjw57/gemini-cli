@@ -35,7 +35,7 @@ jobs:
         env:
           GITHUB_TOKEN: '${{ secrets.EVAL_GH_TOKEN }}'
           GITHUB_REPOSITORY: '${{ vars.EVAL_GH_REPO }}'
-        run: git clone $EVAL_GH_REP0
+        run: git clone $GITHUB_REPOSITORY
 
       - name: 'Download evaluation data'
         working-directory: ./agent-prototypes
