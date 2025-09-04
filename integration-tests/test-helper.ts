@@ -152,7 +152,8 @@ export class TestRig {
         otlpEndpoint: '',
         outfile: telemetryPath,
       },
-      sandbox: env['GEMINI_SANDBOX'] !== 'false' ? env['GEMINI_SANDBOX'] : false,
+      sandbox:
+        env['GEMINI_SANDBOX'] !== 'false' ? env['GEMINI_SANDBOX'] : false,
       ...options.settings, // Allow tests to override/add settings
     };
     writeFileSync(
