@@ -11,7 +11,7 @@ jobs:
   eval:
     if: |-
       github.repository == 'google-gemini/gemini-cli' &&
-      (github.actor == 'OWNER' || github.actor == 'MEMBER' || github.actor == 'COLLABORATOR')
+      (github.actor == 'agmsb')
     name: 'Eval'
     runs-on: 'ubuntu-latest'
     steps:
