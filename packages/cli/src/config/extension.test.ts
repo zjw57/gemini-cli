@@ -73,10 +73,7 @@ describe('loadExtensions', () => {
     vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
     vi.mocked(isWorkspaceTrusted).mockReturnValue(true);
 
-    userExtensionsDir = path.join(
-      tempHomeDir,
-      EXTENSIONS_DIRECTORY_NAME,
-    );
+    userExtensionsDir = path.join(tempHomeDir, EXTENSIONS_DIRECTORY_NAME);
     fs.mkdirSync(userExtensionsDir, { recursive: true });
   });
 
@@ -285,10 +282,7 @@ describe('loadExtensions', () => {
   });
 
   it('should handle missing environment variables gracefully', () => {
-    const userExtensionsDir = path.join(
-      tempHomeDir,
-      EXTENSIONS_DIRECTORY_NAME,
-    );
+    const userExtensionsDir = path.join(tempHomeDir, EXTENSIONS_DIRECTORY_NAME);
     fs.mkdirSync(userExtensionsDir, { recursive: true });
 
     const extDir = path.join(userExtensionsDir, 'test-extension');

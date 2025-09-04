@@ -83,7 +83,7 @@ export interface CliArgs {
   promptWords: string[] | undefined;
 }
 
-export async function parseArguments(settings: Settings): Promise<CliArgs> {
+export async function parseArguments(): Promise<CliArgs> {
   const yargsInstance = yargs(hideBin(process.argv))
     .locale('en')
     .scriptName('gemini')
