@@ -334,7 +334,6 @@ You can enforce a specific authentication method for all users by setting the `s
 
 If a user has a different authentication method configured, they will be prompted to switch to the enforced method. In non-interactive mode, the CLI will exit with an error if the configured authentication method does not match the enforced one.
 
-
 ## Putting It All Together: Example System `settings.json`
 
 Here is an example of a system `settings.json` file that combines several of the patterns discussed above to create a secure, controlled environment for Gemini CLI.
