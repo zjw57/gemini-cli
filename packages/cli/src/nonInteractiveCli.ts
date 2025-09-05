@@ -4,20 +4,26 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Config, ToolCallRequestInfo } from '@google/gemini-cli-core';
+import type {
+  Config,
+  ToolCallRequestInfo,
+  ContextHarvesterInput,
+} from '@google/gemini-cli-core';
 import {
   executeToolCall,
-  shutdownTelemetry,
-  isTelemetrySdkInitialized,
-  GeminiEventType,
-  parseAndFormatApiError,
   FatalInputError,
   FatalTurnLimitedError,
+  GeminiEventType,
+  isTelemetrySdkInitialized,
+  parseAndFormatApiError,
+  shutdownTelemetry,
+  ContextHarvesterTool,
 } from '@google/gemini-cli-core';
 import type { Content, Part } from '@google/genai';
 
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
 import { handleAtCommand } from './ui/hooks/atCommandProcessor.js';
+
 
 export async function runNonInteractive(
   config: Config,
@@ -63,6 +69,31 @@ export async function runNonInteractive(
     let currentMessages: Content[] = [
       { role: 'user', parts: processedQuery as Part[] },
     ];
+
+    const toolRegistry = config.getToolRegistry();
+    const contextHarvester = toolRegistry.getTool(ContextHarvesterTool.Name);
+
+    if (contextHarvester) {
+      const harvesterInput: ContextHarvesterInput = {
+        user_objective: input,
+        analysis_questions: [
+          'Based on the user query, what is the primary goal?',
+          'Identify all relevant files, functions, and classes related to the user a request.',
+          'Provide a summary of the existing implementation.',
+          'What is the best file to start with to implement the user a request?',
+        ],
+      };
+
+      const invocation = (contextHarvester as any).build(harvesterInput);
+      const result = await invocation.execute(abortController.signal);
+
+      if (result.llmContent) {
+        (currentMessages[0].parts as Part[]).push(
+          { text: '\n--- Context from Context Harvester ---\n' },
+          { text: result.llmContent },
+        );
+      }
+    }
 
     let turnCount = 0;
     while (true) {
