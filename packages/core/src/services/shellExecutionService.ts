@@ -14,7 +14,10 @@ import type { IPty } from '@lydell/node-pty';
 import { getCachedEncodingForBuffer } from '../utils/systemEncoding.js';
 import { isBinary } from '../utils/textUtils.js';
 import pkg from '@xterm/headless';
-import { serializeTerminalToString } from '../utils/terminalSerializer.js';
+import {
+  serializeTerminalToObject,
+  type AnsiOutput,
+} from '../utils/terminalSerializer.js';
 const { Terminal } = pkg;
 
 const SIGKILL_TIMEOUT_MS = 200;
@@ -52,6 +55,8 @@ export interface ShellExecutionConfig {
   terminalHeight?: number;
   pager?: string;
   showColor?: boolean;
+  defaultFg?: string;
+  defaultBg?: string;
 }
 
 /**
@@ -62,7 +67,7 @@ export type ShellOutputEvent =
       /** The event contains a chunk of output data. */
       type: 'data';
       /** The decoded string chunk. */
-      chunk: string;
+      chunk: string | AnsiOutput;
     }
   | {
       /** Signals that the output stream has been identified as binary. */
@@ -105,7 +110,7 @@ const getFullBufferText = (terminal: pkg.Terminal): string => {
 /**
  * A centralized service for executing shell commands with robust process
  * management, cross-platform compatibility, and streaming output capabilities.
- * 
+ *
  */
 
 export class ShellExecutionService {
@@ -378,7 +383,7 @@ export class ShellExecutionService {
 
         let processingChain = Promise.resolve();
         let decoder: TextDecoder | null = null;
-        let output: string | null = null;
+        let output: string | AnsiOutput | null = null;
         const outputChunks: Buffer[] = [];
         const error: Error | null = null;
         let exited = false;
@@ -386,6 +391,7 @@ export class ShellExecutionService {
         let isStreamingRawContent = true;
         const MAX_SNIFF_SIZE = 4096;
         let sniffedBytes = 0;
+        let isWriting = false;
         let renderTimeout: NodeJS.Timeout | null = null;
 
         const render = (finalRender = false) => {
@@ -397,14 +403,21 @@ export class ShellExecutionService {
             if (!isStreamingRawContent) {
               return;
             }
-            const newStrippedOutput = shellExecutionConfig.showColor
-              ? serializeTerminalToString(headlessTerminal)
+            const newOutput = shellExecutionConfig.showColor
+              ? serializeTerminalToObject(headlessTerminal, {
+                  defaultFg: shellExecutionConfig.defaultFg,
+                  defaultBg: shellExecutionConfig.defaultBg,
+                })
               : getVisibleText(headlessTerminal);
-            if (output !== newStrippedOutput) {
-              output = newStrippedOutput;
+
+            // console.log(newOutput)
+
+            // Using stringify for a quick deep comparison.
+            if (JSON.stringify(output) !== JSON.stringify(newOutput)) {
+              output = newOutput;
               onOutputEvent({
                 type: 'data',
-                chunk: newStrippedOutput,
+                chunk: newOutput,
               });
             }
           };
@@ -417,7 +430,9 @@ export class ShellExecutionService {
         };
 
         headlessTerminal.onScroll(() => {
-          render();
+          if (!isWriting) {
+            render();
+          }
         });
 
         const handleOutput = (data: Buffer) => {
@@ -447,8 +462,10 @@ export class ShellExecutionService {
 
                 if (isStreamingRawContent) {
                   const decodedChunk = decoder.decode(data, { stream: true });
+                  isWriting = true;
                   headlessTerminal.write(decodedChunk, () => {
                     render();
+                    isWriting = false;
                     resolve();
                   });
                 } else {

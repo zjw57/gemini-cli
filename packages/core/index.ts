@@ -12,7 +12,14 @@ export {
   DEFAULT_GEMINI_FLASH_LITE_MODEL,
   DEFAULT_GEMINI_EMBEDDING_MODEL,
 } from './src/config/models.js';
+export {
+  serializeTerminalToObject,
+  type AnsiOutput,
+  type AnsiLine,
+  type AnsiToken,
+} from './src/utils/terminalSerializer.js';
 export { logIdeConnection } from './src/telemetry/loggers.js';
+
 export {
   IdeConnectionEvent,
   IdeConnectionType,

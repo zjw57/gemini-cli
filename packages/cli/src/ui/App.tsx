@@ -938,22 +938,12 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       return;
     }
 
-    // debounce so it doesn't fire up too often during resize
-    const handler = setTimeout(() => {
-      setStaticNeedsRefresh(false);
-      refreshStatic();
-    }, 300);
-
     config.setShellExecutionConfig({
-      terminalWidth: Math.floor(terminalWidth * 0.8),
+      terminalWidth: Math.floor(terminalWidth - 15),
       terminalHeight: Math.floor(availableTerminalHeight - 10),
       pager: settings.merged.tools?.shell?.pager,
       showColor: settings.merged.tools?.shell?.showColor,
     });
-
-    return () => {
-      clearTimeout(handler);
-    };
   }, [
     terminalWidth,
     terminalHeight,
@@ -995,7 +985,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     if (activeShellPtyId) {
       ShellExecutionService.resizePty(
         activeShellPtyId,
-        Math.floor(terminalWidth * 0.8),
+        Math.floor(terminalWidth - 15),
         Math.floor(availableTerminalHeight - 10),
       );
     }

@@ -11,12 +11,13 @@ import { ToolCallStatus } from '../../types.js';
 import { DiffRenderer } from './DiffRenderer.js';
 import { Colors } from '../../colors.js';
 import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
+import { AnsiOutputText } from '../AnsiOutput.js';
 import { GeminiRespondingSpinner } from '../GeminiRespondingSpinner.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
 import { ShellInputPrompt } from '../ShellInputPrompt.js';
 import { SHELL_COMMAND_NAME, TOOL_STATUS } from '../../constants.js';
 import { theme } from '../../semantic-colors.js';
-import type { Config } from '@google/gemini-cli-core';
+import type { AnsiOutput, Config } from '@google/gemini-cli-core';
 
 const STATIC_HEIGHT = 1;
 const RESERVED_LINE_COUNT = 5; // for tool name, status, padding etc.
@@ -115,15 +116,19 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
                   <Text wrap="wrap">{resultDisplay}</Text>
                 </Box>
               </MaxSizedBox>
+            ) : typeof resultDisplay === 'object' &&
+              !Array.isArray(resultDisplay) ? (
+              <DiffRenderer
+                diffContent={resultDisplay.fileDiff}
+                filename={resultDisplay.fileName}
+                availableTerminalHeight={availableHeight}
+                terminalWidth={childWidth}
+              />
             ) : (
-              typeof resultDisplay !== 'string' && (
-                <DiffRenderer
-                  diffContent={resultDisplay.fileDiff}
-                  filename={resultDisplay.fileName}
-                  availableTerminalHeight={availableHeight}
-                  terminalWidth={childWidth}
-                />
-              )
+              <AnsiOutputText
+                data={resultDisplay as AnsiOutput}
+                availableTerminalHeight={availableHeight}
+              />
             )}
           </Box>
         </Box>

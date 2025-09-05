@@ -566,7 +566,7 @@ export const SETTINGS_SCHEMA = {
     requiresRestart: true,
     default: {},
     description: 'Settings for built-in and custom tools.',
-    showInDialog: true,
+    showInDialog: false,
     properties: {
       sandbox: {
         type: 'object',
@@ -602,7 +602,7 @@ export const SETTINGS_SCHEMA = {
             label: 'Pager',
             category: 'Tools',
             requiresRestart: false,
-            default: undefined as string | undefined,
+            default: 'cat' as string | undefined,
             description:
               'The pager command to use for shell output. Defaults to `cat`.',
             showInDialog: true,
@@ -612,7 +612,7 @@ export const SETTINGS_SCHEMA = {
             label: 'Show Color',
             category: 'Tools',
             requiresRestart: false,
-            default: true,
+            default: false,
             description: 'Show color in shell output.',
             showInDialog: true,
           },

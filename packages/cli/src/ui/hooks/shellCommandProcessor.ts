@@ -11,6 +11,7 @@ import type {
 import { ToolCallStatus } from '../types.js';
 import { useCallback, useState } from 'react';
 import type {
+  AnsiOutput,
   Config,
   GeminiClient,
   ShellExecutionResult,
@@ -24,6 +25,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
+import { themeManager } from '../../ui/themes/theme-manager.js';
 
 export const OUTPUT_UPDATE_INTERVAL_MS = 1000;
 const MAX_OUTPUT_LENGTH = 10000;
@@ -108,7 +110,7 @@ export const useShellCommandProcessor = (
         resolve: (value: void | PromiseLike<void>) => void,
       ) => {
         let lastUpdateTime = Date.now();
-        let cumulativeStdout = '';
+        let cumulativeStdout: string | AnsiOutput = '';
         let isBinaryStream = false;
         let binaryBytesReceived = 0;
 
@@ -138,6 +140,13 @@ export const useShellCommandProcessor = (
         onDebugMessage(`Executing in ${targetDir}: ${commandToExecute}`);
 
         try {
+          const activeTheme = themeManager.getActiveTheme();
+          const shellExecutionConfig = {
+            ...config.getShellExecutionConfig(),
+            defaultFg: activeTheme.colors.Foreground,
+            defaultBg: activeTheme.colors.Background,
+          };
+
           const { pid, result } = await ShellExecutionService.execute(
             commandToExecute,
             targetDir,
@@ -166,7 +175,7 @@ export const useShellCommandProcessor = (
               }
 
               // Compute the display string based on the *current* state.
-              let currentDisplayOutput: string;
+              let currentDisplayOutput: string | AnsiOutput;
               if (isBinaryStream) {
                 if (binaryBytesReceived > 0) {
                   currentDisplayOutput = `[Receiving binary output... ${formatMemoryUsage(
@@ -203,7 +212,7 @@ export const useShellCommandProcessor = (
             },
             abortSignal,
             config.getShouldUseNodePtyShell(),
-            config.getShellExecutionConfig(),
+            shellExecutionConfig,
           );
 
           console.log(terminalHeight, terminalWidth);

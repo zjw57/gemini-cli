@@ -31,6 +31,11 @@ import type {
 import { ShellExecutionService } from '../services/shellExecutionService.js';
 import { formatMemoryUsage } from '../utils/formatters.js';
 import {
+  type AnsiLine,
+  type AnsiOutput,
+  type AnsiToken,
+} from '../utils/terminalSerializer.js';
+import {
   getCommandRoots,
   isCommandAllowed,
   stripShellWrapper,
@@ -133,7 +138,7 @@ class ShellToolInvocation extends BaseToolInvocation<
         this.params.directory || '',
       );
 
-      let cumulativeOutput = '';
+      let cumulativeOutput: string | AnsiOutput = '';
       let lastUpdateTime = Date.now();
       let isBinaryStream = false;
 
@@ -152,7 +157,15 @@ class ShellToolInvocation extends BaseToolInvocation<
             case 'data':
               if (isBinaryStream) break;
               cumulativeOutput = event.chunk;
-              currentDisplayOutput = cumulativeOutput;
+              if (typeof cumulativeOutput === 'string') {
+                currentDisplayOutput = cumulativeOutput;
+              } else {
+                currentDisplayOutput = cumulativeOutput
+                  .map((line: AnsiLine) =>
+                    line.map((token: AnsiToken) => token.text).join(''),
+                  )
+                  .join('\n');
+              }
               shouldUpdate = true;
               break;
             case 'binary_detected':

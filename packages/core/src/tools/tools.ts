@@ -9,6 +9,7 @@ import { ToolErrorType } from './tool-error.js';
 import type { DiffUpdateResult } from '../ide/ideContext.js';
 import type { ShellExecutionConfig } from '../services/shellExecutionService.js';
 import { SchemaValidator } from '../utils/schemaValidator.js';
+import type { AnsiOutput } from '../utils/terminalSerializer.js';
 
 /**
  * Represents a validated and ready-to-execute tool call.
@@ -436,7 +437,7 @@ export function hasCycleInSchema(schema: object): boolean {
   return traverse(schema, new Set<string>(), new Set<string>());
 }
 
-export type ToolResultDisplay = string | FileDiff;
+export type ToolResultDisplay = string | FileDiff | AnsiOutput;
 
 export interface FileDiff {
   fileDiff: string;
