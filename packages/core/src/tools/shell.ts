@@ -76,6 +76,8 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
           },
           directory: {
             type: Type.STRING,
+            description:
+              '(OPTIONAL) Directory to run the command in, if not the project root directory. Must be relative to the project root directory and must already exist.',
           },
         },
         required: ['command'],
