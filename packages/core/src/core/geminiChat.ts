@@ -168,6 +168,7 @@ export class GeminiChat {
   // A promise to represent the current state of the message being sent to the
   // model.
   private sendPromise: Promise<void> = Promise.resolve();
+  private experiment_attempt_counter = 0;
   private readonly chatRecordingService: ChatRecordingService;
 
   constructor(
@@ -486,44 +487,55 @@ export class GeminiChat {
     prompt_id: string,
     userContent: Content,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
-    const apiCall = () => {
-      const modelToUse = this.config.getModel();
+    this.experiment_attempt_counter++;
 
-      if (
-        this.config.getQuotaErrorOccurred() &&
-        modelToUse === DEFAULT_GEMINI_FLASH_MODEL
-      ) {
-        throw new Error(
-          'Please submit a new query to continue with the Flash model.',
-        );
-      }
-
-      return this.contentGenerator.generateContentStream(
-        {
-          model: modelToUse,
-          contents: requestContents,
-          config: { ...this.generationConfig, ...params.config },
-        },
-        prompt_id,
-      );
+    const createMockChunk = (text: string): GenerateContentResponse => {
+      // This mock now includes the candidates array to better match the real structure
+      // that processStreamResponse expects.
+      return {
+        candidates: [{ content: { role: 'model', parts: [{ text }] } }],
+        text: () => text,
+      } as any;
     };
 
-    const streamResponse = await retryWithBackoff(apiCall, {
-      shouldRetry: (error: unknown) => {
-        if (error instanceof Error && error.message) {
-          if (isSchemaDepthError(error.message)) return false;
-          if (error.message.includes('429')) return true;
-          if (error.message.match(/5\d{2}/)) return true;
-        }
-        return false;
-      },
-      onPersistent429: async (authType?: string, error?: unknown) =>
-        await this.handleFlashFallback(authType, error),
-      authType: this.config.getContentGeneratorConfig()?.authType,
-    });
+    // ======================================================
+    // START: ONE-OFF EXPERIMENT CODE
+    // ======================================================
+    console.log(`[Experiment] Attempt #${this.experiment_attempt_counter}`);
 
-    return this.processStreamResponse(streamResponse, userContent);
+    let mockStream: AsyncGenerator<GenerateContentResponse>;
+
+    if (this.experiment_attempt_counter === 1) {
+      mockStream = (async function* () {
+        yield createMockChunk("Why don't scientists ");
+        await new Promise((res) => setTimeout(res, 1000));
+        yield createMockChunk('trust atoms?');
+        await new Promise((res) => setTimeout(res, 1000));
+        throw new EmptyStreamError('[Experiment] Forcing a retry');
+      })();
+    } else {
+      mockStream = (async function* () {
+        yield createMockChunk("Why don't scientists ");
+        await new Promise((res) => setTimeout(res, 1000));
+        yield createMockChunk('trust atoms?');
+        await new Promise((res) => setTimeout(res, 1000));
+        yield createMockChunk('\n\n...Because they make up everything!');
+      })();
+    }
+
+    // CRITICAL FIX: Process our mock stream through the REAL response handler
+    // to ensure history is updated and all side effects occur correctly.
+    return this.processStreamResponse(mockStream, userContent);
+    // ======================================================
+    // END: ONE-OFF EXPERIMENT CODE
+    // ======================================================
   }
+
+    // ======================================================
+    // END: ONE-OFF EXPERIMENT CODE
+    // The original function body is bypassed.
+    // ======================================================
+  
 
   /**
    * Returns the chat history.
