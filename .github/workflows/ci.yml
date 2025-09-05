@@ -237,7 +237,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: 'Run inclusive language check'
-        uses: microsoft/InclusivenessAnalyzer@994519a4cd1f0ccc7415fff13b7f287344c420bc # ratchet:microsoft/InclusivenessAnalyzer@v1.0.1
+        uses: 'microsoft/InclusivenessAnalyzer@994519a4cd1f0ccc7415fff13b7f287344c420bc' # ratchet:microsoft/InclusivenessAnalyzer@v1.0.1
         
   #
   # Lint: All
