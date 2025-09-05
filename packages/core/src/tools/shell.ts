@@ -44,19 +44,6 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
   static Name: string = 'run_shell_command';
   private allowlist: Set<string> = new Set();
 
-  private static _getDirectoryDescription(
-    workspaceDirs: readonly string[],
-  ): string {
-    const dirs =
-      workspaceDirs.length > 0 ? workspaceDirs.join(', ') : '(none)';
-
-    return `(OPTIONAL) Directory to run the command in, if not the project root directory. Must be relative to the project root directory and must already exist.
-
-Directory should be in the scope of registered workspace directories: ${dirs}
-
-If you need to access a directory that is not in the registered workspace directories, you must first ask the user to add it to the registered workspace.`;
-  }
-
   constructor(private readonly config: Config) {
     super(
       ShellTool.Name,
@@ -89,10 +76,6 @@ If you need to access a directory that is not in the registered workspace direct
           },
           directory: {
             type: Type.STRING,
-            // TODO: dynamically refresh description if workspace directories change
-            description: ShellTool._getDirectoryDescription(
-              config.getWorkspaceContext().getDirectories(),
-            ),
           },
         },
         required: ['command'],
@@ -100,10 +83,7 @@ If you need to access a directory that is not in the registered workspace direct
       false, // output is not markdown
       true, // output can be updated
     );
-    // remove the following logs after debug
-    const workspaceDirs = this.config.getWorkspaceContext().getDirectories();
     console.log('********** New Validation **********');
-    console.log(ShellTool._getDirectoryDescription(workspaceDirs));
   }
 
   getDescription(params: ShellToolParams): string {
@@ -142,17 +122,13 @@ If you need to access a directory that is not in the registered workspace direct
       return 'Could not identify command root to obtain permission from user.';
     }
     if (params.directory) {
-      const workspaceDirs = this.config.getWorkspaceContext().getDirectories();
       if (path.isAbsolute(params.directory)) {
         return 'Directory cannot be absolute. Please refer to workspace directories by their name.';
       }
+      const workspaceDirs = this.config.getWorkspaceContext().getDirectories();
       const matchingDirs = workspaceDirs.filter(
         (dir) => path.basename(dir) === params.directory,
       );
-
-      if (matchingDirs.length === 0) {
-        return `Directory '${params.directory}' is not a registered workspace directory.`;
-      }
 
       if (matchingDirs.length > 1) {
         return `Directory name '${params.directory}' is ambiguous as it matches multiple workspace directories.`;
