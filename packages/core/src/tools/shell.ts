@@ -86,7 +86,7 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
       true, // output can be updated
     );
   }
-
+  
   getDescription(params: ShellToolParams): string {
     let description = `${params.command}`;
     // append optional [in directory]

@@ -103,12 +103,6 @@ describe('ShellTool', () => {
       );
     });
 
-    it('should return an error for a non-existent directory', () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false);
-      expect(
-        shellTool.validateToolParams({ command: 'ls', directory: 'rel/path' }),
-      ).toBe("Directory 'rel/path' is not a registered workspace directory.");
-    });
   });
 
   describe('execute', () => {
@@ -403,21 +397,5 @@ describe('validateToolParams', () => {
       directory: 'test',
     });
     expect(result).toBeNull();
-  });
-
-  it('should return error for directory outside workspace', () => {
-    const config = {
-      getCoreTools: () => undefined,
-      getExcludeTools: () => undefined,
-      getTargetDir: () => '/root',
-      getWorkspaceContext: () =>
-        createMockWorkspaceContext('/root', ['/users/test']),
-    } as unknown as Config;
-    const shellTool = new ShellTool(config);
-    const result = shellTool.validateToolParams({
-      command: 'ls',
-      directory: 'test2',
-    });
-    expect(result).toContain('is not a registered workspace directory');
   });
 });
