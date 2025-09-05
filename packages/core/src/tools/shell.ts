@@ -85,7 +85,6 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
       false, // output is not markdown
       true, // output can be updated
     );
-    console.log('********** New Validation **********');
   }
 
   getDescription(params: ShellToolParams): string {
