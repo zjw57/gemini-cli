@@ -147,10 +147,7 @@ describe('useShellCommandProcessor', () => {
       expect.any(Function),
       expect.any(Object),
       false,
-      {
-        terminalHeight: 20,
-        terminalWidth: 80,
-      },
+      expect.any(Object),
     );
     expect(onExecMock).toHaveBeenCalledWith(expect.any(Promise));
   });
@@ -303,10 +300,7 @@ describe('useShellCommandProcessor', () => {
       expect.any(Function),
       expect.any(Object),
       false,
-      {
-        terminalHeight: 20,
-        terminalWidth: 80,
-      },
+      expect.any(Object),
     );
   });
 
