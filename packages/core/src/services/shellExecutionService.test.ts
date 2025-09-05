@@ -17,6 +17,7 @@ const mockCpSpawn = vi.hoisted(() => vi.fn());
 const mockIsBinary = vi.hoisted(() => vi.fn());
 const mockPlatform = vi.hoisted(() => vi.fn());
 const mockGetPty = vi.hoisted(() => vi.fn());
+const mockSerializeTerminalToObject = vi.hoisted(() => vi.fn());
 
 // Top-level Mocks
 vi.mock('@lydell/node-pty', () => ({
@@ -48,6 +49,9 @@ vi.mock('os', () => ({
 }));
 vi.mock('../utils/getPty.js', () => ({
   getPty: mockGetPty,
+}));
+vi.mock('../utils/terminalSerializer.js', () => ({
+  serializeTerminalToObject: mockSerializeTerminalToObject,
 }));
 
 const shellExecutionConfig = {
@@ -109,6 +113,7 @@ describe('ShellExecutionService', () => {
       ptyProcess: typeof mockPtyProcess,
       ac: AbortController,
     ) => void,
+    config = shellExecutionConfig,
   ) => {
     const abortController = new AbortController();
     const handle = await ShellExecutionService.execute(
@@ -117,7 +122,7 @@ describe('ShellExecutionService', () => {
       onOutputEventMock,
       abortController.signal,
       true,
-      shellExecutionConfig,
+      config,
     );
 
     await new Promise((resolve) => process.nextTick(resolve));
@@ -367,6 +372,57 @@ describe('ShellExecutionService', () => {
         'bash',
         ['-c', 'ls "foo bar"'],
         expect.any(Object),
+      );
+    });
+  });
+
+  describe('AnsiOutput rendering', () => {
+    it('should call onOutputEvent with AnsiOutput when showColor is true', async () => {
+      const coloredShellExecutionConfig = {
+        ...shellExecutionConfig,
+        showColor: true,
+        defaultFg: '#ffffff',
+        defaultBg: '#000000',
+      };
+      const mockAnsiOutput = [
+        [{ text: 'hello', fg: '#ffffff', bg: '#000000' }],
+      ];
+      mockSerializeTerminalToObject.mockReturnValue(mockAnsiOutput);
+
+      await simulateExecution(
+        'ls --color=auto',
+        (pty) => {
+          pty.onData.mock.calls[0][0]('a\u001b[31mred\u001b[0mword');
+          pty.onExit.mock.calls[0][0]({ exitCode: 0, signal: null });
+        },
+        coloredShellExecutionConfig,
+      );
+
+      expect(mockSerializeTerminalToObject).toHaveBeenCalledWith(
+        expect.anything(), // The terminal object
+        { defaultFg: '#ffffff', defaultBg: '#000000' },
+      );
+
+      expect(onOutputEventMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'data',
+          chunk: mockAnsiOutput,
+        }),
+      );
+    });
+
+    it('should call onOutputEvent with plain string when showColor is false', async () => {
+      await simulateExecution('ls --color=auto', (pty) => {
+        pty.onData.mock.calls[0][0]('a\u001b[31mred\u001b[0mword');
+        pty.onExit.mock.calls[0][0]({ exitCode: 0, signal: null });
+      });
+
+      expect(mockSerializeTerminalToObject).not.toHaveBeenCalled();
+      expect(onOutputEventMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'data',
+          chunk: 'aredword',
+        }),
       );
     });
   });

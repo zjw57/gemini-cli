@@ -27,13 +27,18 @@ const enum Attribute {
   dim = 16,
 }
 
-const enum ColorMode {
+export const enum ColorMode {
   DEFAULT = 0,
   PALETTE = 1,
   RGB = 2,
 }
 
 class Cell {
+  private readonly cell: IBufferCell | null;
+  private readonly x: number;
+  private readonly y: number;
+  private readonly cursorX: number;
+  private readonly cursorY: number;
   private readonly attributes: number = 0;
   fg = 0;
   bg = 0;
@@ -41,12 +46,18 @@ class Cell {
   bgColorMode: ColorMode = ColorMode.DEFAULT;
 
   constructor(
-    private readonly cell: IBufferCell | null,
-    private readonly x: number,
-    private readonly y: number,
-    private readonly cursorX: number,
-    private readonly cursorY: number,
+    cell: IBufferCell | null,
+    x: number,
+    y: number,
+    cursorX: number,
+    cursorY: number,
   ) {
+    this.cell = cell;
+    this.x = x;
+    this.y = y;
+    this.cursorX = cursorX;
+    this.cursorY = cursorY;
+
     if (!cell) {
       return;
     }
@@ -448,7 +459,7 @@ const ANSI_COLORS = [
   '#eeeeee',
 ];
 
-function convertColorToHex(
+export function convertColorToHex(
   color: number,
   colorMode: ColorMode,
   defaultColor: string,

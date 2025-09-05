@@ -939,7 +939,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     }
 
     config.setShellExecutionConfig({
-      terminalWidth: Math.floor(terminalWidth - 15),
+      terminalWidth: Math.floor(terminalWidth * 0.89),
       terminalHeight: Math.floor(availableTerminalHeight - 10),
       pager: settings.merged.tools?.shell?.pager,
       showColor: settings.merged.tools?.shell?.showColor,
@@ -985,7 +985,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     if (activeShellPtyId) {
       ShellExecutionService.resizePty(
         activeShellPtyId,
-        Math.floor(terminalWidth - 15),
+        Math.floor(terminalWidth * 0.89),
         Math.floor(availableTerminalHeight - 10),
       );
     }

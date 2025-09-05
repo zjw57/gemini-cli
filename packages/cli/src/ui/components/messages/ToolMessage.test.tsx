@@ -11,6 +11,7 @@ import { ToolMessage } from './ToolMessage.js';
 import { StreamingState, ToolCallStatus } from '../../types.js';
 import { Text } from 'ink';
 import { StreamingContext } from '../../contexts/StreamingContext.js';
+import type { AnsiOutput } from '@google/gemini-cli-core';
 
 vi.mock('../TerminalOutput.js', () => ({
   TerminalOutput: function MockTerminalOutput({
@@ -23,6 +24,16 @@ vi.mock('../TerminalOutput.js', () => ({
         MockCursor:({cursor?.x},{cursor?.y})
       </Text>
     );
+  },
+}));
+
+vi.mock('../AnsiOutput.js', () => ({
+  AnsiOutputText: function MockAnsiOutputText({ data }: { data: AnsiOutput }) {
+    // Simple serialization for snapshot stability
+    const serialized = data
+      .map((line) => line.map((token) => token.text || '').join(''))
+      .join('\n');
+    return <Text>MockAnsiOutput:{serialized}</Text>;
   },
 }));
 
@@ -194,5 +205,27 @@ describe('<ToolMessage />', () => {
     // This is harder to assert directly in text output without color checks.
     // We can at least ensure it doesn't have the high emphasis indicator.
     expect(lowEmphasisFrame()).not.toContain('←');
+  });
+
+  it('renders AnsiOutputText for AnsiOutput results', () => {
+    const ansiResult: AnsiOutput = [
+      [
+        {
+          text: 'hello',
+          fg: '#ffffff',
+          bg: '#000000',
+          bold: false,
+          italic: false,
+          underline: false,
+          dim: false,
+          inverse: false,
+        },
+      ],
+    ];
+    const { lastFrame } = renderWithContext(
+      <ToolMessage {...baseProps} resultDisplay={ansiResult} />,
+      StreamingState.Idle,
+    );
+    expect(lastFrame()).toContain('MockAnsiOutput:hello');
   });
 });
