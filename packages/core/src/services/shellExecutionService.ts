@@ -196,6 +196,23 @@ export class ShellExecutionService {
         const MAX_SNIFF_SIZE = 4096;
         let sniffedBytes = 0;
 
+        let outputBuffer: string[] = [];
+        let throttleTimeout: NodeJS.Timeout | null = null;
+
+        const flushOutput = () => {
+          if (throttleTimeout) {
+            clearTimeout(throttleTimeout);
+            throttleTimeout = null;
+          }
+          if (outputBuffer.length === 0) {
+            return;
+          }
+          for (const chunk of outputBuffer) {
+            onOutputEvent({ type: 'data', chunk });
+          }
+          outputBuffer = [];
+        };
+
         const handleOutput = (data: Buffer, stream: 'stdout' | 'stderr') => {
           if (!stdoutDecoder || !stderrDecoder) {
             const encoding = getCachedEncodingForBuffer(data);
@@ -215,6 +232,7 @@ export class ShellExecutionService {
             sniffedBytes = sniffBuffer.length;
 
             if (isBinary(sniffBuffer)) {
+              flushOutput();
               isStreamingRawContent = false;
               onOutputEvent({ type: 'binary_detected' });
             }
@@ -230,7 +248,10 @@ export class ShellExecutionService {
           }
 
           if (isStreamingRawContent) {
-            onOutputEvent({ type: 'data', chunk: stripAnsi(decodedChunk) });
+            outputBuffer.push(stripAnsi(decodedChunk));
+            if (!throttleTimeout) {
+              throttleTimeout = setTimeout(flushOutput, 17);
+            }
           } else {
             const totalBytes = outputChunks.reduce(
               (sum, chunk) => sum + chunk.length,
@@ -247,6 +268,7 @@ export class ShellExecutionService {
           code: number | null,
           signal: NodeJS.Signals | null,
         ) => {
+          flushOutput();
           const { finalBuffer } = cleanup();
           // Ensure we don't add an extra newline if stdout already ends with one.
           const separator = stdout.endsWith('\n') ? '' : '\n';
@@ -293,10 +315,14 @@ export class ShellExecutionService {
         abortSignal.addEventListener('abort', abortHandler, { once: true });
 
         child.on('exit', (code, signal) => {
+          if (child.pid) {
+            this.activePtys.delete(child.pid);
+          }
           handleExit(code, signal);
         });
 
         function cleanup() {
+          flushOutput();
           exited = true;
           abortSignal.removeEventListener('abort', abortHandler);
           if (stdoutDecoder) {
@@ -521,10 +547,10 @@ export class ShellExecutionService {
             } else {
               try {
                 // Kill the entire process group
-                process.kill(-ptyProcess.pid, 'SIGHUP');
+                process.kill(-ptyProcess.pid, 'SIGINT');
               } catch (_e) {
                 // Fallback to killing just the process if the group kill fails
-                ptyProcess.kill('SIGHUP');
+                ptyProcess.kill('SIGINT');
               }
             }
           }
@@ -578,8 +604,12 @@ export class ShellExecutionService {
       try {
         activePty.ptyProcess.resize(cols, rows);
         activePty.headlessTerminal.resize(cols, rows);
-      } catch (_e) {
-        // Ignore errors if the pty has already exited.
+      } catch (e) {
+        // Ignore errors if the pty has already exited, which can happen
+        // due to a race condition between the exit event and this call.
+        if ((e as { code?: string }).code !== 'ESRCH') {
+          throw e;
+        }
       }
     }
   }
@@ -595,8 +625,12 @@ export class ShellExecutionService {
     if (activePty) {
       try {
         activePty.headlessTerminal.scrollLines(lines);
-      } catch (_e) {
-        // Ignore errors if the pty has already exited.
+      } catch (e) {
+        // Ignore errors if the pty has already exited, which can happen
+        // due to a race condition between the exit event and this call.
+        if ((e as { code?: string }).code !== 'ESRCH') {
+          throw e;
+        }
       }
     }
   }
