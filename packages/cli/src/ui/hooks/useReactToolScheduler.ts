@@ -45,7 +45,7 @@ export type TrackedWaitingToolCall = WaitingToolCall & {
 };
 export type TrackedExecutingToolCall = ExecutingToolCall & {
   responseSubmittedToGemini?: boolean;
-  ptyId?: number;
+  pid?: number;
 };
 export type TrackedCompletedToolCall = CompletedToolCall & {
   responseSubmittedToGemini?: boolean;
@@ -102,16 +102,22 @@ export function useReactToolScheduler(
             (ptc) => ptc.request.callId === coreTc.request.callId,
           );
           // Start with the new core state, then layer on the existing UI state
-          // to ensure UI-only properties like ptyId are preserved.
-          const newTrackedCall: TrackedToolCall = {
-            ...coreTc,
-            liveOutput: (existingTrackedCall as TrackedExecutingToolCall)
-              ?.liveOutput,
-            ptyId: (existingTrackedCall as TrackedExecutingToolCall)?.ptyId,
-            responseSubmittedToGemini:
-              existingTrackedCall?.responseSubmittedToGemini ?? false,
-          } as TrackedToolCall;
-          return newTrackedCall;
+          // to ensure UI-only properties like pid are preserved.
+          const responseSubmittedToGemini =
+            existingTrackedCall?.responseSubmittedToGemini ?? false;
+
+          if (coreTc.status === 'executing') {
+            return {
+              ...coreTc,
+              responseSubmittedToGemini,
+              liveOutput: (existingTrackedCall as TrackedExecutingToolCall)
+                ?.liveOutput,
+              pid: (coreTc as ExecutingToolCall).pid,
+            };
+          }
+
+          // For other statuses, we don't want to add liveOutput or pid
+          return { ...coreTc, responseSubmittedToGemini };
         }),
       );
     },
@@ -263,7 +269,7 @@ export function mapToDisplay(
             resultDisplay:
               (trackedCall as TrackedExecutingToolCall).liveOutput ?? undefined,
             confirmationDetails: undefined,
-            ptyId: (trackedCall as TrackedExecutingToolCall).ptyId,
+            ptyId: (trackedCall as TrackedExecutingToolCall).pid,
           };
         case 'validating': // Fallthrough
         case 'scheduled':

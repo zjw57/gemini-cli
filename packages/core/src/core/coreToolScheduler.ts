@@ -16,6 +16,7 @@ import type {
   ToolConfirmationPayload,
   AnyDeclarativeTool,
   AnyToolInvocation,
+  AnsiOutput,
 } from '../index.js';
 import {
   ToolConfirmationOutcome,
@@ -34,6 +35,7 @@ import {
 import * as Diff from 'diff';
 import { doesToolInvocationMatch } from '../utils/tool-utils.js';
 import levenshtein from 'fast-levenshtein';
+import { ShellToolInvocation } from '../tools/shell.js';
 
 export type ValidatingToolCall = {
   status: 'validating';
@@ -77,9 +79,10 @@ export type ExecutingToolCall = {
   request: ToolCallRequestInfo;
   tool: AnyDeclarativeTool;
   invocation: AnyToolInvocation;
-  liveOutput?: string;
+  liveOutput?: string | AnsiOutput;
   startTime?: number;
   outcome?: ToolConfirmationOutcome;
+  pid?: number;
 };
 
 export type CancelledToolCall = {
@@ -124,7 +127,7 @@ export type ConfirmHandler = (
 
 export type OutputUpdateHandler = (
   toolCallId: string,
-  outputChunk: string,
+  outputChunk: string | AnsiOutput,
 ) => void;
 
 export type AllToolCallsCompleteHandler = (
@@ -879,7 +882,7 @@ export class CoreToolScheduler {
 
         const liveOutputCallback =
           scheduledCall.tool.canUpdateOutput && this.outputUpdateHandler
-            ? (outputChunk: string) => {
+            ? (outputChunk: string | AnsiOutput) => {
                 if (this.outputUpdateHandler) {
                   this.outputUpdateHandler(callId, outputChunk);
                 }
@@ -893,8 +896,32 @@ export class CoreToolScheduler {
             : undefined;
 
         const shellExecutionConfig = this.config.getShellExecutionConfig();
-        invocation
-          .execute(signal, liveOutputCallback, shellExecutionConfig)
+
+        let promise: Promise<ToolResult>;
+        if (invocation instanceof ShellToolInvocation) {
+          const setPidCallback = (pid: number) => {
+            this.toolCalls = this.toolCalls.map((tc) =>
+              tc.request.callId === callId && tc.status === 'executing'
+                ? { ...tc, pid }
+                : tc,
+            );
+            this.notifyToolCallsUpdate();
+          };
+          promise = invocation.execute(
+            signal,
+            liveOutputCallback,
+            shellExecutionConfig,
+            setPidCallback,
+          );
+        } else {
+          promise = invocation.execute(
+            signal,
+            liveOutputCallback,
+            shellExecutionConfig,
+          );
+        }
+
+        promise
           .then(async (toolResult: ToolResult) => {
             if (signal.aborted) {
               this.setStatusInternal(

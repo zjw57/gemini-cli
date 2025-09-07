@@ -154,6 +154,17 @@ export const useGeminiStream = (
     [toolCalls],
   );
 
+  const activeToolPtyId = useMemo(() => {
+    const executingShellTool = toolCalls?.find(
+      (tc) =>
+        tc.status === 'executing' && tc.request.name === 'run_shell_command',
+    );
+    if (executingShellTool) {
+      return (executingShellTool as { pid?: number }).pid;
+    }
+    return undefined;
+  }, [toolCalls]);
+
   const loopDetectedRef = useRef(false);
 
   const onExec = useCallback(async (done: Promise<void>) => {
@@ -172,6 +183,8 @@ export const useGeminiStream = (
     terminalWidth,
     terminalHeight,
   );
+
+  const activePtyId = activeShellPtyId || activeToolPtyId;
 
   const streamingState = useMemo(() => {
     if (toolCalls.some((tc) => tc.status === 'awaiting_approval')) {
@@ -1051,6 +1064,6 @@ export const useGeminiStream = (
     pendingHistoryItems,
     thought,
     cancelOngoingRequest,
-    activeShellPtyId,
+    activePtyId,
   };
 };

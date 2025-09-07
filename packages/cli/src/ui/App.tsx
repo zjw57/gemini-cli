@@ -671,7 +671,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     pendingHistoryItems: pendingGeminiHistoryItems,
     thought,
     cancelOngoingRequest,
-    activeShellPtyId,
+    activePtyId,
   } = useGeminiStream(
     config.getGeminiClient(),
     history,
@@ -854,7 +854,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       ) {
         setConstrainHeight(false);
       } else if (keyMatchers[Command.TOGGLE_SHELL_INPUT_FOCUS](key)) {
-        if (activeShellPtyId || shellInputFocused) {
+        if (activePtyId || shellInputFocused) {
           setShellInputFocused((prev) => !prev);
         }
       }
@@ -878,7 +878,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       handleSlashCommand,
       isAuthenticating,
       cancelOngoingRequest,
-      activeShellPtyId,
+      activePtyId,
       shellInputFocused,
       settings.merged.general?.debugKeystrokeLogging,
     ],
@@ -982,9 +982,9 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   const geminiClient = config.getGeminiClient();
 
   useEffect(() => {
-    if (activeShellPtyId) {
+    if (activePtyId) {
       ShellExecutionService.resizePty(
-        activeShellPtyId,
+        activePtyId,
         Math.floor(terminalWidth * 0.89),
         Math.floor(availableTerminalHeight - 10),
       );
@@ -993,7 +993,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     terminalHeight,
     terminalWidth,
     availableTerminalHeight,
-    activeShellPtyId,
+    activePtyId,
     geminiClient,
   ]);
 
@@ -1107,7 +1107,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                 isPending={true}
                 config={config}
                 isFocused={!isEditorDialogOpen}
-                activeShellPtyId={activeShellPtyId}
+                activeShellPtyId={activePtyId}
                 shellInputFocused={shellInputFocused}
               />
             ))}
