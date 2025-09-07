@@ -63,11 +63,14 @@ import {
 import { useSessionStats } from '../contexts/SessionContext.js';
 import { useKeypress } from './useKeypress.js';
 import type { LoadedSettings } from '../../config/settings.js';
+import { ContextInjectionManager } from '../../core/context-injection-manager.js';
+import { ReminderHook } from '../../core/reminder-types.js';
 
 enum StreamProcessingStatus {
   Completed,
   UserCancelled,
   Error,
+  RecursiveCall,
 }
 
 function showCitations(settings: LoadedSettings, config: Config): boolean {
@@ -119,6 +122,10 @@ export const useGeminiStream = (
     }
     return new GitService(config.getProjectRoot(), storage);
   }, [config, storage]);
+  const contextInjectionManager = useMemo(
+    () => new ContextInjectionManager(geminiClient, config),
+    [config, logger, geminiClient],
+  );
 
   const [toolCalls, scheduleToolCalls, markToolsAsSubmitted] =
     useReactToolScheduler(
@@ -143,6 +150,7 @@ export const useGeminiStream = (
       setPendingHistoryItem,
       getPreferredEditor,
       onEditorClose,
+      contextInjectionManager,
     );
 
   const pendingToolCallGroupDisplay = useMemo(
@@ -256,6 +264,7 @@ export const useGeminiStream = (
       userMessageTimestamp: number,
       abortSignal: AbortSignal,
       prompt_id: string,
+      reminders?: string[],
     ): Promise<{
       queryToSend: PartListUnion | null;
       shouldProceed: boolean;
@@ -293,7 +302,9 @@ export const useGeminiStream = (
             case 'schedule_tool': {
               const { toolName, toolArgs } = slashCommandResult;
               const toolCallRequest: ToolCallRequestInfo = {
-                callId: `${toolName}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                callId: `${toolName}-${Date.now()}-${Math.random()
+                  .toString(16)
+                  .slice(2)}`,
                 name: toolName,
                 args: toolArgs,
                 isClientInitiated: true,
@@ -366,6 +377,14 @@ export const useGeminiStream = (
         );
         return { queryToSend: null, shouldProceed: false };
       }
+
+      if (reminders && reminders.length > 0) {
+        const reminderText = reminders.join('\n');
+        if (typeof localQueryToSendToGemini === 'string') {
+          localQueryToSendToGemini = `${reminderText}\n${localQueryToSendToGemini}`;
+        }
+      }
+
       return { queryToSend: localQueryToSendToGemini, shouldProceed: true };
     },
     [
@@ -602,7 +621,7 @@ export const useGeminiStream = (
       stream: AsyncIterable<GeminiEvent>,
       userMessageTimestamp: number,
       signal: AbortSignal,
-    ): Promise<StreamProcessingStatus> => {
+    ): Promise<{ status: StreamProcessingStatus; geminiMessageBuffer: string }> => {
       let geminiMessageBuffer = '';
       const toolCallRequests: ToolCallRequestInfo[] = [];
       for await (const event of stream) {
@@ -663,7 +682,8 @@ export const useGeminiStream = (
       if (toolCallRequests.length > 0) {
         scheduleToolCalls(toolCallRequests, signal);
       }
-      return StreamProcessingStatus.Completed;
+
+      return { status: StreamProcessingStatus.Completed, geminiMessageBuffer };
     },
     [
       handleContentEvent,
@@ -680,7 +700,7 @@ export const useGeminiStream = (
   const submitQuery = useCallback(
     async (
       query: PartListUnion,
-      options?: { isContinuation: boolean },
+      options?: { isContinuation: boolean; recursionDepth?: number },
       prompt_id?: string,
     ) => {
       if (
@@ -706,11 +726,23 @@ export const useGeminiStream = (
         prompt_id = config.getSessionId() + '########' + getPromptCount();
       }
 
+      let reminders: string[] | undefined;
+      if (!options?.isContinuation) {
+        const startOfTurnOutput = await contextInjectionManager.processHook(
+          ReminderHook.StartOfTurn,
+          {
+            query,
+          },
+        );
+        reminders = startOfTurnOutput.reminders;
+      }
+
       const { queryToSend, shouldProceed } = await prepareQueryForGemini(
         query,
         userMessageTimestamp,
         abortSignal,
         prompt_id!,
+        reminders,
       );
 
       if (!shouldProceed || queryToSend === null) {
@@ -731,14 +763,34 @@ export const useGeminiStream = (
           abortSignal,
           prompt_id!,
         );
-        const processingStatus = await processGeminiStreamEvents(
-          stream,
-          userMessageTimestamp,
-          abortSignal,
+        const { status, geminiMessageBuffer } =
+          await processGeminiStreamEvents(
+            stream,
+            userMessageTimestamp,
+            abortSignal,
+          );
+
+        if (status === StreamProcessingStatus.UserCancelled) {
+          return;
+        }
+
+        const finalizationOutput = await contextInjectionManager.processHook(
+          ReminderHook.PreResponseFinalization,
+          {
+            modelResponse: geminiMessageBuffer,
+          },
         );
 
-        if (processingStatus === StreamProcessingStatus.UserCancelled) {
-          return;
+        if (finalizationOutput.recursivePayload) {
+          const recursionDepth = options?.recursionDepth ?? 0;
+          if (recursionDepth < 2) {
+            // To prevent infinite loops
+            await submitQuery(finalizationOutput.recursivePayload.query, {
+              isContinuation: true,
+              recursionDepth: recursionDepth + 1,
+            });
+            return;
+          }
         }
 
         if (pendingHistoryItemRef.current) {
@@ -786,6 +838,7 @@ export const useGeminiStream = (
       startNewPrompt,
       getPromptCount,
       handleLoopDetectedEvent,
+      contextInjectionManager,
     ],
   );
 
@@ -881,6 +934,23 @@ export const useGeminiStream = (
       const callIdsToMarkAsSubmitted = geminiTools.map(
         (toolCall) => toolCall.request.callId,
       );
+
+      const postExecOutput = await contextInjectionManager.processHook(
+        ReminderHook.PostToolExecution,
+        {
+          completedToolCalls: geminiTools,
+        },
+      );
+
+      if (postExecOutput.reminders.length > 0) {
+        const reminderText = postExecOutput.reminders.join('\n');
+        if (responsesToSend.length > 0) {
+          const lastResponse = responsesToSend[responsesToSend.length - 1];
+          if ('toolResponse' in lastResponse && (lastResponse as any).toolResponse) {
+            (lastResponse as any).toolResponse.output += `\n${reminderText}`;
+          }
+        }
+      }
 
       const prompt_ids = geminiTools.map(
         (toolCall) => toolCall.request.prompt_id,

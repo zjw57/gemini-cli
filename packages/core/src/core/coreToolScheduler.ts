@@ -38,6 +38,17 @@ import * as path from 'node:path';
 import { doesToolInvocationMatch } from '../utils/tool-utils.js';
 import levenshtein from 'fast-levenshtein';
 
+export interface CIMOutput {
+  reminders: string[]; // Formatted XML strings
+  blockAction?: boolean; // For Hook B to prevent tool execution
+  promptForConfirmation?: string; // For Hook B to ask user
+  recursivePayload?: any; // For Hook D to re-trigger model call
+}
+
+export interface ContextInjectionManager {
+  processHook(hook: string, payload: any): Promise<CIMOutput>;
+}
+
 export type ValidatingToolCall = {
   status: 'validating';
   request: ToolCallRequestInfo;
@@ -317,6 +328,7 @@ interface CoreToolSchedulerOptions {
   onToolCallsUpdate?: ToolCallsUpdateHandler;
   getPreferredEditor: () => EditorType | undefined;
   onEditorClose: () => void;
+  contextInjectionManager?: ContextInjectionManager;
 }
 
 export class CoreToolScheduler {
@@ -336,6 +348,7 @@ export class CoreToolScheduler {
     resolve: () => void;
     reject: (reason?: Error) => void;
   }> = [];
+  private contextInjectionManager?: ContextInjectionManager;
 
   constructor(options: CoreToolSchedulerOptions) {
     this.config = options.config;
@@ -345,6 +358,7 @@ export class CoreToolScheduler {
     this.onToolCallsUpdate = options.onToolCallsUpdate;
     this.getPreferredEditor = options.getPreferredEditor;
     this.onEditorClose = options.onEditorClose;
+    this.contextInjectionManager = options.contextInjectionManager;
   }
 
   private setStatusInternal(
@@ -653,7 +667,50 @@ export class CoreToolScheduler {
           'Cannot schedule new tool calls while other tool calls are actively running (executing or awaiting approval).',
         );
       }
-      const requestsToProcess = Array.isArray(request) ? request : [request];
+      let requestsToProcess = Array.isArray(request) ? request : [request];
+
+      if (this.contextInjectionManager) {
+        const cimResult = await this.contextInjectionManager.processHook(
+          'pre_tool_execution',
+          { requestsToProcess },
+        );
+        if (cimResult.blockAction) {
+          const reminder =
+            cimResult.reminders.join('\n') ||
+            'Action blocked by security policy.';
+          const erroredCalls: ToolCall[] = requestsToProcess.map(
+            (reqInfo): ErroredToolCall => {
+              const toolInstance = this.toolRegistry.getTool(reqInfo.name);
+              return {
+                status: 'error',
+                request: reqInfo,
+                tool: toolInstance,
+                response: createErrorResponse(
+                  reqInfo,
+                  new Error(reminder),
+                  ToolErrorType.UNHANDLED_EXCEPTION,
+                ),
+                durationMs: 0,
+              };
+            },
+          );
+          this.toolCalls = this.toolCalls.concat(erroredCalls);
+          this.notifyToolCallsUpdate();
+          void this.checkAndNotifyCompletion();
+          return;
+        }
+
+        if (cimResult.promptForConfirmation) {
+          const shellRequest = requestsToProcess.find(
+            (r) => r.name === 'run_shell_command',
+          );
+          if (shellRequest) {
+            // Add a marker to the request object
+            (shellRequest as any).cimConfirmation =
+              cimResult.promptForConfirmation;
+          }
+        }
+      }
 
       const newToolCalls: ToolCall[] = requestsToProcess.map(
         (reqInfo): ToolCall => {

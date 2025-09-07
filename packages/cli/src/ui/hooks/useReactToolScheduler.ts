@@ -19,6 +19,7 @@ import type {
   ToolCall,
   Status as CoreStatus,
   EditorType,
+  ContextInjectionManager,
 } from '@google/gemini-cli-core';
 import { CoreToolScheduler } from '@google/gemini-cli-core';
 import { useCallback, useState, useMemo } from 'react';
@@ -70,6 +71,7 @@ export function useReactToolScheduler(
   >,
   getPreferredEditor: () => EditorType | undefined,
   onEditorClose: () => void,
+  contextInjectionManager?: ContextInjectionManager,
 ): [TrackedToolCall[], ScheduleFn, MarkToolsAsSubmittedFn] {
   const [toolCallsForDisplay, setToolCallsForDisplay] = useState<
     TrackedToolCall[]
@@ -140,6 +142,7 @@ export function useReactToolScheduler(
         getPreferredEditor,
         config,
         onEditorClose,
+        contextInjectionManager,
       }),
     [
       config,
@@ -148,6 +151,7 @@ export function useReactToolScheduler(
       toolCallsUpdateHandler,
       getPreferredEditor,
       onEditorClose,
+      contextInjectionManager,
     ],
   );
 
