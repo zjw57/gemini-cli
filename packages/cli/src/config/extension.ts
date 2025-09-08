@@ -4,9 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-  MCPServerConfig,
-  GeminiCLIExtension,
+import {
+  type MCPServerConfig,
+  type GeminiCLIExtension,
+  ExtensionInstallEvent,
+  ExtensionUninstallEvent,
+  ExtensionEnableEvent,
+  ExtensionDisableEvent,
+  ExtensionInstallErrorEvent,
+  ExtensionUninstallErrorEvent,
 } from '@google/gemini-cli-core';
 import { GEMINI_DIR, Storage } from '@google/gemini-cli-core';
 import * as fs from 'node:fs';
@@ -18,6 +24,15 @@ import { getErrorMessage } from '../utils/errors.js';
 import { recursivelyHydrateStrings } from './extensions/variables.js';
 import { isWorkspaceTrusted } from './trustedFolders.js';
 import { resolveEnvVarsInObject } from '../utils/envVarResolver.js';
+import {
+  logExtensionDisable,
+  logExtensionEnable,
+  logExtensionInstall,
+  logExtensionInstallError,
+  logExtensionUninstall,
+  logExtensionUninstallError,
+} from '@google/gemini-cli-core';
+import { getLoggingConfig } from './config.js';
 
 export const EXTENSIONS_DIRECTORY_NAME = path.join(GEMINI_DIR, 'extensions');
 
@@ -413,6 +428,26 @@ export async function installExtension(
     const metadataString = JSON.stringify(installMetadata, null, 2);
     const metadataPath = path.join(destinationPath, INSTALL_METADATA_FILENAME);
     await fs.promises.writeFile(metadataPath, metadataString);
+    const config = await getLoggingConfig(cwd);
+    await logExtensionInstall(
+      config,
+      new ExtensionInstallEvent(
+        newExtensionName,
+        installMetadata.source,
+        installMetadata.type,
+      ),
+    );
+  } catch (e) {
+    const config = await getLoggingConfig(cwd);
+    await logExtensionInstallError(
+      config,
+      new ExtensionInstallErrorEvent(
+        installMetadata.source,
+        installMetadata.type,
+        getErrorMessage(e),
+      ),
+    );
+    throw e;
   } finally {
     if (tempDir) {
       await fs.promises.rm(tempDir, { recursive: true, force: true });
@@ -449,24 +484,35 @@ export async function uninstallExtension(
   extensionName: string,
   cwd: string = process.cwd(),
 ): Promise<void> {
-  const installedExtensions = loadUserExtensions();
-  if (
-    !installedExtensions.some(
-      (installed) => installed.config.name === extensionName,
-    )
-  ) {
-    throw new Error(`Extension "${extensionName}" not found.`);
+  try {
+    const installedExtensions = loadUserExtensions();
+    if (
+      !installedExtensions.some(
+        (installed) => installed.config.name === extensionName,
+      )
+    ) {
+      throw new Error(`Extension "${extensionName}" not found.`);
+    }
+    removeFromDisabledExtensions(
+      extensionName,
+      [SettingScope.User, SettingScope.Workspace],
+      cwd,
+    );
+    const storage = new ExtensionStorage(extensionName);
+    const config = await getLoggingConfig(cwd);
+    logExtensionUninstall(config, new ExtensionUninstallEvent(extensionName));
+    return await fs.promises.rm(storage.getExtensionDir(), {
+      recursive: true,
+      force: true,
+    });
+  } catch (e) {
+    const config = await getLoggingConfig(cwd);
+    logExtensionUninstallError(
+      config,
+      new ExtensionUninstallErrorEvent(extensionName, getErrorMessage(e)),
+    );
+    throw e;
   }
-  removeFromDisabledExtensions(
-    extensionName,
-    [SettingScope.User, SettingScope.Workspace],
-    cwd,
-  );
-  const storage = new ExtensionStorage(extensionName);
-  return await fs.promises.rm(storage.getExtensionDir(), {
-    recursive: true,
-    force: true,
-  });
 }
 
 export function toOutputString(extension: Extension): string {
@@ -554,7 +600,7 @@ export async function updateExtension(
   }
 }
 
-export function disableExtension(
+export async function disableExtension(
   name: string,
   scope: SettingScope,
   cwd: string = process.cwd(),
@@ -572,11 +618,19 @@ export function disableExtension(
     disabledExtensions.push(name);
     extensionSettings.disabled = disabledExtensions;
     settings.setValue(scope, 'extensions', extensionSettings);
+    const config = await getLoggingConfig(cwd);
+    logExtensionDisable(config, new ExtensionDisableEvent(name));
   }
 }
 
-export function enableExtension(name: string, scopes: SettingScope[]) {
+export async function enableExtension(
+  name: string,
+  scopes: SettingScope[],
+  cwd: string = process.cwd(),
+) {
   removeFromDisabledExtensions(name, scopes);
+  const config = await getLoggingConfig(cwd);
+  logExtensionEnable(config, new ExtensionEnableEvent(name));
 }
 
 /**

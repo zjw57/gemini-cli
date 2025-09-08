@@ -160,9 +160,9 @@ export function initializeTelemetry(config: Config): void {
 
   try {
     sdk.start();
-    if (config.getDebugMode()) {
-      console.log('OpenTelemetry SDK started successfully.');
-    }
+    // if (config.getDebugMode()) {
+    console.log('OpenTelemetry SDK started successfully.');
+    // }
     telemetryInitialized = true;
     initializeMetrics(config);
   } catch (error) {

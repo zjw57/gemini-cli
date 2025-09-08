@@ -629,6 +629,49 @@ export async function loadCliConfig(
   });
 }
 
+export async function getLoggingConfig(
+  cwd: string = process.cwd(),
+): Promise<Config> {
+  const { loadSettings } = await import('./settings.js');
+  const settings = loadSettings(cwd).merged;
+  // Create a minimal argv object, but populate it with telemetry settings
+  // to ensure they are respected.
+  const argv: CliArgs = {
+    model: undefined,
+    sandbox: undefined,
+    sandboxImage: undefined,
+    debug: undefined,
+    prompt: undefined,
+    promptInteractive: undefined,
+    allFiles: undefined,
+    showMemoryUsage: undefined,
+    yolo: undefined,
+    approvalMode: undefined,
+    telemetry: settings.telemetry?.enabled,
+    checkpointing: undefined,
+    telemetryTarget: settings.telemetry?.target,
+    telemetryOtlpEndpoint: settings.telemetry?.otlpEndpoint,
+    telemetryOtlpProtocol: settings.telemetry?.otlpProtocol,
+    telemetryLogPrompts: settings.telemetry?.logPrompts,
+    telemetryOutfile: settings.telemetry?.outfile,
+    allowedMcpServerNames: undefined,
+    allowedTools: undefined,
+    experimentalAcp: undefined,
+    extensions: undefined,
+    listExtensions: undefined,
+    proxy: undefined,
+    includeDirectories: undefined,
+    screenReader: undefined,
+    useSmartEdit: undefined,
+    sessionSummary: undefined,
+    promptWords: undefined,
+  };
+  const sessionId = Date.now().toString();
+
+  // Pass empty extensions array to avoid any extension loading logic.
+  return await loadCliConfig(settings, [], sessionId, argv, cwd);
+}
+
 function allowedMcpServers(
   mcpServers: { [x: string]: MCPServerConfig },
   allowMCPServers: string[],

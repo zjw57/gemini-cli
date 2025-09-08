@@ -27,6 +27,12 @@ import {
   EVENT_CONTENT_RETRY,
   EVENT_CONTENT_RETRY_FAILURE,
   EVENT_FILE_OPERATION,
+  EVENT_EXTENSION_INSTALL,
+  EVENT_EXTENSION_UNINSTALL,
+  EVENT_EXTENSION_ENABLE,
+  EVENT_EXTENSION_DISABLE,
+  EVENT_EXTENSION_INSTALL_ERROR,
+  EVENT_EXTENSION_UNINSTALL_ERROR,
 } from './constants.js';
 import type {
   ApiErrorEvent,
@@ -48,6 +54,12 @@ import type {
   InvalidChunkEvent,
   ContentRetryEvent,
   ContentRetryFailureEvent,
+  ExtensionInstallEvent,
+  ExtensionUninstallEvent,
+  ExtensionEnableEvent,
+  ExtensionDisableEvent,
+  ExtensionInstallErrorEvent,
+  ExtensionUninstallErrorEvent,
 } from './types.js';
 import {
   recordApiErrorMetrics,
@@ -612,4 +624,132 @@ export function logContentRetryFailure(
   };
   logger.emit(logRecord);
   recordContentRetryFailure(config);
+}
+
+export async function logExtensionInstall(
+  config: Config,
+  event: ExtensionInstallEvent,
+): Promise<void> {
+  await ClearcutLogger.getInstance(config)?.logExtensionInstallEvent(event);
+  if (!isTelemetrySdkInitialized()) return;
+
+  const attributes: LogAttributes = {
+    ...getCommonAttributes(config),
+    ...event,
+    'event.name': EVENT_EXTENSION_INSTALL,
+  };
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const logRecord: LogRecord = {
+    body: `Extension installed: ${event.extension_name}.`,
+    attributes,
+  };
+  logger.emit(logRecord);
+}
+
+export function logExtensionUninstall(
+  config: Config,
+  event: ExtensionUninstallEvent,
+): void {
+  ClearcutLogger.getInstance(config)?.logExtensionUninstallEvent(event);
+  if (!isTelemetrySdkInitialized()) return;
+
+  const attributes: LogAttributes = {
+    ...getCommonAttributes(config),
+    ...event,
+    'event.name': EVENT_EXTENSION_UNINSTALL,
+  };
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const logRecord: LogRecord = {
+    body: `Extension uninstalled: ${event.extension_name}.`,
+    attributes,
+  };
+  logger.emit(logRecord);
+}
+
+export function logExtensionEnable(
+  config: Config,
+  event: ExtensionEnableEvent,
+): void {
+  ClearcutLogger.getInstance(config)?.logExtensionEnableEvent(event);
+  if (!isTelemetrySdkInitialized()) return;
+
+  const attributes: LogAttributes = {
+    ...getCommonAttributes(config),
+    ...event,
+    'event.name': EVENT_EXTENSION_ENABLE,
+  };
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const logRecord: LogRecord = {
+    body: `Extension enabled: ${event.extension_name}.`,
+    attributes,
+  };
+  logger.emit(logRecord);
+}
+
+export function logExtensionDisable(
+  config: Config,
+  event: ExtensionDisableEvent,
+): void {
+  ClearcutLogger.getInstance(config)?.logExtensionDisableEvent(event);
+  if (!isTelemetrySdkInitialized()) return;
+
+  const attributes: LogAttributes = {
+    ...getCommonAttributes(config),
+    ...event,
+    'event.name': EVENT_EXTENSION_DISABLE,
+  };
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const logRecord: LogRecord = {
+    body: `Extension disabled: ${event.extension_name}.`,
+    attributes,
+  };
+  logger.emit(logRecord);
+}
+
+export async function logExtensionInstallError(
+  config: Config,
+  event: ExtensionInstallErrorEvent,
+): Promise<void> {
+  await ClearcutLogger.getInstance(config)?.logExtensionInstallErrorEvent(
+    event,
+  );
+  if (!isTelemetrySdkInitialized()) return;
+
+  const attributes: LogAttributes = {
+    ...getCommonAttributes(config),
+    ...event,
+    'event.name': EVENT_EXTENSION_INSTALL_ERROR,
+  };
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const logRecord: LogRecord = {
+    body: `Extension install error: ${event.source}.`,
+    attributes,
+  };
+  logger.emit(logRecord);
+}
+
+export function logExtensionUninstallError(
+  config: Config,
+  event: ExtensionUninstallErrorEvent,
+): void {
+  ClearcutLogger.getInstance(config)?.logExtensionUninstallErrorEvent(event);
+  if (!isTelemetrySdkInitialized()) return;
+
+  const attributes: LogAttributes = {
+    ...getCommonAttributes(config),
+    ...event,
+    'event.name': EVENT_EXTENSION_UNINSTALL_ERROR,
+  };
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const logRecord: LogRecord = {
+    body: `Extension uninstall error: ${event.extension_name}.`,
+    attributes,
+  };
+  logger.emit(logRecord);
 }

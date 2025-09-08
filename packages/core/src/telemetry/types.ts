@@ -502,6 +502,92 @@ export class ContentRetryFailureEvent implements BaseTelemetryEvent {
   }
 }
 
+export class ExtensionInstallEvent implements BaseTelemetryEvent {
+  'event.name': 'extension_install';
+  'event.timestamp': string;
+  extension_name: string;
+  source: string;
+  type: 'git' | 'local' | 'link';
+
+  constructor(
+    extension_name: string,
+    source: string,
+    type: 'git' | 'local' | 'link',
+  ) {
+    this['event.name'] = 'extension_install';
+    this['event.timestamp'] = new Date().toISOString();
+    this.extension_name = extension_name;
+    this.source = source;
+    this.type = type;
+  }
+}
+
+export class ExtensionUninstallEvent implements BaseTelemetryEvent {
+  'event.name': 'extension_uninstall';
+  'event.timestamp': string;
+  extension_name: string;
+
+  constructor(extension_name: string) {
+    this['event.name'] = 'extension_uninstall';
+    this['event.timestamp'] = new Date().toISOString();
+    this.extension_name = extension_name;
+  }
+}
+
+export class ExtensionEnableEvent implements BaseTelemetryEvent {
+  'event.name': 'extension_enable';
+  'event.timestamp': string;
+  extension_name: string;
+
+  constructor(extension_name: string) {
+    this['event.name'] = 'extension_enable';
+    this['event.timestamp'] = new Date().toISOString();
+    this.extension_name = extension_name;
+  }
+}
+
+export class ExtensionDisableEvent implements BaseTelemetryEvent {
+  'event.name': 'extension_disable';
+  'event.timestamp': string;
+  extension_name: string;
+
+  constructor(extension_name: string) {
+    this['event.name'] = 'extension_disable';
+    this['event.timestamp'] = new Date().toISOString();
+    this.extension_name = extension_name;
+  }
+}
+
+export class ExtensionInstallErrorEvent implements BaseTelemetryEvent {
+  'event.name': 'extension_install_error';
+  'event.timestamp': string;
+  source: string;
+  type: 'git' | 'local' | 'link';
+  error: string;
+
+  constructor(source: string, type: 'git' | 'local' | 'link', error: string) {
+    this['event.name'] = 'extension_install_error';
+    this['event.timestamp'] = new Date().toISOString();
+    this.source = source;
+    this.type = type;
+    this.error = error;
+  }
+}
+
+export class ExtensionUninstallErrorEvent implements BaseTelemetryEvent {
+  'event.name': 'extension_uninstall_error';
+  'event.timestamp': string;
+  extension_name: string;
+  error: string;
+
+  constructor(extension_name: string, error: string) {
+    this['event.name'] = 'extension_uninstall_error';
+    this['event.timestamp'] = new Date().toISOString();
+    this.extension_name = extension_name;
+    this.error = error;
+  }
+}
+
 export type TelemetryEvent =
   | StartSessionEvent
   | EndSessionEvent
@@ -521,4 +607,10 @@ export type TelemetryEvent =
   | FileOperationEvent
   | InvalidChunkEvent
   | ContentRetryEvent
-  | ContentRetryFailureEvent;
+  | ContentRetryFailureEvent
+  | ExtensionInstallEvent
+  | ExtensionUninstallEvent
+  | ExtensionEnableEvent
+  | ExtensionDisableEvent
+  | ExtensionInstallErrorEvent
+  | ExtensionUninstallErrorEvent;

@@ -24,6 +24,12 @@ import type {
   InvalidChunkEvent,
   ContentRetryEvent,
   ContentRetryFailureEvent,
+  ExtensionInstallEvent,
+  ExtensionUninstallEvent,
+  ExtensionEnableEvent,
+  ExtensionDisableEvent,
+  ExtensionUninstallErrorEvent,
+  ExtensionInstallErrorEvent,
 } from '../types.js';
 import { EventMetadataKey } from './event-metadata-key.js';
 import type { Config } from '../../config/config.js';
@@ -55,6 +61,10 @@ export enum EventNames {
   INVALID_CHUNK = 'invalid_chunk',
   CONTENT_RETRY = 'content_retry',
   CONTENT_RETRY_FAILURE = 'content_retry_failure',
+  EXTENSION_INSTALL = 'extension_install',
+  EXTENSION_UNINSTALL = 'extension_uninstall',
+  EXTENSION_ENABLE = 'extension_enable',
+  EXTENSION_DISABLE = 'extension_disable',
 }
 
 export interface LogResponse {
@@ -306,9 +316,9 @@ export class ClearcutLogger {
         this.requeueFailedEvents(eventsToSend);
       }
     } catch (e: unknown) {
-      if (this.config?.getDebugMode()) {
-        console.error('Error flushing log events:', e as Error);
-      }
+      // if (this.config?.getDebugMode()) {
+      console.error('Error flushing log events:', e as Error);
+      // }
 
       // Re-queue failed events for retry
       this.requeueFailedEvents(eventsToSend);
@@ -321,9 +331,9 @@ export class ClearcutLogger {
       this.pendingFlush = false;
       // Fire and forget the pending flush
       this.flushToClearcut().catch((error) => {
-        if (this.config?.getDebugMode()) {
-          console.debug('Error in pending flush to Clearcut:', error);
-        }
+        // if (this.config?.getDebugMode()) {
+        console.debug('Error in pending flush to Clearcut:', error);
+        // }
       });
     }
 
@@ -825,6 +835,106 @@ export class ClearcutLogger {
     this.flushIfNeeded();
   }
 
+  async logExtensionInstallEvent(event: ExtensionInstallEvent): Promise<void> {
+    const data: EventValue[] = [
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_NAME,
+        value: event.extension_name,
+      },
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_SOURCE,
+        value: event.source,
+      },
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_TYPE,
+        value: event.type,
+      },
+    ];
+
+    this.enqueueLogEvent(
+      this.createLogEvent(EventNames.EXTENSION_INSTALL, data),
+    );
+
+    // I think we need to await this???
+    await this.flushToClearcut();
+  }
+
+  async logExtensionInstallErrorEvent(
+    event: ExtensionInstallErrorEvent,
+  ): Promise<void> {
+    const data: EventValue[] = [
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_SOURCE,
+        value: event.source,
+      },
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_TYPE,
+        value: event.type,
+      },
+    ];
+
+    this.enqueueLogEvent(
+      this.createLogEvent(EventNames.EXTENSION_INSTALL, data),
+    );
+    await this.flushToClearcut();
+  }
+
+  logExtensionUninstallEvent(event: ExtensionUninstallEvent): void {
+    const data: EventValue[] = [
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_NAME,
+        value: event.extension_name,
+      },
+    ];
+
+    this.enqueueLogEvent(
+      this.createLogEvent(EventNames.EXTENSION_UNINSTALL, data),
+    );
+    this.flushIfNeeded();
+  }
+
+  logExtensionUninstallErrorEvent(event: ExtensionUninstallErrorEvent): void {
+    const data: EventValue[] = [
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_NAME,
+        value: event.extension_name,
+      },
+    ];
+
+    this.enqueueLogEvent(
+      this.createLogEvent(EventNames.EXTENSION_UNINSTALL, data),
+    );
+    this.flushIfNeeded();
+  }
+
+  logExtensionEnableEvent(event: ExtensionEnableEvent): void {
+    const data: EventValue[] = [
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_NAME,
+        value: event.extension_name,
+      },
+    ];
+
+    this.enqueueLogEvent(
+      this.createLogEvent(EventNames.EXTENSION_ENABLE, data),
+    );
+    this.flushIfNeeded();
+  }
+
+  logExtensionDisableEvent(event: ExtensionDisableEvent): void {
+    const data: EventValue[] = [
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_NAME,
+        value: event.extension_name,
+      },
+    ];
+
+    this.enqueueLogEvent(
+      this.createLogEvent(EventNames.EXTENSION_DISABLE, data),
+    );
+    this.flushIfNeeded();
+  }
+
   /**
    * Adds default fields to data, and returns a new data array.  This fields
    * should exist on all log events.
@@ -893,8 +1003,8 @@ export class ClearcutLogger {
     }
   }
 
-  shutdown() {
-    this.logEndSessionEvent();
+  shutdown(): Promise<void> {
+    return this.flushToClearcut().then(() => {});
   }
 
   private requeueFailedEvents(eventsToSend: LogEventEntry[][]): void {

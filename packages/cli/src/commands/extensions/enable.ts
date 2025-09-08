@@ -19,7 +19,7 @@ export async function handleEnable(args: EnableArgs) {
     const scopes = args.scope
       ? [args.scope]
       : [SettingScope.User, SettingScope.Workspace];
-    enableExtension(args.name, scopes);
+    await enableExtension(args.name, scopes);
     if (args.scope) {
       console.log(
         `Extension "${args.name}" successfully enabled for scope "${args.scope}".`,

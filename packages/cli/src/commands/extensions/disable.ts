@@ -16,7 +16,7 @@ interface DisableArgs {
 
 export async function handleDisable(args: DisableArgs) {
   try {
-    disableExtension(args.name, args.scope);
+    await disableExtension(args.name, args.scope);
     console.log(
       `Extension "${args.name}" successfully disabled for scope "${args.scope}".`,
     );

@@ -25,6 +25,14 @@ export const EVENT_CONTENT_RETRY = 'gemini_cli.chat.content_retry';
 export const EVENT_CONTENT_RETRY_FAILURE =
   'gemini_cli.chat.content_retry_failure';
 export const EVENT_FILE_OPERATION = 'gemini_cli.file_operation';
+export const EVENT_EXTENSION_INSTALL = 'gemini_cli.extension_install';
+export const EVENT_EXTENSION_UNINSTALL = 'gemini_cli.extension_uninstall';
+export const EVENT_EXTENSION_ENABLE = 'gemini_cli.extension_enable';
+export const EVENT_EXTENSION_DISABLE = 'gemini_cli.extension_disable';
+export const EVENT_EXTENSION_INSTALL_ERROR =
+  'gemini_cli.extension_install_error';
+export const EVENT_EXTENSION_UNINSTALL_ERROR =
+  'gemini_cli.extension_uninstall_error';
 export const METRIC_TOOL_CALL_COUNT = 'gemini_cli.tool.call.count';
 export const METRIC_TOOL_CALL_LATENCY = 'gemini_cli.tool.call.latency';
 export const METRIC_API_REQUEST_COUNT = 'gemini_cli.api.request.count';
