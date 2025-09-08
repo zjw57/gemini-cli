@@ -45,3 +45,5 @@ jobs:
         working-directory: '/app'
         run: |
           poetry run exp_run --experiment-config-name gcli_2.5_pro
+          cat experiments/*/*/artifacts/summary_stats.md
+          cat experiments/*/*/result.json
