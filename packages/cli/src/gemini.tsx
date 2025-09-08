@@ -37,6 +37,8 @@ import {
   AuthType,
   getOauthClient,
   uiTelemetryService,
+  recordMemoryMetrics,
+  recordOomError,
 } from '@google/gemini-cli-core';
 import {
   initializeApp,
@@ -87,6 +89,13 @@ function getNodeMemoryArgs(config: Config): string[] {
       `Current heap size ${currentMaxOldSpaceSizeMb.toFixed(2)} MB`,
     );
   }
+
+  recordMemoryMetrics(
+    config,
+    targetMaxOldSpaceSizeInMB,
+    heapStats.total_heap_size,
+    heapStats.used_heap_size,
+  );
 
   if (process.env['GEMINI_CLI_NO_RELAUNCH']) {
     return [];
@@ -247,6 +256,13 @@ export async function main() {
     sessionId,
     argv,
   );
+
+  process.on('uncaughtException', (err) => {
+    if (err.name === 'Error' && err.message.includes('out of memory')) {
+      recordOomError(config);
+    }
+    throw err;
+  });
 
   const wasRaw = process.stdin.isRaw;
   let kittyProtocolDetectionComplete: Promise<boolean> | undefined;
