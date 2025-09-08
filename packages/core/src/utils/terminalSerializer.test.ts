@@ -12,6 +12,9 @@ import {
   ColorMode,
 } from './terminalSerializer.js';
 
+const RED_FG = '\x1b[31m';
+const RESET = '\x1b[0m';
+
 function writeToTerminal(terminal: Terminal, data: string): Promise<void> {
   return new Promise((resolve) => {
     terminal.write(data, resolve);
@@ -125,7 +128,7 @@ describe('terminalSerializer', () => {
         rows: 24,
         allowProposedApi: true,
       });
-      await writeToTerminal(terminal, '\x1b[31mRed text\x1b[0m');
+      await writeToTerminal(terminal, `${RED_FG}Red text${RESET}`);
       const result = serializeTerminalToObject(terminal);
       expect(result[0][0].fg).toBe('#800000');
       expect(result[0][0].text).toBe('Red text');

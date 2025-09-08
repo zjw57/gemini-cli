@@ -74,6 +74,10 @@ describe('ShellExecutionService', () => {
     write: Mock;
     resize: Mock;
   };
+  let mockHeadlessTerminal: {
+    resize: Mock;
+    scrollLines: Mock;
+  };
   let onOutputEventMock: Mock<(event: ShellOutputEvent) => void>;
 
   beforeEach(() => {
@@ -102,6 +106,11 @@ describe('ShellExecutionService', () => {
     mockPtyProcess.onExit = vi.fn();
     mockPtyProcess.write = vi.fn();
     mockPtyProcess.resize = vi.fn();
+
+    mockHeadlessTerminal = {
+      resize: vi.fn(),
+      scrollLines: vi.fn(),
+    };
 
     mockPtySpawn.mockReturnValue(mockPtyProcess);
   });
@@ -212,6 +221,15 @@ describe('ShellExecutionService', () => {
   });
 
   describe('pty interaction', () => {
+    beforeEach(() => {
+      vi.spyOn(ShellExecutionService['activePtys'], 'get').mockReturnValue({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ptyProcess: mockPtyProcess as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        headlessTerminal: mockHeadlessTerminal as any,
+      });
+    });
+
     it('should write to the pty and trigger a render', async () => {
       vi.useFakeTimers();
       await simulateExecution('interactive-app', (pty) => {
@@ -227,14 +245,25 @@ describe('ShellExecutionService', () => {
       vi.useRealTimers();
     });
 
-    it('should resize the pty', async () => {
+    it('should resize the pty and the headless terminal', async () => {
       await simulateExecution('ls -l', (pty) => {
         pty.onData.mock.calls[0][0]('file1.txt\n');
-        ShellExecutionService.resizePty(pty.pid!, 30, 24);
+        ShellExecutionService.resizePty(pty.pid!, 100, 40);
         pty.onExit.mock.calls[0][0]({ exitCode: 0, signal: null });
       });
 
-      expect(mockPtyProcess.resize).toHaveBeenCalledWith(30, 24);
+      expect(mockPtyProcess.resize).toHaveBeenCalledWith(100, 40);
+      expect(mockHeadlessTerminal.resize).toHaveBeenCalledWith(100, 40);
+    });
+
+    it('should scroll the headless terminal', async () => {
+      await simulateExecution('ls -l', (pty) => {
+        pty.onData.mock.calls[0][0]('file1.txt\n');
+        ShellExecutionService.scrollPty(pty.pid!, 10);
+        pty.onExit.mock.calls[0][0]({ exitCode: 0, signal: null });
+      });
+
+      expect(mockHeadlessTerminal.scrollLines).toHaveBeenCalledWith(10);
     });
   });
 
