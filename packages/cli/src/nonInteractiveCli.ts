@@ -70,7 +70,7 @@ export async function runNonInteractive(
       { role: 'user', parts: processedQuery as Part[] },
     ];
 
-    const subAgentName = process.env['SUBAGENT_NAME'];
+    const subAgentName = process.env['GEMINI_SUBAGENT_NAME'];
 
     if (subAgentName) {
       const toolRegistry = config.getToolRegistry();
