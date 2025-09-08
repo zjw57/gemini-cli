@@ -26,11 +26,14 @@ import {
   type SettingsSchema,
   type SettingDefinition,
   getSettingsSchema,
+  getDefaultSettings,
 } from './settingsSchema.js';
 import { resolveEnvVarsInObject } from '../utils/envVarResolver.js';
 import { customDeepMerge } from '../utils/deepMerge.js';
 
-function getMergeStrategyForPath(path: string[]): MergeStrategy | undefined {
+export function getMergeStrategyForPath(
+  path: string[],
+): MergeStrategy | undefined {
   let current: SettingDefinition | undefined = undefined;
   let currentSchema: SettingsSchema | undefined = getSettingsSchema();
 
@@ -321,6 +324,7 @@ export function migrateSettingsToV1(
 }
 
 function mergeSettings(
+  schemaDefaults: Settings,
   system: Settings,
   systemDefaults: Settings,
   user: Settings,
@@ -331,13 +335,15 @@ function mergeSettings(
 
   // Settings are merged with the following precedence (last one wins for
   // single values):
-  // 1. System Defaults
-  // 2. User Settings
-  // 3. Workspace Settings
-  // 4. System Settings (as overrides)
+  // 1. Programmatic Defaults
+  // 2. System Defaults
+  // 3. User Settings
+  // 4. Workspace Settings
+  // 5. System Settings (as overrides)
   return customDeepMerge(
     getMergeStrategyForPath,
     {}, // Start with an empty object
+    schemaDefaults,
     systemDefaults,
     user,
     safeWorkspace,
@@ -353,6 +359,7 @@ export class LoadedSettings {
     workspace: SettingsFile,
     isTrusted: boolean,
     migratedInMemorScopes: Set<SettingScope>,
+    schemaDefaults: Settings,
   ) {
     this.system = system;
     this.systemDefaults = systemDefaults;
@@ -360,6 +367,7 @@ export class LoadedSettings {
     this.workspace = workspace;
     this.isTrusted = isTrusted;
     this.migratedInMemorScopes = migratedInMemorScopes;
+    this.schemaDefaults = schemaDefaults;
     this._merged = this.computeMergedSettings();
   }
 
@@ -369,6 +377,7 @@ export class LoadedSettings {
   readonly workspace: SettingsFile;
   readonly isTrusted: boolean;
   readonly migratedInMemorScopes: Set<SettingScope>;
+  readonly schemaDefaults: Settings;
 
   private _merged: Settings;
 
@@ -378,6 +387,7 @@ export class LoadedSettings {
 
   private computeMergedSettings(): Settings {
     return mergeSettings(
+      this.schemaDefaults,
       this.system.settings,
       this.systemDefaults.settings,
       this.user.settings,
@@ -617,10 +627,13 @@ export function loadSettings(
     workspaceSettings.ui.theme = DefaultDark.name;
   }
 
+  const schemaDefaults = getDefaultSettings();
+
   // For the initial trust check, we can only use user and system settings.
   const initialTrustCheckSettings = customDeepMerge(
     getMergeStrategyForPath,
     {},
+    schemaDefaults,
     systemSettings,
     userSettings,
   );
@@ -629,6 +642,7 @@ export function loadSettings(
 
   // Create a temporary merged settings object to pass to loadEnvironment.
   const tempMergedSettings = mergeSettings(
+    schemaDefaults,
     systemSettings,
     systemDefaultSettings,
     userSettings,
@@ -675,7 +689,34 @@ export function loadSettings(
     },
     isTrusted,
     migratedInMemorScopes,
+    schemaDefaults,
   );
+}
+
+/**
+ * Removes properties from a settings object that match the default values.
+ * This is used to keep the saved settings files clean and only contain overrides.
+ * @param settings The settings object to filter.
+ * @param defaults The default settings object to compare against.
+ * @returns A new settings object containing only the non-default values.
+ */
+function removeDefaultValues(
+  settings: Record<string, unknown>,
+  defaults: Record<string, unknown>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const key in settings) {
+    if (Object.hasOwn(settings, key)) {
+      // Keep the setting if the default doesn't exist or the value is different.
+      if (
+        !Object.hasOwn(defaults, key) ||
+        JSON.stringify(settings[key]) !== JSON.stringify(defaults[key])
+      ) {
+        result[key] = settings[key];
+      }
+    }
+  }
+  return result;
 }
 
 export function saveSettings(settingsFile: SettingsFile): void {
@@ -693,9 +734,20 @@ export function saveSettings(settingsFile: SettingsFile): void {
       ) as Settings;
     }
 
+    // Get V1 defaults to compare against.
+    const v2Defaults = getDefaultSettings();
+    const v1Defaults = migrateSettingsToV1(
+      v2Defaults as Record<string, unknown>,
+    );
+
+    const settingsWithoutDefaults = removeDefaultValues(
+      settingsToSave as Record<string, unknown>,
+      v1Defaults,
+    );
+
     fs.writeFileSync(
       settingsFile.path,
-      JSON.stringify(settingsToSave, null, 2),
+      JSON.stringify(settingsWithoutDefaults, null, 2),
       'utf-8',
     );
   } catch (error) {

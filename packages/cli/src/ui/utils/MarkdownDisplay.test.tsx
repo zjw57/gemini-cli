@@ -25,6 +25,7 @@ describe('<MarkdownDisplay />', () => {
     { path: '', settings: {} },
     true,
     new Set(),
+    {},
   );
 
   beforeEach(() => {
@@ -228,6 +229,7 @@ Another paragraph.
       { path: '', settings: {} },
       true,
       new Set(),
+      {},
     );
 
     const { lastFrame } = render(

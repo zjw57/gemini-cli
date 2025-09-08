@@ -82,6 +82,7 @@ const createMockSettings = (
     },
     true,
     new Set(),
+    {},
   );
 
 vi.mock('../../config/settingsSchema.js', async (importOriginal) => {
