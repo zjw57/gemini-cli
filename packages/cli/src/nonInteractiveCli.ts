@@ -130,7 +130,7 @@ export async function runNonInteractive(
             { text: result.llmContent },
           );
         }
-      } else if (subAgentName === 'simplifiedContextHarvester') {
+      } else if (subAgentName === 'codebase_investigator') {
         const simplifiedHarvesterInput: SimplifiedContextHarvesterInput = {
           user_objective: input,
         };
