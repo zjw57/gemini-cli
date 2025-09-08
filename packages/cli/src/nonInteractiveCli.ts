@@ -74,9 +74,10 @@ export async function runNonInteractive(
 
     if (subAgentName) {
       const toolRegistry = config.getToolRegistry();
-      const contextHarvester = toolRegistry.getTool(subAgentName);
+      
 
       if (subAgentName === 'contextHarvester') {
+        const contextHarvester = toolRegistry.getTool(subAgentName);
         const harvesterInput: ContextHarvesterInput = {
           user_objective: input,
           analysis_questions: [
@@ -97,6 +98,7 @@ export async function runNonInteractive(
           );
         }
       } else if (subAgentName === 'codebase_investigator') {
+        const contextHarvester = toolRegistry.getTool(subAgentName);
         const simplifiedHarvesterInput: SimplifiedContextHarvesterInput = {
           user_objective: input,
         };
