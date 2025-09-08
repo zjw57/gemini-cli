@@ -76,6 +76,8 @@ describe('createContentGeneratorConfig', () => {
     vi.resetModules();
     // Restore process.env before each test
     process.env = { ...originalEnv };
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
     vi.clearAllMocks();
   });
 
