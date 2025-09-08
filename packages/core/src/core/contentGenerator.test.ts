@@ -103,7 +103,7 @@ describe('createContentGeneratorConfig', () => {
       AuthType.USE_GEMINI,
     );
     expect(config.apiKey).toBeUndefined();
-    expect(config.vertexai).toBeUndefined();
+    expect(config.vertexai).toBe(false);
   });
 
   it('should configure for Vertex AI using GOOGLE_API_KEY when set', async () => {

@@ -87,8 +87,9 @@ export function createContentGeneratorConfig(
     } else if (geminiApiKey) {
       contentGeneratorConfig.apiKey = geminiApiKey;
     }
+    contentGeneratorConfig.vertexai = false;
+
     if (contentGeneratorConfig.apiKey) {
-      contentGeneratorConfig.vertexai = false;
       getEffectiveModel(
         contentGeneratorConfig.apiKey,
         contentGeneratorConfig.model,
