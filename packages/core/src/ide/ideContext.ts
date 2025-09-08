@@ -126,11 +126,65 @@ export function createIdeContextStore() {
    * Sets the IDE context and notifies all registered subscribers of the change.
    * @param newIdeContext The new IDE context from the IDE.
    */
+  /**
+   * Sets the IDE context and notifies all registered subscribers of the change.
+   * @param newIdeContext The new IDE context from the IDE.
+   */
   function setIdeContext(newIdeContext: IdeContext): void {
+    const { workspaceState } = newIdeContext;
+    if (!workspaceState) {
+      ideContextState = newIdeContext;
+      notifySubscribers();
+      return;
+    }
+
+    const { openFiles } = workspaceState;
+
+    if (openFiles && openFiles.length > 0) {
+      // Sort by timestamp descending (newest first)
+      openFiles.sort(
+        (a: File, b: File) => (b.timestamp ?? 0) - (a.timestamp ?? 0),
+      );
+
+      // The most recent file is now at index 0.
+      const mostRecentFile = openFiles[0];
+
+      // If the most recent file is not active, then no file is active.
+      if (!mostRecentFile.isActive) {
+        openFiles.forEach((file: File) => {
+          file.isActive = false;
+          file.cursor = undefined;
+          file.selectedText = undefined;
+        });
+      } else {
+        // The most recent file is active. Ensure it's the only one.
+        openFiles.forEach((file: File, index: number) => {
+          if (index !== 0) {
+            file.isActive = false;
+            file.cursor = undefined;
+            file.selectedText = undefined;
+          }
+        });
+
+        // Truncate selected text in the active file
+        if (
+          mostRecentFile.selectedText &&
+          mostRecentFile.selectedText.length > MAX_SELECTED_TEXT_LENGTH
+        ) {
+          mostRecentFile.selectedText =
+            mostRecentFile.selectedText.substring(0, MAX_SELECTED_TEXT_LENGTH) +
+            '... [TRUNCATED]';
+        }
+      }
+
+      // Truncate files list
+      if (openFiles.length > MAX_FILES) {
+        workspaceState.openFiles = openFiles.slice(0, MAX_FILES);
+      }
+    }
     ideContextState = newIdeContext;
     notifySubscribers();
   }
-
   /**
    * Clears the IDE context and notifies all registered subscribers of the change.
    */
