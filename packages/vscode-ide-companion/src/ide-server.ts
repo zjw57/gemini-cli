@@ -393,5 +393,67 @@ const createMcpServer = (diffManager: DiffManager) => {
       };
     },
   );
+  server.registerTool(
+    'getDiagnostics',
+    {
+      description: '(IDE Tool) Get the diagnostics for a specific file.',
+      inputSchema: z
+        .object({
+          filePath: z.string(),
+          severity: z
+            .enum(['Error', 'Warning', 'Information', 'Hint'])
+            .optional(),
+        })
+        .shape,
+    },
+    async ({
+      filePath,
+      severity,
+    }: {
+      filePath: string;
+      severity?: 'Error' | 'Warning' | 'Information' | 'Hint';
+    }) => {
+      const uri = vscode.Uri.file(filePath);
+      let diagnostics = vscode.languages.getDiagnostics(uri);
+
+      if (severity) {
+        const severityLevel = vscode.DiagnosticSeverity[severity];
+        diagnostics = diagnostics.filter(d => d.severity === severityLevel);
+      }
+
+      if (severity === 'Error') {
+        diagnostics = diagnostics.slice(0, 10);
+      }
+
+      const response = {
+        diagnostics: diagnostics.map(d => ({
+          message:
+            d.message.length > 200
+              ? d.message.substring(0, 200) + '...'
+              : d.message,
+          severity: vscode.DiagnosticSeverity[d.severity],
+          range: {
+            start: {
+              line: d.range.start.line,
+              character: d.range.start.character,
+            },
+            end: {
+              line: d.range.end.line,
+              character: d.range.end.character,
+            },
+          },
+        })),
+      };
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(response),
+          },
+        ],
+      };
+    },
+  );
   return server;
 };
