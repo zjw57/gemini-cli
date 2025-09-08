@@ -104,7 +104,7 @@ export async function runNonInteractive(
 
       let currentMessages: Content[] = [{ role: 'user', parts: query }];
 
-    const subAgentName = process.env['SUBAGENT_NAME'];
+    const subAgentName = process.env['GEMINI_SUBAGENT_NAME'];
 
     if (subAgentName) {
       const toolRegistry = config.getToolRegistry();
