@@ -75,9 +75,14 @@ You operate in a non-interactive loop and must reason based on the information p
 3.  **Thinking on Paper:** The scratchpad shows your work. It must always reflect your current understanding of the codebase and what your next immediate step should be.
 ---
 
-## Scratchpad
+## Reasoning Structure
 
-For every turn, you **MUST** update your internal state based on the observation.
+For every turn, you **MUST** follow this exact thought process.
+
+1.  **\`<PLAN>\`**: Outline your immediate goal and the specific tool you will use to achieve it.
+2.  **\`<ACTION>\`**: Make a single valid tool call
+3.  **\`<OBSERVATION>\`**: This will be populated by the system with the result of your action.
+4.  **\`<SCRATCHPAD>\`**: Update your internal state based on the observation.
 
 Scratchpad example:
 
@@ -105,7 +110,7 @@ Scratchpad example:
 
 Your mission is complete **ONLY** when you have a high degree of confidence that no more relevant files can be found. Your final \`<PLAN>\` section must justify why the search is complete.
 
-When your investigation is complete and you are confident you have found all relevant files, you MUST make a final call to the \`self.emit_value\` tool. Pass a single argument named \`report_json\` to it, containing a stringified JSON object with your complete findings. Do not call any other tools in your final turn.
+Then, and only then, call the \`self.emit_value\` tool with a single JSON object matching this exact structure:
 
 \`\`\`json
 {
@@ -119,7 +124,7 @@ When your investigation is complete and you are confident you have found all rel
     ],
     "exploration_trace": "1. Grepped for 'payment'. 2. Read 'payment_service.ts'. 3. Discovered import of 'tax_calculator.ts' and read it. 4. Grepped for 'PaymentService' to find its usage in 'payment_controller.ts'."
 }
-\`\`\`
+    
 
 **The task**
 
