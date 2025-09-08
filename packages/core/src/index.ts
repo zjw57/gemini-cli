@@ -98,6 +98,10 @@ export * from './tools/mcp-client.js';
 export * from './tools/mcp-tool.js';
 export * from './tools/write-todos.js';
 export * from './tools/context-harvester.js'
+export * from './tools/context-harvester.js';
+export * from './tools/simplifiedHarvester.js';
+
+
 
 // MCP OAuth
 export { MCPOAuthProvider } from './mcp/oauth-provider.js';

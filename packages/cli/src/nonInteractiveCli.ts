@@ -8,6 +8,7 @@ import type {
   Config,
   ToolCallRequestInfo,
   ContextHarvesterInput,
+  SimplifiedContextHarvesterInput,
 } from '@google/gemini-cli-core';
 import { isSlashCommand } from './ui/utils/commandUtils.js';
 import type { LoadedSettings } from './config/settings.js';
@@ -23,6 +24,7 @@ import {
   uiTelemetryService,
   parseAndFormatApiError,
   ContextHarvesterTool,
+  shutdownTelemetry,
 } from '@google/gemini-cli-core';
 
 import type { Content, Part } from '@google/genai';
@@ -102,28 +104,46 @@ export async function runNonInteractive(
 
       let currentMessages: Content[] = [{ role: 'user', parts: query }];
 
-    const toolRegistry = config.getToolRegistry();
-    const contextHarvester = toolRegistry.getTool(ContextHarvesterTool.Name);
+    const subAgentName = process.env['SUBAGENT_NAME'];
 
-    if (contextHarvester) {
-      const harvesterInput: ContextHarvesterInput = {
-        user_objective: input,
-        analysis_questions: [
-          'Based on the user query, what is the primary goal?',
-          'Identify all relevant files, functions, and classes related to the user a request.',
-          'Provide a summary of the existing implementation.',
-          'What is the best file to start with to implement the user a request?',
-        ],
-      };
+    if (subAgentName) {
+      const toolRegistry = config.getToolRegistry();
+      const contextHarvester = toolRegistry.getTool(subAgentName);
 
-      const invocation = (contextHarvester as any).build(harvesterInput);
-      const result = await invocation.execute(abortController.signal);
+      if (subAgentName === 'contextHarvester') {
+        const harvesterInput: ContextHarvesterInput = {
+          user_objective: input,
+          analysis_questions: [
+            'Based on the user query, what is the primary goal?',
+            'Identify all relevant files, functions, and classes related to the user a request.',
+            'Provide a summary of the existing implementation.',
+            'What is the best file to start with to implement the user a request?',
+          ],
+        };
 
-      if (result.llmContent) {
-        (currentMessages[0].parts as Part[]).push(
-          { text: '\n--- Context from Context Harvester ---\n' },
-          { text: result.llmContent },
-        );
+        const invocation = (contextHarvester as any).build(harvesterInput);
+        const result = await invocation.execute(abortController.signal);
+
+        if (result.llmContent) {
+          (currentMessages[0].parts as Part[]).push(
+            { text: '\n--- Context from Context Harvester ---\n' },
+            { text: result.llmContent },
+          );
+        }
+      } else if (subAgentName === 'simplifiedContextHarvester') {
+        const simplifiedHarvesterInput: SimplifiedContextHarvesterInput = {
+          user_objective: input,
+        };
+
+        const invocation = (contextHarvester as any).build(simplifiedHarvesterInput);
+        const result = await invocation.execute(abortController.signal);
+
+        if (result.llmContent) {
+          (currentMessages[0].parts as Part[]).push(
+            { text: '\n--- Context from Codebase Investigator ---\n' },
+            { text: result.llmContent },
+          );
+        }
       }
     }
 
