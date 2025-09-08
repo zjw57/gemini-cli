@@ -81,14 +81,20 @@ export function createContentGeneratorConfig(
     return contentGeneratorConfig;
   }
 
-  if (authType === AuthType.USE_GEMINI && geminiApiKey) {
-    contentGeneratorConfig.apiKey = geminiApiKey;
+  if (authType === AuthType.USE_GEMINI) {
+    if (googleApiKey) {
+      contentGeneratorConfig.apiKey = googleApiKey;
+    } else if (geminiApiKey) {
+      contentGeneratorConfig.apiKey = geminiApiKey;
+    }
     contentGeneratorConfig.vertexai = false;
-    getEffectiveModel(
-      contentGeneratorConfig.apiKey,
-      contentGeneratorConfig.model,
-      contentGeneratorConfig.proxy,
-    );
+    if (contentGeneratorConfig.apiKey) {
+      getEffectiveModel(
+        contentGeneratorConfig.apiKey,
+        contentGeneratorConfig.model,
+        contentGeneratorConfig.proxy,
+      );
+    }
 
     return contentGeneratorConfig;
   }
@@ -97,9 +103,7 @@ export function createContentGeneratorConfig(
     authType === AuthType.USE_VERTEX_AI &&
     (googleApiKey || (googleCloudProject && googleCloudLocation))
   ) {
-    if (!(googleCloudProject && googleCloudLocation)) {
-      contentGeneratorConfig.apiKey = googleApiKey;
-    }
+    contentGeneratorConfig.apiKey = googleApiKey;
     contentGeneratorConfig.vertexai = true;
 
     return contentGeneratorConfig;
