@@ -48,7 +48,7 @@ import {
   MalformedJsonResponseEvent,
   NextSpeakerCheckEvent,
 } from '../telemetry/types.js';
-import type { IdeContext, File } from '../ide/ideContext.js';
+import type { IdeContext, File } from '../ide/types.js';
 
 export function isThinkingSupported(model: string) {
   if (model.startsWith('gemini-2.5')) return true;
