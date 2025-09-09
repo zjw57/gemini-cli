@@ -22,6 +22,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { EnvHttpProxyAgent } from 'undici';
+import { L } from 'vitest/dist/chunks/reporters.d.BFLkQcL6.js';
 
 const logger = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -392,6 +393,16 @@ export class IdeClient {
     return { command, args };
   }
 
+  private async getIdeConnectionDir(): Promise<string> {
+    const dir = path.join(os.tmpdir(), '.gemini', 'ide');
+    try {
+      await fs.promises.access(dir);
+    } catch (e) {
+      logger.debug('IDE connection directory does not exist:', e);
+    }
+    return dir;
+  }
+
   private async getConnectionConfigFromFile(): Promise<
     (ConnectionConfig & { workspacePath?: string }) | undefined
   > {
@@ -411,11 +422,19 @@ export class IdeClient {
       // For newer extension versions, the file matches the following prefix. If multiple IDE windows are open, multiple files with the same prefix are expected to exist.
     }
 
+    let ideConnectionDir;
+    try {
+      ideConnectionDir = await this.getIdeConnectionDir();
+    } catch (e) {
+      logger.debug('Failed to get IDE connection directory:', e);
+      return undefined;
+    }
+
     let portFiles;
     try {
-      portFiles = await fs.promises.readdir(os.tmpdir());
+      portFiles = await fs.promises.readdir(ideConnectionDir);
     } catch (e) {
-      logger.debug('Failed to read temp directory:', e);
+      logger.debug('Failed to read IDE connection directory:', e);
       return undefined;
     }
 
@@ -433,7 +452,7 @@ export class IdeClient {
     try {
       fileContents = await Promise.all(
         matchingFiles.map((file) =>
-          fs.promises.readFile(path.join(os.tmpdir(), file), 'utf8'),
+          fs.promises.readFile(path.join(ideConnectionDir, file), 'utf8'),
         ),
       );
     } catch (e) {
