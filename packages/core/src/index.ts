@@ -93,6 +93,7 @@ export * from './tools/context-harvester.js';
 export * from './tools/context-harvester.js';
 export * from './tools/codebase-investigator.js';
 export * from './tools/codebase-investigator-with-files.js';
+export * from './tools/planner.js'
 
 
 // MCP OAuth

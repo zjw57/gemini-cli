@@ -10,6 +10,7 @@ import type {
   ContextHarvesterInput,
   CodebaseInvestigatorInput,
   CodebaseInvestigatorWithFilesInput,
+  SolutionArchitectInput,
 } from '@google/gemini-cli-core';
 import {
   executeToolCall,
@@ -123,6 +124,21 @@ export async function runNonInteractive(
         if (result.llmContent) {
           (currentMessages[0].parts as Part[]).push(
             { text: '\n--- Context from Codebase Investigator ---\n' },
+            { text: result.llmContent },
+          );
+        }
+      } else if (subAgentName === 'solution_architect') {
+        const subAgent = toolRegistry.getTool(subAgentName);
+        const subAgentInput: SolutionArchitectInput = {
+          user_objective: input,
+        };
+
+        const invocation = (subAgent as any).build(subAgentInput);
+        const result = await invocation.execute(abortController.signal);
+
+        if (result.llmContent) {
+          (currentMessages[0].parts as Part[]).push(
+            { text: '\n--- Context from Solution Architect ---\n' },
             { text: result.llmContent },
           );
         }
