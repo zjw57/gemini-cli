@@ -8,7 +8,7 @@ import type {
   Config,
   ToolCallRequestInfo,
   ContextHarvesterInput,
-  SimplifiedContextHarvesterInput,
+  CodebaseInvestigatorInput,
 } from '@google/gemini-cli-core';
 import {
   executeToolCall,
@@ -77,8 +77,8 @@ export async function runNonInteractive(
       
 
       if (subAgentName === 'contextHarvester') {
-        const contextHarvester = toolRegistry.getTool(subAgentName);
-        const harvesterInput: ContextHarvesterInput = {
+        const subAgent = toolRegistry.getTool(subAgentName);
+        const subAgentInput: ContextHarvesterInput = {
           user_objective: input,
           analysis_questions: [
             'Based on the user query, what is the primary goal?',
@@ -88,7 +88,7 @@ export async function runNonInteractive(
           ],
         };
 
-        const invocation = (contextHarvester as any).build(harvesterInput);
+        const invocation = (subAgent as any).build(subAgentInput);
         const result = await invocation.execute(abortController.signal);
 
         if (result.llmContent) {
@@ -98,12 +98,12 @@ export async function runNonInteractive(
           );
         }
       } else if (subAgentName === 'codebase_investigator') {
-        const contextHarvester = toolRegistry.getTool(subAgentName);
-        const simplifiedHarvesterInput: SimplifiedContextHarvesterInput = {
+        const subAgent = toolRegistry.getTool(subAgentName);
+        const subAgentInput: CodebaseInvestigatorInput = {
           user_objective: input,
         };
 
-        const invocation = (contextHarvester as any).build(simplifiedHarvesterInput);
+        const invocation = (subAgent as any).build(subAgentInput);
         const result = await invocation.execute(abortController.signal);
 
         if (result.llmContent) {
