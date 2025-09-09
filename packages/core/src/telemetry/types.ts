@@ -165,8 +165,12 @@ export class ToolCallEvent implements BaseTelemetryEvent {
         this.metadata = {
           model_added_lines: diffStat.model_added_lines,
           model_removed_lines: diffStat.model_removed_lines,
+          model_added_chars: diffStat.model_added_chars,
+          model_removed_chars: diffStat.model_removed_chars,
           user_added_lines: diffStat.user_added_lines,
           user_removed_lines: diffStat.user_removed_lines,
+          user_added_chars: diffStat.user_added_chars,
+          user_removed_chars: diffStat.user_removed_chars,
         };
       }
     }
@@ -274,6 +278,16 @@ export class FlashFallbackEvent implements BaseTelemetryEvent {
     this['event.name'] = 'flash_fallback';
     this['event.timestamp'] = new Date().toISOString();
     this.auth_type = auth_type;
+  }
+}
+
+export class RipgrepFallbackEvent implements BaseTelemetryEvent {
+  'event.name': 'ripgrep_fallback';
+  'event.timestamp': string;
+
+  constructor(public error?: string) {
+    this['event.name'] = 'ripgrep_fallback';
+    this['event.timestamp'] = new Date().toISOString();
   }
 }
 

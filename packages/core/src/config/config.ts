@@ -6,9 +6,13 @@
 
 import * as path from 'node:path';
 import process from 'node:process';
-import type { ContentGeneratorConfig } from '../core/contentGenerator.js';
+import type {
+  ContentGenerator,
+  ContentGeneratorConfig,
+} from '../core/contentGenerator.js';
 import {
   AuthType,
+  createContentGenerator,
   createContentGeneratorConfig,
 } from '../core/contentGenerator.js';
 import { PromptRegistry } from '../prompts/prompt-registry.js';
@@ -16,7 +20,7 @@ import { ToolRegistry } from '../tools/tool-registry.js';
 import { LSTool } from '../tools/ls.js';
 import { ReadFileTool } from '../tools/read-file.js';
 import { GrepTool } from '../tools/grep.js';
-import { RipGrepTool } from '../tools/ripGrep.js';
+import { canUseRipgrep, RipGrepTool } from '../tools/ripGrep.js';
 import { GlobTool } from '../tools/glob.js';
 import { EditTool } from '../tools/edit.js';
 import { SmartEditTool } from '../tools/smart-edit.js';
@@ -44,11 +48,19 @@ import { shouldAttemptBrowserLaunch } from '../utils/browser.js';
 import type { MCPOAuthConfig } from '../mcp/oauth-provider.js';
 import { IdeClient } from '../ide/ide-client.js';
 import { ideContext } from '../ide/ideContext.js';
-import type { Content } from '@google/genai';
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
-import { logCliConfiguration, logIdeConnection } from '../telemetry/loggers.js';
-import { IdeConnectionEvent, IdeConnectionType } from '../telemetry/types.js';
+import {
+  logCliConfiguration,
+  logIdeConnection,
+  logRipgrepFallback,
+} from '../telemetry/loggers.js';
+import {
+  IdeConnectionEvent,
+  IdeConnectionType,
+  RipgrepFallbackEvent,
+} from '../telemetry/types.js';
+import type { FallbackModelHandler } from '../fallback/types.js';
 
 // Re-export OAuth config type
 export type { MCPOAuthConfig, AnyToolInvocation };
@@ -57,6 +69,8 @@ import { WorkspaceContext } from '../utils/workspaceContext.js';
 import { Storage } from './storage.js';
 import { FileExclusions } from '../utils/ignorePatterns.js';
 import type { EventEmitter } from 'node:events';
+import type { UserTierId } from '../code_assist/types.js';
+import { ProxyAgent, setGlobalDispatcher } from 'undici';
 
 export enum ApprovalMode {
   DEFAULT = 'default',
@@ -110,6 +124,10 @@ export const DEFAULT_FILE_FILTERING_OPTIONS: FileFilteringOptions = {
   respectGitIgnore: true,
   respectGeminiIgnore: true,
 };
+
+export const DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD = 4_000_000;
+export const DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES = 1000;
+
 export class MCPServerConfig {
   constructor(
     // For stdio transport
@@ -147,12 +165,6 @@ export interface SandboxConfig {
   command: 'docker' | 'podman' | 'sandbox-exec';
   image: string;
 }
-
-export type FlashFallbackHandler = (
-  currentModel: string,
-  fallbackModel: string,
-  error?: unknown,
-) => Promise<boolean | string | null>;
 
 export interface ConfigParameters {
   sessionId: string;
@@ -210,6 +222,8 @@ export interface ConfigParameters {
   skipNextSpeakerCheck?: boolean;
   extensionManagement?: boolean;
   enablePromptCompletion?: boolean;
+  truncateToolOutputThreshold?: number;
+  truncateToolOutputLines?: number;
   eventEmitter?: EventEmitter;
   useSmartEdit?: boolean;
 }
@@ -220,6 +234,7 @@ export class Config {
   private readonly sessionId: string;
   private fileSystemService: FileSystemService;
   private contentGeneratorConfig!: ContentGeneratorConfig;
+  private contentGenerator!: ContentGenerator;
   private readonly embeddingModel: string;
   private readonly sandbox: SandboxConfig | undefined;
   private readonly targetDir: string;
@@ -269,7 +284,7 @@ export class Config {
     name: string;
     extensionName: string;
   }>;
-  flashFallbackHandler?: FlashFallbackHandler;
+  fallbackModelHandler?: FallbackModelHandler;
   private quotaErrorOccurred: boolean = false;
   private readonly summarizeToolOutput:
     | Record<string, SummarizeToolOutputSettings>
@@ -282,8 +297,10 @@ export class Config {
   private readonly useRipgrep: boolean;
   private readonly shouldUseNodePtyShell: boolean;
   private readonly skipNextSpeakerCheck: boolean;
-  private readonly extensionManagement: boolean;
+  private readonly extensionManagement: boolean = true;
   private readonly enablePromptCompletion: boolean = false;
+  private readonly truncateToolOutputThreshold: number;
+  private readonly truncateToolOutputLines: number;
   private initialized: boolean = false;
   readonly storage: Storage;
   private readonly fileExclusions: FileExclusions;
@@ -359,8 +376,13 @@ export class Config {
     this.useRipgrep = params.useRipgrep ?? false;
     this.shouldUseNodePtyShell = params.shouldUseNodePtyShell ?? false;
     this.skipNextSpeakerCheck = params.skipNextSpeakerCheck ?? false;
+    this.truncateToolOutputThreshold =
+      params.truncateToolOutputThreshold ??
+      DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD;
+    this.truncateToolOutputLines =
+      params.truncateToolOutputLines ?? DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES;
     this.useSmartEdit = params.useSmartEdit ?? true;
-    this.extensionManagement = params.extensionManagement ?? false;
+    this.extensionManagement = params.extensionManagement ?? true;
     this.storage = new Storage(this.targetDir);
     this.enablePromptCompletion = params.enablePromptCompletion ?? false;
     this.fileExclusions = new FileExclusions(this);
@@ -373,6 +395,11 @@ export class Config {
     if (this.telemetrySettings.enabled) {
       initializeTelemetry(this);
     }
+
+    if (this.getProxy()) {
+      setGlobalDispatcher(new ProxyAgent(this.getProxy() as string));
+    }
+    this.geminiClient = new GeminiClient(this);
   }
 
   /**
@@ -397,44 +424,43 @@ export class Config {
     this.promptRegistry = new PromptRegistry();
     this.toolRegistry = await this.createToolRegistry();
     logCliConfiguration(this, new StartSessionEvent(this, this.toolRegistry));
+
+    await this.geminiClient.initialize();
+  }
+
+  getContentGenerator(): ContentGenerator {
+    return this.contentGenerator;
   }
 
   async refreshAuth(authMethod: AuthType) {
-    // Save the current conversation history before creating a new client
-    let existingHistory: Content[] = [];
-    if (this.geminiClient && this.geminiClient.isInitialized()) {
-      existingHistory = this.geminiClient.getHistory();
+    // Vertex and Genai have incompatible encryption and sending history with
+    // throughtSignature from Genai to Vertex will fail, we need to strip them
+    if (
+      this.contentGeneratorConfig?.authType === AuthType.USE_GEMINI &&
+      authMethod === AuthType.LOGIN_WITH_GOOGLE
+    ) {
+      // Restore the conversation history to the new client
+      this.geminiClient.stripThoughtsFromHistory();
     }
 
-    // Create new content generator config
     const newContentGeneratorConfig = createContentGeneratorConfig(
       this,
       authMethod,
     );
-
-    // Create and initialize new client in local variable first
-    const newGeminiClient = new GeminiClient(this);
-    await newGeminiClient.initialize(newContentGeneratorConfig);
-
-    // Vertex and Genai have incompatible encryption and sending history with
-    // throughtSignature from Genai to Vertex will fail, we need to strip them
-    const fromGenaiToVertex =
-      this.contentGeneratorConfig?.authType === AuthType.USE_GEMINI &&
-      authMethod === AuthType.LOGIN_WITH_GOOGLE;
-
+    this.contentGenerator = await createContentGenerator(
+      newContentGeneratorConfig,
+      this,
+      this.getSessionId(),
+    );
     // Only assign to instance properties after successful initialization
     this.contentGeneratorConfig = newContentGeneratorConfig;
-    this.geminiClient = newGeminiClient;
-
-    // Restore the conversation history to the new client
-    if (existingHistory.length > 0) {
-      this.geminiClient.setHistory(existingHistory, {
-        stripThoughts: fromGenaiToVertex,
-      });
-    }
 
     // Reset the session flag since we're explicitly changing auth and using default model
     this.inFallbackMode = false;
+  }
+
+  getUserTier(): UserTierId | undefined {
+    return this.contentGenerator?.userTier;
   }
 
   getSessionId(): string {
@@ -467,8 +493,8 @@ export class Config {
     this.inFallbackMode = active;
   }
 
-  setFlashFallbackHandler(handler: FlashFallbackHandler): void {
-    this.flashFallbackHandler = handler;
+  setFallbackModelHandler(handler: FallbackModelHandler): void {
+    this.fallbackModelHandler = handler;
   }
 
   getMaxSessionTurns(): number {
@@ -809,6 +835,14 @@ export class Config {
     return this.enablePromptCompletion;
   }
 
+  getTruncateToolOutputThreshold(): number {
+    return this.truncateToolOutputThreshold;
+  }
+
+  getTruncateToolOutputLines(): number {
+    return this.truncateToolOutputLines;
+  }
+
   getUseSmartEdit(): boolean {
     return this.useSmartEdit;
   }
@@ -866,7 +900,19 @@ export class Config {
     registerCoreTool(ReadFileTool, this);
 
     if (this.getUseRipgrep()) {
-      registerCoreTool(RipGrepTool, this);
+      let useRipgrep = false;
+      let errorString: undefined | string = undefined;
+      try {
+        useRipgrep = await canUseRipgrep();
+      } catch (error: unknown) {
+        errorString = String(error);
+      }
+      if (useRipgrep) {
+        registerCoreTool(RipGrepTool, this);
+      } else {
+        logRipgrepFallback(this, new RipgrepFallbackEvent(errorString));
+        registerCoreTool(GrepTool, this);
+      }
     } else {
       registerCoreTool(GrepTool, this);
     }
