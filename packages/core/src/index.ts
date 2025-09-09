@@ -96,10 +96,10 @@ export * from './tools/web-search.js';
 export * from './tools/read-many-files.js';
 export * from './tools/mcp-client.js';
 export * from './tools/mcp-tool.js';
-export * from './tools/context-harvester.js'
+export * from './tools/context-harvester.js';
 export * from './tools/context-harvester.js';
 export * from './tools/codebase-investigator.js';
-
+export * from './tools/codebase-investigator-with-files.js';
 
 
 // MCP OAuth
