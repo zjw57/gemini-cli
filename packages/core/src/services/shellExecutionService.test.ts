@@ -159,12 +159,10 @@ describe('ShellExecutionService', () => {
       expect(result.output.trim()).toBe('file1.txt');
       expect(handle.pid).toBe(12345);
 
-      expect(onOutputEventMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'data',
-          chunk: expect.stringContaining('file1.txt'),
-        }),
-      );
+      expect(onOutputEventMock).toHaveBeenCalledWith({
+        type: 'data',
+        chunk: 'file1.txt',
+      });
     });
 
     it('should strip ANSI codes from output', async () => {

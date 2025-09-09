@@ -95,7 +95,7 @@ export const useGeminiStream = (
   ) => Promise<SlashCommandProcessorResult | false>,
   shellModeActive: boolean,
   getPreferredEditor: () => EditorType | undefined,
-  onAuthError: () => void,
+  onAuthError: (error: string) => void,
   performMemoryRefresh: () => Promise<void>,
   modelSwitchedFromQuotaError: boolean,
   setModelSwitchedFromQuotaError: React.Dispatch<React.SetStateAction<boolean>>,
@@ -185,6 +185,12 @@ export const useGeminiStream = (
   );
 
   const activePtyId = activeShellPtyId || activeToolPtyId;
+
+  useEffect(() => {
+    if (!activePtyId) {
+      setShellInputFocused(false);
+    }
+  }, [activePtyId, setShellInputFocused]);
 
   const streamingState = useMemo(() => {
     if (toolCalls.some((tc) => tc.status === 'awaiting_approval')) {
@@ -772,7 +778,7 @@ export const useGeminiStream = (
         }
       } catch (error: unknown) {
         if (error instanceof UnauthorizedError) {
-          onAuthError();
+          onAuthError('Session expired or is unauthorized.');
         } else if (!isNodeError(error) || error.name !== 'AbortError') {
           addItem(
             {

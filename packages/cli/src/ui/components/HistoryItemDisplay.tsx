@@ -20,7 +20,6 @@ import { StatsDisplay } from './StatsDisplay.js';
 import { ModelStatsDisplay } from './ModelStatsDisplay.js';
 import { ToolStatsDisplay } from './ToolStatsDisplay.js';
 import { SessionSummaryDisplay } from './SessionSummaryDisplay.js';
-import type { Config } from '@google/gemini-cli-core';
 import { Help } from './Help.js';
 import type { SlashCommand } from '../commands/types.js';
 
@@ -29,7 +28,6 @@ interface HistoryItemDisplayProps {
   availableTerminalHeight?: number;
   terminalWidth: number;
   isPending: boolean;
-  config: Config;
   isFocused?: boolean;
   commands?: readonly SlashCommand[];
   activeShellPtyId?: number | null;
@@ -41,7 +39,6 @@ export const HistoryItemDisplay: React.FC<HistoryItemDisplayProps> = ({
   availableTerminalHeight,
   terminalWidth,
   isPending,
-  config,
   commands,
   isFocused = true,
   activeShellPtyId,
@@ -91,7 +88,6 @@ export const HistoryItemDisplay: React.FC<HistoryItemDisplayProps> = ({
         groupId={item.id}
         availableTerminalHeight={availableTerminalHeight}
         terminalWidth={terminalWidth}
-        config={config}
         isFocused={isFocused}
         activeShellPtyId={activeShellPtyId}
         shellInputFocused={shellInputFocused}

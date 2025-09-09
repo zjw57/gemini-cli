@@ -73,6 +73,8 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
   const [escPressCount, setEscPressCount] = useState(0);
   const [showEscapePrompt, setShowEscapePrompt] = useState(false);
   const escapeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [recentPasteTime, setRecentPasteTime] = useState<number | null>(null);
+  const pasteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [dirs, setDirs] = useState<readonly string[]>(
     config.getWorkspaceContext().getDirectories(),
@@ -131,6 +133,9 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
     () => () => {
       if (escapeTimerRef.current) {
         clearTimeout(escapeTimerRef.current);
+      }
+      if (pasteTimeoutRef.current) {
+        clearTimeout(pasteTimeoutRef.current);
       }
     },
     [],
@@ -247,6 +252,20 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
       }
 
       if (key.paste) {
+        // Record paste time to prevent accidental auto-submission
+        setRecentPasteTime(Date.now());
+
+        // Clear any existing paste timeout
+        if (pasteTimeoutRef.current) {
+          clearTimeout(pasteTimeoutRef.current);
+        }
+
+        // Clear the paste protection after a safe delay
+        pasteTimeoutRef.current = setTimeout(() => {
+          setRecentPasteTime(null);
+          pasteTimeoutRef.current = null;
+        }, 500);
+
         // Ensure we never accidentally interpret paste as regular input.
         buffer.handleInput(key);
         return;
@@ -462,6 +481,12 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
 
       if (keyMatchers[Command.SUBMIT](key)) {
         if (buffer.text.trim()) {
+          // Check if a paste operation occurred recently to prevent accidental auto-submission
+          if (recentPasteTime !== null) {
+            // Paste occurred recently, ignore this submit to prevent auto-execution
+            return;
+          }
+
           const [row, col] = buffer.cursor;
           const line = buffer.lines[row];
           const charBefore = col > 0 ? cpSlice(line, col - 1, col) : '';
@@ -560,6 +585,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
       reverseSearchActive,
       textBeforeReverseSearch,
       cursorPosition,
+      recentPasteTime,
     ],
   );
 
@@ -725,7 +751,10 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
           ) : (
             linesToRender
               .map((lineText, visualIdxInRenderedSet) => {
-                const tokens = parseInputForHighlighting(lineText);
+                const tokens = parseInputForHighlighting(
+                  lineText,
+                  visualIdxInRenderedSet,
+                );
                 const cursorVisualRow =
                   cursorVisualRowAbsolute - scrollVisualRow;
                 const isOnCursorLine =
@@ -786,7 +815,9 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
                 ) {
                   if (!currentLineGhost) {
                     renderedLine.push(
-                      <Text key="cursor-end">{chalk.inverse(' ')}</Text>,
+                      <Text key={`cursor-end-${cursorVisualColAbsolute}`}>
+                        {chalk.inverse(' ')}
+                      </Text>,
                     );
                   }
                 }
@@ -798,15 +829,17 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
                   currentLineGhost;
 
                 return (
-                  <Text key={`line-${visualIdxInRenderedSet}`}>
-                    {renderedLine}
-                    {showCursorBeforeGhost && chalk.inverse(' ')}
-                    {currentLineGhost && (
-                      <Text color={theme.text.secondary}>
-                        {currentLineGhost}
-                      </Text>
-                    )}
-                  </Text>
+                  <Box key={`line-${visualIdxInRenderedSet}`} height={1}>
+                    <Text>
+                      {renderedLine}
+                      {showCursorBeforeGhost && chalk.inverse(' ')}
+                      {currentLineGhost && (
+                        <Text color={theme.text.secondary}>
+                          {currentLineGhost}
+                        </Text>
+                      )}
+                    </Text>
+                  </Box>
                 );
               })
               .concat(

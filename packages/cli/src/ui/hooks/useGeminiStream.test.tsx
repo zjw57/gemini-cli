@@ -1569,6 +1569,7 @@ describe('useGeminiStream', () => {
             [],
             mockAddItem,
             mockConfig,
+            mockLoadedSettings,
             mockOnDebugMessage,
             mockHandleSlashCommand,
             false,
@@ -1579,7 +1580,7 @@ describe('useGeminiStream', () => {
             () => {},
             () => {},
             () => {},
-            () => {},
+            vi.fn(),
             80,
             24,
           ),
@@ -1633,6 +1634,9 @@ describe('useGeminiStream', () => {
         vi.fn(), // setModelSwitched
         vi.fn(), // onEditorClose
         vi.fn(), // onCancelSubmit
+        vi.fn(), // setShellInputFocused
+        80, // terminalWidth
+        24, // terminalHeight
       ),
     );
 

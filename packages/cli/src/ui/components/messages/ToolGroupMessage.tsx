@@ -6,20 +6,20 @@
 
 import type React from 'react';
 import { useMemo } from 'react';
-import { Box } from 'ink';
+import { Box, Text } from 'ink';
 import type { IndividualToolCallDisplay } from '../../types.js';
 import { ToolCallStatus } from '../../types.js';
 import { ToolMessage } from './ToolMessage.js';
 import { ToolConfirmationMessage } from './ToolConfirmationMessage.js';
 import { theme } from '../../semantic-colors.js';
-import type { Config } from '@google/gemini-cli-core';
+import { SHELL_COMMAND_NAME } from '../../constants.js';
+import { useConfig } from '../../contexts/ConfigContext.js';
 
 interface ToolGroupMessageProps {
   groupId: number;
   toolCalls: IndividualToolCallDisplay[];
   availableTerminalHeight?: number;
   terminalWidth: number;
-  config: Config;
   isFocused?: boolean;
   activeShellPtyId?: number | null;
   shellInputFocused?: boolean;
@@ -31,7 +31,6 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
   toolCalls,
   availableTerminalHeight,
   terminalWidth,
-  config,
   isFocused = true,
   activeShellPtyId,
   shellInputFocused,
@@ -47,9 +46,10 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
     (t) => t.status === ToolCallStatus.Success,
   );
 
-  const borderColor = isShellFocused
-    ? theme.border.focused
-    : hasPending
+  const config = useConfig();
+  const isShellCommand = toolCalls.some((t) => t.name === SHELL_COMMAND_NAME);
+  const borderColor =
+    hasPending || isShellCommand || isShellFocused
       ? theme.status.warning
       : theme.border.default;
 
@@ -132,6 +132,11 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
                   terminalWidth={innerWidth}
                 />
               )}
+            {tool.outputFile && (
+              <Box marginX={1}>
+                <Text>Output too long and was saved to: {tool.outputFile}</Text>
+              </Box>
+            )}
           </Box>
         );
       })}
