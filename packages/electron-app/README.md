@@ -48,5 +48,5 @@ This will start a Vite development server for the renderer process and launch th
 To build the app for production, use the following command:
 
 ```bash
-npm run build 
+npm run build
 ```
