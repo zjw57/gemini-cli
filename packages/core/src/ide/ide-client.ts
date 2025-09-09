@@ -30,8 +30,6 @@ const logger = {
   error: (...args: any[]) => console.error('[ERROR] [IDEClient]', ...args),
 };
 
-const IDE_PORT_FILE_DIR = path.join(os.tmpdir(), '.gemini', 'ide');
-
 export type IDEConnectionState = {
   status: IDEConnectionStatus;
   details?: string; // User-facing
@@ -416,9 +414,10 @@ export class IdeClient {
       // exist.
     }
 
+    const portFileDir = path.join(os.tmpdir(), '.gemini', 'ide');
     let portFiles;
     try {
-      portFiles = await fs.promises.readdir(IDE_PORT_FILE_DIR);
+      portFiles = await fs.promises.readdir(portFileDir);
     } catch (e) {
       logger.debug('Failed to read IDE connection directory:', e);
       return undefined;
@@ -438,7 +437,7 @@ export class IdeClient {
     try {
       fileContents = await Promise.all(
         matchingFiles.map((file) =>
-          fs.promises.readFile(path.join(IDE_PORT_FILE_DIR, file), 'utf8'),
+          fs.promises.readFile(path.join(portFileDir, file), 'utf8'),
         ),
       );
     } catch (e) {
