@@ -11,9 +11,9 @@ import {
 } from './constants.js';
 import {
   createIdeContextStore,
-  File,
+  type File,
   FileSchema,
-  IdeContext,
+  type IdeContext,
   IdeContextSchema,
 } from './ideContext.js';
 
@@ -231,7 +231,7 @@ describe('ideContext', () => {
       };
       ideContextStore.setIdeContext(context);
       expect(
-        ideContextStore.getIdeContext()?.workspaceState?.openFiles
+        ideContextStore.getIdeContext()?.workspaceState?.openFiles,
       ).toEqual([]);
     });
 
@@ -257,7 +257,12 @@ describe('ideContext', () => {
       const context: IdeContext = {
         workspaceState: {
           openFiles: [
-            { path: 'file1.ts', timestamp: 100, isActive: true, selectedText: "hello" },
+            {
+              path: 'file1.ts',
+              timestamp: 100,
+              isActive: true,
+              selectedText: 'hello',
+            },
             {
               path: 'file2.ts',
               timestamp: 300,
@@ -265,7 +270,12 @@ describe('ideContext', () => {
               cursor: { line: 1, character: 1 },
               selectedText: 'hello',
             },
-            { path: 'file3.ts', timestamp: 200, isActive: false, selectedText: "hello" },
+            {
+              path: 'file3.ts',
+              timestamp: 200,
+              isActive: false,
+              selectedText: 'hello',
+            },
           ],
         },
       };
@@ -304,7 +314,7 @@ describe('ideContext', () => {
         ideContextStore.getIdeContext()?.workspaceState?.openFiles?.[0]
           ?.selectedText;
       expect(selectedText).toHaveLength(
-        IDE_MAX_SELECTED_TEXT_LENGTH + '... [TRUNCATED]'.length
+        IDE_MAX_SELECTED_TEXT_LENGTH + '... [TRUNCATED]'.length,
       );
       expect(selectedText?.endsWith('... [TRUNCATED]')).toBe(true);
     });
@@ -337,7 +347,7 @@ describe('ideContext', () => {
           path: `file${i}.ts`,
           timestamp: i,
           isActive: false,
-        })
+        }),
       );
       const context: IdeContext = {
         workspaceState: {

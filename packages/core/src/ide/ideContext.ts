@@ -5,7 +5,10 @@
  */
 
 import { z } from 'zod';
-import { IDE_MAX_OPEN_FILES, IDE_MAX_SELECTED_TEXT_LENGTH } from './constants.js';
+import {
+  IDE_MAX_OPEN_FILES,
+  IDE_MAX_SELECTED_TEXT_LENGTH,
+} from './constants.js';
 
 /**
  * Zod schema for validating a file context from the IDE.
@@ -139,9 +142,7 @@ export function createIdeContextStore() {
 
     if (openFiles && openFiles.length > 0) {
       // Sort by timestamp descending (newest first)
-      openFiles.sort(
-        (a: File, b: File) => b.timestamp - a.timestamp
-      );
+      openFiles.sort((a: File, b: File) => b.timestamp - a.timestamp);
 
       // The most recent file is now at index 0.
       const mostRecentFile = openFiles[0];
@@ -169,8 +170,10 @@ export function createIdeContextStore() {
           mostRecentFile.selectedText.length > IDE_MAX_SELECTED_TEXT_LENGTH
         ) {
           mostRecentFile.selectedText =
-            mostRecentFile.selectedText.substring(0, IDE_MAX_SELECTED_TEXT_LENGTH) +
-            '... [TRUNCATED]';
+            mostRecentFile.selectedText.substring(
+              0,
+              IDE_MAX_SELECTED_TEXT_LENGTH,
+            ) + '... [TRUNCATED]';
         }
       }
 
