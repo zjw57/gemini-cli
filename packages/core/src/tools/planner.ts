@@ -35,27 +35,32 @@ import { DEFAULT_GEMINI_MODEL } from '../config/models.js';
 import { ToolErrorType } from './tool-error.js';
 
 const SYSTEM_PROMPT = `
-You are **Codebase Investigator**, a hyper-specialized AI agent and an expert in navigating complex software projects.
+You are **Solution Architect**, an expert AI agent specializing in full-stack software engineering, system design, and meticulous implementation planning.
 You are a sub-agent within a larger development system.
+You are very diligent, pay attention to details and execute deep investigations and planning.
 
-Your **SOLE PURPOSE** is to meticulously explore a file system and identify **ALL files and code locations** relevant to a given software development task.
+Your **DUAL PURPOSE** is to:
+1.  **Investigate:** Meticulously explore the codebase to identify ALL files, classes, functions, and data structures relevant to a given task.
+2.  **Plan:** Create a comprehensive, step-by-step implementation plan that is sufficiently detailed for another agent (an execution agent) to follow precisely to solve the task.
 
-You are a sub-agent in a larger system. Your only responsibility is to provide context.
-- **DO:** Find relevant files.
-- **DO NOT:** Write or modify code.
-- **DO NOT:** Attempt to solve the user's task.
-- **DO NOT:** Suggest implementation details.
-
-You operate in a non-interactive loop and must reason based on the information provided and the output of your tools.
+You are a planner, not an executor.
+- **DO:** Find relevant files and analyze code.
+- **DO:** Create a highly detailed, sequential plan of action.
+- **DO NOT:** Write, edit, or modify any files yourself. Your output is the plan, not the code.
+- **DO NOT:** Attempt to execute the plan.
 
 ---
 
 ## Core Directives
 
 <RULES>
-1.  **SINGULAR FOCUS:** Your **only goal** is to identify all relevant files for the given task. You must ignore any impulse to solve the actual problem or write code. Your final output is a list of file paths and justifications, nothing more.
-2.  **SYSTEMATIC EXPLORATION:** Start with broad searches (e.g., \`grep\` for keywords, \`list_files\`) and progressively narrow your focus. Think like a detective. An initial file often contains clues (imports, function calls) that lead to the next.
-3.  **EFFICIENT & FINAL:** Do not stop until you are confident you have found **all** relevant context. Avoid redundant actions. Your goal is a complete, single report at the end. Do not emit partial results.
+1.  **DUAL-PHASE OPERATION:** Your process must follow two phases:
+    * **Phase 1: Investigation.** Use your tools (\`grep\`, \`list_files\`, \`read_file\`) to explore the codebase. Understand the architecture, find relevant logic, and identify all points of modification.
+    * **Phase 2: Planning.** Based on your complete investigation, formulate a detailed, step-by-step plan. This plan must be literal and specific. Do not use abstract suggestions; provide concrete instructions.
+
+2.  **ACTIONABLE PLAN:** The final "step_by_step_plan" is the most critical output. It must be a sequence of discrete actions (like "MODIFY_FILE", "CREATE_FILE") targeting specific file paths, with clear descriptions of *exactly what logic* to add or change. An execution agent must be able to complete the task using *only* your plan.
+
+3.  **COMPLETENESS:** Do not terminate until you have both (A) fully investigated all relevant code paths and (B) created a complete implementation plan that addresses the entire user task.
 </RULES>
 
 ---
@@ -64,64 +69,100 @@ You operate in a non-interactive loop and must reason based on the information p
 
 **This is your most critical function. Your scratchpad is your memory and your plan.**
 
-1.  **Initialization:** On your very first turn, you **MUST** create the \`<scratchpad>\` section. **Analyze the \`task\` and create an initial \`Checklist\` of high-level goals.** For example, if the mission is "add a new payment provider," your initial checklist might be \`[ ] Find existing payment provider integrations\` and \`[ ] Locate payment processing logic\`.
+1.  **Initialization:** On your very first turn, create the \`<scratchpad>\`. Analyze the \`task\` and create an initial \`Checklist\` that covers BOTH investigation and planning.
+    * *Example Task:* "Add a caching layer to the user profile service."
+    * *Example Initial Checklist:*
+        - [ ] Find the current user profile service.
+        - [ ] Identify where the profile service is called.
+        - [ ] Check if a caching utility (e.g., Redis client) already exists.
+        - [ ] Formulate a plan to modify the user profile service to include caching logic.
+        - [ ] Formulate a plan to update any related configuration.
+
 2.  **Constant Updates:** After **every** \`<OBSERVATION>\`, you **MUST** update the scratchpad.
-    * Mark checklist items as complete: \`[x]\`.
-    * **Dynamically add new checklist items** as you uncover more complexity. If you find a \`PaymentService.ts\`, you should **add a new task** like \`[ ] Analyze PaymentService.ts to find its dependencies\`.
-    * Record \`Key Findings\` with the file paths and a brief note about their relevance.
-    * Update \`Irrelevant Paths to Ignore\` to avoid re-investigating dead ends.
-3.  **Thinking on Paper:** The scratchpad shows your work. It must always reflect your current understanding of the codebase and what your next immediate step should be.
+    * Mark checklist items complete: \`[x]\`.
+    * Add new, more granular tasks as you discover things.
+    * Record \`Key Findings\` (e.g., "\`UserService.ts\` in \`src/services\` contains the \`getUserProfile\` method and is the main target.")
+    * Once investigation is complete (all investigation checklist items are \`[x]\`), your "Next Step" should pivot to plan formulation.
+
 ---
 
-## Scratchpad
-
-For every turn, you **MUST** update your internal state based on the observation.
-
-Scratchpad example:
+## Scratchpad Example
 
 <SCRATCHPAD>
 **Checklist:**
-- [ ] Find the main payment processing logic.
-- [ ] Find the controller that handles payment API requests.
-- [ ] **(New)** Analyze \`payment_service.ts\` to understand its dependencies.
-- [ ] **(New)** Analyze \`payment_controller.ts\` to see how it uses the service.
+- [x] Find the main invoice processing logic.
+- [x] Find the API controller that handles invoice creation.
+- [x] Identified \`InvoiceService.ts\` and \`InvoiceController.ts\`.
+- [ ] **(New)** Formulate plan step 1: Modify \`InvoiceService.ts\` to add new discount logic.
+- [ ] **(New)** Formulate plan step 2: Modify \`InvoiceController.ts\` to expose the logic.
+- [ ] **(New)** Formulate plan step 3: Modify \`api_router.ts\` to add the new route.
 
 **Key Findings:**
-- \`payment_service.ts\` seems like a primary candidate for business logic.
-- \`payment_controller.ts\` is likely the API layer.
-
-**Irrelevant Paths to Ignore:**
-- \`README.md\` is documentation, not implementation.
+- \`src/services/InvoiceService.ts\`: Contains the \`createInvoice\` and \`getInvoice\` methods. This is where the core logic change must happen.
+- \`src/controllers/InvoiceController.ts\`: Handles the HTTP requests and calls the service. Needs a new handler method.
+- \`src/routes/api_router.ts\`: Main router file where the new endpoint path must be registered.
 
 **Next Step:**
-- I will read the contents of \`src/services/payment_service.ts\`.
+- My investigation is complete. I have all necessary files. I will now construct the final, step-by-step implementation plan and then terminate.
 </SCRATCHPAD>
 
 ---
 
-## Termination
+## Termination and Plan Schema
 
-Your mission is complete **ONLY** when you have a high degree of confidence that no more relevant files can be found. Your final \`<PLAN>\` section must justify why the search is complete.
+When your investigation is complete AND your plan is formulated, you MUST make a final call to the \`self.emit_value\` tool. Pass a single argument named \`report_json\` to it, containing a stringified JSON object with your complete solution architecture.
 
-When your investigation is complete and you are confident you have found all relevant files, you MUST make a final call to the \`self.emit_value\` tool. Pass a single argument named \`report_json\` to it, containing a stringified JSON object with your complete findings. Do not call any other tools in your final turn.
+**THIS JSON IS YOUR *ONLY* OUTPUT. IT MUST BE PERFECT.**
+
+Here is an example for a task: "Add a new '/api/v2/invoice/discount' endpoint that applies a 10% discount to an invoice ID."
 
 \`\`\`json
 {
-    "summary_of_findings": "A brief, one-sentence summary of the architectural role of the discovered files.",
-    "relevant_locations": [
-        {
-            "file_path": "src/services/payment_service.ts",
-            "reasoning": "Contains the core business logic for processing payments and interacting with external gateways.",
-            "key_symbols": ["PaymentService", "processTransaction"]
-        }
-    ],
-    "exploration_trace": "1. Grepped for 'payment'. 2. Read 'payment_service.ts'. 3. Discovered import of 'tax_calculator.ts' and read it. 4. Grepped for 'PaymentService' to find its usage in 'payment_controller.ts'."
+  "summary_of_analysis": "To add the new discount endpoint, we must modify the main API router, add a new business logic method to the 'InvoiceService', and create a new handler in the 'InvoiceController'.",
+  "solution_strategy": "The approach is to add a new PUT route. The controller will receive the request, call the InvoiceService to fetch the invoice, apply the 10% discount logic within the service, save the updated invoice, and return it.",
+  "key_files_for_context": [
+    {
+      "file_path": "src/routes/api_v2_router.ts",
+      "reasoning": "Defines all API routes; must be modified to add the new endpoint."
+    },
+    {
+      "file_path": "src/services/invoice_service.ts",
+      "reasoning": "Contains all core business logic for invoices. The discount logic must be added here."
+    },
+    {
+      "file_path": "src/controllers/invoice_controller.ts",
+      "reasoning": "Connects routes to services. A new handler method is required here."
+    }
+  ],
+  "step_by_step_plan": [
+    {
+      "step_number": 1,
+      "action": "MODIFY_FILE",
+      "file_path": "src/services/invoice_service.ts",
+      "description": "In the 'InvoiceService' class, add a new async public method: 'applyDiscount(invoiceId: string)'. This method must: 1. Fetch the invoice by ID using the 'invoiceRepository'. 2. Check if the invoice exists, throw error if not. 3. Calculate the new total (currentTotal * 0.90). 4. Update the invoice object's 'total' field. 5. Save the updated invoice using 'this.invoiceRepository.save(invoice)'. 6. Return the updated invoice.",
+      "expected_outcome": "The 'InvoiceService' class now has a 'applyDiscount' method with the correct business logic."
+    },
+    {
+      "step_number": 2,
+      "action": "MODIFY_FILE",
+      "file_path": "src/controllers/invoice_controller.ts",
+      "description": "In the 'InvoiceController' class, create a new handler method 'applyDiscountHandler(req, res)'. This handler should: 1. Extract 'invoiceId' from req.params. 2. Call 'this.invoiceService.applyDiscount(invoiceId)' inside a try/catch block. 3. On success, send the updated invoice as a 200 JSON response. 4. On error, send a 404 or 500 status with the error message.",
+      "expected_outcome": "The controller has a new public method to handle the HTTP request and call the service logic."
+    },
+    {
+      "step_number": 3,
+      "action": "MODIFY_FILE",
+      "file_path": "src/routes/api_v2_router.ts",
+      "description": "At the top of the file, ensure 'invoiceController' is imported. Find the route group for invoices. Add a new PUT route: 'router.put("/invoice/discount/:invoiceId", (req, res) => invoiceController.applyDiscountHandler(req, res));'.",
+      "expected_outcome": "The API server now exposes the new 'PUT /api/v2/invoice/discount/:invoiceId' endpoint."
+    }
+  ]
 }
 \`\`\`
 
 **The task**
 
-This is the task you have to find relevant files for:
+This is the task you must investigate and plan for:
 
 <TASK>
 \${user_objective}
@@ -129,44 +170,55 @@ This is the task you have to find relevant files for:
 `;
 
 /**
- * The structured input required by the CodeInvestigatorInput.
- * This serves as the formal "mission briefing" from the central agent.
+ * The structured input required by the SolutionArchitect.
  */
-export interface PlannerInput {
+export interface SolutionArchitectInput {
   /** High-level summary of the user's ultimate goal. Provides the "north star". */
   user_objective: string;
 }
 
 /**
- * The structured report generated by the Codebase Investigator subagent.
- * This is the "intelligent compression" of its findings.
+ * The structured implementation plan generated by the Solution Architect subagent.
+ * This is the primary deliverable, intended for an execution agent.
  */
-export interface CodebaseInvestigatorOutput {
-  /** A high-level, natural language summary directly addressing the analysis_questions. */
-  summary_of_findings: string;
-  /** Curated list of the most significant code locations discovered. */
-  relevant_locations: Array<{
+export interface SolutionArchitectOutput {
+  /** A high-level summary of the investigation and the proposed technical solution. */
+  summary_of_analysis: string;
+  /** The overall technical approach or strategy for the solution. */
+  solution_strategy: string;
+  /** All unique file paths that require modification or are critical context. */
+  key_files_for_context: Array<{
     file_path: string;
-    reasoning: string; // Why this location is significant to the objective.
-    key_symbols: string[]; // e.g., "function processPayment",
+    /** Why this file is important (e.g., "Defines the core data model"). */
+    reasoning: string;
   }>;
-  /** A brief, human-readable log of the Investigator's main exploration steps. */
-  exploration_trace: string;
+  /** The detailed, step-by-step implementation plan for an execution agent to follow. */
+  step_by_step_plan: Array<{
+    step_number: number;
+    /** The type of operation required (e.g., "MODIFY_FILE", "CREATE_FILE", "VERIFY_LOGIC"). */
+    action: string;
+    /** The specific file to act upon. */
+    file_path: string;
+    /** Detailed, literal instructions for the execution agent. */
+    description: string;
+    /** What should be true after this step is successfully completed. */
+    expected_outcome: string;
+  }>;
 }
 
-class CodebaseInvestigatorInvocation extends BaseToolInvocation<
-  PlannerInput,
+class SolutionArchitectInvocation extends BaseToolInvocation<
+  SolutionArchitectInput,
   ToolResult
 > {
   constructor(
     private config: Config,
-    params: PlannerInput,
+    params: SolutionArchitectInput,
   ) {
     super(params);
   }
 
   getDescription(): string {
-    return `Exploring codebase for objective: ${this.params.user_objective}`;
+    return `Architecting solution for objective: ${this.params.user_objective}`;
   }
 
   async execute(): Promise<ToolResult> {
@@ -175,7 +227,7 @@ class CodebaseInvestigatorInvocation extends BaseToolInvocation<
     const requiredTools = [GrepTool.Name, ReadFileTool.Name];
     for (const toolName of requiredTools) {
       if (!toolRegistry.getTool(toolName)) {
-        const message = `Codebase Investigator cannot run because a critical tool ('${toolName}') is disabled in the current configuration.`;
+        const message = `Solution Architect cannot run because a critical tool ('${toolName}') is disabled in the current configuration.`;
         return {
           llmContent: `Error: ${message}`,
           returnDisplay: `Error: Critical tool '${toolName}' is disabled.`,
@@ -204,7 +256,7 @@ class CodebaseInvestigatorInvocation extends BaseToolInvocation<
     const outputConfig: OutputConfig = {
       outputs: {
         report_json:
-          'The final JSON report structured according to the CodebaseInvestigatorOutput schema.',
+          'The final JSON report structured according to the SolutionArchitectOutput schema.',
       },
     };
 
@@ -216,7 +268,7 @@ class CodebaseInvestigatorInvocation extends BaseToolInvocation<
     let subAgentScope: SubAgentScope;
     try {
       subAgentScope = await SubAgentScope.create(
-        'SimplifiedContextInvestigator',
+        'SolutionArchitect',
         this.config,
         promptConfig,
         modelConfig,
@@ -224,10 +276,10 @@ class CodebaseInvestigatorInvocation extends BaseToolInvocation<
         { toolConfig, outputConfig },
       );
     } catch (error) {
-      const message = `Error initializing Codebase Investigator: ${error instanceof Error ? error.message : String(error)}`;
+      const message = `Error initializing Solution Architect: ${error instanceof Error ? error.message : String(error)}`;
       return {
         llmContent: message,
-        returnDisplay: 'Failed to start Codebase Investigator.',
+        returnDisplay: 'Failed to start Solution Architect.',
         error: { message, type: ToolErrorType.EXECUTION_FAILED },
       };
     }
@@ -239,10 +291,10 @@ class CodebaseInvestigatorInvocation extends BaseToolInvocation<
     try {
       await subAgentScope.runNonInteractive(contextState);
     } catch (error) {
-      const message = `Codebase Investigator encountered a runtime error: ${error instanceof Error ? error.message : String(error)}`;
+      const message = `Solution Architect encountered a runtime error: ${error instanceof Error ? error.message : String(error)}`;
       return {
         llmContent: message,
-        returnDisplay: 'Codebase Investigator failed during execution.',
+        returnDisplay: 'Solution Architect failed during execution.',
         error: { message, type: ToolErrorType.EXECUTION_FAILED },
       };
     }
@@ -253,47 +305,47 @@ class CodebaseInvestigatorInvocation extends BaseToolInvocation<
 
     if (terminate_reason === SubagentTerminateMode.GOAL && reportJson) {
       try {
-        JSON.parse(reportJson);
+        JSON.parse(reportJson) as SolutionArchitectOutput;
         return {
-          llmContent: `Codebase investigation complete. Report:\n\`\`\`json\n${reportJson}\n\`\`\``,
-          returnDisplay: `Codebase Investigator finished successfully.`,
+          llmContent: `Solution architecture plan complete. Report:\n\`\`\`json\n${reportJson}\n\`\`\``,
+          returnDisplay: `Solution Architect finished successfully.`,
         };
       } catch (_) {
         const message =
-          'Error: Codebase Investigator returned invalid JSON in its final report.';
+          'Error: Solution Architect returned invalid JSON in its final report.';
         return {
           llmContent: `${message}\nInvalid Response:\n${reportJson}`,
-          returnDisplay: `Codebase investigation failed (Invalid JSON).`,
+          returnDisplay: `Solution Architect plan failed (Invalid JSON).`,
           error: { message, type: ToolErrorType.EXECUTION_FAILED },
         };
       }
     }
 
-    let errorMessage = `Warning: Codebase investigation did not complete successfully. Reason: ${terminate_reason}.`;
+    let errorMessage = `Warning: Solution Architect planning did not complete successfully. Reason: ${terminate_reason}.`;
     if (!reportJson && terminate_reason === SubagentTerminateMode.GOAL) {
       errorMessage =
-        "Error: Codebase Investigator claimed success (GOAL) but failed to emit the required 'report_json'. This indicates a prompt adherence failure by the sub-agent.";
+        "Error: Solution Architect claimed success (GOAL) but failed to emit the required 'report_json'. This indicates a prompt adherence failure by the sub-agent.";
     }
 
     return {
       llmContent: errorMessage,
-      returnDisplay: `Codebase investigation incomplete (${terminate_reason}).`,
+      returnDisplay: `Solution Architect planning incomplete (${terminate_reason}).`,
       error: { message: errorMessage, type: ToolErrorType.EXECUTION_FAILED },
     };
   }
 }
 
-export class CodebaseInvestigatorTool extends BaseDeclarativeTool<
-  PlannerInput,
+export class SolutionArchitectTool extends BaseDeclarativeTool<
+  SolutionArchitectInput,
   ToolResult
 > {
-  static readonly Name = 'codebase_investigator';
+  static readonly Name = 'solution_architect';
 
   constructor(private config: Config) {
     super(
-      CodebaseInvestigatorTool.Name,
-      'Codebase Investigator',
-      "Delegates complex codebase exploration to an autonomous subagent. Use for vague user requests that require searching multiple files to understand a feature, trace logic, or find relevant context before making a change. Returns a structured JSON report, arming the primary agent with comprehensive context to confidently plan and execute the user's request. IMPORTANT: This tool is designed for a complete investigation. Call it only ONCE per user request; do not run multiple instances in parallel.",
+      SolutionArchitectTool.Name,
+      'Solution Architect',
+      "Delegates complex codebase exploration AND solution planning to an autonomous subagent. Use this for any task that requires understanding the codebase *before* making a change. This agent investigates the file system, analyzes the code, and returns a structured JSON report detailing a complete step-by-step implementation plan for an execution agent to follow. Call this ONCE to get the full plan.",
       Kind.Think,
       {
         type: 'object',
@@ -301,7 +353,7 @@ export class CodebaseInvestigatorTool extends BaseDeclarativeTool<
           user_objective: {
             type: 'string',
             description:
-              "High-level summary of the user's ultimate goal. Provides the 'north star'.",
+              "High-level summary of the user's ultimate goal. This will be the mission for the Solution Architect.",
           },
         },
         required: ['user_objective'],
@@ -311,8 +363,8 @@ export class CodebaseInvestigatorTool extends BaseDeclarativeTool<
   }
 
   protected createInvocation(
-    params: PlannerInput,
-  ): ToolInvocation<PlannerInput, ToolResult> {
-    return new CodebaseInvestigatorInvocation(this.config, params);
+    params: SolutionArchitectInput,
+  ): ToolInvocation<SolutionArchitectInput, ToolResult> {
+    return new SolutionArchitectInvocation(this.config, params);
   }
 }
