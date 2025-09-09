@@ -23,7 +23,7 @@ import { GrepTool } from '../tools/grep.js';
 import { canUseRipgrep, RipGrepTool } from '../tools/ripGrep.js';
 import { GlobTool } from '../tools/glob.js';
 import { ContextHarvesterTool } from '../tools/context-harvester.js';
-import { SimplifiedContextHarvesterTool } from '../tools/simplifiedHarvester.js';
+import { CodebaseInvestigatorTool } from '../tools/codebase-investigator.js';
 import { EditTool } from '../tools/edit.js';
 import { SmartEditTool } from '../tools/smart-edit.js';
 import { ShellTool } from '../tools/shell.js';
@@ -1087,7 +1087,7 @@ export class Config {
       registerCoreTool(WriteTodosTool, this);
     }
     registerCoreTool(ContextHarvesterTool, this);
-    registerCoreTool(SimplifiedContextHarvesterTool, this);
+    registerCoreTool(CodebaseInvestigatorTool, this);
     await registry.discoverAllTools();
     return registry;
   }

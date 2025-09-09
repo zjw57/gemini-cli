@@ -99,7 +99,7 @@ export * from './tools/mcp-tool.js';
 export * from './tools/write-todos.js';
 export * from './tools/context-harvester.js'
 export * from './tools/context-harvester.js';
-export * from './tools/simplifiedHarvester.js';
+export * from './tools/codebase-investigator.js';
 
 
 
