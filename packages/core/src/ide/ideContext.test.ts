@@ -10,7 +10,12 @@ import {
 } from './constants.js';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { createIdeContextStore } from './ideContext.js';
-import { FileSchema, IdeContextSchema } from './types.js';
+import {
+  type IdeContext,
+  FileSchema,
+  IdeContextSchema,
+  type File,
+} from './types.js';
 
 describe('ideContext', () => {
   describe('createIdeContextStore', () => {

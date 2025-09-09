@@ -422,7 +422,9 @@ export class IdeClient {
     const fileRegex = new RegExp(
       `^gemini-ide-server-${this.ideProcessInfo.pid}-\\d+\\.json$`,
     );
-    const matchingFiles = portFiles.filter((file) => fileRegex.test(file));
+    const matchingFiles = portFiles
+      .filter((file) => fileRegex.test(file))
+      .sort();
     if (matchingFiles.length === 0) {
       return undefined;
     }
