@@ -38,7 +38,7 @@ The application consists of three main parts: the main process, the renderer pro
 To run the app in development mode, use the following command:
 
 ```bash
-npm run dev --workspace=packages/electron-app
+npm run dev
 ```
 
 This will start a Vite development server for the renderer process and launch the Electron app.
@@ -48,13 +48,5 @@ This will start a Vite development server for the renderer process and launch th
 To build the app for production, use the following command:
 
 ```bash
-npm run build --workspace=packages/electron-app
+npm run build 
 ```
-
-To package the app for distribution (e.g., creating a `.app` or `.exe` file), use the following command:
-
-```bash
-npm run package --workspace=packages/electron-app
-```
-
-The packaged application will be located in the `packages/electron-app/dist/electron` directory.

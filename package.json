@@ -6,7 +6,11 @@
   },
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/a2a-server",
+    "packages/core",
+    "packages/cli",
+    "packages/test-utils",
+    "packages/vscode-ide-companion"
   ],
   "private": "true",
   "repository": {

@@ -142,7 +142,6 @@ describe('useSlashCommandProcessor', () => {
         vi.fn(), // refreshStatic
         vi.fn(), // toggleVimEnabled
         setIsProcessing,
-        vi.fn(),
         vi.fn(), // setGeminiMdFileCount
         {
           openAuthDialog: mockOpenAuthDialog,
@@ -885,18 +884,19 @@ describe('useSlashCommandProcessor', () => {
           mockClearItems,
           mockLoadHistory,
           vi.fn(), // refreshStatic
-          vi.fn(), // onDebugMessage
-          vi.fn(), // openThemeDialog
-          mockOpenAuthDialog,
-          vi.fn(), // openEditorDialog
-          vi.fn(), // toggleCorgiMode
-          mockSetQuittingMessages,
-          vi.fn(), // openPrivacyNotice
-
-          vi.fn(), // openSettingsDialog
           vi.fn(), // toggleVimEnabled
-          vi.fn().mockResolvedValue(false), // toggleVimEnabled
           vi.fn(), // setIsProcessing
+          vi.fn(), // setGeminiMdFileCount
+          {
+            openAuthDialog: mockOpenAuthDialog,
+            openThemeDialog: mockOpenThemeDialog,
+            openEditorDialog: vi.fn(),
+            openPrivacyNotice: vi.fn(),
+            openSettingsDialog: vi.fn(),
+            quit: mockSetQuittingMessages,
+            setDebugMessage: vi.fn(),
+            toggleCorgiMode: vi.fn(),
+          },
         ),
       );
 
