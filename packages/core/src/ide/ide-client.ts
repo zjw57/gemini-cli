@@ -22,7 +22,6 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { EnvHttpProxyAgent } from 'undici';
-import { IDE_PORT_FILE_DIR } from './constants.js';
 
 const logger = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,6 +29,8 @@ const logger = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   error: (...args: any[]) => console.error('[ERROR] [IDEClient]', ...args),
 };
+
+const IDE_PORT_FILE_DIR = path.join(os.tmpdir(), '.gemini', 'ide');
 
 export type IDEConnectionState = {
   status: IDEConnectionStatus;
@@ -409,7 +410,10 @@ export class IdeClient {
       const portFileContents = await fs.promises.readFile(portFile, 'utf8');
       return JSON.parse(portFileContents);
     } catch (_) {
-      // For newer extension versions, the file matches the following prefix. If multiple IDE windows are open, multiple files with the same prefix are expected to exist.
+      // For newer extension versions, the file name matches the pattern
+      // /^gemini-ide-server-${pid}-\d+\.json$/. If multiple IDE
+      // windows are open, multiple files matching the pattern are expected to
+      // exist.
     }
 
     let portFiles;
