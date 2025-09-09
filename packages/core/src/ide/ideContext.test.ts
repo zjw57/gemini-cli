@@ -4,18 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import {
   IDE_MAX_OPEN_FILES,
   IDE_MAX_SELECTED_TEXT_LENGTH,
 } from './constants.js';
-import {
-  createIdeContextStore,
-  type File,
-  FileSchema,
-  type IdeContext,
-  IdeContextSchema,
-} from './ideContext.js';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { createIdeContextStore } from './ideContext.js';
+import { FileSchema, IdeContextSchema } from './types.js';
 
 describe('ideContext', () => {
   describe('createIdeContextStore', () => {
