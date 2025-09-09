@@ -337,7 +337,6 @@ export class ShellTool extends BaseDeclarativeTool<
   private allowlist: Set<string> = new Set();
 
   constructor(private readonly config: Config) {
-    console.log('**************** this branch - TO BE DELETED');
     super(
       ShellTool.Name,
       'Shell',
