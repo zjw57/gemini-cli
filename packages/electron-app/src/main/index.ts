@@ -163,9 +163,7 @@ async function startPtyProcess(mainWindow: BrowserWindow) {
   }
 
   try {
-    ptyProcess = pty.spawn(cliPath, 
-      [],
-      {
+    ptyProcess = pty.spawn(cliPath, [], {
       name: 'xterm-color',
       cols: 80,
       rows: 30,
