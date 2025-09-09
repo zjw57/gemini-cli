@@ -34,8 +34,6 @@ import type {
 import { DEFAULT_GEMINI_MODEL } from '../config/models.js';
 import { ToolErrorType } from './tool-error.js';
 
-
-
 const SYSTEM_PROMPT = `
 You are **Codebase Investigator**, a hyper-specialized AI agent and an expert in navigating complex software projects.
 You are a sub-agent within a larger development system.
