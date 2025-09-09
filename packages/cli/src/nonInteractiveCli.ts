@@ -164,7 +164,7 @@ export async function runNonInteractive(
             { text: result.llmContent },
           );
         }
-      } else if (subAgentName === 'solution_architect') {
+      } else if (subAgentName === 'planner') {
         const subAgent = toolRegistry.getTool(subAgentName);
         const subAgentInput: SolutionArchitectInput = {
           user_objective: input,

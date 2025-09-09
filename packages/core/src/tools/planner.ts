@@ -339,12 +339,12 @@ export class SolutionArchitectTool extends BaseDeclarativeTool<
   SolutionArchitectInput,
   ToolResult
 > {
-  static readonly Name = 'solution_architect';
+  static readonly Name = 'planner';
 
   constructor(private config: Config) {
     super(
       SolutionArchitectTool.Name,
-      'Solution Architect',
+      'Planner',
       "Delegates complex codebase exploration AND solution planning to an autonomous subagent. Use this for any task that requires understanding the codebase *before* making a change. This agent investigates the file system, analyzes the code, and returns a structured JSON report detailing a complete step-by-step implementation plan for an execution agent to follow. Call this ONCE to get the full plan.",
       Kind.Think,
       {
