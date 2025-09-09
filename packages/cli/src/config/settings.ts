@@ -694,6 +694,50 @@ export function loadSettings(
 }
 
 /**
+ * Deeply compares two objects for equality.
+ * @param a The first object.
+ * @param b The second object.
+ * @returns True if the objects are equal, false otherwise.
+ */
+function isEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+
+  if (a && b && typeof a === 'object' && typeof b === 'object') {
+    if (a.constructor !== b.constructor) return false;
+
+    if (Array.isArray(a)) {
+      if (a.length !== (b as unknown[]).length) return false;
+      for (let i = 0; i < a.length; i++) {
+        if (!isEqual(a[i], (b as unknown[])[i])) return false;
+      }
+      return true;
+    }
+
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+
+    if (keysA.length !== keysB.length) return false;
+
+    for (const key of keysA) {
+      if (
+        !Object.prototype.hasOwnProperty.call(b, key) ||
+        !isEqual(
+          (a as Record<string, unknown>)[key],
+          (b as Record<string, unknown>)[key],
+        )
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // Handle NaN case
+  return a !== a && b !== b;
+}
+
+/**
  * Removes properties from a settings object that match the default values.
  * This is used to keep the saved settings files clean and only contain overrides.
  * @param settings The settings object to filter.
@@ -710,7 +754,7 @@ function removeDefaultValues(
       // Keep the setting if the default doesn't exist or the value is different.
       if (
         !Object.hasOwn(defaults, key) ||
-        JSON.stringify(settings[key]) !== JSON.stringify(defaults[key])
+        !isEqual(settings[key], defaults[key])
       ) {
         result[key] = settings[key];
       }
