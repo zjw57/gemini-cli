@@ -494,5 +494,44 @@ describe('IdeClient', () => {
 
       expect(result).toBeUndefined();
     });
+
+    it('should ignore files with invalid names', async () => {
+      const validConfig = { port: '3333', workspacePath: '/test/workspace' };
+      vi.mocked(fs.promises.readFile).mockRejectedValueOnce(
+        new Error('not found'),
+      );
+      (
+        vi.mocked(fs.promises.readdir) as Mock<
+          (path: fs.PathLike) => Promise<string[]>
+        >
+      ).mockResolvedValue([
+        'gemini-ide-server-12345-111.json', // valid
+        'not-a-config-file.txt', // invalid
+        'gemini-ide-server-asdf.json', // invalid
+      ]);
+      vi.mocked(fs.promises.readFile).mockResolvedValueOnce(
+        JSON.stringify(validConfig),
+      );
+      vi.spyOn(IdeClient, 'validateWorkspacePath').mockReturnValue({
+        isValid: true,
+      });
+
+      const ideClient = await IdeClient.getInstance();
+      const result = await (
+        ideClient as unknown as {
+          getConnectionConfigFromFile: () => Promise<unknown>;
+        }
+      ).getConnectionConfigFromFile();
+
+      expect(result).toEqual(validConfig);
+      expect(fs.promises.readFile).toHaveBeenCalledWith(
+        path.join('/tmp', 'gemini-ide-server-12345-111.json'),
+        'utf8',
+      );
+      expect(fs.promises.readFile).not.toHaveBeenCalledWith(
+        path.join('/tmp', 'not-a-config-file.txt'),
+        'utf8',
+      );
+    });
   });
 });
