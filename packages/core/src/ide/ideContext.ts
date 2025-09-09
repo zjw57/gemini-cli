@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { IDE_MAX_OPEN_FILES, IDE_MAX_SELECTED_TEXT_LENGTH } from './constants';
+import { IDE_MAX_OPEN_FILES, IDE_MAX_SELECTED_TEXT_LENGTH } from './constants.js';
 
 /**
  * Zod schema for validating a file context from the IDE.
