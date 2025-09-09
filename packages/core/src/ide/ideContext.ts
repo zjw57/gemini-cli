@@ -5,6 +5,7 @@
  */
 
 import { z } from 'zod';
+import { IDE_MAX_OPEN_FILES, IDE_MAX_SELECTED_TEXT_LENGTH } from './constants';
 
 /**
  * Zod schema for validating a file context from the IDE.
@@ -126,10 +127,6 @@ export function createIdeContextStore() {
    * Sets the IDE context and notifies all registered subscribers of the change.
    * @param newIdeContext The new IDE context from the IDE.
    */
-  /**
-   * Sets the IDE context and notifies all registered subscribers of the change.
-   * @param newIdeContext The new IDE context from the IDE.
-   */
   function setIdeContext(newIdeContext: IdeContext): void {
     const { workspaceState } = newIdeContext;
     if (!workspaceState) {
@@ -143,7 +140,7 @@ export function createIdeContextStore() {
     if (openFiles && openFiles.length > 0) {
       // Sort by timestamp descending (newest first)
       openFiles.sort(
-        (a: File, b: File) => (b.timestamp ?? 0) - (a.timestamp ?? 0),
+        (a: File, b: File) => b.timestamp - a.timestamp
       );
 
       // The most recent file is now at index 0.
@@ -169,22 +166,23 @@ export function createIdeContextStore() {
         // Truncate selected text in the active file
         if (
           mostRecentFile.selectedText &&
-          mostRecentFile.selectedText.length > MAX_SELECTED_TEXT_LENGTH
+          mostRecentFile.selectedText.length > IDE_MAX_SELECTED_TEXT_LENGTH
         ) {
           mostRecentFile.selectedText =
-            mostRecentFile.selectedText.substring(0, MAX_SELECTED_TEXT_LENGTH) +
+            mostRecentFile.selectedText.substring(0, IDE_MAX_SELECTED_TEXT_LENGTH) +
             '... [TRUNCATED]';
         }
       }
 
       // Truncate files list
-      if (openFiles.length > MAX_FILES) {
-        workspaceState.openFiles = openFiles.slice(0, MAX_FILES);
+      if (openFiles.length > IDE_MAX_OPEN_FILES) {
+        workspaceState.openFiles = openFiles.slice(0, IDE_MAX_OPEN_FILES);
       }
     }
     ideContextState = newIdeContext;
     notifySubscribers();
   }
+
   /**
    * Clears the IDE context and notifies all registered subscribers of the change.
    */
