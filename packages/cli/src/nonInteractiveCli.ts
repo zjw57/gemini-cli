@@ -9,6 +9,7 @@ import type {
   ToolCallRequestInfo,
   ContextHarvesterInput,
   CodebaseInvestigatorInput,
+  CodebaseInvestigatorWithFilesInput,
 } from '@google/gemini-cli-core';
 import {
   executeToolCall,
@@ -23,7 +24,6 @@ import type { Content, Part } from '@google/genai';
 
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
 import { handleAtCommand } from './ui/hooks/atCommandProcessor.js';
-
 
 export async function runNonInteractive(
   config: Config,
@@ -74,7 +74,6 @@ export async function runNonInteractive(
 
     if (subAgentName) {
       const toolRegistry = config.getToolRegistry();
-      
 
       if (subAgentName === 'contextHarvester') {
         const subAgent = toolRegistry.getTool(subAgentName);
@@ -100,6 +99,21 @@ export async function runNonInteractive(
       } else if (subAgentName === 'codebase_investigator') {
         const subAgent = toolRegistry.getTool(subAgentName);
         const subAgentInput: CodebaseInvestigatorInput = {
+          user_objective: input,
+        };
+
+        const invocation = (subAgent as any).build(subAgentInput);
+        const result = await invocation.execute(abortController.signal);
+
+        if (result.llmContent) {
+          (currentMessages[0].parts as Part[]).push(
+            { text: '\n--- Context from Codebase Investigator ---\n' },
+            { text: result.llmContent },
+          );
+        }
+      } else if (subAgentName === 'codebase_investigator_with_files'){
+        const subAgent = toolRegistry.getTool(subAgentName);
+        const subAgentInput: CodebaseInvestigatorWithFilesInput = {
           user_objective: input,
         };
 
