@@ -22,7 +22,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { EnvHttpProxyAgent } from 'undici';
-import { IDE_PORT_FILE_DIR } from './constants.js'
+import { IDE_PORT_FILE_DIR } from './constants.js';
 
 const logger = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
