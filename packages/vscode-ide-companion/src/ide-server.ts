@@ -23,11 +23,10 @@ const MCP_SESSION_ID_HEADER = 'mcp-session-id';
 const IDE_SERVER_PORT_ENV_VAR = 'GEMINI_CLI_IDE_SERVER_PORT';
 const IDE_WORKSPACE_PATH_ENV_VAR = 'GEMINI_CLI_IDE_WORKSPACE_PATH';
 
-async function writePortAndWorkspace(
+async function writePortFile(
   context: vscode.ExtensionContext,
   port: number,
   portFile: string,
-  ppidPortFile: string,
   log: (message: string) => void,
 ): Promise<void> {
   const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -48,13 +47,10 @@ async function writePortAndWorkspace(
   const content = JSON.stringify({ port, workspacePath, ppid: process.ppid });
 
   log(`Writing port file to: ${portFile}`);
-  log(`Writing ppid port file to: ${ppidPortFile}`);
 
   try {
-    await Promise.all([
-      fs.writeFile(portFile, content),
-      fs.writeFile(ppidPortFile, content),
-    ]);
+    await fs.mkdir(path.dirname(portFile), { recursive: true });
+    await fs.writeFile(portFile, content);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     log(`Failed to write port to file: ${message}`);
@@ -89,7 +85,6 @@ export class IDEServer {
   private context: vscode.ExtensionContext | undefined;
   private log: (message: string) => void;
   private portFile: string | undefined;
-  private ppidPortFile: string | undefined;
   private port: number | undefined;
   private transports: { [sessionId: string]: StreamableHTTPServerTransport } =
     {};
@@ -238,20 +233,12 @@ export class IDEServer {
           this.port = address.port;
           this.portFile = path.join(
             os.tmpdir(),
-            `gemini-ide-server-${this.port}.json`,
-          );
-          this.ppidPortFile = path.join(
-            os.tmpdir(),
-            `gemini-ide-server-${process.ppid}.json`,
+            '.gemini',
+            'ide',
+            `gemini-ide-server-${process.ppid}-${this.port}.json`,
           );
           this.log(`IDE server listening on port ${this.port}`);
-          await writePortAndWorkspace(
-            context,
-            this.port,
-            this.portFile,
-            this.ppidPortFile,
-            this.log,
-          );
+          await writePortFile(context, this.port, this.portFile, this.log);
         }
         resolve();
       });
@@ -272,20 +259,8 @@ export class IDEServer {
   }
 
   async syncEnvVars(): Promise<void> {
-    if (
-      this.context &&
-      this.server &&
-      this.port &&
-      this.portFile &&
-      this.ppidPortFile
-    ) {
-      await writePortAndWorkspace(
-        this.context,
-        this.port,
-        this.portFile,
-        this.ppidPortFile,
-        this.log,
-      );
+    if (this.context && this.server && this.port && this.portFile) {
+      await writePortFile(this.context, this.port, this.portFile, this.log);
       this.broadcastIdeContextUpdate();
     }
   }
@@ -311,13 +286,6 @@ export class IDEServer {
     if (this.portFile) {
       try {
         await fs.unlink(this.portFile);
-      } catch (_err) {
-        // Ignore errors if the file doesn't exist.
-      }
-    }
-    if (this.ppidPortFile) {
-      try {
-        await fs.unlink(this.ppidPortFile);
       } catch (_err) {
         // Ignore errors if the file doesn't exist.
       }
