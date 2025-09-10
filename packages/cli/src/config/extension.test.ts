@@ -738,7 +738,7 @@ describe('performWorkspaceExtensionMigration', () => {
     const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
     expect(metadata).toEqual({
       source: ext1Path,
-      type: 'local',
+      type: 'link',
     });
     const settings = loadSettings(tempWorkspaceDir);
     expect(

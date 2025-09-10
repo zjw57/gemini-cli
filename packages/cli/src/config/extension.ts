@@ -112,7 +112,7 @@ export async function performWorkspaceExtensionMigration(
     try {
       const installMetadata: ExtensionInstallMetadata = {
         source: extension.path,
-        type: 'local',
+        type: 'link',
       };
       await installExtension(installMetadata, workspaceDir);
       // Disable the extension at the user level and explicitly enable it for this workspace.

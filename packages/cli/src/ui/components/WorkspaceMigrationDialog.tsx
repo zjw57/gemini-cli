@@ -84,6 +84,11 @@ export function WorkspaceMigrationDialog(props: {
         workspace.
       </Text>
       <Text>
+        This extension will be linked to the user-level definition, so changes
+        made to it will in the workspace extensions directory will be reflected
+        there.
+      </Text>
+      <Text>
         If you opt to skip, you can install them manually using the extensions
         install command.
       </Text>
