@@ -24,8 +24,7 @@ import { canUseRipgrep, RipGrepTool } from '../tools/ripGrep.js';
 import { GlobTool } from '../tools/glob.js';
 import { ContextHarvesterTool } from '../tools/context-harvester.js';
 import { CodebaseInvestigatorTool } from '../tools/codebase-investigator.js';
-import {CodebaseInvestigatorWithFilesTool} from "../tools/codebase-investigator-with-files.js"
-import {SolutionArchitectTool} from "../tools/planner.js"
+import { SolutionPlannerTool } from '../tools/planner.js';
 import { EditTool } from '../tools/edit.js';
 import { SmartEditTool } from '../tools/smart-edit.js';
 import { ShellTool } from '../tools/shell.js';
@@ -1090,8 +1089,7 @@ export class Config {
     }
     registerCoreTool(ContextHarvesterTool, this);
     registerCoreTool(CodebaseInvestigatorTool, this);
-    registerCoreTool(CodebaseInvestigatorWithFilesTool, this);
-    registerCoreTool(SolutionArchitectTool, this);
+    registerCoreTool(SolutionPlannerTool, this);
     await registry.discoverAllTools();
     return registry;
   }
