@@ -19,7 +19,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { simpleGit } from 'simple-git';
-import { SettingScope, loadSettings } from '../config/settings.js';
+import {
+  type Settings,
+  SettingScope,
+  loadSettings,
+} from '../config/settings.js';
 import { getErrorMessage } from '../utils/errors.js';
 import { recursivelyHydrateStrings } from './extensions/variables.js';
 import { isWorkspaceTrusted } from './trustedFolders.js';
@@ -100,6 +104,7 @@ async function copyExtension(
 
 export async function performWorkspaceExtensionMigration(
   extensions: Extension[],
+  workspaceDir: string = process.cwd(),
 ): Promise<string[]> {
   const failedInstallNames: string[] = [];
 
@@ -109,7 +114,14 @@ export async function performWorkspaceExtensionMigration(
         source: extension.path,
         type: 'local',
       };
-      await installExtension(installMetadata);
+      await installExtension(installMetadata, workspaceDir);
+      // Disable the extension at the user level and explicitly enable it for this workspace.
+      disableExtension(extension.config.name, SettingScope.User, workspaceDir);
+      explicitlyEnableExtension(
+        extension.config.name,
+        SettingScope.Workspace,
+        workspaceDir,
+      );
     } catch (_) {
       failedInstallNames.push(extension.config.name);
     }
@@ -117,11 +129,22 @@ export async function performWorkspaceExtensionMigration(
   return failedInstallNames;
 }
 
+const isExtensionEnabled = (name: string, settings: Settings): boolean => {
+  const isExplicitlyEnabled = settings.extensions?.enabled?.includes(name);
+  const isDisabled = settings.extensions?.disabled?.includes(name);
+  return isExplicitlyEnabled || !isDisabled;
+};
+
+export function loadAllExtensions(workspaceDir: string = process.cwd()) {
+  return loadExtensions(workspaceDir, true);
+}
+
 export function loadExtensions(
   workspaceDir: string = process.cwd(),
+  includeDisabled: boolean = false,
 ): Extension[] {
   const settings = loadSettings(workspaceDir).merged;
-  const disabledExtensions = settings.extensions?.disabled ?? [];
+
   const allExtensions = [...loadUserExtensions()];
 
   if (
@@ -134,10 +157,10 @@ export function loadExtensions(
 
   const uniqueExtensions = new Map<string, Extension>();
   for (const extension of allExtensions) {
-    if (
-      !uniqueExtensions.has(extension.config.name) &&
-      !disabledExtensions.includes(extension.config.name)
-    ) {
+    const shouldInclude = includeDisabled
+      ? true
+      : isExtensionEnabled(extension.config.name, settings);
+    if (!uniqueExtensions.has(extension.config.name) && shouldInclude) {
       uniqueExtensions.set(extension.config.name, extension);
     }
   }
@@ -276,15 +299,14 @@ export function annotateActiveExtensions(
   workspaceDir: string,
 ): GeminiCLIExtension[] {
   const settings = loadSettings(workspaceDir).merged;
-  const disabledExtensions = settings.extensions?.disabled ?? [];
-
   const annotatedExtensions: GeminiCLIExtension[] = [];
-
   if (enabledExtensionNames.length === 0) {
+    // An extension is always enabled if it is in the list of explicitly enabled extensions.
+    // If not, we treat it as enabled IFF it is NOT in the disabled extensions list.
     return extensions.map((extension) => ({
       name: extension.config.name,
       version: extension.config.version,
-      isActive: !disabledExtensions.includes(extension.config.name),
+      isActive: isExtensionEnabled(extension.config.name, settings),
       path: extension.path,
     }));
   }
@@ -610,17 +632,53 @@ export function disableExtension(
   const settingsFile = settings.forScope(scope);
   const extensionSettings = settingsFile.settings.extensions || {
     disabled: [],
+    enabled: [],
   };
   const disabledExtensions = extensionSettings.disabled || [];
   if (!disabledExtensions.includes(name)) {
     disabledExtensions.push(name);
     extensionSettings.disabled = disabledExtensions;
+    extensionSettings.enabled =
+      extensionSettings.enabled?.filter((e) => e !== name) ?? [];
     settings.setValue(scope, 'extensions', extensionSettings);
   }
 }
 
-export function enableExtension(name: string, scopes: SettingScope[]) {
-  removeFromDisabledExtensions(name, scopes);
+export function explicitlyEnableExtension(
+  name: string,
+  scope: SettingScope,
+  cwd: string = process.cwd(),
+) {
+  if (scope === SettingScope.System || scope === SettingScope.SystemDefaults) {
+    throw new Error('System and SystemDefaults scopes are not supported.');
+  }
+  const settings = loadSettings(cwd);
+  const settingsFile = settings.forScope(scope);
+  const extensionSettings = settingsFile.settings.extensions || {
+    disabled: [],
+    enabled: [],
+  };
+
+  const enabledExtensions = extensionSettings.enabled || [];
+  if (!enabledExtensions.includes(name)) {
+    enabledExtensions.push(name);
+    extensionSettings.enabled = enabledExtensions;
+    settings.setValue(scope, 'extensions', extensionSettings);
+  }
+}
+
+export function enableExtension(
+  name: string,
+  scopes: SettingScope[],
+  alwaysEnable: boolean = false,
+  cwd: string = process.cwd(),
+) {
+  removeFromDisabledExtensions(name, scopes, cwd);
+  if (alwaysEnable) {
+    for (const scope of scopes) {
+      explicitlyEnableExtension(name, scope, cwd);
+    }
+  }
 }
 
 /**

@@ -931,6 +931,17 @@ const SETTINGS_SCHEMA = {
         showInDialog: false,
         mergeStrategy: MergeStrategy.UNION,
       },
+      enabled: {
+        type: 'array',
+        label: 'Explicitly Enabled Extensions',
+        category: 'Extensions',
+        requiresRestart: true,
+        default: [] as string[],
+        description:
+          'List of explicitly enabled extensions. Will always override the disabled extensions list, no matter the setting level.',
+        showInDialog: false,
+        mergeStrategy: MergeStrategy.UNION,
+      },
     },
   },
 } as const satisfies SettingsSchema;

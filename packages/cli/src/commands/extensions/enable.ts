@@ -12,6 +12,7 @@ import { SettingScope } from '../../config/settings.js';
 interface EnableArgs {
   name: string;
   scope?: SettingScope;
+  override?: boolean;
 }
 
 export async function handleEnable(args: EnableArgs) {
@@ -19,7 +20,7 @@ export async function handleEnable(args: EnableArgs) {
     const scopes = args.scope
       ? [args.scope]
       : [SettingScope.User, SettingScope.Workspace];
-    enableExtension(args.name, scopes);
+    enableExtension(args.name, scopes, args.override);
     if (args.scope) {
       console.log(
         `Extension "${args.name}" successfully enabled for scope "${args.scope}".`,
@@ -35,7 +36,7 @@ export async function handleEnable(args: EnableArgs) {
 }
 
 export const enableCommand: CommandModule = {
-  command: 'enable [--scope] <name>',
+  command: 'enable [--scope] [--override] <name>',
   describe: 'Enables an extension.',
   builder: (yargs) =>
     yargs
@@ -49,11 +50,17 @@ export const enableCommand: CommandModule = {
         type: 'string',
         choices: [SettingScope.User, SettingScope.Workspace],
       })
+      .option('override', {
+        describe: 'Override any settings disabling this extension.',
+        type: 'boolean',
+        default: false,
+      })
       .check((_argv) => true),
   handler: async (argv) => {
     await handleEnable({
       name: argv['name'] as string,
       scope: argv['scope'] as SettingScope,
+      override: argv['override'] as boolean,
     });
   },
 };
