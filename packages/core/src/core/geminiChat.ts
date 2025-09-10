@@ -303,7 +303,7 @@ export class GeminiChat {
         }
 
         if (this.adkMode) {
-          return this.generateContent(userContent);
+          return this.generateContent(userContent, modelToUse);
         } else {
           return this.contentGenerator.generateContent(
             {
@@ -362,9 +362,22 @@ export class GeminiChat {
     }
   }
 
+  /**
+   * Generates content from the model.
+   * This should only be used when adkMode=true.
+   *
+   * @param newMessage The new message to send to the model.
+   * @param modelToUse The model to use for content generation.
+   * @returns A promise that resolves to the generated content response.
+   */
   private async generateContent(
     newMessage: Content,
+    modelToUse?: string | undefined,
   ): Promise<GenerateContentResponse> {
+    if (modelToUse) {
+      this.agent!.model = modelToUse;
+    }
+
     let event = (await this.runner?.runSync({
       userId: 'placeholder',
       sessionId: this.sessionId || '',
@@ -426,7 +439,7 @@ export class GeminiChat {
         }
 
         if (this.adkMode) {
-          return this.generateContentStream(userContent);
+          return this.generateContentStream(userContent, modelToUse);
         } else {
           return this.contentGenerator.generateContentStream(
             {
@@ -473,9 +486,22 @@ export class GeminiChat {
     }
   }
 
+  /**
+   * Generates a stream of content from the model.
+   * This should only be used when adkMode=true.
+   *
+   * @param newMessage The new message to send to the model.
+   * @param modelToUse The model to use for content generation.
+   * @returns A promise that resolves to an async generator of generated content responses.
+   */
   private async generateContentStream(
     newMessage: Content,
+    modelToUse?: string | undefined,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
+    if (modelToUse) {
+      this.agent!.model = modelToUse;
+    }
+
     const eventStream = (await this.runner?.runAsync({
       userId: 'placeholder',
       sessionId: this.sessionId || '',
@@ -610,7 +636,7 @@ export class GeminiChat {
       if (cyclicSchemaTools.length > 0) {
         const extraDetails =
           `\n\nThis error was probably caused by cyclic schema references in one of the following tools, try disabling them with excludeTools:\n\n - ` +
-          cyclicSchemaTools.join(`\n - `) +
+          cyclicSchemaTools.join(`\n - `) + 
           `\n`;
         error.message += extraDetails;
       }
@@ -702,7 +728,7 @@ export class GeminiChat {
       if (this.isThoughtContent(content)) {
         continue;
       }
-      const lastContent =
+      const lastContent = 
         consolidatedOutputContents[consolidatedOutputContents.length - 1];
       if (this.isTextContent(lastContent) && this.isTextContent(content)) {
         // If both current and last are text, combine their text into the lastContent's first part
