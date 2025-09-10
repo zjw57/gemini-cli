@@ -636,7 +636,7 @@ export class GeminiChat {
       if (cyclicSchemaTools.length > 0) {
         const extraDetails =
           `\n\nThis error was probably caused by cyclic schema references in one of the following tools, try disabling them with excludeTools:\n\n - ` +
-          cyclicSchemaTools.join(`\n - `) + 
+          cyclicSchemaTools.join(`\n - `) +
           `\n`;
         error.message += extraDetails;
       }
@@ -728,7 +728,7 @@ export class GeminiChat {
       if (this.isThoughtContent(content)) {
         continue;
       }
-      const lastContent = 
+      const lastContent =
         consolidatedOutputContents[consolidatedOutputContents.length - 1];
       if (this.isTextContent(lastContent) && this.isTextContent(content)) {
         // If both current and last are text, combine their text into the lastContent's first part
