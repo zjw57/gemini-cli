@@ -9,8 +9,7 @@ import type {
   ToolCallRequestInfo,
   ContextHarvesterInput,
   CodebaseInvestigatorInput,
-  CodebaseInvestigatorWithFilesInput,
-  SolutionArchitectInput,
+  SolutionPlannerInput,
 } from '@google/gemini-cli-core';
 import {
   executeToolCall,
@@ -112,10 +111,11 @@ export async function runNonInteractive(
             { text: result.llmContent },
           );
         }
-      } else if (subAgentName === 'codebase_investigator_with_files'){
+      } else if (subAgentName === 'codebase_investigator_with_files') {
         const subAgent = toolRegistry.getTool(subAgentName);
-        const subAgentInput: CodebaseInvestigatorWithFilesInput = {
+        const subAgentInput: CodebaseInvestigatorInput = {
           user_objective: input,
+          include_file_content: true,
         };
 
         const invocation = (subAgent as any).build(subAgentInput);
@@ -129,7 +129,7 @@ export async function runNonInteractive(
         }
       } else if (subAgentName === 'planner') {
         const subAgent = toolRegistry.getTool(subAgentName);
-        const subAgentInput: SolutionArchitectInput = {
+        const subAgentInput: SolutionPlannerInput = {
           user_objective: input,
         };
 
@@ -138,7 +138,9 @@ export async function runNonInteractive(
 
         if (result.llmContent) {
           (currentMessages[0].parts as Part[]).push(
-            { text: `\n--- Here is the context and the plan given by the Planner. Follow the plan. **This is your most critical function. Your scratchpad is your memory and your plan.** 1.  **Initialization:** On your very first turn, you **MUST** create the \`<scratchpad>\` section. **Analyze the \`step_by_step_plan\` provided by the Planner and create an initial very detailed \`Checklist\`  of steps.**  2.  **Constant Updates:** After **every** \`turn\`, you **MUST** update the scratchpad. * Mark checklist items as complete: \`[x]\`. * **Dynamically add new checklist items** as you uncover more complexity. 3. **Thinking on Paper:** The scratchpad shows your work. It must always reflect your current understanding of the codebase and what your next immediate step should be. \n\n Here is the context and plan given by the planner:  ---\n` },
+            {
+              text: `\n--- Here is the context and the plan given by the Planner. Follow the plan. **This is your most critical function. Your scratchpad is your memory and your plan.** 1.  **Initialization:** On your very first turn, you **MUST** create the \`<scratchpad>\` section. **Analyze the \`step_by_step_plan\` provided by the Planner and create an initial very detailed \`Checklist\`  of steps.**  2.  **Constant Updates:** After **every** \`turn\`, you **MUST** update the scratchpad. * Mark checklist items as complete: \`[x]\`. * **Dynamically add new checklist items** as you uncover more complexity. 3. **Thinking on Paper:** The scratchpad shows your work. It must always reflect your current understanding of the codebase and what your next immediate step should be. \n\n Here is the context and plan given by the planner:  ---\n`,
+            },
             { text: result.llmContent },
           );
         }
