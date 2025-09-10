@@ -18,6 +18,7 @@ export const useFolderTrust = (
   settings: LoadedSettings,
   onTrustChange: (isTrusted: boolean | undefined) => void,
   refreshStatic: () => void,
+  onRestart: () => void,
 ) => {
   const [isTrusted, setIsTrusted] = useState<boolean | undefined>(undefined);
   const [isFolderTrustDialogOpen, setIsFolderTrustDialogOpen] = useState(false);
@@ -53,9 +54,12 @@ export const useFolderTrust = (
         case FolderTrustChoice.TRUST_PARENT:
           trustLevel = TrustLevel.TRUST_PARENT;
           break;
-        case FolderTrustChoice.DO_NOT_TRUST:
+        case FolderTrustChoice.DO_NOT_TRUST: {
           trustLevel = TrustLevel.DO_NOT_TRUST;
-          break;
+          trustedFolders.setValue(cwd, trustLevel);
+          onRestart();
+          return;
+        }
         default:
           return;
       }
@@ -75,7 +79,7 @@ export const useFolderTrust = (
         setIsFolderTrustDialogOpen(false);
       }
     },
-    [onTrustChange, isTrusted],
+    [onTrustChange, isTrusted, onRestart],
   );
 
   return {

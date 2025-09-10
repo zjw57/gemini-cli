@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { spawn } from 'node:child_process';
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { type DOMElement, measureElement } from 'ink';
 import { App } from './App.js';
@@ -121,6 +122,7 @@ export const AppContainer = (props: AppContainerProps) => {
   const [isTrustedFolder, setIsTrustedFolder] = useState<boolean | undefined>(
     config.isTrustedFolder(),
   );
+  const [isRestarting, setIsRestarting] = useState(false);
 
   // Helper to determine the effective model, considering the fallback state.
   const getEffectiveModel = useCallback(() => {
@@ -678,8 +680,10 @@ Logging in with Google... Please restart Gemini CLI to continue.
   const [showEscapePrompt, setShowEscapePrompt] = useState(false);
   const [showIdeRestartPrompt, setShowIdeRestartPrompt] = useState(false);
 
-  const { isFolderTrustDialogOpen, handleFolderTrustSelect, isRestarting } =
-    useFolderTrust(settings, setIsTrustedFolder, refreshStatic);
+  const { isFolderTrustDialogOpen, handleFolderTrustSelect, isRestarting: isFolderTrustRestarting } =
+    useFolderTrust(settings, setIsTrustedFolder, refreshStatic, () => {
+      setIsRestarting(true);
+    });
   const { needsRestart: ideNeedsRestart } = useIdeTrustListener();
   const isInitialMount = useRef(true);
 
@@ -704,6 +708,23 @@ Logging in with Google... Please restart Gemini CLI to continue.
       clearTimeout(handler);
     };
   }, [terminalWidth, refreshStatic]);
+
+  useEffect(() => {
+    if (isRestarting) {
+      // Spawn the new process, inheriting the terminal.
+      const child = spawn(process.execPath, process.argv.slice(1), {
+        stdio: 'inherit',
+      });
+
+      // The parent process must not read from stdin anymore.
+      process.stdin.pause();
+
+      // The parent now waits for the child to exit.
+      child.on('exit', (code) => {
+        process.exit(code ?? 0);
+      });
+    }
+  }, [isRestarting]);
 
   useEffect(() => {
     const unsubscribe = ideContext.subscribeToIdeContext(setIdeContextState);
@@ -1002,7 +1023,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       currentIDE,
       updateInfo,
       showIdeRestartPrompt,
-      isRestarting,
+      isRestarting: isFolderTrustRestarting,
     }),
     [
       historyManager.history,
@@ -1073,7 +1094,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       currentIDE,
       updateInfo,
       showIdeRestartPrompt,
-      isRestarting,
+      isFolderTrustRestarting,
       currentModel,
     ],
   );
@@ -1125,6 +1146,10 @@ Logging in with Google... Please restart Gemini CLI to continue.
       handleProQuotaChoice,
     ],
   );
+
+  if (isRestarting) {
+    return null;
+  }
 
   return (
     <UIStateContext.Provider value={uiState}>
