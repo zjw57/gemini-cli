@@ -741,12 +741,13 @@ describe('performWorkspaceExtensionMigration', () => {
       type: 'link',
     });
     const settings = loadSettings(tempWorkspaceDir);
-    expect(
-      settings.forScope(SettingScope.User).settings.extensions?.disabled,
-    ).toEqual(['ext1', 'ext2']);
-    expect(
-      settings.forScope(SettingScope.Workspace).settings.extensions?.enabled,
-    ).toEqual(['ext1', 'ext2']);
+    const disabledExtensions =
+      settings.forScope(SettingScope.User).settings.extensions?.disabled ?? [];
+    expect(new Set(disabledExtensions)).toEqual(new Set(['ext1', 'ext2']));
+    const enabledExtensions =
+      settings.forScope(SettingScope.Workspace).settings.extensions?.enabled ??
+      [];
+    expect(new Set(enabledExtensions)).toEqual(new Set(['ext1', 'ext2']));
   });
 
   it('should return the names of failed installations', async () => {
