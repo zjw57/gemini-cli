@@ -223,7 +223,7 @@ class WriteTodosToolInvocation extends BaseToolInvocation<
     _signal: AbortSignal,
     _updateOutput?: (output: string) => void
   ): Promise<ToolResult> {
-    WriteTodosTool.todos = this.params.todos;
+    WriteTodosTool.todos = this.params.todos ?? [];
 
     const todoListString = WriteTodosTool.todos
       .map(
