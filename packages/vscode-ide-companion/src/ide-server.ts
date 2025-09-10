@@ -241,12 +241,12 @@ export class IDEServer {
             await fs.mkdir(portDir, { recursive: true });
             portFile = path.join(
               portDir,
-              `gemini-ide-server-${process.pid}-${this.port}.json`,
+              `gemini-ide-server-${process.ppid}-${this.port}.json`,
             );
             this.portFile = portFile;
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
-            this.log(`Failed to create IDE server comms file: ${message}`);
+            this.log(`Failed to create IDE port file: ${message}`);
           }
           await writePortAndWorkspace(context, this.port, portFile, this.log);
         }
