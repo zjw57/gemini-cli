@@ -26,6 +26,8 @@ import {
   ToolErrorType,
   ToolCallEvent,
   ShellTool,
+  logToolOutputTruncated,
+  ToolOutputTruncatedEvent,
 } from '../index.js';
 import type { Part, PartListUnion } from '@google/genai';
 import { getResponseTextFromParts } from '../utils/generateContentResponseUtilities.js';
@@ -248,6 +250,7 @@ const createErrorResponse = (
   ],
   resultDisplay: error.message,
   errorType,
+  contentLength: error.message.length,
 });
 
 export async function truncateAndSaveToFile(
@@ -464,6 +467,7 @@ export class CoreToolScheduler {
             }
           }
 
+          const errorMessage = `[Operation Cancelled] Reason: ${auxiliaryData}`;
           return {
             request: currentCall.request,
             tool: toolInstance,
@@ -477,7 +481,7 @@ export class CoreToolScheduler {
                     id: currentCall.request.callId,
                     name: currentCall.request.name,
                     response: {
-                      error: `[Operation Cancelled] Reason: ${auxiliaryData}`,
+                      error: errorMessage,
                     },
                   },
                 },
@@ -485,6 +489,7 @@ export class CoreToolScheduler {
               resultDisplay,
               error: undefined,
               errorType: undefined,
+              contentLength: errorMessage.length,
             },
             durationMs,
             outcome,
@@ -1007,6 +1012,8 @@ export class CoreToolScheduler {
             if (toolResult.error === undefined) {
               let content = toolResult.llmContent;
               let outputFile: string | undefined = undefined;
+              const contentLength =
+                typeof content === 'string' ? content.length : undefined;
               if (
                 typeof content === 'string' &&
                 toolName === ShellTool.Name &&
@@ -1014,13 +1021,34 @@ export class CoreToolScheduler {
                 this.config.getTruncateToolOutputThreshold() > 0 &&
                 this.config.getTruncateToolOutputLines() > 0
               ) {
-                ({ content, outputFile } = await truncateAndSaveToFile(
+                const originalContentLength = content.length;
+                const threshold = this.config.getTruncateToolOutputThreshold();
+                const lines = this.config.getTruncateToolOutputLines();
+                const truncatedResult = await truncateAndSaveToFile(
                   content,
                   callId,
                   this.config.storage.getProjectTempDir(),
-                  this.config.getTruncateToolOutputThreshold(),
-                  this.config.getTruncateToolOutputLines(),
-                ));
+                  threshold,
+                  lines,
+                );
+                content = truncatedResult.content;
+                outputFile = truncatedResult.outputFile;
+
+                if (outputFile) {
+                  logToolOutputTruncated(
+                    this.config,
+                    new ToolOutputTruncatedEvent(
+                      scheduledCall.request.prompt_id,
+                      {
+                        toolName,
+                        originalContentLength,
+                        truncatedContentLength: content.length,
+                        threshold,
+                        lines,
+                      },
+                    ),
+                  );
+                }
               }
 
               const response = convertToFunctionResponse(
@@ -1035,6 +1063,7 @@ export class CoreToolScheduler {
                 error: undefined,
                 errorType: undefined,
                 outputFile,
+                contentLength,
               };
               this.setStatusInternal(callId, 'success', successResponse);
             } else {
