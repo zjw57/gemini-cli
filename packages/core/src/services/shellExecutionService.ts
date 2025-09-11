@@ -196,23 +196,6 @@ export class ShellExecutionService {
         const MAX_SNIFF_SIZE = 4096;
         let sniffedBytes = 0;
 
-        let outputBuffer: string[] = [];
-        let throttleTimeout: NodeJS.Timeout | null = null;
-
-        const flushOutput = () => {
-          if (throttleTimeout) {
-            clearTimeout(throttleTimeout);
-            throttleTimeout = null;
-          }
-          if (outputBuffer.length === 0) {
-            return;
-          }
-          for (const chunk of outputBuffer) {
-            onOutputEvent({ type: 'data', chunk });
-          }
-          outputBuffer = [];
-        };
-
         const handleOutput = (data: Buffer, stream: 'stdout' | 'stderr') => {
           if (!stdoutDecoder || !stderrDecoder) {
             const encoding = getCachedEncodingForBuffer(data);
@@ -232,35 +215,19 @@ export class ShellExecutionService {
             sniffedBytes = sniffBuffer.length;
 
             if (isBinary(sniffBuffer)) {
-              flushOutput();
               isStreamingRawContent = false;
-              onOutputEvent({ type: 'binary_detected' });
             }
-          }
-
-          const decoder = stream === 'stdout' ? stdoutDecoder : stderrDecoder;
-          const decodedChunk = decoder.decode(data, { stream: true });
-
-          if (stream === 'stdout') {
-            stdout += decodedChunk;
-          } else {
-            stderr += decodedChunk;
           }
 
           if (isStreamingRawContent) {
-            outputBuffer.push(stripAnsi(decodedChunk));
-            if (!throttleTimeout) {
-              throttleTimeout = setTimeout(flushOutput, 17);
+            const decoder = stream === 'stdout' ? stdoutDecoder : stderrDecoder;
+            const decodedChunk = decoder.decode(data, { stream: true });
+
+            if (stream === 'stdout') {
+              stdout += decodedChunk;
+            } else {
+              stderr += decodedChunk;
             }
-          } else {
-            const totalBytes = outputChunks.reduce(
-              (sum, chunk) => sum + chunk.length,
-              0,
-            );
-            onOutputEvent({
-              type: 'binary_progress',
-              bytesReceived: totalBytes,
-            });
           }
         };
 
@@ -268,16 +235,25 @@ export class ShellExecutionService {
           code: number | null,
           signal: NodeJS.Signals | null,
         ) => {
-          flushOutput();
           const { finalBuffer } = cleanup();
           // Ensure we don't add an extra newline if stdout already ends with one.
           const separator = stdout.endsWith('\n') ? '' : '\n';
           const combinedOutput =
             stdout + (stderr ? (stdout ? separator : '') + stderr : '');
 
+          const finalStrippedOutput = stripAnsi(combinedOutput).trim();
+
+          if (isStreamingRawContent) {
+            if (finalStrippedOutput) {
+              onOutputEvent({ type: 'data', chunk: finalStrippedOutput });
+            }
+          } else {
+            onOutputEvent({ type: 'binary_detected' });
+          }
+
           resolve({
             rawOutput: finalBuffer,
-            output: stripAnsi(combinedOutput).trim(),
+            output: finalStrippedOutput,
             exitCode: code,
             signal: signal ? os.constants.signals[signal] : null,
             error,
@@ -322,7 +298,6 @@ export class ShellExecutionService {
         });
 
         function cleanup() {
-          flushOutput();
           exited = true;
           abortSignal.removeEventListener('abort', abortHandler);
           if (stdoutDecoder) {

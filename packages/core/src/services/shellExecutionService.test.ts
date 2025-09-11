@@ -526,11 +526,7 @@ describe('ShellExecutionService child_process fallback', () => {
 
       expect(onOutputEventMock).toHaveBeenCalledWith({
         type: 'data',
-        chunk: 'file1.txt\n',
-      });
-      expect(onOutputEventMock).toHaveBeenCalledWith({
-        type: 'data',
-        chunk: 'a warning',
+        chunk: 'file1.txt\na warning',
       });
     });
 
@@ -731,17 +727,9 @@ describe('ShellExecutionService child_process fallback', () => {
       expect(result.rawOutput).toEqual(
         Buffer.concat([binaryChunk1, binaryChunk2]),
       );
-      expect(onOutputEventMock).toHaveBeenCalledTimes(3);
+      expect(onOutputEventMock).toHaveBeenCalledTimes(1);
       expect(onOutputEventMock.mock.calls[0][0]).toEqual({
         type: 'binary_detected',
-      });
-      expect(onOutputEventMock.mock.calls[1][0]).toEqual({
-        type: 'binary_progress',
-        bytesReceived: 4,
-      });
-      expect(onOutputEventMock.mock.calls[2][0]).toEqual({
-        type: 'binary_progress',
-        bytesReceived: 8,
       });
     });
 
@@ -758,12 +746,7 @@ describe('ShellExecutionService child_process fallback', () => {
       const eventTypes = onOutputEventMock.mock.calls.map(
         (call: [ShellOutputEvent]) => call[0].type,
       );
-      expect(eventTypes).toEqual([
-        'data',
-        'binary_detected',
-        'binary_progress',
-        'binary_progress',
-      ]);
+      expect(eventTypes).toEqual(['binary_detected']);
     });
   });
 
