@@ -23,7 +23,7 @@ export class AdkToolAdapter extends AdkBaseTool {
     return this.tool.schema;
   }
 
-  async runAsync(request: RunToolRequest): Promise<unknown> {
+  async run(request: RunToolRequest): Promise<unknown> {
     const invocation = this.tool.build(request.args);
     const abortController = new AbortController();
     const result = await invocation.execute(abortController.signal);

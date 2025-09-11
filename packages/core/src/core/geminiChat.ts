@@ -27,7 +27,13 @@ import {
 } from '../tools/tools.js';
 import type { StructuredError } from './turn.js';
 import { toGenerateContentResponse } from './responseConverter.js';
-import { LlmAgent, InMemoryRunner, Event, type Session } from '@google/adk';
+import {
+  LlmAgent,
+  InMemoryRunner,
+  type Event,
+  createEvent,
+  type Session,
+} from '@google/adk';
 import type { ToolRegistry } from '../tools/tool-registry.js';
 import type { CompletedToolCall } from './coreToolScheduler.js';
 import {
@@ -421,14 +427,22 @@ export class GeminiChat {
       this.agent!.model = modelToUse;
     }
 
-    let event = (await this.runner?.runSync({
+    const events: Event[] = [];
+    const generator = this.runner?.run({
       userId: 'placeholder',
       sessionId: this.sessionId || '',
       newMessage,
-    })) as Event | Event[];
-    if (Array.isArray(event)) {
-      event = event[0];
+    });
+
+    if (!events || events.length === 0) {
+      throw new Error('No valid response was returned by the ADK runner.');
     }
+
+    for await (const event of generator || []) {
+      events.push(event);
+    }
+
+    const event = events[0];
     return toGenerateContentResponse(event);
   }
 
@@ -650,7 +664,7 @@ export class GeminiChat {
       this.agent!.model = modelToUse;
     }
 
-    const eventStream = (await this.runner?.runAsync({
+    const eventStream = (await this.runner?.run({
       userId: 'placeholder',
       sessionId: this.sessionId || '',
       newMessage,
@@ -725,7 +739,7 @@ export class GeminiChat {
   async addHistory(content: Content): Promise<void> {
     if (this.adkMode) {
       const session = await this.getSession();
-      const event = new Event({ content });
+      const event = createEvent({ content });
       await this.runner?.sessionService.appendEvent({ session, event });
     } else {
       this.history.push(content);
@@ -738,7 +752,7 @@ export class GeminiChat {
     if (this.adkMode) {
       const session = await this.getSession();
       for (const content of history) {
-        const event = new Event({
+        const event = createEvent({
           content,
         });
         await this.runner?.sessionService.appendEvent({ session, event });

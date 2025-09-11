@@ -10,6 +10,7 @@ import type {
   Candidate,
 } from '@google/genai';
 import type { Event } from '@google/adk';
+import { getFunctionCalls } from '@google/adk';
 
 export function toGenerateContentResponse(
   event: Event,
@@ -28,7 +29,7 @@ export function toGenerateContentResponse(
   const response: GenerateContentResponse = {
     candidates: [candidate],
     text: (event.content?.parts?.[0]?.text as string) || '',
-    functionCalls: event.getFunctionCalls(),
+    functionCalls: getFunctionCalls(event),
     usageMetadata: event.usageMetadata,
   } as GenerateContentResponse;
 

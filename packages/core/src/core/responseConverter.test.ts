@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { toGenerateContentResponse } from './responseConverter.js';
-import { Event } from '@google/adk';
+import { createEvent } from '@google/adk';
 import type { Content } from '@google/genai';
 
 describe('responseConverter', () => {
@@ -15,7 +15,7 @@ describe('responseConverter', () => {
       parts: [{ text: 'hello' }],
       role: 'model',
     };
-    const event = new Event({ content });
+    const event = createEvent({ content });
 
     const response = toGenerateContentResponse(event);
 
