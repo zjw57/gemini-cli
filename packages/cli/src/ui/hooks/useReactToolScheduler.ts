@@ -116,8 +116,14 @@ export function useReactToolScheduler(
             };
           }
 
-          // For other statuses, we don't want to add liveOutput or pid
-          return { ...coreTc, responseSubmittedToGemini };
+          // For other statuses, explicitly set liveOutput and pid to undefined
+          // to ensure they are not carried over from a previous executing state.
+          return {
+            ...coreTc,
+            responseSubmittedToGemini,
+            liveOutput: undefined,
+            pid: undefined,
+          };
         }),
       );
     },

@@ -98,6 +98,18 @@ interface AppContainerProps {
   initializationResult: InitializationResult;
 }
 
+/**
+ * The fraction of the terminal width to allocate to the shell.
+ * This provides horizontal padding.
+ */
+const SHELL_WIDTH_FRACTION = 0.89;
+
+/**
+ * The number of lines to subtract from the available terminal height
+ * for the shell. This provides vertical padding and space for other UI elements.
+ */
+const SHELL_HEIGHT_PADDING = 10;
+
 export const AppContainer = (props: AppContainerProps) => {
   const { settings, config, initializationResult } = props;
   const historyManager = useHistory();
@@ -610,8 +622,8 @@ Logging in with Google... Please restart Gemini CLI to continue.
   }, [terminalHeight]);
 
   config.setShellExecutionConfig({
-    terminalWidth: Math.floor(terminalWidth * 0.89),
-    terminalHeight: Math.floor(availableTerminalHeight - 10),
+    terminalWidth: Math.floor(terminalWidth * SHELL_WIDTH_FRACTION),
+    terminalHeight: Math.floor(availableTerminalHeight - SHELL_HEIGHT_PADDING),
     pager: settings.merged.tools?.shell?.pager,
     showColor: settings.merged.tools?.shell?.showColor,
   });
@@ -637,8 +649,8 @@ Logging in with Google... Please restart Gemini CLI to continue.
     if (activePtyId) {
       ShellExecutionService.resizePty(
         activePtyId,
-        Math.floor(terminalWidth * 0.89),
-        Math.floor(availableTerminalHeight - 10),
+        Math.floor(terminalWidth * SHELL_WIDTH_FRACTION),
+        Math.floor(availableTerminalHeight - SHELL_HEIGHT_PADDING),
       );
     }
   }, [
