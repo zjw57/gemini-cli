@@ -22,12 +22,7 @@ export const UserMessage: React.FC<UserMessageProps> = ({ text }) => {
   const textColor = isSlashCommand ? theme.text.accent : theme.text.secondary;
 
   return (
-    <Box
-      flexDirection="row"
-      paddingLeft={1}
-      marginY={1}
-      alignSelf="flex-start"
-    >
+    <Box flexDirection="row" paddingLeft={1} marginY={1} alignSelf="flex-start">
       <Box width={prefixWidth}>
         <Text color={textColor} aria-label={SCREEN_READER_USER_PREFIX}>
           {prefix}
