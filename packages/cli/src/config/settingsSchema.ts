@@ -792,7 +792,7 @@ const SETTINGS_SCHEMA = {
         requiresRestart: false,
         default: TrustLevel.TRUST_FOLDER,
         description: 'Defines workspace trust level',
-        showInDialog: false, // Temporary
+        showInDialog: true, // Temporary
         persistenceBehavior: PersistenceBehavior.NO_PERSISTENCE,
         options: [
           { value: TrustLevel.TRUST_FOLDER, label: 'Trust Folder' },
