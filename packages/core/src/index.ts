@@ -6,6 +6,8 @@
 
 // Export config
 export * from './config/config.js';
+export * from './output/types.js';
+export * from './output/json-formatter.js';
 
 // Export Core Logic
 export * from './core/client.js';
@@ -51,6 +53,7 @@ export * from './utils/workspaceContext.js';
 export * from './utils/ignorePatterns.js';
 export * from './utils/partUtils.js';
 export * from './utils/ide-trust.js';
+export * from './utils/promptIdContext.js';
 
 // Export services
 export * from './services/fileDiscoveryService.js';
@@ -65,6 +68,7 @@ export * from './ide/ide-installer.js';
 export { getIdeInfo, DetectedIde } from './ide/detect-ide.js';
 export { type IdeInfo } from './ide/detect-ide.js';
 export * from './ide/constants.js';
+export * from './ide/types.js';
 
 // Export Shell Execution Service
 export * from './services/shellExecutionService.js';
