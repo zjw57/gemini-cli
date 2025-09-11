@@ -55,8 +55,6 @@ import * as fs from 'node:fs'; // fs will be mocked separately
 import stripJsonComments from 'strip-json-comments'; // Will be mocked separately
 import {
   isWorkspaceTrusted,
-  LoadedTrustedFolders,
-  TRUSTED_FOLDERS_FILENAME,
   USER_TRUSTED_FOLDERS_PATH,
 } from './trustedFolders.js';
 
