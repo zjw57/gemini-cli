@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FunctionDeclaration, PartListUnion } from '@google/genai';
+import type { FunctionDeclaration, PartListUnion } from '@google/genai';
 import { ToolErrorType } from './tool-error.js';
-import { DiffUpdateResult } from '../ide/ideContext.js';
+import type { DiffUpdateResult } from '../ide/ideContext.js';
 import { SchemaValidator } from '../utils/schemaValidator.js';
-import { BaseTool as AdkBaseTool, RunToolRequest } from '@google/adk';
+import { BaseTool as AdkBaseTool, type RunToolRequest } from '@google/adk';
 
 /**
  * An adapter that wraps a gemini-cli DeclarativeTool to make it compatible
@@ -329,6 +329,21 @@ export abstract class BaseDeclarativeTool<
  */
 export type AnyDeclarativeTool = DeclarativeTool<object, ToolResult>;
 
+/**
+ * Type guard to check if an object is a Tool.
+ * @param obj The object to check.
+ * @returns True if the object is a Tool, false otherwise.
+ */
+export function isTool(obj: unknown): obj is AnyDeclarativeTool {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'name' in obj &&
+    'build' in obj &&
+    typeof (obj as AnyDeclarativeTool).build === 'function'
+  );
+}
+
 export interface ToolResult {
   /**
    * Content meant to be included in LLM history.
@@ -450,10 +465,14 @@ export interface FileDiff {
 }
 
 export interface DiffStat {
-  ai_removed_lines: number;
-  ai_added_lines: number;
+  model_added_lines: number;
+  model_removed_lines: number;
+  model_added_chars: number;
+  model_removed_chars: number;
   user_added_lines: number;
   user_removed_lines: number;
+  user_added_chars: number;
+  user_removed_chars: number;
 }
 
 export interface ToolEditConfirmationDetails {

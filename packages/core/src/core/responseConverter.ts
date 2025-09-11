@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
+import type {
   GenerateContentResponse,
   FinishReason,
   Candidate,
 } from '@google/genai';
-import { Event } from '@google/adk';
+import type { Event } from '@google/adk';
 
 export function toGenerateContentResponse(
   event: Event,

@@ -6,16 +6,16 @@
 
 import * as fs from 'node:fs';
 import { isSubpath } from '../utils/paths.js';
-import { detectIde, DetectedIde, getIdeInfo } from '../ide/detect-ide.js';
+import { detectIde, type DetectedIde, getIdeInfo } from '../ide/detect-ide.js';
 import {
   ideContext,
-  IdeContextNotificationSchema,
   IdeDiffAcceptedNotificationSchema,
   IdeDiffClosedNotificationSchema,
   CloseDiffResponseSchema,
-  DiffUpdateResult,
-} from '../ide/ideContext.js';
-import { getIdeProcessId } from './process-utils.js';
+  type DiffUpdateResult,
+} from './ideContext.js';
+import { IdeContextNotificationSchema } from './types.js';
+import { getIdeProcessInfo } from './process-utils.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -65,30 +65,43 @@ function getRealPath(path: string): string {
  * Manages the connection to and interaction with the IDE server.
  */
 export class IdeClient {
-  private static instance: IdeClient;
+  private static instancePromise: Promise<IdeClient> | null = null;
   private client: Client | undefined = undefined;
   private state: IDEConnectionState = {
     status: IDEConnectionStatus.Disconnected,
     details:
       'IDE integration is currently disabled. To enable it, run /ide enable.',
   };
-  private readonly currentIde: DetectedIde | undefined;
-  private readonly currentIdeDisplayName: string | undefined;
+  private currentIde: DetectedIde | undefined;
+  private currentIdeDisplayName: string | undefined;
+  private ideProcessInfo: { pid: number; command: string } | undefined;
   private diffResponses = new Map<string, (result: DiffUpdateResult) => void>();
   private statusListeners = new Set<(state: IDEConnectionState) => void>();
+  private trustChangeListeners = new Set<(isTrusted: boolean) => void>();
+  /**
+   * A mutex to ensure that only one diff view is open in the IDE at a time.
+   * This prevents race conditions and UI issues in IDEs like VSCode that
+   * can't handle multiple diff views being opened simultaneously.
+   */
+  private diffMutex = Promise.resolve();
 
-  private constructor() {
-    this.currentIde = detectIde();
-    if (this.currentIde) {
-      this.currentIdeDisplayName = getIdeInfo(this.currentIde).displayName;
-    }
-  }
+  private constructor() {}
 
-  static getInstance(): IdeClient {
-    if (!IdeClient.instance) {
-      IdeClient.instance = new IdeClient();
+  static getInstance(): Promise<IdeClient> {
+    if (!IdeClient.instancePromise) {
+      IdeClient.instancePromise = (async () => {
+        const client = new IdeClient();
+        client.ideProcessInfo = await getIdeProcessInfo();
+        client.currentIde = detectIde(client.ideProcessInfo);
+        if (client.currentIde) {
+          client.currentIdeDisplayName = getIdeInfo(
+            client.currentIde,
+          ).displayName;
+        }
+        return client;
+      })();
     }
-    return IdeClient.instance;
+    return IdeClient.instancePromise;
   }
 
   addStatusChangeListener(listener: (state: IDEConnectionState) => void) {
@@ -99,15 +112,19 @@ export class IdeClient {
     this.statusListeners.delete(listener);
   }
 
+  addTrustChangeListener(listener: (isTrusted: boolean) => void) {
+    this.trustChangeListeners.add(listener);
+  }
+
+  removeTrustChangeListener(listener: (isTrusted: boolean) => void) {
+    this.trustChangeListeners.delete(listener);
+  }
+
   async connect(): Promise<void> {
     if (!this.currentIde || !this.currentIdeDisplayName) {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        `IDE integration is not supported in your current environment. To use this feature, run Gemini CLI in one of these supported IDEs: ${Object.values(
-          DetectedIde,
-        )
-          .map((ide) => getIdeInfo(ide).displayName)
-          .join(', ')}`,
+        `IDE integration is not supported in your current environment. To use this feature, run Gemini CLI in one of these supported IDEs: VS Code or VS Code forks`,
         false,
       );
       return;
@@ -168,7 +185,7 @@ export class IdeClient {
 
     this.setState(
       IDEConnectionStatus.Disconnected,
-      `Failed to connect to IDE companion extension for ${this.currentIdeDisplayName}. Please ensure the extension is running. To install the extension, run /ide install.`,
+      `Failed to connect to IDE companion extension in ${this.currentIdeDisplayName}. Please ensure the extension is running. To install the extension, run /ide install.`,
       true,
     );
   }
@@ -191,10 +208,16 @@ export class IdeClient {
     filePath: string,
     newContent?: string,
   ): Promise<DiffUpdateResult> {
-    return new Promise<DiffUpdateResult>((resolve, reject) => {
+    const release = await this.acquireMutex();
+
+    const promise = new Promise<DiffUpdateResult>((resolve, reject) => {
+      if (!this.client) {
+        // The promise will be rejected, and the finally block below will release the mutex.
+        return reject(new Error('IDE client is not connected.'));
+      }
       this.diffResponses.set(filePath, resolve);
       this.client
-        ?.callTool({
+        .callTool({
           name: `openDiff`,
           arguments: {
             filePath,
@@ -203,17 +226,54 @@ export class IdeClient {
         })
         .catch((err) => {
           logger.debug(`callTool for ${filePath} failed:`, err);
+          this.diffResponses.delete(filePath);
           reject(err);
         });
     });
+
+    // Ensure the mutex is released only after the diff interaction is complete.
+    promise.finally(release);
+
+    return promise;
   }
 
-  async closeDiff(filePath: string): Promise<string | undefined> {
+  /**
+   * Acquires a lock to ensure sequential execution of critical sections.
+   *
+   * This method implements a promise-based mutex. It works by chaining promises.
+   * Each call to `acquireMutex` gets the current `diffMutex` promise. It then
+   * creates a *new* promise (`newMutex`) that will be resolved when the caller
+   * invokes the returned `release` function. The `diffMutex` is immediately
+   * updated to this `newMutex`.
+   *
+   * The method returns a promise that resolves with the `release` function only
+   * *after* the *previous* `diffMutex` promise has resolved. This creates a
+   * queue where each subsequent operation must wait for the previous one to release
+   * the lock.
+   *
+   * @returns A promise that resolves to a function that must be called to
+   *   release the lock.
+   */
+  private acquireMutex(): Promise<() => void> {
+    let release: () => void;
+    const newMutex = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const oldMutex = this.diffMutex;
+    this.diffMutex = newMutex;
+    return oldMutex.then(() => release);
+  }
+
+  async closeDiff(
+    filePath: string,
+    options?: { suppressNotification?: boolean },
+  ): Promise<string | undefined> {
     try {
       const result = await this.client?.callTool({
         name: `closeDiff`,
         arguments: {
           filePath,
+          suppressNotification: options?.suppressNotification,
         },
       });
 
@@ -230,8 +290,13 @@ export class IdeClient {
   // Closes the diff. Instead of waiting for a notification,
   // manually resolves the diff resolver as the desired outcome.
   async resolveDiffFromCli(filePath: string, outcome: 'accepted' | 'rejected') {
-    const content = await this.closeDiff(filePath);
     const resolver = this.diffResponses.get(filePath);
+    const content = await this.closeDiff(filePath, {
+      // Suppress notification to avoid race where closing the diff rejects the
+      // request.
+      suppressNotification: true,
+    });
+
     if (resolver) {
       if (outcome === 'accepted') {
         resolver({ status: 'accepted', content });
@@ -309,7 +374,7 @@ export class IdeClient {
     if (ideWorkspacePath === undefined) {
       return {
         isValid: false,
-        error: `Failed to connect to IDE companion extension for ${currentIdeDisplayName}. Please ensure the extension is running. To install the extension, run /ide install.`,
+        error: `Failed to connect to IDE companion extension in ${currentIdeDisplayName}. Please ensure the extension is running. To install the extension, run /ide install.`,
       };
     }
 
@@ -375,17 +440,95 @@ export class IdeClient {
   private async getConnectionConfigFromFile(): Promise<
     (ConnectionConfig & { workspacePath?: string }) | undefined
   > {
+    if (!this.ideProcessInfo) {
+      return undefined;
+    }
+
+    // For backwards compatability
     try {
-      const ideProcessId = await getIdeProcessId();
       const portFile = path.join(
         os.tmpdir(),
-        `gemini-ide-server-${ideProcessId}.json`,
+        `gemini-ide-server-${this.ideProcessInfo.pid}.json`,
       );
       const portFileContents = await fs.promises.readFile(portFile, 'utf8');
       return JSON.parse(portFileContents);
     } catch (_) {
+      // For newer extension versions, the file name matches the pattern
+      // /^gemini-ide-server-${pid}-\d+\.json$/. If multiple IDE
+      // windows are open, multiple files matching the pattern are expected to
+      // exist.
+    }
+
+    const portFileDir = path.join(os.tmpdir(), '.gemini', 'ide');
+    let portFiles;
+    try {
+      portFiles = await fs.promises.readdir(portFileDir);
+    } catch (e) {
+      logger.debug('Failed to read IDE connection directory:', e);
       return undefined;
     }
+
+    const fileRegex = new RegExp(
+      `^gemini-ide-server-${this.ideProcessInfo.pid}-\\d+\\.json$`,
+    );
+    const matchingFiles = portFiles
+      .filter((file) => fileRegex.test(file))
+      .sort();
+    if (matchingFiles.length === 0) {
+      return undefined;
+    }
+
+    let fileContents: string[];
+    try {
+      fileContents = await Promise.all(
+        matchingFiles.map((file) =>
+          fs.promises.readFile(path.join(portFileDir, file), 'utf8'),
+        ),
+      );
+    } catch (e) {
+      logger.debug('Failed to read IDE connection config file(s):', e);
+      return undefined;
+    }
+    const parsedContents = fileContents.map((content) => {
+      try {
+        return JSON.parse(content);
+      } catch (e) {
+        logger.debug('Failed to parse JSON from config file: ', e);
+        return undefined;
+      }
+    });
+
+    const validWorkspaces = parsedContents.filter((content) => {
+      if (!content) {
+        return false;
+      }
+      const { isValid } = IdeClient.validateWorkspacePath(
+        content.workspacePath,
+        this.currentIdeDisplayName,
+        process.cwd(),
+      );
+      return isValid;
+    });
+
+    if (validWorkspaces.length === 0) {
+      return undefined;
+    }
+
+    if (validWorkspaces.length === 1) {
+      return validWorkspaces[0];
+    }
+
+    const portFromEnv = this.getPortFromEnv();
+    if (portFromEnv) {
+      const matchingPort = validWorkspaces.find(
+        (content) => content.port === portFromEnv,
+      );
+      if (matchingPort) {
+        return matchingPort;
+      }
+    }
+
+    return validWorkspaces[0];
   }
 
   private createProxyAwareFetch() {
@@ -420,6 +563,12 @@ export class IdeClient {
       IdeContextNotificationSchema,
       (notification) => {
         ideContext.setIdeContext(notification.params);
+        const isTrusted = notification.params.workspaceState?.isTrusted;
+        if (isTrusted !== undefined) {
+          for (const listener of this.trustChangeListeners) {
+            listener(isTrusted);
+          }
+        }
       },
     );
     this.client.onerror = (_error) => {

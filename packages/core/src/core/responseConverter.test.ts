@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { toGenerateContentResponse } from './responseConverter.js';
 import { Event } from '@google/adk';
-import { Content } from '@google/genai';
+import type { Content } from '@google/genai';
 
 describe('responseConverter', () => {
   it('should convert an Event to a GenerateContentResponse', () => {

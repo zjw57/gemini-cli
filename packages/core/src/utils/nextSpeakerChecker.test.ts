@@ -4,77 +4,77 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, vi, beforeEach, Mock, afterEach } from 'vitest';
-import { Content, GoogleGenAI, Models } from '@google/genai';
+import type { Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { Content } from '@google/genai';
 import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 import { GeminiClient } from '../core/client.js';
-import { Config } from '../config/config.js';
-import { checkNextSpeaker, NextSpeakerResponse } from './nextSpeakerChecker.js';
+import type { Config } from '../config/config.js';
+import type { NextSpeakerResponse } from './nextSpeakerChecker.js';
+import { checkNextSpeaker } from './nextSpeakerChecker.js';
 import { GeminiChat } from '../core/geminiChat.js';
 import { ToolRegistry } from '../tools/tool-registry.js';
+
+// Mock fs module to prevent actual file system operations during tests
+const mockFileSystem = new Map<string, string>();
+
+vi.mock('node:fs', () => {
+  const fsModule = {
+    mkdirSync: vi.fn(),
+    writeFileSync: vi.fn((path: string, data: string) => {
+      mockFileSystem.set(path, data);
+    }),
+    readFileSync: vi.fn((path: string) => {
+      if (mockFileSystem.has(path)) {
+        return mockFileSystem.get(path);
+      }
+      throw Object.assign(new Error('ENOENT: no such file or directory'), {
+        code: 'ENOENT',
+      });
+    }),
+    existsSync: vi.fn((path: string) => mockFileSystem.has(path)),
+  };
+
+  return {
+    default: fsModule,
+    ...fsModule,
+  };
+});
 
 // Mock GeminiClient and Config constructor
 vi.mock('../core/client.js');
 vi.mock('../config/config.js');
 
-// Define mocks for GoogleGenAI and Models instances that will be used across tests
-const mockModelsInstance = {
-  generateContent: vi.fn(),
-  generateContentStream: vi.fn(),
-  countTokens: vi.fn(),
-  embedContent: vi.fn(),
-  batchEmbedContents: vi.fn(),
-} as unknown as Models;
-
-const mockGoogleGenAIInstance = {
-  getGenerativeModel: vi.fn().mockReturnValue(mockModelsInstance),
-  // Add other methods of GoogleGenAI if they are directly used by GeminiChat constructor or its methods
-} as unknown as GoogleGenAI;
-
-vi.mock('@google/genai', async () => {
-  const actualGenAI =
-    await vi.importActual<typeof import('@google/genai')>('@google/genai');
-  return {
-    ...actualGenAI,
-    GoogleGenAI: vi.fn(() => mockGoogleGenAIInstance), // Mock constructor to return the predefined instance
-    // If Models is instantiated directly in GeminiChat, mock its constructor too
-    // For now, assuming Models instance is obtained via getGenerativeModel
-  };
-});
-
 describe('checkNextSpeaker', () => {
   let chatInstance: GeminiChat;
+  let mockConfig: Config;
   let mockGeminiClient: GeminiClient;
-  let MockConfig: Mock;
   const abortSignal = new AbortController().signal;
 
   beforeEach(() => {
-    MockConfig = vi.mocked(Config);
-    const mockConfigInstance = new MockConfig(
-      'test-api-key',
-      'gemini-pro',
-      false,
-      '.',
-      false,
-      undefined,
-      false,
-      undefined,
-      undefined,
-      undefined,
-    );
+    vi.resetAllMocks();
+    mockConfig = {
+      getProjectRoot: vi.fn().mockReturnValue('/test/project/root'),
+      getSessionId: vi.fn().mockReturnValue('test-session-id'),
+      getModel: () => 'test-model',
+      storage: {
+        getProjectTempDir: vi.fn().mockReturnValue('/test/temp'),
+      },
+      getMcpServers: vi.fn().mockReturnValue({}),
+      getMcpServerCommand: vi.fn().mockReturnValue(undefined),
+      getPromptRegistry: vi.fn().mockReturnValue(undefined),
+      getDebugMode: vi.fn().mockReturnValue(false),
+      getWorkspaceContext: vi.fn().mockReturnValue(undefined),
+      getAdkMode: vi.fn().mockReturnValue(false),
+    } as unknown as Config;
 
-    mockGeminiClient = new GeminiClient(mockConfigInstance);
+    mockGeminiClient = new GeminiClient(mockConfig);
 
-    // Reset mocks before each test to ensure test isolation
-    vi.mocked(mockModelsInstance.generateContent).mockReset();
-    vi.mocked(mockModelsInstance.generateContentStream).mockReset();
-
-    const toolRegistry = new ToolRegistry(mockConfigInstance);
+    const toolRegistry = new ToolRegistry(mockConfig);
 
     // GeminiChat will receive the mocked instances via the mocked GoogleGenAI constructor
     chatInstance = new GeminiChat(
-      mockConfigInstance,
-      mockModelsInstance, // This is the instance returned by mockGoogleGenAIInstance.getGenerativeModel
+      mockConfig,
       {},
       toolRegistry,
       [], // initial history
@@ -85,11 +85,11 @@ describe('checkNextSpeaker', () => {
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('should return null if history is empty', async () => {
-    (chatInstance.getHistory as Mock).mockReturnValue([]);
+    (chatInstance.getHistory as Mock).mockResolvedValue([]);
     const result = await checkNextSpeaker(
       chatInstance,
       mockGeminiClient,
@@ -100,9 +100,9 @@ describe('checkNextSpeaker', () => {
   });
 
   it('should return null if the last speaker was the user', async () => {
-    (chatInstance.getHistory as Mock).mockReturnValue([
+    vi.mocked(chatInstance.getHistory).mockResolvedValue([
       { role: 'user', parts: [{ text: 'Hello' }] },
-    ] as Content[]);
+    ]);
     const result = await checkNextSpeaker(
       chatInstance,
       mockGeminiClient,
@@ -113,7 +113,7 @@ describe('checkNextSpeaker', () => {
   });
 
   it("should return { next_speaker: 'model' } when model intends to continue", async () => {
-    (chatInstance.getHistory as Mock).mockReturnValue([
+    (chatInstance.getHistory as Mock).mockResolvedValue([
       { role: 'model', parts: [{ text: 'I will now do something.' }] },
     ] as Content[]);
     const mockApiResponse: NextSpeakerResponse = {
@@ -132,7 +132,7 @@ describe('checkNextSpeaker', () => {
   });
 
   it("should return { next_speaker: 'user' } when model asks a question", async () => {
-    (chatInstance.getHistory as Mock).mockReturnValue([
+    (chatInstance.getHistory as Mock).mockResolvedValue([
       { role: 'model', parts: [{ text: 'What would you like to do?' }] },
     ] as Content[]);
     const mockApiResponse: NextSpeakerResponse = {
@@ -150,7 +150,7 @@ describe('checkNextSpeaker', () => {
   });
 
   it("should return { next_speaker: 'user' } when model makes a statement", async () => {
-    (chatInstance.getHistory as Mock).mockReturnValue([
+    (chatInstance.getHistory as Mock).mockResolvedValue([
       { role: 'model', parts: [{ text: 'This is a statement.' }] },
     ] as Content[]);
     const mockApiResponse: NextSpeakerResponse = {
@@ -171,7 +171,7 @@ describe('checkNextSpeaker', () => {
     const consoleWarnSpy = vi
       .spyOn(console, 'warn')
       .mockImplementation(() => {});
-    (chatInstance.getHistory as Mock).mockReturnValue([
+    (chatInstance.getHistory as Mock).mockResolvedValue([
       { role: 'model', parts: [{ text: 'Some model output.' }] },
     ] as Content[]);
     (mockGeminiClient.generateJson as Mock).mockRejectedValue(
@@ -188,7 +188,7 @@ describe('checkNextSpeaker', () => {
   });
 
   it('should return null if geminiClient.generateJson returns invalid JSON (missing next_speaker)', async () => {
-    (chatInstance.getHistory as Mock).mockReturnValue([
+    (chatInstance.getHistory as Mock).mockResolvedValue([
       { role: 'model', parts: [{ text: 'Some model output.' }] },
     ] as Content[]);
     (mockGeminiClient.generateJson as Mock).mockResolvedValue({
@@ -204,7 +204,7 @@ describe('checkNextSpeaker', () => {
   });
 
   it('should return null if geminiClient.generateJson returns a non-string next_speaker', async () => {
-    (chatInstance.getHistory as Mock).mockReturnValue([
+    (chatInstance.getHistory as Mock).mockResolvedValue([
       { role: 'model', parts: [{ text: 'Some model output.' }] },
     ] as Content[]);
     (mockGeminiClient.generateJson as Mock).mockResolvedValue({
@@ -221,7 +221,7 @@ describe('checkNextSpeaker', () => {
   });
 
   it('should return null if geminiClient.generateJson returns an invalid next_speaker string value', async () => {
-    (chatInstance.getHistory as Mock).mockReturnValue([
+    (chatInstance.getHistory as Mock).mockResolvedValue([
       { role: 'model', parts: [{ text: 'Some model output.' }] },
     ] as Content[]);
     (mockGeminiClient.generateJson as Mock).mockResolvedValue({
@@ -238,7 +238,7 @@ describe('checkNextSpeaker', () => {
   });
 
   it('should call generateJson with DEFAULT_GEMINI_FLASH_MODEL', async () => {
-    (chatInstance.getHistory as Mock).mockReturnValue([
+    (chatInstance.getHistory as Mock).mockResolvedValue([
       { role: 'model', parts: [{ text: 'Some model output.' }] },
     ] as Content[]);
     const mockApiResponse: NextSpeakerResponse = {
