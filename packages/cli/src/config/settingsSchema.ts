@@ -632,7 +632,7 @@ const SETTINGS_SCHEMA = {
         requiresRestart: false,
         default: {},
         description: 'Settings for shell execution.',
-        showInDialog: true,
+        showInDialog: false,
         properties: {
           pager: {
             type: 'string',
@@ -642,7 +642,7 @@ const SETTINGS_SCHEMA = {
             default: 'cat' as string | undefined,
             description:
               'The pager command to use for shell output. Defaults to `cat`.',
-            showInDialog: true,
+            showInDialog: false,
           },
           showColor: {
             type: 'boolean',

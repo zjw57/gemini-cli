@@ -156,9 +156,17 @@ export const useShellCommandProcessor = (
                 case 'data':
                   // Do not process text data if we've already switched to binary mode.
                   if (isBinaryStream) break;
-                  cumulativeStdout = event.chunk;
-                  // Force an immediate UI update to show the binary detection message.
-                  shouldUpdate = true;
+                  // PTY provides the full screen state, so we just replace.
+                  // Child process provides chunks, so we append.
+                  if (
+                    typeof event.chunk === 'string' &&
+                    typeof cumulativeStdout === 'string'
+                  ) {
+                    cumulativeStdout += event.chunk;
+                  } else {
+                    cumulativeStdout = event.chunk;
+                    shouldUpdate = true;
+                  }
                   break;
                 case 'binary_detected':
                   isBinaryStream = true;

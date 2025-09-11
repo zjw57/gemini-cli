@@ -83,12 +83,12 @@ describe('useShellCommandProcessor', () => {
 
     mockShellExecutionService.mockImplementation((_cmd, _cwd, callback) => {
       mockShellOutputCallback = callback;
-      return {
+      return Promise.resolve({
         pid: 12345,
         result: new Promise((resolve) => {
           resolveExecutionPromise = resolve;
         }),
-      };
+      });
     });
   });
 
@@ -217,6 +217,87 @@ describe('useShellCommandProcessor', () => {
     });
     afterEach(() => {
       vi.useRealTimers();
+    });
+
+    it('should throttle pending UI updates for text streams (non-interactive)', async () => {
+      const { result } = renderProcessorHook();
+      act(() => {
+        result.current.handleShellCommand(
+          'stream',
+          new AbortController().signal,
+        );
+      });
+
+      // Verify it's using the non-pty shell
+      const wrappedCommand = `{ stream; }; __code=$?; pwd > "${path.join(
+        os.tmpdir(),
+        'shell_pwd_abcdef.tmp',
+      )}"; exit $__code`;
+      expect(mockShellExecutionService).toHaveBeenCalledWith(
+        wrappedCommand,
+        '/test/dir',
+        expect.any(Function),
+        expect.any(Object),
+        false, // usePty
+        expect.any(Object),
+      );
+
+      // Wait for the async PID update to happen.
+      await vi.waitFor(() => {
+        // It's called once for initial, and once for the PID update.
+        expect(setPendingHistoryItemMock).toHaveBeenCalledTimes(2);
+      });
+
+      // Simulate rapid output
+      act(() => {
+        mockShellOutputCallback({
+          type: 'data',
+          chunk: 'hello',
+        });
+      });
+      // The count should still be 2, as throttling is in effect.
+      expect(setPendingHistoryItemMock).toHaveBeenCalledTimes(2);
+
+      // Simulate more rapid output
+      act(() => {
+        mockShellOutputCallback({
+          type: 'data',
+          chunk: ' world',
+        });
+      });
+      expect(setPendingHistoryItemMock).toHaveBeenCalledTimes(2);
+
+      // Advance time, but the update won't happen until the next event
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(OUTPUT_UPDATE_INTERVAL_MS + 1);
+      });
+
+      // Trigger one more event to cause the throttled update to fire.
+      act(() => {
+        mockShellOutputCallback({
+          type: 'data',
+          chunk: '',
+        });
+      });
+
+      // Now the cumulative update should have occurred.
+      // Call 1: Initial, Call 2: PID update, Call 3: Throttled stream update
+      expect(setPendingHistoryItemMock).toHaveBeenCalledTimes(3);
+
+      const streamUpdateFn = setPendingHistoryItemMock.mock.calls[2][0];
+      if (!streamUpdateFn || typeof streamUpdateFn !== 'function') {
+        throw new Error(
+          'setPendingHistoryItem was not called with a stream updater function',
+        );
+      }
+
+      // Get the state after the PID update to feed into the stream updater
+      const pidUpdateFn = setPendingHistoryItemMock.mock.calls[1][0];
+      const initialState = setPendingHistoryItemMock.mock.calls[0][0];
+      const stateAfterPid = pidUpdateFn(initialState);
+
+      const stateAfterStream = streamUpdateFn(stateAfterPid);
+      expect(stateAfterStream.tools[0].resultDisplay).toBe('hello world');
     });
 
     it('should show binary progress messages correctly', async () => {
