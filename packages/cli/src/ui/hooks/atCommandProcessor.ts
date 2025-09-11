@@ -144,6 +144,7 @@ export async function handleAtCommand({
   const pathSpecsToRead: string[] = [];
   const atPathToResolvedSpecMap = new Map<string, string>();
   const contentLabelsForDisplay: string[] = [];
+  const mcpResourceContent = new Map<string, string>(); // Store MCP resource content
   const ignoredByReason: Record<string, string[]> = {
     git: [],
     gemini: [],
@@ -186,6 +187,98 @@ export async function handleAtCommand({
       // Decide if this is a fatal error for the whole command or just skip this @ part
       // For now, let's be strict and fail the command if one @path is malformed.
       return { processedQuery: null, shouldProceed: false };
+    }
+
+    // Check if this is an MCP resource import (contains colon)
+    const colonIndex = pathName.indexOf(':');
+    if (colonIndex > 0 && colonIndex < pathName.length - 1) {
+      // Handle MCP resource: server:resource-uri
+      const serverName = pathName.slice(0, colonIndex);
+      const resourceUri = pathName.slice(colonIndex + 1);
+      
+      onDebugMessage(`Processing MCP resource: ${serverName}:${resourceUri}`);
+      
+      try {
+        const resourceRegistry = config.getResourceRegistry();
+        const resource = resourceRegistry.getResource(serverName, resourceUri);
+        
+        if (!resource) {
+          // Provide helpful error with available resources
+          const serverResources = resourceRegistry.getResourcesByServer(serverName);
+          let errorMessage = `Error: MCP resource '${serverName}:${resourceUri}' not found.`;
+          
+          if (serverResources.length === 0) {
+            errorMessage += ` Server '${serverName}' has no available resources.`;
+          } else {
+            const availableUris = serverResources.map(r => r.uri).slice(0, 3);
+            const moreAvailable = serverResources.length > 3 ? ` and ${serverResources.length - 3} more` : '';
+            errorMessage += ` Available resources: ${availableUris.join(', ')}${moreAvailable}`;
+          }
+          
+          addItem(
+            { type: 'error', text: errorMessage },
+            userMessageTimestamp,
+          );
+          return { processedQuery: null, shouldProceed: false };
+        }
+        
+        // Fetch resource content
+        const resourceContents = await resource.read();
+        let resourceContent = '';
+        
+        if ('text' in resourceContents && typeof resourceContents['text'] === 'string') {
+          resourceContent = resourceContents['text'];
+        } else if ('blob' in resourceContents && typeof resourceContents['blob'] === 'string') {
+          // Decode base64 blob for text-based content
+          const mimeType = (typeof resourceContents['mimeType'] === 'string' ? resourceContents['mimeType'] : '') || '';
+          if (mimeType.startsWith('text/') || 
+              mimeType === 'application/json' ||
+              mimeType === 'application/xml' ||
+              mimeType.includes('markdown') ||
+              mimeType.includes('yaml')) {
+            try {
+              resourceContent = Buffer.from(resourceContents['blob'], 'base64').toString('utf-8');
+            } catch (decodeError) {
+              addItem(
+                { type: 'error', text: `Error: Failed to decode MCP resource '${serverName}:${resourceUri}' as text.` },
+                userMessageTimestamp,
+              );
+              return { processedQuery: null, shouldProceed: false };
+            }
+          } else {
+            addItem(
+              { type: 'error', text: `Error: MCP resource '${serverName}:${resourceUri}' contains binary content (${mimeType}) that cannot be processed as text.` },
+              userMessageTimestamp,
+            );
+            return { processedQuery: null, shouldProceed: false };
+          }
+        } else {
+          addItem(
+            { type: 'error', text: `Error: MCP resource '${serverName}:${resourceUri}' returned no readable content.` },
+            userMessageTimestamp,
+          );
+          return { processedQuery: null, shouldProceed: false };
+        }
+        
+        // Store the resource content for later use
+        mcpResourceContent.set(originalAtPath, resourceContent);
+        
+        // Add to content for display
+        contentLabelsForDisplay.push(`MCP Resource: ${serverName}:${resourceUri}`);
+        
+        // Map the original @ path to itself for the query reconstruction
+        atPathToResolvedSpecMap.set(originalAtPath, pathName);
+        
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        addItem(
+          { type: 'error', text: `Error reading MCP resource '${serverName}:${resourceUri}': ${errorMessage}` },
+          userMessageTimestamp,
+        );
+        return { processedQuery: null, shouldProceed: false };
+      }
+      
+      continue; // Skip the file processing for MCP resources
     }
 
     // Check if path should be ignored based on filtering options
@@ -376,9 +469,29 @@ export async function handleAtCommand({
     onDebugMessage(message);
   }
 
-  // Fallback for lone "@" or completely invalid @-commands resulting in empty initialQueryText
+  // Handle case with only MCP resources or no valid file paths
   if (pathSpecsToRead.length === 0) {
     onDebugMessage('No valid file paths found in @ commands to read.');
+    
+    // If we have MCP resource content, include it
+    if (mcpResourceContent.size > 0) {
+      const processedQueryParts: PartUnion[] = [{ text: initialQueryText || query }];
+      
+      // Add MCP resource content
+      processedQueryParts.push({
+        text: '\n--- Content from MCP resources ---',
+      });
+      
+      for (const [originalAtPath, resourceContent] of mcpResourceContent.entries()) {
+        processedQueryParts.push({
+          text: `\nContent from ${originalAtPath}:\n`,
+        });
+        processedQueryParts.push({ text: resourceContent });
+      }
+      
+      return { processedQuery: processedQueryParts, shouldProceed: true };
+    }
+    
     if (initialQueryText === '@' && query.trim() === '@') {
       // If the only thing was a lone @, pass original query (which might have spaces)
       return { processedQuery: [{ text: query }], shouldProceed: true };
@@ -447,6 +560,20 @@ export async function handleAtCommand({
       onDebugMessage(
         'read_many_files tool returned no content or empty content.',
       );
+    }
+
+    // Add MCP resource content if any
+    if (mcpResourceContent.size > 0) {
+      processedQueryParts.push({
+        text: '\n--- Content from MCP resources ---',
+      });
+      
+      for (const [originalAtPath, resourceContent] of mcpResourceContent.entries()) {
+        processedQueryParts.push({
+          text: `\nContent from ${originalAtPath}:\n`,
+        });
+        processedQueryParts.push({ text: resourceContent });
+      }
     }
 
     addItem(

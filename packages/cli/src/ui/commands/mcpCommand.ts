@@ -94,9 +94,12 @@ const getMcpStatus = async (
     ) as DiscoveredMCPTool[];
     const promptRegistry = await config.getPromptRegistry();
     const serverPrompts = promptRegistry.getPromptsByServer(serverName) || [];
+    
+    const resourceRegistry = config.getResourceRegistry();
+    const serverResources = resourceRegistry.getResourcesByServer(serverName) || [];
 
     const originalStatus = getMCPServerStatus(serverName);
-    const hasCachedItems = serverTools.length > 0 || serverPrompts.length > 0;
+    const hasCachedItems = serverTools.length > 0 || serverPrompts.length > 0 || serverResources.length > 0;
 
     // If the server is "disconnected" but has prompts or cached tools, display it as Ready
     // by using CONNECTED as the display status.
@@ -265,10 +268,43 @@ const getMcpStatus = async (
         }
       });
     }
+    
+    if (serverResources.length > 0) {
+      if (serverTools.length > 0 || serverPrompts.length > 0) {
+        message += '\n';
+      }
+      message += `  ${COLOR_CYAN}Resources:${RESET_COLOR}\n`;
+      serverResources.forEach((resource: any) => {
+        if (showDescriptions && resource.description) {
+          message += `  - ${COLOR_CYAN}${resource.name}${RESET_COLOR}`;
+          const descLines = resource.description.trim().split('\n');
+          if (descLines) {
+            message += ':\n';
+            for (const descLine of descLines) {
+              message += `      ${COLOR_GREEN}${descLine}${RESET_COLOR}\n`;
+            }
+          } else {
+            message += '\n';
+          }
+        } else {
+          message += `  - ${COLOR_CYAN}${resource.name}${RESET_COLOR}`;
+        }
+        
+        // Show URI and MIME type for resources
+        if (resource.uri) {
+          message += ` ${COLOR_GREY}(${resource.uri}`;
+          if (resource.mimeType) {
+            message += `, ${resource.mimeType}`;
+          }
+          message += `)${RESET_COLOR}`;
+        }
+        message += '\n';
+      });
+    }
 
-    if (serverTools.length === 0 && serverPrompts.length === 0) {
-      message += '  No tools or prompts available\n';
-    } else if (serverTools.length === 0) {
+    if (serverTools.length === 0 && serverPrompts.length === 0 && serverResources.length === 0) {
+      message += '  No tools, prompts, or resources available\n';
+    } else if (serverTools.length === 0 && (serverPrompts.length > 0 || serverResources.length > 0)) {
       message += '  No tools available';
       if (originalStatus === MCPServerStatus.DISCONNECTED && needsAuthHint) {
         message += ` ${COLOR_GREY}(type: "/mcp auth ${serverName}" to authenticate this server)${RESET_COLOR}`;
@@ -296,11 +332,12 @@ const getMcpStatus = async (
   if (showTips) {
     message += '\n';
     message += `${COLOR_CYAN}💡 Tips:${RESET_COLOR}\n`;
-    message += `  • Use ${COLOR_CYAN}/mcp desc${RESET_COLOR} to show server and tool descriptions\n`;
+    message += `  • Use ${COLOR_CYAN}/mcp desc${RESET_COLOR} to show server, tool, and resource descriptions\n`;
     message += `  • Use ${COLOR_CYAN}/mcp schema${RESET_COLOR} to show tool parameter schemas\n`;
     message += `  • Use ${COLOR_CYAN}/mcp nodesc${RESET_COLOR} to hide descriptions\n`;
     message += `  • Use ${COLOR_CYAN}/mcp auth <server-name>${RESET_COLOR} to authenticate with OAuth-enabled servers\n`;
     message += `  • Press ${COLOR_CYAN}Ctrl+T${RESET_COLOR} to toggle tool descriptions on/off\n`;
+    message += `  • Resources can be imported in GEMINI.md files using ${COLOR_CYAN}@server:resource-uri${RESET_COLOR}\n`;
     message += '\n';
   }
 

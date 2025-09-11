@@ -45,6 +45,7 @@ describe('McpClientManager', () => {
       '',
       {} as ToolRegistry,
       {} as PromptRegistry,
+      {} as any, // ResourceRegistry mock
       false,
       {} as WorkspaceContext,
     );
@@ -72,6 +73,7 @@ describe('McpClientManager', () => {
       '',
       {} as ToolRegistry,
       {} as PromptRegistry,
+      {} as any, // ResourceRegistry mock
       false,
       {} as WorkspaceContext,
     );

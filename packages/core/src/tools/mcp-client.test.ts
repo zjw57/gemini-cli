@@ -70,6 +70,7 @@ describe('mcp-client', () => {
         },
         mockedToolRegistry,
         {} as PromptRegistry,
+        {} as any, // ResourceRegistry mock
         {} as WorkspaceContext,
         false,
       );
@@ -132,6 +133,7 @@ describe('mcp-client', () => {
         },
         mockedToolRegistry,
         {} as PromptRegistry,
+        {} as any, // ResourceRegistry mock
         {} as WorkspaceContext,
         false,
       );
@@ -176,12 +178,13 @@ describe('mcp-client', () => {
         },
         {} as ToolRegistry,
         {} as PromptRegistry,
+        {} as any, // ResourceRegistry mock
         {} as WorkspaceContext,
         false,
       );
       await client.connect();
       await expect(client.discover({} as Config)).rejects.toThrow(
-        'No prompts or tools found on the server.',
+        'No prompts, tools, or resources found on the server.',
       );
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         `Error discovering prompts from test-server: Test error`,
