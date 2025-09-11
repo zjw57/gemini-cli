@@ -212,7 +212,7 @@ export const AppContainer = (props: AppContainerProps) => {
     20,
     Math.floor(terminalWidth * widthFraction) - 3,
   );
-  const suggestionsWidth = Math.max(20, Math.floor(terminalWidth * 0.8));
+  const suggestionsWidth = Math.max(20, Math.floor(terminalWidth * 1.0));
   const mainAreaWidth = Math.floor(terminalWidth * 0.9);
   const staticAreaMaxItemHeight = Math.max(terminalHeight * 4, 100);
 
@@ -506,6 +506,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     pendingHistoryItems: pendingGeminiHistoryItems,
     thought,
     cancelOngoingRequest,
+    loopDetectionConfirmationRequest,
   } = useGeminiStream(
     config.getGeminiClient(),
     historyManager.history,
@@ -914,35 +915,20 @@ Logging in with Google... Please restart Gemini CLI to continue.
 
   const nightly = props.version.includes('nightly');
 
-  const dialogsVisible = useMemo(
-    () =>
-      showWorkspaceMigrationDialog ||
-      shouldShowIdePrompt ||
-      isFolderTrustDialogOpen ||
-      !!shellConfirmationRequest ||
-      !!confirmationRequest ||
-      isThemeDialogOpen ||
-      isSettingsDialogOpen ||
-      isAuthenticating ||
-      isAuthDialogOpen ||
-      isEditorDialogOpen ||
-      showPrivacyNotice ||
-      !!proQuotaRequest,
-    [
-      showWorkspaceMigrationDialog,
-      shouldShowIdePrompt,
-      isFolderTrustDialogOpen,
-      shellConfirmationRequest,
-      confirmationRequest,
-      isThemeDialogOpen,
-      isSettingsDialogOpen,
-      isAuthenticating,
-      isAuthDialogOpen,
-      isEditorDialogOpen,
-      showPrivacyNotice,
-      proQuotaRequest,
-    ],
-  );
+  const dialogsVisible =
+    showWorkspaceMigrationDialog ||
+    shouldShowIdePrompt ||
+    isFolderTrustDialogOpen ||
+    !!shellConfirmationRequest ||
+    !!confirmationRequest ||
+    !!loopDetectionConfirmationRequest ||
+    isThemeDialogOpen ||
+    isSettingsDialogOpen ||
+    isAuthenticating ||
+    isAuthDialogOpen ||
+    isEditorDialogOpen ||
+    showPrivacyNotice ||
+    !!proQuotaRequest;
 
   const pendingHistoryItems = useMemo(
     () => [...pendingSlashCommandHistoryItems, ...pendingGeminiHistoryItems],
@@ -970,6 +956,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       commandContext,
       shellConfirmationRequest,
       confirmationRequest,
+      loopDetectionConfirmationRequest,
       geminiMdFileCount,
       streamingState,
       initError,
@@ -1042,6 +1029,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       commandContext,
       shellConfirmationRequest,
       confirmationRequest,
+      loopDetectionConfirmationRequest,
       geminiMdFileCount,
       streamingState,
       initError,
