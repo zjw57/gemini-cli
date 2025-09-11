@@ -785,7 +785,7 @@ export const useGeminiStream = (
           const recursionDepth = options?.recursionDepth ?? 0;
           if (recursionDepth < 2) {
             // To prevent infinite loops
-            await submitQuery(finalizationOutput.recursivePayload.query, {
+            await submitQuery(finalizationOutput.recursivePayload['query'], {
               isContinuation: true,
               recursionDepth: recursionDepth + 1,
             });
@@ -838,7 +838,7 @@ export const useGeminiStream = (
       startNewPrompt,
       getPromptCount,
       handleLoopDetectedEvent,
-      contextInjectionManager,
+      contextInjectionManager
     ],
   );
 
