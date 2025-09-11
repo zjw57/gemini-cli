@@ -716,7 +716,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
         stdio: 'inherit',
       });
 
-      // The parent process must not read from stdin anymore.
+      // Parent process must not read from stdin anymore as child process needs stdin.
       process.stdin.pause();
 
       // The parent now waits for the child to exit.
@@ -1147,6 +1147,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     ],
   );
 
+  // Removing parent's UI from termnial for child UI's to be visible.
   if (isRestarting) {
     return null;
   }
