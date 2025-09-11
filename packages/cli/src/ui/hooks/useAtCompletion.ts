@@ -223,20 +223,22 @@ export function useAtCompletion(props: UseAtCompletionProps): void {
             const resourceRegistry = config.getResourceRegistry();
             if (resourceRegistry) {
               let matchingResources;
-              
+
               // Check if pattern looks like server:resource format
               const colonIndex = state.pattern.indexOf(':');
               if (colonIndex > 0) {
                 // Pattern like "server:" or "server:partial-uri"
                 const serverName = state.pattern.slice(0, colonIndex);
                 const resourcePart = state.pattern.slice(colonIndex + 1);
-                
+
                 // Get resources from specific server and filter by resource part
-                const serverResources = resourceRegistry.getResourcesByServer(serverName);
+                const serverResources =
+                  resourceRegistry.getResourcesByServer(serverName);
                 if (resourcePart) {
-                  matchingResources = serverResources.filter(resource => 
-                    resource.uri.includes(resourcePart) || 
-                    resource.name.includes(resourcePart)
+                  matchingResources = serverResources.filter(
+                    (resource) =>
+                      resource.uri.includes(resourcePart) ||
+                      resource.name.includes(resourcePart),
                   );
                 } else {
                   // Show all resources from this server
@@ -244,15 +246,22 @@ export function useAtCompletion(props: UseAtCompletionProps): void {
                 }
               } else {
                 // General pattern matching across all resources
-                matchingResources = resourceRegistry.findResourcesMatching(state.pattern);
+                matchingResources = resourceRegistry.findResourcesMatching(
+                  state.pattern,
+                );
               }
-              
+
               const resourceSuggestionsToAdd = matchingResources
-                .slice(0, Math.max(1, MAX_SUGGESTIONS_TO_SHOW - fileSuggestions.length))
+                .slice(
+                  0,
+                  Math.max(1, MAX_SUGGESTIONS_TO_SHOW - fileSuggestions.length),
+                )
                 .map((resource) => ({
                   label: `${resource.serverName}:${resource.uri}`,
                   value: `${resource.serverName}:${resource.uri}`,
-                  description: resource.description || `${resource.name} (${resource.mimeType || 'unknown type'})`,
+                  description:
+                    resource.description ||
+                    `${resource.name} (${resource.mimeType || 'unknown type'})`,
                 }));
               resourceSuggestions.push(...resourceSuggestionsToAdd);
             }

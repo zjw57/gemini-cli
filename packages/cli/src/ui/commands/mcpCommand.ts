@@ -11,7 +11,10 @@ import type {
   MessageActionReturn,
 } from './types.js';
 import { CommandKind } from './types.js';
-import type { DiscoveredMCPPrompt } from '@google/gemini-cli-core';
+import type {
+  DiscoveredMCPPrompt,
+  DiscoveredMCPResource,
+} from '@google/gemini-cli-core';
 import {
   DiscoveredMCPTool,
   getMCPDiscoveryState,
@@ -94,12 +97,16 @@ const getMcpStatus = async (
     ) as DiscoveredMCPTool[];
     const promptRegistry = await config.getPromptRegistry();
     const serverPrompts = promptRegistry.getPromptsByServer(serverName) || [];
-    
+
     const resourceRegistry = config.getResourceRegistry();
-    const serverResources = resourceRegistry.getResourcesByServer(serverName) || [];
+    const serverResources =
+      resourceRegistry.getResourcesByServer(serverName) || [];
 
     const originalStatus = getMCPServerStatus(serverName);
-    const hasCachedItems = serverTools.length > 0 || serverPrompts.length > 0 || serverResources.length > 0;
+    const hasCachedItems =
+      serverTools.length > 0 ||
+      serverPrompts.length > 0 ||
+      serverResources.length > 0;
 
     // If the server is "disconnected" but has prompts or cached tools, display it as Ready
     // by using CONNECTED as the display status.
@@ -268,13 +275,13 @@ const getMcpStatus = async (
         }
       });
     }
-    
+
     if (serverResources.length > 0) {
       if (serverTools.length > 0 || serverPrompts.length > 0) {
         message += '\n';
       }
       message += `  ${COLOR_CYAN}Resources:${RESET_COLOR}\n`;
-      serverResources.forEach((resource: any) => {
+      serverResources.forEach((resource: DiscoveredMCPResource) => {
         if (showDescriptions && resource.description) {
           message += `  - ${COLOR_CYAN}${resource.name}${RESET_COLOR}`;
           const descLines = resource.description.trim().split('\n');
@@ -289,7 +296,7 @@ const getMcpStatus = async (
         } else {
           message += `  - ${COLOR_CYAN}${resource.name}${RESET_COLOR}`;
         }
-        
+
         // Show URI and MIME type for resources
         if (resource.uri) {
           message += ` ${COLOR_GREY}(${resource.uri}`;
@@ -302,9 +309,16 @@ const getMcpStatus = async (
       });
     }
 
-    if (serverTools.length === 0 && serverPrompts.length === 0 && serverResources.length === 0) {
+    if (
+      serverTools.length === 0 &&
+      serverPrompts.length === 0 &&
+      serverResources.length === 0
+    ) {
       message += '  No tools, prompts, or resources available\n';
-    } else if (serverTools.length === 0 && (serverPrompts.length > 0 || serverResources.length > 0)) {
+    } else if (
+      serverTools.length === 0 &&
+      (serverPrompts.length > 0 || serverResources.length > 0)
+    ) {
       message += '  No tools available';
       if (originalStatus === MCPServerStatus.DISCONNECTED && needsAuthHint) {
         message += ` ${COLOR_GREY}(type: "/mcp auth ${serverName}" to authenticate this server)${RESET_COLOR}`;

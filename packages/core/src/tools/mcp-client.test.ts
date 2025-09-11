@@ -22,6 +22,7 @@ import { GoogleCredentialProvider } from '../mcp/google-auth-provider.js';
 import { AuthProviderType, type Config } from '../config/config.js';
 import type { PromptRegistry } from '../prompts/prompt-registry.js';
 import type { ToolRegistry } from './tool-registry.js';
+import type { ResourceRegistry } from '../resources/resource-registry.js';
 import type { WorkspaceContext } from '../utils/workspaceContext.js';
 
 vi.mock('@modelcontextprotocol/sdk/client/stdio.js');
@@ -70,7 +71,7 @@ describe('mcp-client', () => {
         },
         mockedToolRegistry,
         {} as PromptRegistry,
-        {} as any, // ResourceRegistry mock
+        {} as ResourceRegistry,
         {} as WorkspaceContext,
         false,
       );
@@ -133,7 +134,7 @@ describe('mcp-client', () => {
         },
         mockedToolRegistry,
         {} as PromptRegistry,
-        {} as any, // ResourceRegistry mock
+        {} as ResourceRegistry,
         {} as WorkspaceContext,
         false,
       );
@@ -178,7 +179,7 @@ describe('mcp-client', () => {
         },
         {} as ToolRegistry,
         {} as PromptRegistry,
-        {} as any, // ResourceRegistry mock
+        {} as ResourceRegistry,
         {} as WorkspaceContext,
         false,
       );

@@ -212,7 +212,11 @@ export class McpClient {
   }
 
   private async discoverResources(): Promise<Resource[]> {
-    return discoverResources(this.serverName, this.client, this.resourceRegistry);
+    return discoverResources(
+      this.serverName,
+      this.client,
+      this.resourceRegistry,
+    );
   }
 }
 

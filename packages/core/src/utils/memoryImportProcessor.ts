@@ -109,9 +109,7 @@ type ImportItem = FileImport | ResourceImport;
  * Finds all import statements in content without using regex
  * @returns Array of import objects for files and MCP resources found
  */
-function findImports(
-  content: string,
-): ImportItem[] {
+function findImports(content: string): ImportItem[] {
   const imports: ImportItem[] = [];
   let i = 0;
   const len = content.length;
@@ -148,17 +146,18 @@ function findImports(
         // MCP resource format: @server:resource-uri
         const serverName = importPath.slice(0, colonIndex);
         const resourceUri = importPath.slice(colonIndex + 1);
-        
+
         // Validate server name (letters, numbers, underscores, hyphens)
         // Must start with letter, can't end with hyphen or underscore
         // and resource URI (non-empty and reasonable length)
-        const serverNameValid = serverName.length === 1 
-          ? /^[a-zA-Z]$/.test(serverName)
-          : /^[a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9]$/.test(serverName);
-          
+        const serverNameValid =
+          serverName.length === 1
+            ? /^[a-zA-Z]$/.test(serverName)
+            : /^[a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9]$/.test(serverName);
+
         if (
-          serverNameValid && 
-          resourceUri.length > 0 && 
+          serverNameValid &&
+          resourceUri.length > 0 &&
           resourceUri.length < 2048 && // Reasonable URI length limit
           !resourceUri.includes('\n') && // No newlines in URI
           !resourceUri.includes('\r') // No carriage returns in URI
@@ -402,7 +401,7 @@ export async function processImports(
 
   for (const importItem of importsList) {
     const { start, _end } = importItem;
-    
+
     // Add content before this import
     result += content.substring(lastIndex, start);
     lastIndex = _end;
@@ -420,7 +419,7 @@ export async function processImports(
     if (importItem.type === 'file') {
       // Handle file imports
       const importPath = importItem.path;
-      
+
       // Validate import path to prevent path traversal attacks
       if (!validateImportPath(importPath, basePath, [projectRoot || ''])) {
         result += `<!-- Import failed: ${importPath} - Path traversal attempt -->`;

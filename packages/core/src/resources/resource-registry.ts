@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Resource, ResourceContents } from '@modelcontextprotocol/sdk/types.js';
+import type {
+  Resource,
+  ResourceContents,
+} from '@modelcontextprotocol/sdk/types.js';
 
 export type DiscoveredMCPResource = Resource & {
   serverName: string;
@@ -40,7 +43,10 @@ export class ResourceRegistry {
   /**
    * Get the definition of a specific resource by server and URI.
    */
-  getResource(serverName: string, uri: string): DiscoveredMCPResource | undefined {
+  getResource(
+    serverName: string,
+    uri: string,
+  ): DiscoveredMCPResource | undefined {
     const resourceKey = `${serverName}:${uri}`;
     return this.resources.get(resourceKey);
   }

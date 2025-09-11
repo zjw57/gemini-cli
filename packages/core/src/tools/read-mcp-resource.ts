@@ -60,7 +60,7 @@ class ReadMcpResourceToolInvocation extends BaseToolInvocation<
 
   getDescription(): string {
     const resourceSpecs = this.params.resources;
-    
+
     if (resourceSpecs.length === 1) {
       // Single resource - show clean format
       const spec = resourceSpecs[0];
@@ -68,31 +68,31 @@ class ReadMcpResourceToolInvocation extends BaseToolInvocation<
       if (colonIndex > 0) {
         const serverName = spec.slice(0, colonIndex);
         const resourceUri = spec.slice(colonIndex + 1);
-        
+
         // Try to get a friendly name from the resource registry
         const resourceRegistry = this.config.getResourceRegistry();
         const resource = resourceRegistry.getResource(serverName, resourceUri);
         const resourceName = resource?.name || resourceUri;
-        
+
         return `Read "${resourceName}" from ${serverName}`;
       }
       return `Read MCP resource: ${spec}`;
     } else {
       // Multiple resources - show count with server info
       const serverNames = new Set();
-      resourceSpecs.forEach(spec => {
+      resourceSpecs.forEach((spec) => {
         const colonIndex = spec.indexOf(':');
         if (colonIndex > 0) {
           serverNames.add(spec.slice(0, colonIndex));
         }
       });
-      
+
       const serverList = Array.from(serverNames).join(', ');
       return `Read ${resourceSpecs.length} MCP resources from ${serverList}`;
     }
   }
 
-  async execute(signal: AbortSignal): Promise<ToolResult> {
+  async execute(_signal: AbortSignal): Promise<ToolResult> {
     const { resources: resourceSpecs } = this.params;
 
     const resourceRegistry = this.config.getResourceRegistry();
@@ -127,21 +127,30 @@ class ReadMcpResourceToolInvocation extends BaseToolInvocation<
 
         try {
           // Check if resource exists
-          const resource = resourceRegistry.getResource(serverName, resourceUri);
-          
+          const resource = resourceRegistry.getResource(
+            serverName,
+            resourceUri,
+          );
+
           if (!resource) {
             // Provide helpful error with available resources
-            const serverResources = resourceRegistry.getResourcesByServer(serverName);
+            const serverResources =
+              resourceRegistry.getResourcesByServer(serverName);
             let reason = `MCP resource '${resourceSpec}' not found.`;
-            
+
             if (serverResources.length === 0) {
               reason += ` Server '${serverName}' has no available resources.`;
             } else {
-              const availableUris = serverResources.map(r => r.uri).slice(0, 3);
-              const moreAvailable = serverResources.length > 3 ? ` and ${serverResources.length - 3} more` : '';
+              const availableUris = serverResources
+                .map((r) => r.uri)
+                .slice(0, 3);
+              const moreAvailable =
+                serverResources.length > 3
+                  ? ` and ${serverResources.length - 3} more`
+                  : '';
               reason += ` Available resources: ${availableUris.join(', ')}${moreAvailable}`;
             }
-            
+
             return {
               success: false,
               resourceSpec,
@@ -156,19 +165,36 @@ class ReadMcpResourceToolInvocation extends BaseToolInvocation<
           let resourceContent = '';
           let mimeType = '';
 
-          if ('text' in resourceContents && typeof resourceContents['text'] === 'string') {
+          if (
+            'text' in resourceContents &&
+            typeof resourceContents['text'] === 'string'
+          ) {
             resourceContent = resourceContents['text'];
-            mimeType = (typeof resourceContents['mimeType'] === 'string' ? resourceContents['mimeType'] : '') || 'text/plain';
-          } else if ('blob' in resourceContents && typeof resourceContents['blob'] === 'string') {
+            mimeType =
+              (typeof resourceContents['mimeType'] === 'string'
+                ? resourceContents['mimeType']
+                : '') || 'text/plain';
+          } else if (
+            'blob' in resourceContents &&
+            typeof resourceContents['blob'] === 'string'
+          ) {
             // Decode base64 blob for text-based content
-            mimeType = (typeof resourceContents['mimeType'] === 'string' ? resourceContents['mimeType'] : '') || '';
-            if (mimeType.startsWith('text/') || 
-                mimeType === 'application/json' ||
-                mimeType === 'application/xml' ||
-                mimeType.includes('markdown') ||
-                mimeType.includes('yaml')) {
+            mimeType =
+              (typeof resourceContents['mimeType'] === 'string'
+                ? resourceContents['mimeType']
+                : '') || '';
+            if (
+              mimeType.startsWith('text/') ||
+              mimeType === 'application/json' ||
+              mimeType === 'application/xml' ||
+              mimeType.includes('markdown') ||
+              mimeType.includes('yaml')
+            ) {
               try {
-                resourceContent = Buffer.from(resourceContents['blob'], 'base64').toString('utf-8');
+                resourceContent = Buffer.from(
+                  resourceContents['blob'],
+                  'base64',
+                ).toString('utf-8');
               } catch (decodeError) {
                 return {
                   success: false,
@@ -252,24 +278,27 @@ class ReadMcpResourceToolInvocation extends BaseToolInvocation<
 
     // Build the display message with actual content
     let displayMessage = '';
-    
+
     if (processedResourcesRelativePaths.length > 0) {
       // Show the actual resource content, similar to ReadManyFiles
       for (const result of results) {
         if (result.status === 'fulfilled' && result.value.success) {
           const resourceResult = result.value;
           const { resourceSpec } = resourceResult;
-          
+
           const colonIndex = resourceSpec.indexOf(':');
           if (colonIndex > 0) {
             const serverName = resourceSpec.slice(0, colonIndex);
             const resourceUri = resourceSpec.slice(colonIndex + 1);
-            
+
             // Try to get a friendly name
             const resourceRegistry = this.config.getResourceRegistry();
-            const resource = resourceRegistry.getResource(serverName, resourceUri);
+            const resource = resourceRegistry.getResource(
+              serverName,
+              resourceUri,
+            );
             const resourceName = resource?.name || resourceUri;
-            
+
             // Only show server/resource info if reading multiple resources
             if (resourceSpecs.length > 1) {
               displayMessage += `MCP Server: ${serverName}\nResource: ${resourceName}\n\n`;
@@ -286,19 +315,17 @@ class ReadMcpResourceToolInvocation extends BaseToolInvocation<
       } else {
         displayMessage += `Warning: Some resources could not be loaded\n\n`;
       }
-      
-      skippedResources
-        .slice(0, 5)
-        .forEach((r) => {
-          const colonIndex = r.spec.indexOf(':');
-          if (colonIndex > 0) {
-            const serverName = r.spec.slice(0, colonIndex);
-            const resourceUri = r.spec.slice(colonIndex + 1);
-            displayMessage += `${resourceUri} from ${serverName}: ${r.reason}\n`;
-          } else {
-            displayMessage += `${r.spec}: ${r.reason}\n`;
-          }
-        });
+
+      skippedResources.slice(0, 5).forEach((r) => {
+        const colonIndex = r.spec.indexOf(':');
+        if (colonIndex > 0) {
+          const serverName = r.spec.slice(0, colonIndex);
+          const resourceUri = r.spec.slice(colonIndex + 1);
+          displayMessage += `${resourceUri} from ${serverName}: ${r.reason}\n`;
+        } else {
+          displayMessage += `${r.spec}: ${r.reason}\n`;
+        }
+      });
       if (skippedResources.length > 5) {
         displayMessage += `...and ${skippedResources.length - 5} more resources failed to load.\n`;
       }
@@ -313,9 +340,7 @@ class ReadMcpResourceToolInvocation extends BaseToolInvocation<
     if (contentParts.length > 0) {
       contentParts.push(DEFAULT_OUTPUT_TERMINATOR);
     } else {
-      contentParts.push(
-        'No MCP resource content was loaded.',
-      );
+      contentParts.push('No MCP resource content was loaded.');
     }
 
     return {

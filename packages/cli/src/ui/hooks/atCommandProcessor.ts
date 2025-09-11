@@ -196,14 +196,16 @@ export async function handleAtCommand({
       // Handle MCP resource: server:resource-uri
       const serverName = pathName.slice(0, colonIndex);
       const resourceUri = pathName.slice(colonIndex + 1);
-      
+
       onDebugMessage(`Collecting MCP resource: ${serverName}:${resourceUri}`);
-      
+
       // Just collect the MCP resource for processing later
       mcpResourcesToRead.push(pathName);
       atPathToResolvedSpecMap.set(originalAtPath, pathName);
-      contentLabelsForDisplay.push(`MCP Resource: ${serverName}:${resourceUri}`);
-      
+      contentLabelsForDisplay.push(
+        `MCP Resource: ${serverName}:${resourceUri}`,
+      );
+
       continue; // Skip the file processing for MCP resources
     }
 
@@ -397,8 +399,10 @@ export async function handleAtCommand({
 
   // Handle case with no valid file paths or MCP resources
   if (pathSpecsToRead.length === 0 && mcpResourcesToRead.length === 0) {
-    onDebugMessage('No valid file paths or MCP resources found in @ commands to read.');
-    
+    onDebugMessage(
+      'No valid file paths or MCP resources found in @ commands to read.',
+    );
+
     if (initialQueryText === '@' && query.trim() === '@') {
       // If the only thing was a lone @, pass original query (which might have spaces)
       return { processedQuery: [{ text: query }], shouldProceed: true };
@@ -516,7 +520,8 @@ export async function handleAtCommand({
       toolCallDisplays.push(toolCallDisplay);
 
       if (Array.isArray(result.llmContent)) {
-        const mcpResourceContentRegex = /^--- MCP Resource: (.*?) ---\n\n([\s\S]*?)\n\n$/;
+        const mcpResourceContentRegex =
+          /^--- MCP Resource: (.*?) ---\n\n([\s\S]*?)\n\n$/;
         processedQueryParts.push({
           text: '\n--- Content from MCP resources ---',
         });
