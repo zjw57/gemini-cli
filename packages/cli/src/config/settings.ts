@@ -693,76 +693,6 @@ export function loadSettings(
   );
 }
 
-/**
- * Deeply compares two objects for equality.
- * @param a The first object.
- * @param b The second object.
- * @returns True if the objects are equal, false otherwise.
- */
-function isEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-
-  if (a && b && typeof a === 'object' && typeof b === 'object') {
-    if (a.constructor !== b.constructor) return false;
-
-    if (Array.isArray(a)) {
-      if (a.length !== (b as unknown[]).length) return false;
-      for (let i = 0; i < a.length; i++) {
-        if (!isEqual(a[i], (b as unknown[])[i])) return false;
-      }
-      return true;
-    }
-
-    const keysA = Object.keys(a);
-    const keysB = Object.keys(b);
-
-    if (keysA.length !== keysB.length) return false;
-
-    for (const key of keysA) {
-      if (
-        !Object.prototype.hasOwnProperty.call(b, key) ||
-        !isEqual(
-          (a as Record<string, unknown>)[key],
-          (b as Record<string, unknown>)[key],
-        )
-      ) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  // Handle NaN case
-  return a !== a && b !== b;
-}
-
-/**
- * Removes properties from a settings object that match the default values.
- * This is used to keep the saved settings files clean and only contain overrides.
- * @param settings The settings object to filter.
- * @param defaults The default settings object to compare against.
- * @returns A new settings object containing only the non-default values.
- */
-function removeDefaultValues(
-  settings: Record<string, unknown>,
-  defaults: Record<string, unknown>,
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const key in settings) {
-    if (Object.hasOwn(settings, key)) {
-      // Keep the setting if the default doesn't exist or the value is different.
-      if (
-        !Object.hasOwn(defaults, key) ||
-        !isEqual(settings[key], defaults[key])
-      ) {
-        result[key] = settings[key];
-      }
-    }
-  }
-  return result;
-}
-
 export function saveSettings(settingsFile: SettingsFile): void {
   try {
     // Ensure the directory exists
@@ -778,20 +708,9 @@ export function saveSettings(settingsFile: SettingsFile): void {
       ) as Settings;
     }
 
-    // Get V1 defaults to compare against.
-    const v2Defaults = getDefaultSettings();
-    const v1Defaults = migrateSettingsToV1(
-      v2Defaults as Record<string, unknown>,
-    );
-
-    const settingsWithoutDefaults = removeDefaultValues(
-      settingsToSave as Record<string, unknown>,
-      v1Defaults,
-    );
-
     fs.writeFileSync(
       settingsFile.path,
-      JSON.stringify(settingsWithoutDefaults, null, 2),
+      JSON.stringify(settingsToSave, null, 2),
       'utf-8',
     );
   } catch (error) {

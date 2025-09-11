@@ -2079,6 +2079,53 @@ describe('Settings Loading and Merging', () => {
       expect(settings.merged.privacy?.usageStatisticsEnabled).toBe(false);
     });
 
+    it('should correctly merge settings with workspace overriding user and resetting to default', () => {
+      const defaultValue = getDefaultSettings().context.discoveryMaxDirs;
+      expect(defaultValue).toBe(200);
+
+      (mockFsExistsSync as Mock).mockImplementation(
+        (p: fs.PathLike) =>
+          p === USER_SETTINGS_PATH || p === MOCK_WORKSPACE_SETTINGS_PATH,
+      );
+
+      // User sets a non-default value.
+      const userSettingsContent = {
+        context: {
+          discoveryMaxDirs: 500,
+        },
+      };
+
+      // Workspace sets it back to the default value.
+      const workspaceSettingsContent = {
+        context: {
+          discoveryMaxDirs: defaultValue,
+        },
+      };
+
+      (fs.readFileSync as Mock).mockImplementation(
+        (p: fs.PathOrFileDescriptor) => {
+          if (p === USER_SETTINGS_PATH) {
+            return JSON.stringify(userSettingsContent);
+          }
+          if (p === MOCK_WORKSPACE_SETTINGS_PATH) {
+            return JSON.stringify(workspaceSettingsContent);
+          }
+          return '{}';
+        },
+      );
+
+      const settings = loadSettings(MOCK_WORKSPACE_DIR);
+
+      // Check individual settings were loaded correctly
+      expect(settings.user.settings.context?.discoveryMaxDirs).toBe(500);
+      expect(settings.workspace.settings.context?.discoveryMaxDirs).toBe(
+        defaultValue,
+      );
+
+      // The merged result should be the default value, as workspace takes precedence.
+      expect(settings.merged.context.discoveryMaxDirs).toBe(defaultValue);
+    });
+
     describe('when GEMINI_CLI_SYSTEM_SETTINGS_PATH is set', () => {
       const MOCK_ENV_SYSTEM_SETTINGS_PATH = '/mock/env/system/settings.json';
 
@@ -2868,7 +2915,7 @@ describe('saveSettings', () => {
     vi.restoreAllMocks();
   });
 
-  it('should only write settings that differ from the default values', () => {
+  it('should write all provided user settings', () => {
     const userSettingsFile: SettingsFile = {
       path: USER_SETTINGS_PATH,
       settings: {
@@ -2914,7 +2961,7 @@ describe('saveSettings', () => {
     });
   });
 
-  it('should only write non-default settings for the workspace scope', () => {
+  it('should write all provided workspace settings', () => {
     const workspaceSettingsFile: SettingsFile = {
       path: MOCK_WORKSPACE_SETTINGS_PATH,
       settings: {
@@ -2956,6 +3003,7 @@ describe('saveSettings', () => {
     expect(writtenContent).toEqual({
       autoAccept: true,
       memoryDiscoveryMaxDirs: 500,
+      vimMode: false,
     });
   });
 });
