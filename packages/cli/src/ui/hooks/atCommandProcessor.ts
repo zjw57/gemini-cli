@@ -142,9 +142,9 @@ export async function handleAtCommand({
   const respectFileIgnore = config.getFileFilteringOptions();
 
   const pathSpecsToRead: string[] = [];
+  const mcpResourcesToRead: string[] = []; // MCP resources to process
   const atPathToResolvedSpecMap = new Map<string, string>();
   const contentLabelsForDisplay: string[] = [];
-  const mcpResourceContent = new Map<string, string>(); // Store MCP resource content
   const ignoredByReason: Record<string, string[]> = {
     git: [],
     gemini: [],
@@ -153,6 +153,7 @@ export async function handleAtCommand({
 
   const toolRegistry = config.getToolRegistry();
   const readManyFilesTool = toolRegistry.getTool('read_many_files');
+  const readMcpResourceTool = toolRegistry.getTool('read_mcp_resource');
   const globTool = toolRegistry.getTool('glob');
 
   if (!readManyFilesTool) {
@@ -196,87 +197,12 @@ export async function handleAtCommand({
       const serverName = pathName.slice(0, colonIndex);
       const resourceUri = pathName.slice(colonIndex + 1);
       
-      onDebugMessage(`Processing MCP resource: ${serverName}:${resourceUri}`);
+      onDebugMessage(`Collecting MCP resource: ${serverName}:${resourceUri}`);
       
-      try {
-        const resourceRegistry = config.getResourceRegistry();
-        const resource = resourceRegistry.getResource(serverName, resourceUri);
-        
-        if (!resource) {
-          // Provide helpful error with available resources
-          const serverResources = resourceRegistry.getResourcesByServer(serverName);
-          let errorMessage = `Error: MCP resource '${serverName}:${resourceUri}' not found.`;
-          
-          if (serverResources.length === 0) {
-            errorMessage += ` Server '${serverName}' has no available resources.`;
-          } else {
-            const availableUris = serverResources.map(r => r.uri).slice(0, 3);
-            const moreAvailable = serverResources.length > 3 ? ` and ${serverResources.length - 3} more` : '';
-            errorMessage += ` Available resources: ${availableUris.join(', ')}${moreAvailable}`;
-          }
-          
-          addItem(
-            { type: 'error', text: errorMessage },
-            userMessageTimestamp,
-          );
-          return { processedQuery: null, shouldProceed: false };
-        }
-        
-        // Fetch resource content
-        const resourceContents = await resource.read();
-        let resourceContent = '';
-        
-        if ('text' in resourceContents && typeof resourceContents['text'] === 'string') {
-          resourceContent = resourceContents['text'];
-        } else if ('blob' in resourceContents && typeof resourceContents['blob'] === 'string') {
-          // Decode base64 blob for text-based content
-          const mimeType = (typeof resourceContents['mimeType'] === 'string' ? resourceContents['mimeType'] : '') || '';
-          if (mimeType.startsWith('text/') || 
-              mimeType === 'application/json' ||
-              mimeType === 'application/xml' ||
-              mimeType.includes('markdown') ||
-              mimeType.includes('yaml')) {
-            try {
-              resourceContent = Buffer.from(resourceContents['blob'], 'base64').toString('utf-8');
-            } catch (decodeError) {
-              addItem(
-                { type: 'error', text: `Error: Failed to decode MCP resource '${serverName}:${resourceUri}' as text.` },
-                userMessageTimestamp,
-              );
-              return { processedQuery: null, shouldProceed: false };
-            }
-          } else {
-            addItem(
-              { type: 'error', text: `Error: MCP resource '${serverName}:${resourceUri}' contains binary content (${mimeType}) that cannot be processed as text.` },
-              userMessageTimestamp,
-            );
-            return { processedQuery: null, shouldProceed: false };
-          }
-        } else {
-          addItem(
-            { type: 'error', text: `Error: MCP resource '${serverName}:${resourceUri}' returned no readable content.` },
-            userMessageTimestamp,
-          );
-          return { processedQuery: null, shouldProceed: false };
-        }
-        
-        // Store the resource content for later use
-        mcpResourceContent.set(originalAtPath, resourceContent);
-        
-        // Add to content for display
-        contentLabelsForDisplay.push(`MCP Resource: ${serverName}:${resourceUri}`);
-        
-        // Map the original @ path to itself for the query reconstruction
-        atPathToResolvedSpecMap.set(originalAtPath, pathName);
-        
-      } catch (error) {
-        const errorMessage = getErrorMessage(error);
-        addItem(
-          { type: 'error', text: `Error reading MCP resource '${serverName}:${resourceUri}': ${errorMessage}` },
-          userMessageTimestamp,
-        );
-        return { processedQuery: null, shouldProceed: false };
-      }
+      // Just collect the MCP resource for processing later
+      mcpResourcesToRead.push(pathName);
+      atPathToResolvedSpecMap.set(originalAtPath, pathName);
+      contentLabelsForDisplay.push(`MCP Resource: ${serverName}:${resourceUri}`);
       
       continue; // Skip the file processing for MCP resources
     }
@@ -469,28 +395,9 @@ export async function handleAtCommand({
     onDebugMessage(message);
   }
 
-  // Handle case with only MCP resources or no valid file paths
-  if (pathSpecsToRead.length === 0) {
-    onDebugMessage('No valid file paths found in @ commands to read.');
-    
-    // If we have MCP resource content, include it
-    if (mcpResourceContent.size > 0) {
-      const processedQueryParts: PartUnion[] = [{ text: initialQueryText || query }];
-      
-      // Add MCP resource content
-      processedQueryParts.push({
-        text: '\n--- Content from MCP resources ---',
-      });
-      
-      for (const [originalAtPath, resourceContent] of mcpResourceContent.entries()) {
-        processedQueryParts.push({
-          text: `\nContent from ${originalAtPath}:\n`,
-        });
-        processedQueryParts.push({ text: resourceContent });
-      }
-      
-      return { processedQuery: processedQueryParts, shouldProceed: true };
-    }
+  // Handle case with no valid file paths or MCP resources
+  if (pathSpecsToRead.length === 0 && mcpResourcesToRead.length === 0) {
+    onDebugMessage('No valid file paths or MCP resources found in @ commands to read.');
     
     if (initialQueryText === '@' && query.trim() === '@') {
       // If the only thing was a lone @, pass original query (which might have spaces)
@@ -507,101 +414,165 @@ export async function handleAtCommand({
   }
 
   const processedQueryParts: PartUnion[] = [{ text: initialQueryText }];
+  const toolCallDisplays: IndividualToolCallDisplay[] = [];
 
-  const toolArgs = {
-    paths: pathSpecsToRead,
-    file_filtering_options: {
-      respect_git_ignore: respectFileIgnore.respectGitIgnore,
-      respect_gemini_ignore: respectFileIgnore.respectGeminiIgnore,
-    },
-    // Use configuration setting
-  };
-  let toolCallDisplay: IndividualToolCallDisplay;
-
-  let invocation: AnyToolInvocation | undefined = undefined;
-  try {
-    invocation = readManyFilesTool.build(toolArgs);
-    const result = await invocation.execute(signal);
-    toolCallDisplay = {
-      callId: `client-read-${userMessageTimestamp}`,
-      name: readManyFilesTool.displayName,
-      description: invocation.getDescription(),
-      status: ToolCallStatus.Success,
-      resultDisplay:
-        result.returnDisplay ||
-        `Successfully read: ${contentLabelsForDisplay.join(', ')}`,
-      confirmationDetails: undefined,
+  // Process files if any
+  if (pathSpecsToRead.length > 0) {
+    const toolArgs = {
+      paths: pathSpecsToRead,
+      file_filtering_options: {
+        respect_git_ignore: respectFileIgnore.respectGitIgnore,
+        respect_gemini_ignore: respectFileIgnore.respectGeminiIgnore,
+      },
     };
 
-    if (Array.isArray(result.llmContent)) {
-      const fileContentRegex = /^--- (.*?) ---\n\n([\s\S]*?)\n\n$/;
-      processedQueryParts.push({
-        text: '\n--- Content from referenced files ---',
-      });
-      for (const part of result.llmContent) {
-        if (typeof part === 'string') {
-          const match = fileContentRegex.exec(part);
-          if (match) {
-            const filePathSpecInContent = match[1]; // This is a resolved pathSpec
-            const fileActualContent = match[2].trim();
-            processedQueryParts.push({
-              text: `\nContent from @${filePathSpecInContent}:\n`,
-            });
-            processedQueryParts.push({ text: fileActualContent });
-          } else {
-            processedQueryParts.push({ text: part });
-          }
-        } else {
-          // part is a Part object.
-          processedQueryParts.push(part);
-        }
-      }
-    } else {
-      onDebugMessage(
-        'read_many_files tool returned no content or empty content.',
-      );
-    }
+    let invocation: AnyToolInvocation | undefined = undefined;
+    try {
+      invocation = readManyFilesTool.build(toolArgs);
+      const result = await invocation.execute(signal);
+      const toolCallDisplay = {
+        callId: `client-read-files-${userMessageTimestamp}`,
+        name: readManyFilesTool.displayName,
+        description: invocation.getDescription(),
+        status: ToolCallStatus.Success,
+        resultDisplay:
+          result.returnDisplay ||
+          `Successfully read: ${pathSpecsToRead.join(', ')}`,
+        confirmationDetails: undefined,
+      };
 
-    // Add MCP resource content if any
-    if (mcpResourceContent.size > 0) {
-      processedQueryParts.push({
-        text: '\n--- Content from MCP resources ---',
-      });
-      
-      for (const [originalAtPath, resourceContent] of mcpResourceContent.entries()) {
+      toolCallDisplays.push(toolCallDisplay);
+
+      if (Array.isArray(result.llmContent)) {
+        const fileContentRegex = /^--- (.*?) ---\n\n([\s\S]*?)\n\n$/;
         processedQueryParts.push({
-          text: `\nContent from ${originalAtPath}:\n`,
+          text: '\n--- Content from referenced files ---',
         });
-        processedQueryParts.push({ text: resourceContent });
+        for (const part of result.llmContent) {
+          if (typeof part === 'string') {
+            const match = fileContentRegex.exec(part);
+            if (match) {
+              const filePathSpecInContent = match[1]; // This is a resolved pathSpec
+              const fileActualContent = match[2].trim();
+              processedQueryParts.push({
+                text: `\nContent from @${filePathSpecInContent}:\n`,
+              });
+              processedQueryParts.push({ text: fileActualContent });
+            } else {
+              processedQueryParts.push({ text: part });
+            }
+          } else {
+            // part is a Part object.
+            processedQueryParts.push(part);
+          }
+        }
+      } else {
+        onDebugMessage(
+          'read_many_files tool returned no content or empty content.',
+        );
       }
+    } catch (error: unknown) {
+      const toolCallDisplay = {
+        callId: `client-read-files-${userMessageTimestamp}`,
+        name: readManyFilesTool.displayName,
+        description:
+          invocation?.getDescription() ??
+          'Error attempting to execute tool to read files',
+        status: ToolCallStatus.Error,
+        resultDisplay: `Error reading files (${pathSpecsToRead.join(', ')}): ${getErrorMessage(error)}`,
+        confirmationDetails: undefined,
+      };
+      toolCallDisplays.push(toolCallDisplay);
+    }
+  }
+
+  // Process MCP resources if any
+  if (mcpResourcesToRead.length > 0) {
+    if (!readMcpResourceTool) {
+      addItem(
+        { type: 'error', text: 'Error: read_mcp_resource tool not found.' },
+        userMessageTimestamp,
+      );
+      return { processedQuery: null, shouldProceed: false };
     }
 
-    addItem(
-      { type: 'tool_group', tools: [toolCallDisplay] } as Omit<
-        HistoryItem,
-        'id'
-      >,
-      userMessageTimestamp,
-    );
-    return { processedQuery: processedQueryParts, shouldProceed: true };
-  } catch (error: unknown) {
-    toolCallDisplay = {
-      callId: `client-read-${userMessageTimestamp}`,
-      name: readManyFilesTool.displayName,
-      description:
-        invocation?.getDescription() ??
-        'Error attempting to execute tool to read files',
-      status: ToolCallStatus.Error,
-      resultDisplay: `Error reading files (${contentLabelsForDisplay.join(', ')}): ${getErrorMessage(error)}`,
-      confirmationDetails: undefined,
+    const mcpToolArgs = {
+      resources: mcpResourcesToRead,
     };
+
+    let mcpInvocation: AnyToolInvocation | undefined = undefined;
+    try {
+      mcpInvocation = readMcpResourceTool.build(mcpToolArgs);
+      const result = await mcpInvocation.execute(signal);
+      const toolCallDisplay = {
+        callId: `client-read-mcp-${userMessageTimestamp}`,
+        name: readMcpResourceTool.displayName,
+        description: mcpInvocation.getDescription(),
+        status: ToolCallStatus.Success,
+        resultDisplay: result.returnDisplay,
+        confirmationDetails: undefined,
+      };
+
+      toolCallDisplays.push(toolCallDisplay);
+
+      if (Array.isArray(result.llmContent)) {
+        const mcpResourceContentRegex = /^--- MCP Resource: (.*?) ---\n\n([\s\S]*?)\n\n$/;
+        processedQueryParts.push({
+          text: '\n--- Content from MCP resources ---',
+        });
+        for (const part of result.llmContent) {
+          if (typeof part === 'string') {
+            const match = mcpResourceContentRegex.exec(part);
+            if (match) {
+              const resourceSpec = match[1]; // This is serverName:resourceUri
+              const resourceActualContent = match[2].trim();
+              processedQueryParts.push({
+                text: `\nContent from @${resourceSpec}:\n`,
+              });
+              processedQueryParts.push({ text: resourceActualContent });
+            } else {
+              processedQueryParts.push({ text: part });
+            }
+          } else {
+            // part is a Part object.
+            processedQueryParts.push(part);
+          }
+        }
+      } else {
+        onDebugMessage(
+          'read_mcp_resource tool returned no content or empty content.',
+        );
+      }
+    } catch (error: unknown) {
+      const toolCallDisplay = {
+        callId: `client-read-mcp-${userMessageTimestamp}`,
+        name: readMcpResourceTool.displayName,
+        description:
+          mcpInvocation?.getDescription() ??
+          'Error attempting to execute tool to read MCP resources',
+        status: ToolCallStatus.Error,
+        resultDisplay: `Error reading MCP resources (${mcpResourcesToRead.join(', ')}): ${getErrorMessage(error)}`,
+        confirmationDetails: undefined,
+      };
+      toolCallDisplays.push(toolCallDisplay);
+    }
+  }
+
+  // Add tool call displays to history if any tools were executed
+  if (toolCallDisplays.length > 0) {
     addItem(
-      { type: 'tool_group', tools: [toolCallDisplay] } as Omit<
+      { type: 'tool_group', tools: toolCallDisplays } as Omit<
         HistoryItem,
         'id'
       >,
       userMessageTimestamp,
     );
+  }
+
+  // Return results if any content was processed, otherwise return error
+  if (processedQueryParts.length > 1) {
+    return { processedQuery: processedQueryParts, shouldProceed: true };
+  } else {
     return { processedQuery: null, shouldProceed: false };
   }
 }
