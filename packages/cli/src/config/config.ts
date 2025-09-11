@@ -337,6 +337,7 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
 
 // This function is now a thin wrapper around the server's implementation.
 // It's kept in the CLI for now as App.tsx directly calls it for memory refresh.
+
 // TODO: Consider if App.tsx should get memory via a server call or if Config should refresh itself.
 export async function loadHierarchicalGeminiMemory(
   currentWorkingDirectory: string,

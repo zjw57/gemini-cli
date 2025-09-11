@@ -246,7 +246,6 @@ async function readGeminiMdFiles(
   filePaths: string[],
   debugMode: boolean,
   importFormat: 'flat' | 'tree' = 'tree',
-  resourceRegistry?: any,
 ): Promise<GeminiFileContent[]> {
   // Process files in parallel with concurrency limit to prevent EMFILE errors
   const CONCURRENT_LIMIT = 20; // Higher limit for file reads as they're typically faster
@@ -259,7 +258,7 @@ async function readGeminiMdFiles(
         try {
           const content = await fs.readFile(filePath, 'utf-8');
 
-          // Process imports in the content
+          // Process imports in the content  
           const processedResult = await processImports(
             content,
             path.dirname(filePath),
@@ -267,7 +266,6 @@ async function readGeminiMdFiles(
             undefined,
             undefined,
             importFormat,
-            resourceRegistry,
           );
           if (debugMode)
             logger.debug(
@@ -349,7 +347,6 @@ export async function loadServerHierarchicalMemory(
   importFormat: 'flat' | 'tree' = 'tree',
   fileFilteringOptions?: FileFilteringOptions,
   maxDirs: number = 200,
-  resourceRegistry?: any, // ResourceRegistry type - avoid circular import for now
 ): Promise<LoadServerHierarchicalMemoryResponse> {
   if (debugMode)
     logger.debug(
@@ -379,7 +376,6 @@ export async function loadServerHierarchicalMemory(
     filePaths,
     debugMode,
     importFormat,
-    resourceRegistry,
   );
   // Pass CWD for relative path display in concatenated content
   const combinedInstructions = concatenateInstructions(

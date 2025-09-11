@@ -250,14 +250,12 @@ function findCodeRegions(content: string): Array<[number, number]> {
 /**
  * Processes import statements in GEMINI.md content
  * Supports @path/to/file syntax for importing content from other files
- * and @server:resource-uri syntax for importing content from MCP resources
  * @param content - The content to process for imports
  * @param basePath - The directory path where the current file is located
  * @param debugMode - Whether to enable debug logging
  * @param importState - State tracking for circular import prevention
  * @param projectRoot - The project root directory for allowed directories
  * @param importFormat - The format of the import tree
- * @param resourceRegistry - Optional resource registry for MCP resource imports
  * @returns Processed content with imports resolved and import tree
  */
 export async function processImports(
@@ -271,7 +269,6 @@ export async function processImports(
   },
   projectRoot?: string,
   importFormat: 'flat' | 'tree' = 'tree',
-  resourceRegistry?: any, // ResourceRegistry type - avoid circular import for now
 ): Promise<ProcessImportsResult> {
   if (!projectRoot) {
     projectRoot = await findProjectRoot(basePath);
@@ -452,7 +449,6 @@ export async function processImports(
           newImportState,
           projectRoot,
           importFormat,
-          resourceRegistry,
         );
         result += `<!-- Imported from: ${importPath} -->\n${imported.content}\n<!-- End of import from: ${importPath} -->`;
         imports.push(imported.importTree);
@@ -467,122 +463,10 @@ export async function processImports(
         result += `<!-- Import failed: ${importPath} - ${message} -->`;
       }
     } else if (importItem.type === 'resource') {
-      // Handle MCP resource imports
+      // MCP resource imports are not supported in GEMINI.md files
       const { serverName, resourceUri } = importItem;
       const resourceKey = `${serverName}:${resourceUri}`;
-      
-      if (!resourceRegistry) {
-        result += `<!-- Resource import failed: ${resourceKey} - MCP resource registry not available. Ensure MCP servers are configured and connected. -->`;
-        continue;
-      }
-
-      // Check if resource is already processed (prevent circular imports)
-      if (importState.processedFiles.has(resourceKey)) {
-        result += `<!-- Resource already processed: ${resourceKey} -->`;
-        continue;
-      }
-
-      // Check depth limit for resources
-      if (importState.currentDepth >= importState.maxDepth) {
-        result += `<!-- Resource import skipped: ${resourceKey} - Maximum import depth (${importState.maxDepth}) reached -->`;
-        continue;
-      }
-
-      try {
-        const resource = resourceRegistry.getResource(serverName, resourceUri);
-        if (!resource) {
-          // Check if server exists in registry to provide better error message
-          const serverResources = resourceRegistry.getResourcesByServer(serverName);
-          if (serverResources.length === 0) {
-            result += `<!-- Resource import failed: ${resourceKey} - Server '${serverName}' not found or has no resources. Check MCP server configuration. -->`;
-          } else {
-            const availableUris = serverResources.map((r: any) => r.uri).slice(0, 5);
-            const moreAvailable = serverResources.length > 5 ? ` and ${serverResources.length - 5} more` : '';
-            result += `<!-- Resource import failed: ${resourceKey} - Resource not found. Available resources from '${serverName}': ${availableUris.join(', ')}${moreAvailable} -->`;
-          }
-          continue;
-        }
-
-        // Fetch resource content with timeout
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Resource read timeout')), 30000)
-        );
-        const resourceContents = await Promise.race([
-          resource.read(),
-          timeoutPromise
-        ]) as any;
-        
-        let resourceContent = '';
-        const MAX_RESOURCE_SIZE = 10 * 1024 * 1024; // 10MB limit
-        
-        if ('text' in resourceContents && resourceContents.text) {
-          resourceContent = resourceContents.text;
-          if (resourceContent.length > MAX_RESOURCE_SIZE) {
-            result += `<!-- Resource import failed: ${resourceKey} - Content too large (${Math.round(resourceContent.length / 1024 / 1024)}MB > 10MB limit) -->`;
-            continue;
-          }
-        } else if ('blob' in resourceContents && resourceContents.blob) {
-          // Handle binary content based on MIME type
-          const mimeType = resourceContents.mimeType || 'application/octet-stream';
-          
-          if (mimeType.startsWith('text/') || 
-              mimeType === 'application/json' ||
-              mimeType === 'application/xml' ||
-              mimeType.includes('markdown') ||
-              mimeType.includes('yaml')) {
-            // Attempt to decode as text for text-based MIME types
-            try {
-              const decodedBuffer = Buffer.from(resourceContents.blob, 'base64');
-              if (decodedBuffer.length > MAX_RESOURCE_SIZE) {
-                result += `<!-- Resource import failed: ${resourceKey} - Content too large (${Math.round(decodedBuffer.length / 1024 / 1024)}MB > 10MB limit) -->`;
-                continue;
-              }
-              resourceContent = decodedBuffer.toString('utf-8');
-            } catch (decodeError) {
-              result += `<!-- Resource import failed: ${resourceKey} - Failed to decode ${mimeType} content as text -->`;
-              continue;
-            }
-          } else {
-            result += `<!-- Resource import skipped: ${resourceKey} - Binary content (${mimeType}) cannot be imported as text -->`;
-            continue;
-          }
-        } else {
-          result += `<!-- Resource import failed: ${resourceKey} - No text or blob content available -->`;
-          continue;
-        }
-
-        // Mark this resource as processed for this import chain
-        const newImportState: ImportState = {
-          ...importState,
-          processedFiles: new Set(importState.processedFiles),
-          currentDepth: importState.currentDepth + 1,
-          currentFile: resourceKey,
-        };
-        newImportState.processedFiles.add(resourceKey);
-
-        // Process imports within the resource content (recursive)
-        const imported = await processImports(
-          resourceContent,
-          basePath, // Resources don't have a file system path, use original basePath
-          debugMode,
-          newImportState,
-          projectRoot,
-          importFormat,
-          resourceRegistry,
-        );
-        
-        result += `<!-- Imported from resource: ${resourceKey} -->\n${imported.content}\n<!-- End of import from resource: ${resourceKey} -->`;
-        imports.push(imported.importTree);
-      } catch (err: unknown) {
-        let message = 'Unknown error';
-        if (hasMessage(err)) {
-          message = err.message;
-        } else if (typeof err === 'string') {
-          message = err;
-        }
-        logger.error(`Failed to import resource ${resourceKey}: ${message}`);
-        result += `<!-- Resource import failed: ${resourceKey} - ${message} -->`;
-      }
+      result += `<!-- Resource import not supported: ${resourceKey} - MCP resources are not supported in GEMINI.md files -->`;
     }
   }
   // Add any remaining content after the last match
