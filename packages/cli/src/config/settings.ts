@@ -22,7 +22,7 @@ import { DefaultDark } from '../ui/themes/default.js';
 import {
   isWorkspaceTrusted,
   loadTrustedFolders,
-  TrustLevel,
+  type TrustLevel,
 } from './trustedFolders.js';
 import {
   type Settings,
