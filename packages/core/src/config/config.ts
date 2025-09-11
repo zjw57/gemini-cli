@@ -379,7 +379,7 @@ export class Config {
     this.trustedFolder = params.trustedFolder;
     this.useRipgrep = params.useRipgrep ?? false;
     this.shouldUseNodePtyShell = params.shouldUseNodePtyShell ?? false;
-    this.skipNextSpeakerCheck = params.skipNextSpeakerCheck ?? false;
+    this.skipNextSpeakerCheck = params.skipNextSpeakerCheck ?? true;
     this.truncateToolOutputThreshold =
       params.truncateToolOutputThreshold ??
       DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD;
