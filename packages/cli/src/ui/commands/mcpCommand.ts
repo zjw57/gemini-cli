@@ -351,7 +351,6 @@ const getMcpStatus = async (
     message += `  • Use ${COLOR_CYAN}/mcp nodesc${RESET_COLOR} to hide descriptions\n`;
     message += `  • Use ${COLOR_CYAN}/mcp auth <server-name>${RESET_COLOR} to authenticate with OAuth-enabled servers\n`;
     message += `  • Press ${COLOR_CYAN}Ctrl+T${RESET_COLOR} to toggle tool descriptions on/off\n`;
-    message += `  • Resources can be imported in GEMINI.md files using ${COLOR_CYAN}@server:resource-uri${RESET_COLOR}\n`;
     message += '\n';
   }
 
