@@ -107,7 +107,7 @@ export interface UIState {
   showIdeRestartPrompt: boolean;
   isRestarting: boolean;
   activePtyId: number | undefined;
-  shellInputFocused: boolean;
+  shellFocused: boolean;
 }
 
 export const UIStateContext = createContext<UIState | null>(null);

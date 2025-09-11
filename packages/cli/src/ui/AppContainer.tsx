@@ -111,7 +111,7 @@ export const AppContainer = (props: AppContainerProps) => {
     initializationResult.themeError,
   );
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [shellInputFocused, setShellInputFocused] = useState(false);
+  const [shellFocused, setShellFocused] = useState(false);
 
   const [geminiMdFileCount, setGeminiMdFileCount] = useState<number>(
     initializationResult.geminiMdFileCount,
@@ -525,10 +525,10 @@ Logging in with Google... Please restart Gemini CLI to continue.
     setModelSwitchedFromQuotaError,
     refreshStatic,
     () => cancelHandlerRef.current(),
-    setShellInputFocused,
+    setShellFocused,
     terminalWidth,
     terminalHeight,
-    shellInputFocused,
+    shellFocused,
   );
 
   const { messageQueue, addMessage, clearQueue, getQueuedMessagesText } =
@@ -870,8 +870,8 @@ Logging in with Google... Please restart Gemini CLI to continue.
       ) {
         setConstrainHeight(false);
       } else if (keyMatchers[Command.TOGGLE_SHELL_INPUT_FOCUS](key)) {
-        if (activePtyId || shellInputFocused) {
-          setShellInputFocused((prev) => !prev);
+        if (activePtyId || shellFocused) {
+          setShellFocused((prev) => !prev);
         }
       }
     },
@@ -900,7 +900,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       isFolderTrustDialogOpen,
       showPrivacyNotice,
       activePtyId,
-      shellInputFocused,
+      shellFocused,
       settings.merged.general?.debugKeystrokeLogging,
     ],
   );
@@ -1041,7 +1041,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       showIdeRestartPrompt,
       isRestarting,
       activePtyId,
-      shellInputFocused,
+      shellFocused,
     }),
     [
       historyManager.history,
@@ -1115,7 +1115,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       isRestarting,
       currentModel,
       activePtyId,
-      shellInputFocused,
+      shellFocused,
     ],
   );
 

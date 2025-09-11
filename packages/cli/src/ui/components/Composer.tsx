@@ -58,7 +58,7 @@ export const Composer = () => {
 
   return (
     <Box flexDirection="column">
-      {!uiState.shellInputFocused && (
+      {!uiState.shellFocused && (
         <LoadingIndicator
           thought={
             uiState.streamingState === StreamingState.WaitingForConfirmation ||
@@ -175,7 +175,7 @@ export const Composer = () => {
           onEscapePromptChange={uiActions.onEscapePromptChange}
           focus={uiState.isFocused}
           vimHandleInput={uiActions.vimHandleInput}
-          isShellInputFocused={uiState.shellInputFocused}
+          isShellFocused={uiState.shellFocused}
           placeholder={
             vimEnabled
               ? "  Press 'i' for INSERT mode and 'Esc' for NORMAL mode."

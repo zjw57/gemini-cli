@@ -35,7 +35,7 @@ export interface ToolMessageProps extends IndividualToolCallDisplay {
   emphasis?: TextEmphasis;
   renderOutputAsMarkdown?: boolean;
   activeShellPtyId?: number | null;
-  shellInputFocused?: boolean;
+  shellFocused?: boolean;
   config?: Config;
 }
 
@@ -49,7 +49,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
   emphasis = 'medium',
   renderOutputAsMarkdown = true,
   activeShellPtyId,
-  shellInputFocused,
+  shellFocused,
   ptyId,
   config,
 }) => {
@@ -57,7 +57,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
     (name === SHELL_COMMAND_NAME || name === 'Shell') &&
     status === ToolCallStatus.Executing &&
     ptyId === activeShellPtyId &&
-    shellInputFocused;
+    shellFocused;
 
   const availableHeight = availableTerminalHeight
     ? Math.max(
@@ -137,7 +137,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
         <Box paddingLeft={STATUS_INDICATOR_WIDTH} marginTop={1}>
           <ShellInputPrompt
             activeShellPtyId={activeShellPtyId ?? null}
-            focus={shellInputFocused}
+            focus={shellFocused}
           />
         </Box>
       )}

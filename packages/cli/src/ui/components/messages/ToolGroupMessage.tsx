@@ -22,7 +22,7 @@ interface ToolGroupMessageProps {
   terminalWidth: number;
   isFocused?: boolean;
   activeShellPtyId?: number | null;
-  shellInputFocused?: boolean;
+  shellFocused?: boolean;
   onShellInputSubmit?: (input: string) => void;
 }
 
@@ -33,10 +33,10 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
   terminalWidth,
   isFocused = true,
   activeShellPtyId,
-  shellInputFocused,
+  shellFocused,
 }) => {
   const isShellFocused =
-    shellInputFocused &&
+    shellFocused &&
     toolCalls.some(
       (t) =>
         t.ptyId === activeShellPtyId && t.status === ToolCallStatus.Executing,
@@ -115,7 +115,7 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
                       : 'medium'
                 }
                 activeShellPtyId={activeShellPtyId}
-                shellInputFocused={shellInputFocused}
+                shellFocused={shellFocused}
                 config={config}
               />
             </Box>
