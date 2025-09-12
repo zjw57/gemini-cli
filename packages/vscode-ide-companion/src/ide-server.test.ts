@@ -127,7 +127,7 @@ describe('IDEServer', () => {
       '/tmp',
       'gemini',
       'ide',
-      `gemini-ide-server-${process.pid}-${port}.json`,
+      `gemini-ide-server-${process.ppid}-${port}.json`,
     );
     const expectedContent = JSON.stringify({
       port: parseInt(port, 10),
@@ -158,7 +158,7 @@ describe('IDEServer', () => {
       '/tmp',
       'gemini',
       'ide',
-      `gemini-ide-server-${process.pid}-${port}.json`,
+      `gemini-ide-server-${process.ppid}-${port}.json`,
     );
     const expectedContent = JSON.stringify({
       port: parseInt(port, 10),
@@ -189,7 +189,7 @@ describe('IDEServer', () => {
       '/tmp',
       'gemini',
       'ide',
-      `gemini-ide-server-${process.pid}-${port}.json`,
+      `gemini-ide-server-${process.ppid}-${port}.json`,
     );
     const expectedContent = JSON.stringify({
       port: parseInt(port, 10),
@@ -234,7 +234,7 @@ describe('IDEServer', () => {
       '/tmp',
       'gemini',
       'ide',
-      `gemini-ide-server-${process.pid}-${port}.json`,
+      `gemini-ide-server-${process.ppid}-${port}.json`,
     );
     const expectedContent = JSON.stringify({
       port: parseInt(port, 10),
@@ -271,7 +271,7 @@ describe('IDEServer', () => {
       '/tmp',
       'gemini',
       'ide',
-      `gemini-ide-server-${process.pid}-${port}.json`,
+      `gemini-ide-server-${process.ppid}-${port}.json`,
     );
     expect(fs.writeFile).toHaveBeenCalledWith(portFile, expect.any(String));
 
@@ -333,7 +333,7 @@ describe('IDEServer', () => {
         '/tmp',
         'gemini',
         'ide',
-        `gemini-ide-server-${process.pid}-${port}.json`,
+        `gemini-ide-server-${process.ppid}-${port}.json`,
       );
       const expectedContent = JSON.stringify({
         port: parseInt(port, 10),
