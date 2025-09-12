@@ -125,7 +125,7 @@ describe('IDEServer', () => {
     const port = getPortFromMock(replaceMock);
     const expectedPortFile = path.join(
       '/tmp',
-      '.gemini',
+      'gemini',
       'ide',
       `gemini-ide-server-${process.pid}-${port}.json`,
     );
@@ -156,7 +156,7 @@ describe('IDEServer', () => {
     const port = getPortFromMock(replaceMock);
     const expectedPortFile = path.join(
       '/tmp',
-      '.gemini',
+      'gemini',
       'ide',
       `gemini-ide-server-${process.pid}-${port}.json`,
     );
@@ -187,7 +187,7 @@ describe('IDEServer', () => {
     const port = getPortFromMock(replaceMock);
     const expectedPortFile = path.join(
       '/tmp',
-      '.gemini',
+      'gemini',
       'ide',
       `gemini-ide-server-${process.pid}-${port}.json`,
     );
@@ -232,7 +232,7 @@ describe('IDEServer', () => {
     const port = getPortFromMock(replaceMock);
     const expectedPortFile = path.join(
       '/tmp',
-      '.gemini',
+      'gemini',
       'ide',
       `gemini-ide-server-${process.pid}-${port}.json`,
     );
@@ -269,7 +269,7 @@ describe('IDEServer', () => {
     const port = getPortFromMock(replaceMock);
     const portFile = path.join(
       '/tmp',
-      '.gemini',
+      'gemini',
       'ide',
       `gemini-ide-server-${process.pid}-${port}.json`,
     );
@@ -331,7 +331,7 @@ describe('IDEServer', () => {
       const port = getPortFromMock(replaceMock);
       const expectedPortFile = path.join(
         '/tmp',
-        '.gemini',
+        'gemini',
         'ide',
         `gemini-ide-server-${process.pid}-${port}.json`,
       );
