@@ -16,6 +16,9 @@ import {
   DiscoveredMCPTool,
   getMCPDiscoveryState,
   getMCPServerStatus,
+  getAllMCPServerStatuses,
+  addMCPStatusChangeListener,
+  removeMCPStatusChangeListener,
   MCPDiscoveryState,
   MCPServerStatus,
   mcpServerRequiresOAuth,
@@ -30,12 +33,17 @@ const COLOR_CYAN = '\u001b[36m';
 const COLOR_GREY = '\u001b[90m';
 const RESET_COLOR = '\u001b[0m';
 
+type GetMcpStatusReturn = {
+  message: string;
+  isInitializing: boolean;
+};
+
 const getMcpStatus = async (
   context: CommandContext,
   showDescriptions: boolean,
   showSchema: boolean,
   showTips: boolean = false,
-): Promise<SlashCommandActionReturn> => {
+): Promise<GetMcpStatusReturn | MessageActionReturn> => {
   const { config } = context.services;
   if (!config) {
     return {
@@ -75,11 +83,12 @@ const getMcpStatus = async (
 
   let message = '';
 
-  // Add overall discovery status message if needed
-  if (
+  const isInitializing =
     discoveryState === MCPDiscoveryState.IN_PROGRESS ||
-    connectingServers.length > 0
-  ) {
+    connectingServers.length > 0;
+
+  // Add overall discovery status message if needed
+  if (isInitializing) {
     message += `${COLOR_YELLOW}⏳ MCP servers are starting up (${connectingServers.length} initializing)...${RESET_COLOR}\n`;
     message += `${COLOR_CYAN}Note: First startup may take longer. Tool availability will update automatically.${RESET_COLOR}\n\n`;
   }
@@ -308,9 +317,8 @@ const getMcpStatus = async (
   message += RESET_COLOR;
 
   return {
-    type: 'message',
-    messageType: 'info',
-    content: message,
+    message,
+    isInitializing,
   };
 };
 
@@ -464,7 +472,47 @@ const listCommand: SlashCommand = {
     // Show tips only when no arguments are provided
     const showTips = lowerCaseArgs.length === 0;
 
-    return getMcpStatus(context, showDescriptions, showSchema, showTips);
+    const result = await getMcpStatus(
+      context,
+      showDescriptions,
+      showSchema,
+      showTips,
+    );
+
+    if ('type' in result) {
+      return result;
+    }
+
+    if (result.isInitializing) {
+      const listener = () => {
+        const statuses = getAllMCPServerStatuses();
+        let allDone = true;
+        for (const status of statuses.values()) {
+          if (status === MCPServerStatus.CONNECTING) {
+            allDone = false;
+            break;
+          }
+        }
+
+        if (allDone) {
+          context.ui.addItem(
+            {
+              type: 'info',
+              text: '✅ All MCP servers have finished loading.',
+            },
+            Date.now(),
+          );
+          removeMCPStatusChangeListener(listener);
+        }
+      };
+      addMCPStatusChangeListener(listener);
+    }
+
+    return {
+      type: 'message',
+      messageType: 'info',
+      content: result.message,
+    };
   },
 };
 
@@ -512,7 +560,16 @@ const refreshCommand: SlashCommand = {
     // Reload the slash commands to reflect the changes.
     context.ui.reloadCommands();
 
-    return getMcpStatus(context, false, false, false);
+    const result = await getMcpStatus(context, false, false, false);
+    if ('type' in result) {
+      return result;
+    }
+
+    return {
+      type: 'message',
+      messageType: 'info',
+      content: result.message,
+    };
   },
 };
 
