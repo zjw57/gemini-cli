@@ -369,18 +369,8 @@ export class ClearcutLogger {
         value: event.debug_enabled.toString(),
       },
       {
-        gemini_cli_key:
-          EventMetadataKey.GEMINI_CLI_START_SESSION_VERTEX_API_ENABLED,
-        value: event.vertex_ai_enabled.toString(),
-      },
-      {
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_START_SESSION_MCP_SERVERS,
         value: event.mcp_servers,
-      },
-      {
-        gemini_cli_key:
-          EventMetadataKey.GEMINI_CLI_START_SESSION_VERTEX_API_ENABLED,
-        value: event.vertex_ai_enabled.toString(),
       },
       {
         gemini_cli_key:
@@ -420,6 +410,7 @@ export class ClearcutLogger {
 
   logNewPromptEvent(event: UserPromptEvent): void {
     this.promptId = event.prompt_id;
+    console.log("Logging new prompt event: %s", this.promptId);
     const data: EventValue[] = [
       {
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_USER_PROMPT_LENGTH,
@@ -432,6 +423,7 @@ export class ClearcutLogger {
   }
 
   logToolCallEvent(event: ToolCallEvent): void {
+    console.log("Tool Call Decision: %s", event.decision);
     const data: EventValue[] = [
       {
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_TOOL_CALL_NAME,

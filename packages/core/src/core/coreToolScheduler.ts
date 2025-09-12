@@ -316,6 +316,14 @@ export class CoreToolScheduler {
         currentCall.status === 'error' ||
         currentCall.status === 'cancelled'
       ) {
+        /*
+        if (currentCall.status === 'cancelled') {
+          currentCall.outcome = ToolConfirmationOutcome.Cancel;
+        }
+        if (currentCall.status === 'error') {
+          currentCall.outcome = ToolConfirmationOutcome.Cancel;
+        }
+        */
         return currentCall;
       }
 
