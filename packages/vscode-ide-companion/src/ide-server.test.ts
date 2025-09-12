@@ -297,7 +297,7 @@ describe('IDEServer', () => {
     );
     expect(fs.writeFile).not.toHaveBeenCalled();
     expect(mockLog).toHaveBeenCalledWith(
-      'Failed to create IDE server comms file: Failed to create dir',
+      'Failed to create IDE port file: Failed to create dir',
     );
   });
 
