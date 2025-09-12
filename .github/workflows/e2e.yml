@@ -90,6 +90,7 @@ jobs:
           GOOGLE_API_KEY: '${{ secrets.GOOGLE_API_KEY }}'
           GOOGLE_GENAI_USE_VERTEXAI: 'true'
           GOOGLE_CLOUD_PROJECT: '${{ vars.E2E_GOOGLE_CLOUD_PROJECT }}'
+          GOOGLE_CLOUD_LOCATION: 'global'
           KEEP_OUTPUT: 'true'
           SANDBOX: '${{ matrix.sandbox }}'
           VERBOSE: 'true'
