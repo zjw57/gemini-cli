@@ -4,17 +4,63 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * @license
- * Copyright 2025 Google LLC
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import { BaseDeclarativeTool, Kind } from './tools.js';
 import type { ToolInvocation, ToolResult } from './tools.js';
 import { BaseSubAgentInvocation } from './base-subagent-tool.js';
 import type { Config } from '../config/config.js';
 import type { ContextState } from '../core/subagent.js';
+import { processSingleFileContent } from '../utils/fileUtils.js';
+import fs from 'node:fs';
+
+
+const OUTPUT_SCHEMA_JSON = `
+\`\`\`json
+{
+  "summary_of_analysis": "To add the new discount endpoint, we must modify the main API router, add a new business logic method to the 'InvoiceService', and create a new handler in the 'InvoiceController'.",
+  "solution_strategy": "The approach is to add a new PUT route. The controller will receive the request, call the InvoiceService to fetch the invoice, apply the 10% discount logic within the service, save the updated invoice, and return it.",
+  "relevant_locations": [
+      {
+          "file_path": "src/services/invoice_service.ts",
+          "reasoning": "Contains the core business logic for processing invoices and interacting with external gateways.",
+          "key_symbols": ["InvoiceService", "invoiceRepository", "aplyDiscount"]
+      },
+      {
+          "file_path": "src/controllers/invoice_controller.ts",
+          "reasoning": "Contains controller logic for processing invoices.",
+          "key_symbols": ["applyDiscountHandler", "InvoiceController"]
+      },
+      {
+          "file_path": "src/routes/api_v2_router.ts",
+          "reasoning": "Important to  find the route group for invoices.",
+          "key_symbols": ["invoiceController"]
+      }
+  ],
+  "step_by_step_plan": [
+    {
+      "step_number": 1,
+      "action": "MODIFY_FILE",
+      "file_path": "src/services/invoice_service.ts",
+      "description": "In the 'InvoiceService' class, add a new async public method: 'applyDiscount(invoiceId: string)'. This method must: 1. Fetch the invoice by ID using the 'invoiceRepository'. 2. Check if the invoice exists, throw error if not. 3. Calculate the new total (currentTotal * 0.90). 4. Update the invoice object's 'total' field. 5. Save the updated invoice using 'this.invoiceRepository.save(invoice)'. 6. Return the updated invoice.",
+      "expected_outcome": "The 'InvoiceService' class now has a 'applyDiscount' method with the correct business logic."
+    },
+    {
+      "step_number": 2,
+      "action": "MODIFY_FILE",
+      "file_path": "src/controllers/invoice_controller.ts",
+      "description": "In the 'InvoiceController' class, create a new handler method 'applyDiscountHandler(req, res)'. This handler should: 1. Extract 'invoiceId' from req.params. 2. Call 'this.invoiceService.applyDiscount(invoiceId)' inside a try/catch block. 3. On success, send the updated invoice as a 200 JSON response. 4. On error, send a 404 or 500 status with the error message.",
+      "expected_outcome": "The controller has a new public method to handle the HTTP request and call the service logic."
+    },
+    {
+      "step_number": 3,
+      "action": "MODIFY_FILE",
+      "file_path": "src/routes/api_v2_router.ts",
+      "description": "At the top of the file, ensure 'invoiceController' is imported. Find the route group for invoices. Add a new PUT route: 'router.put("/invoice/discount/:invoiceId", (req, res) => invoiceController.applyDiscountHandler(req, res));'.",
+      "expected_outcome": "The API server now exposes the new 'PUT /api/v2/invoice/discount/:invoiceId' endpoint."
+    }
+  ]
+}
+\`\`\`
+`
 
 const SYSTEM_PROMPT = `
 You are **Solution Planner**, an expert AI agent specializing in full-stack software engineering, system design, and meticulous implementation planning.
@@ -102,19 +148,22 @@ Here is an example for a task: "Add a new '/api/v2/invoice/discount' endpoint th
 {
   "summary_of_analysis": "To add the new discount endpoint, we must modify the main API router, add a new business logic method to the 'InvoiceService', and create a new handler in the 'InvoiceController'.",
   "solution_strategy": "The approach is to add a new PUT route. The controller will receive the request, call the InvoiceService to fetch the invoice, apply the 10% discount logic within the service, save the updated invoice, and return it.",
-  "key_files_for_context": [
-    {
-      "file_path": "src/routes/api_v2_router.ts",
-      "reasoning": "Defines all API routes; must be modified to add the new endpoint."
-    },
-    {
-      "file_path": "src/services/invoice_service.ts",
-      "reasoning": "Contains all core business logic for invoices. The discount logic must be added here."
-    },
-    {
-      "file_path": "src/controllers/invoice_controller.ts",
-      "reasoning": "Connects routes to services. A new handler method is required here."
-    }
+  "relevant_locations": [
+      {
+          "file_path": "src/services/invoice_service.ts",
+          "reasoning": "Contains the core business logic for processing invoices and interacting with external gateways.",
+          "key_symbols": ["InvoiceService", "invoiceRepository", "aplyDiscount"]
+      },
+      {
+          "file_path": "src/controllers/invoice_controller.ts",
+          "reasoning": "Contains controller logic for processing invoices.",
+          "key_symbols": ["applyDiscountHandler", "InvoiceController"]
+      },
+      {
+          "file_path": "src/routes/api_v2_router.ts",
+          "reasoning": "Important to  find the route group for invoices.",
+          "key_symbols": ["invoiceController"]
+      }
   ],
   "step_by_step_plan": [
     {
@@ -157,6 +206,8 @@ This is the task you must investigate and plan for:
 export interface SolutionPlannerInput {
   /** High-level summary of the user's ultimate goal. Provides the "north star". */
   user_objective: string;
+  /** If true, the content of the relevant files will be included in the final report. */
+  include_file_content?: boolean;
 }
 
 /**
@@ -168,12 +219,6 @@ export interface SolutionPlannerOutput {
   summary_of_analysis: string;
   /** The overall technical approach or strategy for the solution. */
   solution_strategy: string;
-  /** All unique file paths that require modification or are critical context. */
-  key_files_for_context: Array<{
-    file_path: string;
-    /** Why this file is important (e.g., "Defines the core data model"). */
-    reasoning: string;
-  }>;
   /** The detailed, step-by-step implementation plan for an execution agent to follow. */
   step_by_step_plan: Array<{
     step_number: number;
@@ -185,6 +230,13 @@ export interface SolutionPlannerOutput {
     description: string;
     /** What should be true after this step is successfully completed. */
     expected_outcome: string;
+  }>;
+
+  relevant_locations: Array<{
+    file_path: string;
+    reasoning: string;
+    key_symbols: string[];
+    content?: string;
   }>;
 }
 
@@ -208,12 +260,105 @@ class SolutionPlannerInvocation extends BaseSubAgentInvocation<
     return 'SolutionPlannerOutput';
   }
 
+  override getOutputSchema(): string {
+    return OUTPUT_SCHEMA_JSON;
+  }
+
   populateContextState(contextState: ContextState): void {
     contextState.set('user_objective', this.params.user_objective);
   }
 
   getDescription(): string {
     return `Planning solution for objective: ${this.params.user_objective}`;
+  }
+  private convertSolutionPlanToXmlString(
+    report: SolutionPlannerOutput,
+  ): string {
+    // Convert the list of key files to an XML block
+    const keyFilesXml = report.relevant_locations
+      .map(
+        (file) => `    <File>
+      <FilePath>${file.file_path}</FilePath>
+      <Reasoning>${file.reasoning}</Reasoning>
+    </File>`,
+      )
+      .join('\n');
+
+    // Convert the newly added relevant locations to an XML block
+    const locationsXml = report.relevant_locations
+      .map((location) => {
+        const keySymbolsXml = location.key_symbols
+          .map((symbol) => `        <Symbol>${symbol}</Symbol>`)
+          .join('\n');
+
+        const contentXml = location.content
+          ? `      <Content><![CDATA[\n${location.content}\n]]></Content>\n`
+          : '';
+
+        return `    <Location>
+      <FilePath>${location.file_path}</FilePath>
+      <Reasoning>${location.reasoning}</Reasoning>
+      <KeySymbols>
+${keySymbolsXml}
+      </KeySymbols>
+${contentXml}    </Location>`;
+      })
+      .join('\n');
+
+    // Convert the detailed step-by-step plan to an XML block
+    const stepsXml = report.step_by_step_plan
+      .map(
+        (step) => `    <Step>
+      <StepNumber>${step.step_number}</StepNumber>
+      <Action>${step.action}</Action>
+      <FilePath>${step.file_path}</FilePath>
+      <Description>${step.description}</Description>
+      <ExpectedOutcome>${step.expected_outcome}</ExpectedOutcome>
+    </Step>`,
+      )
+      .join('\n');
+
+    // Assemble the final, complete XML report
+    return `<SolutionPlan>
+  <SummaryOfAnalysis>${report.summary_of_analysis}</SummaryOfAnalysis>
+  <SolutionStrategy>${report.solution_strategy}</SolutionStrategy>
+  <KeyFiles>
+${keyFilesXml}
+  </KeyFiles>
+  <RelevantCodeLocations>
+${locationsXml}
+  </RelevantCodeLocations>
+  <ImplementationPlan>
+${stepsXml}
+  </ImplementationPlan>
+</SolutionPlan>`;
+  }
+  protected override async postProcessResult(
+    reportJson: string,
+  ): Promise<string> {
+    const report = JSON.parse(reportJson) as SolutionPlannerOutput;
+
+    if (this.params.include_file_content) {
+      for (const location of report.relevant_locations) {
+        try {
+          const fileStats = await fs.promises.stat(location.file_path);
+          if (fileStats.isFile()) {
+            const result = await processSingleFileContent(
+              location.file_path,
+              this.config.getTargetDir(),
+              this.config.getFileSystemService(),
+            );
+
+            if (!result.error && typeof result.llmContent === 'string') {
+              location.content = result.llmContent;
+            }
+          }
+        } catch (_e) {
+          // Ignore errors if file doesn't exist or is not accessible
+        }
+      }
+    }
+    return this.convertSolutionPlanToXmlString(report);
   }
 }
 
@@ -237,13 +382,17 @@ export class SolutionPlannerTool extends BaseDeclarativeTool<
             description:
               "High-level summary of the user's ultimate goal. This will be the mission for the Solution Planner.",
           },
+          include_file_content: {
+            type: 'boolean',
+            description:
+              'If true, the content of the relevant files will be included in the final report.',
+          },
         },
         required: ['user_objective'],
       },
       false, // isOutputMarkdown = false, as the output is structured JSON for the agent
     );
   }
-
   protected createInvocation(
     params: SolutionPlannerInput,
   ): ToolInvocation<SolutionPlannerInput, ToolResult> {
