@@ -241,7 +241,7 @@ export class IDEServer {
           this.log(`IDE server listening on port ${this.port}`);
           let portFile: string | undefined;
           try {
-            const portDir = path.join(os.tmpdir(), '.gemini', 'ide');
+            const portDir = path.join(os.tmpdir(), 'gemini', 'ide');
             await fs.mkdir(portDir, { recursive: true });
             portFile = path.join(
               portDir,
