@@ -1827,6 +1827,9 @@ describe('Settings Loading and Merging', () => {
             enabled: false,
             hasSeenNudge: false,
           },
+          output: {
+            format: 'text',
+          },
           privacy: {
             usageStatisticsEnabled: true,
           },
@@ -1848,10 +1851,15 @@ describe('Settings Loading and Merging', () => {
           tools: {
             usePty: false,
             autoAccept: false,
-            useRipgrep: false,
+            useRipgrep: true,
             truncateToolOutputThreshold: 4000000,
             truncateToolOutputLines: 1000,
             sandbox: true,
+            enableToolOutputTruncation: false,
+            shell: {
+              pager: 'cat',
+              showColor: false,
+            },
           },
           useSmartEdit: false,
           security: {
@@ -1865,6 +1873,7 @@ describe('Settings Loading and Merging', () => {
           },
           experimental: {
             extensionManagement: true,
+            useModelRouter: false,
           },
           extensions: {
             disabled: [],
