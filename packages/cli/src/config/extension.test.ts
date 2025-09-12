@@ -26,6 +26,7 @@ import {
   type Extension,
   explicitlyEnableExtension,
   type ExtensionInstallMetadata,
+  overrideExtensionForWorkspace,
 } from './extension.js';
 import {
   GEMINI_DIR,
@@ -211,24 +212,6 @@ describe('loadExtensions', () => {
     expect(activeExtensions[0].name).toBe('ext2');
   });
 
-  it('should not filter out explicitly enabled extensions', () => {
-    createExtension({
-      extensionsDir: userExtensionsDir,
-      name: 'ext1',
-      version: '1.0.0',
-    });
-    disableExtension('ext1', SettingScope.User);
-    explicitlyEnableExtension('ext1', SettingScope.User);
-    const extensions = loadAllExtensions(tempHomeDir);
-    const activeExtensions = annotateActiveExtensions(
-      extensions,
-      [],
-      tempHomeDir,
-    ).filter((e) => e.isActive);
-    expect(activeExtensions).toHaveLength(1);
-    expect(activeExtensions[0].name).toBe('ext1');
-  });
-
   it('should hydrate variables', () => {
     createExtension({
       extensionsDir: userExtensionsDir,
@@ -377,6 +360,36 @@ describe('loadExtensions', () => {
     expect(serverConfig.env).toBeDefined();
     expect(serverConfig.env!.MISSING_VAR).toBe('$UNDEFINED_ENV_VAR');
     expect(serverConfig.env!.MISSING_VAR_BRACES).toBe('${ALSO_UNDEFINED}');
+  });
+
+  it('should load a disabled extension if it has a workspace override', () => {
+    createExtension({
+      extensionsDir: userExtensionsDir,
+      name: 'ext1',
+      version: '1.0.0',
+    });
+    createExtension({
+      extensionsDir: userExtensionsDir,
+      name: 'ext2',
+      version: '1.0.0',
+    });
+
+    // Disable ext1 at user level
+    disableExtension('ext1', SettingScope.User);
+
+    // Without override, only ext2 should be loaded
+    let extensions = loadExtensions(tempHomeDir);
+    expect(extensions).toHaveLength(1);
+    expect(extensions[0].config.name).toBe('ext2');
+
+    // Add a workspace override for ext1
+    overrideExtensionForWorkspace('ext1', tempHomeDir);
+
+    // With override, both extensions should be loaded
+    extensions = loadExtensions(tempHomeDir);
+    expect(extensions).toHaveLength(2);
+    const names = extensions.map((e) => e.config.name).sort();
+    expect(names).toEqual(['ext1', 'ext2']);
   });
 });
 
@@ -824,10 +837,17 @@ describe('performWorkspaceExtensionMigration', () => {
     const disabledExtensions =
       settings.forScope(SettingScope.User).settings.extensions?.disabled ?? [];
     expect(new Set(disabledExtensions)).toEqual(new Set(['ext1', 'ext2']));
-    const enabledExtensions =
-      settings.forScope(SettingScope.Workspace).settings.extensions?.enabled ??
-      [];
-    expect(new Set(enabledExtensions)).toEqual(new Set(['ext1', 'ext2']));
+    const overridesPath = path.join(
+      tempHomeDir,
+      GEMINI_DIR,
+      'workspace-extension-overrides.json',
+    );
+    expect(fs.existsSync(overridesPath)).toBe(true);
+    const overrides = JSON.parse(fs.readFileSync(overridesPath, 'utf-8'));
+    expect(overrides).toEqual({
+      ext1: [tempWorkspaceDir],
+      ext2: [tempWorkspaceDir],
+    });
   });
 
   it('should return the names of failed installations', async () => {

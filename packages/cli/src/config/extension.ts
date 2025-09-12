@@ -33,6 +33,9 @@ import { ExtensionUpdateState } from '../ui/state/extensions.js';
 
 export const EXTENSIONS_DIRECTORY_NAME = path.join(GEMINI_DIR, 'extensions');
 
+export const WORKSPACE_EXTENSION_OVERRIDES_FILENAME =
+  'workspace-extension-overrides.json';
+
 export const EXTENSIONS_CONFIG_FILENAME = 'gemini-extension.json';
 export const INSTALL_METADATA_FILENAME = '.gemini-extension-install.json';
 
@@ -108,6 +111,45 @@ async function copyExtension(
   await fs.promises.cp(source, destination, { recursive: true });
 }
 
+function getWorkspaceExtensionOverridesPath(): string {
+  const storage = new Storage(os.homedir());
+  return path.join(
+    storage.getGeminiDir(),
+    WORKSPACE_EXTENSION_OVERRIDES_FILENAME,
+  );
+}
+
+function readWorkspaceExtensionOverrides(): Record<string, string[]> {
+  const overridesPath = getWorkspaceExtensionOverridesPath();
+  if (!fs.existsSync(overridesPath)) {
+    return {};
+  }
+  try {
+    const content = fs.readFileSync(overridesPath, 'utf-8');
+    return JSON.parse(content);
+  } catch (e) {
+    console.error(
+      `Warning: could not parse workspace extension overrides file: ${getErrorMessage(e)}`,
+    );
+    return {};
+  }
+}
+
+export function overrideExtensionForWorkspace(
+  name: string,
+  workspaceDir: string,
+) {
+  const overrides = readWorkspaceExtensionOverrides();
+  if (!overrides[name]) {
+    overrides[name] = [];
+  }
+  if (!overrides[name].includes(workspaceDir)) {
+    overrides[name].push(workspaceDir);
+  }
+  const overridesPath = getWorkspaceExtensionOverridesPath();
+  fs.writeFileSync(overridesPath, JSON.stringify(overrides, null, 2));
+}
+
 export async function performWorkspaceExtensionMigration(
   extensions: Extension[],
   workspaceDir: string = process.cwd(),
@@ -121,13 +163,9 @@ export async function performWorkspaceExtensionMigration(
         type: 'link',
       };
       await installExtension(installMetadata, workspaceDir);
-      // Disable the extension at the user level and explicitly enable it for this workspace.
+      // Disable the extension at the user level and override it for this workspace.
       disableExtension(extension.config.name, SettingScope.User, workspaceDir);
-      explicitlyEnableExtension(
-        extension.config.name,
-        SettingScope.Workspace,
-        workspaceDir,
-      );
+      overrideExtensionForWorkspace(extension.config.name, workspaceDir);
     } catch (_) {
       failedInstallNames.push(extension.config.name);
     }
@@ -135,10 +173,25 @@ export async function performWorkspaceExtensionMigration(
   return failedInstallNames;
 }
 
-const isExtensionEnabled = (name: string, settings: Settings): boolean => {
-  const isExplicitlyEnabled = settings.extensions?.enabled?.includes(name);
+const isExtensionEnabled = (
+  name: string,
+  settings: Settings,
+  workspaceDir: string,
+): boolean => {
   const isDisabled = settings.extensions?.disabled?.includes(name);
-  return isExplicitlyEnabled || !isDisabled;
+
+  if (!isDisabled) {
+    return true;
+  }
+
+  // It is disabled, check for override.
+  const overrides = readWorkspaceExtensionOverrides();
+  const workspaceOverrides = overrides[name];
+  if (workspaceOverrides && workspaceOverrides.includes(workspaceDir)) {
+    return true;
+  }
+
+  return false;
 };
 
 export function loadAllExtensions(workspaceDir: string = process.cwd()) {
@@ -165,7 +218,7 @@ export function loadExtensions(
   for (const extension of allExtensions) {
     const shouldInclude = includeDisabled
       ? true
-      : isExtensionEnabled(extension.config.name, settings);
+      : isExtensionEnabled(extension.config.name, settings, workspaceDir);
     if (!uniqueExtensions.has(extension.config.name) && shouldInclude) {
       uniqueExtensions.set(extension.config.name, extension);
     }
@@ -312,7 +365,11 @@ export function annotateActiveExtensions(
     return extensions.map((extension) => ({
       name: extension.config.name,
       version: extension.config.version,
-      isActive: isExtensionEnabled(extension.config.name, settings),
+      isActive: isExtensionEnabled(
+        extension.config.name,
+        settings,
+        workspaceDir,
+      ),
       path: extension.path,
       source: extension.installMetadata?.source,
       type: extension.installMetadata?.type,
@@ -710,6 +767,27 @@ export async function updateExtension(
   }
 }
 
+function removeWorkspaceOverride(name: string, workspaceDir: string) {
+  const overrides = readWorkspaceExtensionOverrides();
+  const workspaceOverrides = overrides[name];
+  if (!workspaceOverrides) {
+    return;
+  }
+
+  const updatedOverrides = workspaceOverrides.filter(
+    (dir) => dir !== workspaceDir,
+  );
+
+  if (updatedOverrides.length === 0) {
+    delete overrides[name];
+  } else {
+    overrides[name] = updatedOverrides;
+  }
+
+  const overridesPath = getWorkspaceExtensionOverridesPath();
+  fs.writeFileSync(overridesPath, JSON.stringify(overrides, null, 2));
+}
+
 export function disableExtension(
   name: string,
   scope: SettingScope,
@@ -718,41 +796,21 @@ export function disableExtension(
   if (scope === SettingScope.System || scope === SettingScope.SystemDefaults) {
     throw new Error('System and SystemDefaults scopes are not supported.');
   }
+
+  // If disabling for a workspace, first remove any override that might be active.
+  if (scope === SettingScope.Workspace) {
+    removeWorkspaceOverride(name, cwd);
+  }
+
   const settings = loadSettings(cwd);
   const settingsFile = settings.forScope(scope);
   const extensionSettings = settingsFile.settings.extensions || {
     disabled: [],
-    enabled: [],
   };
   const disabledExtensions = extensionSettings.disabled || [];
   if (!disabledExtensions.includes(name)) {
     disabledExtensions.push(name);
     extensionSettings.disabled = disabledExtensions;
-    extensionSettings.enabled =
-      extensionSettings.enabled?.filter((e) => e !== name) ?? [];
-    settings.setValue(scope, 'extensions', extensionSettings);
-  }
-}
-
-export function explicitlyEnableExtension(
-  name: string,
-  scope: SettingScope,
-  cwd: string = process.cwd(),
-) {
-  if (scope === SettingScope.System || scope === SettingScope.SystemDefaults) {
-    throw new Error('System and SystemDefaults scopes are not supported.');
-  }
-  const settings = loadSettings(cwd);
-  const settingsFile = settings.forScope(scope);
-  const extensionSettings = settingsFile.settings.extensions || {
-    disabled: [],
-    enabled: [],
-  };
-
-  const enabledExtensions = extensionSettings.enabled || [];
-  if (!enabledExtensions.includes(name)) {
-    enabledExtensions.push(name);
-    extensionSettings.enabled = enabledExtensions;
     settings.setValue(scope, 'extensions', extensionSettings);
   }
 }
@@ -760,15 +818,9 @@ export function explicitlyEnableExtension(
 export function enableExtension(
   name: string,
   scopes: SettingScope[],
-  alwaysEnable: boolean = false,
   cwd: string = process.cwd(),
 ) {
   removeFromDisabledExtensions(name, scopes, cwd);
-  if (alwaysEnable) {
-    for (const scope of scopes) {
-      explicitlyEnableExtension(name, scope, cwd);
-    }
-  }
 }
 
 /**
@@ -884,9 +936,7 @@ export async function checkForExtensionUpdate(
     }
   } catch (error) {
     console.error(
-      `Failed to check for updates for extension "${
-        extension.name
-      }": ${getErrorMessage(error)}`,
+      `Failed to check for updates for extension "${extension.name}": ${getErrorMessage(error)}`,
     );
     return ExtensionUpdateState.ERROR;
   }
