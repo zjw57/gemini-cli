@@ -19,12 +19,10 @@ import {
   installExtension,
   loadExtension,
   loadExtensions,
-  loadAllExtensions,
   performWorkspaceExtensionMigration,
   uninstallExtension,
   updateExtension,
   type Extension,
-  explicitlyEnableExtension,
   type ExtensionInstallMetadata,
   overrideExtensionForWorkspace,
 } from './extension.js';
@@ -206,7 +204,7 @@ describe('loadExtensions', () => {
       version: '2.0.0',
     });
     disableExtension('ext1', SettingScope.User);
-    const extensions = loadAllExtensions();
+    const extensions = loadExtensions();
     const activeExtensions = annotateActiveExtensions(
       extensions,
       [],

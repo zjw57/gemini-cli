@@ -207,7 +207,7 @@ function getClearcutLogger(cwd: string) {
   return logger;
 }
 
-export function loadAllExtensions(
+export function loadExtensions(
   workspaceDir: string = process.cwd(),
   includeDisabled: boolean = false,
 ): Extension[] {
