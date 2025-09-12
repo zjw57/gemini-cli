@@ -83,34 +83,13 @@ function hasMessage(err: unknown): err is { message: string } {
 
 // Helper to find all code block and inline code regions using marked
 /**
- * Represents a file import (@path/to/file)
- */
-interface FileImport {
-  type: 'file';
-  start: number;
-  _end: number;
-  path: string;
-}
-
-/**
- * Represents an MCP resource import (@server:resource-uri)
- */
-interface ResourceImport {
-  type: 'resource';
-  start: number;
-  _end: number;
-  serverName: string;
-  resourceUri: string;
-}
-
-type ImportItem = FileImport | ResourceImport;
-
-/**
  * Finds all import statements in content without using regex
- * @returns Array of import objects for files and MCP resources found
+ * @returns Array of {start, _end, path} objects for each import found
  */
-function findImports(content: string): ImportItem[] {
-  const imports: ImportItem[] = [];
+function findImports(
+  content: string,
+): Array<{ start: number; _end: number; path: string }> {
+  const imports: Array<{ start: number; _end: number; path: string }> = [];
   let i = 0;
   const len = content.length;
 
@@ -139,52 +118,18 @@ function findImports(content: string): ImportItem[] {
     // Extract the path (everything after @)
     const importPath = content.slice(i + 1, j);
 
-    if (importPath.length > 0) {
-      // Check if it's an MCP resource import (contains a colon)
-      const colonIndex = importPath.indexOf(':');
-      if (colonIndex > 0 && colonIndex < importPath.length - 1) {
-        // MCP resource format: @server:resource-uri
-        const serverName = importPath.slice(0, colonIndex);
-        const resourceUri = importPath.slice(colonIndex + 1);
-
-        // Validate server name (letters, numbers, underscores, hyphens)
-        // Must start with letter, can't end with hyphen or underscore
-        // and resource URI (non-empty and reasonable length)
-        const serverNameValid =
-          serverName.length === 1
-            ? /^[a-zA-Z]$/.test(serverName)
-            : /^[a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9]$/.test(serverName);
-
-        if (
-          serverNameValid &&
-          resourceUri.length > 0 &&
-          resourceUri.length < 2048 && // Reasonable URI length limit
-          !resourceUri.includes('\n') && // No newlines in URI
-          !resourceUri.includes('\r') // No carriage returns in URI
-        ) {
-          imports.push({
-            type: 'resource',
-            start: i,
-            _end: j,
-            serverName,
-            resourceUri,
-          });
-        }
-      } else {
-        // File import validation (starts with ./ or / or letter)
-        if (
-          importPath[0] === '.' ||
-          importPath[0] === '/' ||
-          isLetter(importPath[0])
-        ) {
-          imports.push({
-            type: 'file',
-            start: i,
-            _end: j,
-            path: importPath,
-          });
-        }
-      }
+    // Basic validation (starts with ./ or / or letter)
+    if (
+      importPath.length > 0 &&
+      (importPath[0] === '.' ||
+        importPath[0] === '/' ||
+        isLetter(importPath[0]))
+    ) {
+      imports.push({
+        start: i,
+        _end: j,
+        path: importPath,
+      });
     }
 
     i = j + 1;
@@ -317,8 +262,7 @@ export async function processImports(
 
       // Process imports in reverse order to handle indices correctly
       for (let i = imports.length - 1; i >= 0; i--) {
-        const importItem = imports[i];
-        const { start } = importItem;
+        const { start, path: importPath } = imports[i];
 
         // Skip if inside a code region
         if (
@@ -329,13 +273,6 @@ export async function processImports(
         ) {
           continue;
         }
-
-        // Only process file imports in flat format, skip MCP resources for now
-        if (importItem.type !== 'file') {
-          continue;
-        }
-
-        const importPath = importItem.path;
 
         // Validate import path
         if (
@@ -399,73 +336,56 @@ export async function processImports(
   const imports: MemoryFile[] = [];
   const importsList = findImports(content);
 
-  for (const importItem of importsList) {
-    const { start, _end } = importItem;
-
+  for (const { start, _end, path: importPath } of importsList) {
     // Add content before this import
     result += content.substring(lastIndex, start);
     lastIndex = _end;
 
     // Skip if inside a code region
     if (codeRegions.some(([s, e]) => start >= s && start < e)) {
-      if (importItem.type === 'file') {
-        result += `@${importItem.path}`;
-      } else {
-        result += `@${importItem.serverName}:${importItem.resourceUri}`;
-      }
+      result += `@${importPath}`;
       continue;
     }
-
-    if (importItem.type === 'file') {
-      // Handle file imports
-      const importPath = importItem.path;
-
-      // Validate import path to prevent path traversal attacks
-      if (!validateImportPath(importPath, basePath, [projectRoot || ''])) {
-        result += `<!-- Import failed: ${importPath} - Path traversal attempt -->`;
-        continue;
+    // Validate import path to prevent path traversal attacks
+    if (!validateImportPath(importPath, basePath, [projectRoot || ''])) {
+      result += `<!-- Import failed: ${importPath} - Path traversal attempt -->`;
+      continue;
+    }
+    const fullPath = path.resolve(basePath, importPath);
+    if (importState.processedFiles.has(fullPath)) {
+      result += `<!-- File already processed: ${importPath} -->`;
+      continue;
+    }
+    try {
+      await fs.access(fullPath);
+      const fileContent = await fs.readFile(fullPath, 'utf-8');
+      // Mark this file as processed for this import chain
+      const newImportState: ImportState = {
+        ...importState,
+        processedFiles: new Set(importState.processedFiles),
+        currentDepth: importState.currentDepth + 1,
+        currentFile: fullPath,
+      };
+      newImportState.processedFiles.add(fullPath);
+      const imported = await processImports(
+        fileContent,
+        path.dirname(fullPath),
+        debugMode,
+        newImportState,
+        projectRoot,
+        importFormat,
+      );
+      result += `<!-- Imported from: ${importPath} -->\n${imported.content}\n<!-- End of import from: ${importPath} -->`;
+      imports.push(imported.importTree);
+    } catch (err: unknown) {
+      let message = 'Unknown error';
+      if (hasMessage(err)) {
+        message = err.message;
+      } else if (typeof err === 'string') {
+        message = err;
       }
-      const fullPath = path.resolve(basePath, importPath);
-      if (importState.processedFiles.has(fullPath)) {
-        result += `<!-- File already processed: ${importPath} -->`;
-        continue;
-      }
-      try {
-        await fs.access(fullPath);
-        const fileContent = await fs.readFile(fullPath, 'utf-8');
-        // Mark this file as processed for this import chain
-        const newImportState: ImportState = {
-          ...importState,
-          processedFiles: new Set(importState.processedFiles),
-          currentDepth: importState.currentDepth + 1,
-          currentFile: fullPath,
-        };
-        newImportState.processedFiles.add(fullPath);
-        const imported = await processImports(
-          fileContent,
-          path.dirname(fullPath),
-          debugMode,
-          newImportState,
-          projectRoot,
-          importFormat,
-        );
-        result += `<!-- Imported from: ${importPath} -->\n${imported.content}\n<!-- End of import from: ${importPath} -->`;
-        imports.push(imported.importTree);
-      } catch (err: unknown) {
-        let message = 'Unknown error';
-        if (hasMessage(err)) {
-          message = err.message;
-        } else if (typeof err === 'string') {
-          message = err;
-        }
-        logger.error(`Failed to import ${importPath}: ${message}`);
-        result += `<!-- Import failed: ${importPath} - ${message} -->`;
-      }
-    } else if (importItem.type === 'resource') {
-      // MCP resource imports are not supported in GEMINI.md files
-      const { serverName, resourceUri } = importItem;
-      const resourceKey = `${serverName}:${resourceUri}`;
-      result += `<!-- Resource import not supported: ${resourceKey} - MCP resources are not supported in GEMINI.md files -->`;
+      logger.error(`Failed to import ${importPath}: ${message}`);
+      result += `<!-- Import failed: ${importPath} - ${message} -->`;
     }
   }
   // Add any remaining content after the last match
