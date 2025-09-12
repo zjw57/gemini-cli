@@ -335,7 +335,7 @@ function mergeSettings(
 
   // Settings are merged with the following precedence (last one wins for
   // single values):
-  // 1. Programmatic Defaults
+  // 1. Schema Defaults
   // 2. System Defaults
   // 3. User Settings
   // 4. Workspace Settings

@@ -161,85 +161,16 @@ describe('Settings Loading and Merging', () => {
       expect(settings.system.settings).toEqual(systemSettingsContent);
       expect(settings.user.settings).toEqual({});
       expect(settings.workspace.settings).toEqual({});
+      const defaultSettings = getDefaultSettings();
       expect(settings.merged).toEqual({
-        mcpServers: {},
-        general: {
-          vimMode: false,
-          disableAutoUpdate: false,
-          disableUpdateNag: false,
-          checkpointing: {
-            enabled: false,
-          },
-          enablePromptCompletion: false,
-          debugKeystrokeLogging: false,
-        },
+        ...defaultSettings,
         ui: {
-          customThemes: {},
-          hideWindowTitle: false,
-          hideTips: false,
-          hideBanner: false,
-          hideContextSummary: false,
-          footer: {
-            hideCWD: false,
-            hideSandboxStatus: false,
-            hideModelInfo: false,
-          },
-          hideFooter: false,
-          showMemoryUsage: false,
-          showLineNumbers: false,
-          showCitations: false,
-          customWittyPhrases: [],
-          accessibility: {
-            disableLoadingPhrases: false,
-          },
+          ...defaultSettings.ui,
           theme: 'system-default',
         },
-        ide: {
-          enabled: false,
-          hasSeenNudge: false,
-        },
-        privacy: {
-          usageStatisticsEnabled: true,
-        },
-        model: {
-          maxSessionTurns: -1,
-          skipNextSpeakerCheck: true,
-        },
-        context: {
-          discoveryMaxDirs: 200,
-          includeDirectories: [],
-          loadMemoryFromIncludeDirectories: false,
-          fileFiltering: {
-            respectGitIgnore: true,
-            respectGeminiIgnore: true,
-            enableRecursiveFileSearch: true,
-            disableFuzzySearch: false,
-          },
-        },
         tools: {
-          usePty: false,
-          autoAccept: false,
-          useRipgrep: false,
-          truncateToolOutputThreshold: 4000000,
-          truncateToolOutputLines: 1000,
+          ...defaultSettings.tools,
           sandbox: false,
-        },
-        useSmartEdit: false,
-        security: {
-          folderTrust: {
-            enabled: false,
-          },
-        },
-        advanced: {
-          autoConfigureMemory: false,
-          excludedEnvVars: ['DEBUG', 'DEBUG_MODE'],
-        },
-        experimental: {
-          extensionManagement: true,
-        },
-        extensions: {
-          disabled: [],
-          workspacesWithMigrationNudge: [],
         },
       });
     });
@@ -274,85 +205,16 @@ describe('Settings Loading and Merging', () => {
       );
       expect(settings.user.settings).toEqual(userSettingsContent);
       expect(settings.workspace.settings).toEqual({});
+      const defaultSettings = getDefaultSettings();
       expect(settings.merged).toEqual({
-        mcpServers: {},
-        general: {
-          vimMode: false,
-          disableAutoUpdate: false,
-          disableUpdateNag: false,
-          checkpointing: {
-            enabled: false,
-          },
-          enablePromptCompletion: false,
-          debugKeystrokeLogging: false,
-        },
+        ...defaultSettings,
         ui: {
-          customThemes: {},
-          hideWindowTitle: false,
-          hideTips: false,
-          hideBanner: false,
-          hideContextSummary: false,
-          footer: {
-            hideCWD: false,
-            hideSandboxStatus: false,
-            hideModelInfo: false,
-          },
-          hideFooter: false,
-          showMemoryUsage: false,
-          showLineNumbers: false,
-          showCitations: false,
-          customWittyPhrases: [],
-          accessibility: {
-            disableLoadingPhrases: false,
-          },
+          ...defaultSettings.ui,
           theme: 'dark',
         },
-        ide: {
-          enabled: false,
-          hasSeenNudge: false,
-        },
-        privacy: {
-          usageStatisticsEnabled: true,
-        },
-        model: {
-          maxSessionTurns: -1,
-          skipNextSpeakerCheck: true,
-        },
         context: {
-          discoveryMaxDirs: 200,
-          includeDirectories: [],
-          loadMemoryFromIncludeDirectories: false,
-          fileFiltering: {
-            respectGitIgnore: true,
-            respectGeminiIgnore: true,
-            enableRecursiveFileSearch: true,
-            disableFuzzySearch: false,
-          },
+          ...defaultSettings.context,
           fileName: 'USER_CONTEXT.md',
-        },
-        tools: {
-          usePty: false,
-          autoAccept: false,
-          useRipgrep: false,
-          truncateToolOutputThreshold: 4000000,
-          truncateToolOutputLines: 1000,
-        },
-        useSmartEdit: false,
-        security: {
-          folderTrust: {
-            enabled: false,
-          },
-        },
-        advanced: {
-          autoConfigureMemory: false,
-          excludedEnvVars: ['DEBUG', 'DEBUG_MODE'],
-        },
-        experimental: {
-          extensionManagement: true,
-        },
-        extensions: {
-          disabled: [],
-          workspacesWithMigrationNudge: [],
         },
       });
     });
@@ -385,85 +247,16 @@ describe('Settings Loading and Merging', () => {
       );
       expect(settings.user.settings).toEqual({});
       expect(settings.workspace.settings).toEqual(workspaceSettingsContent);
+      const defaultSettings = getDefaultSettings();
       expect(settings.merged).toEqual({
-        mcpServers: {},
-        general: {
-          vimMode: false,
-          disableAutoUpdate: false,
-          disableUpdateNag: false,
-          checkpointing: {
-            enabled: false,
-          },
-          enablePromptCompletion: false,
-          debugKeystrokeLogging: false,
-        },
-        ui: {
-          customThemes: {},
-          hideWindowTitle: false,
-          hideTips: false,
-          hideBanner: false,
-          hideContextSummary: false,
-          footer: {
-            hideCWD: false,
-            hideSandboxStatus: false,
-            hideModelInfo: false,
-          },
-          hideFooter: false,
-          showMemoryUsage: false,
-          showLineNumbers: false,
-          showCitations: false,
-          customWittyPhrases: [],
-          accessibility: {
-            disableLoadingPhrases: false,
-          },
-        },
-        ide: {
-          enabled: false,
-          hasSeenNudge: false,
-        },
-        privacy: {
-          usageStatisticsEnabled: true,
-        },
-        model: {
-          maxSessionTurns: -1,
-          skipNextSpeakerCheck: true,
-        },
-        context: {
-          discoveryMaxDirs: 200,
-          includeDirectories: [],
-          loadMemoryFromIncludeDirectories: false,
-          fileFiltering: {
-            respectGitIgnore: true,
-            respectGeminiIgnore: true,
-            enableRecursiveFileSearch: true,
-            disableFuzzySearch: false,
-          },
-          fileName: 'WORKSPACE_CONTEXT.md',
-        },
+        ...defaultSettings,
         tools: {
-          usePty: false,
-          autoAccept: false,
-          useRipgrep: false,
-          truncateToolOutputThreshold: 4000000,
-          truncateToolOutputLines: 1000,
+          ...defaultSettings.tools,
           sandbox: true,
         },
-        useSmartEdit: false,
-        security: {
-          folderTrust: {
-            enabled: false,
-          },
-        },
-        advanced: {
-          autoConfigureMemory: false,
-          excludedEnvVars: ['DEBUG', 'DEBUG_MODE'],
-        },
-        experimental: {
-          extensionManagement: true,
-        },
-        extensions: {
-          disabled: [],
-          workspacesWithMigrationNudge: [],
+        context: {
+          ...defaultSettings.context,
+          fileName: 'WORKSPACE_CONTEXT.md',
         },
       });
     });
@@ -528,87 +321,21 @@ describe('Settings Loading and Merging', () => {
       expect(settings.system.settings).toEqual(systemSettingsContent);
       expect(settings.user.settings).toEqual(userSettingsContent);
       expect(settings.workspace.settings).toEqual(workspaceSettingsContent);
+      const defaultSettings = getDefaultSettings();
       expect(settings.merged).toEqual({
-        mcpServers: {},
-        general: {
-          vimMode: false,
-          disableAutoUpdate: false,
-          disableUpdateNag: false,
-          checkpointing: {
-            enabled: false,
-          },
-          enablePromptCompletion: false,
-          debugKeystrokeLogging: false,
-        },
+        ...defaultSettings,
         ui: {
-          customThemes: {},
-          hideWindowTitle: false,
-          hideTips: false,
-          hideBanner: false,
-          hideContextSummary: false,
-          footer: {
-            hideCWD: false,
-            hideSandboxStatus: false,
-            hideModelInfo: false,
-          },
-          hideFooter: false,
-          showMemoryUsage: false,
-          showLineNumbers: false,
-          showCitations: false,
-          customWittyPhrases: [],
-          accessibility: {
-            disableLoadingPhrases: false,
-          },
+          ...defaultSettings.ui,
           theme: 'system-theme',
         },
-        ide: {
-          enabled: false,
-          hasSeenNudge: false,
-        },
-        privacy: {
-          usageStatisticsEnabled: true,
-        },
-        model: {
-          maxSessionTurns: -1,
-          skipNextSpeakerCheck: true,
-        },
         context: {
-          discoveryMaxDirs: 200,
-          includeDirectories: [],
-          loadMemoryFromIncludeDirectories: false,
-          fileFiltering: {
-            respectGitIgnore: true,
-            respectGeminiIgnore: true,
-            enableRecursiveFileSearch: true,
-            disableFuzzySearch: false,
-          },
+          ...defaultSettings.context,
           fileName: 'WORKSPACE_CONTEXT.md',
         },
         tools: {
-          usePty: false,
-          autoAccept: false,
-          useRipgrep: false,
-          truncateToolOutputThreshold: 4000000,
-          truncateToolOutputLines: 1000,
+          ...defaultSettings.tools,
           sandbox: false,
           core: ['tool1'],
-        },
-        useSmartEdit: false,
-        security: {
-          folderTrust: {
-            enabled: false,
-          },
-        },
-        advanced: {
-          autoConfigureMemory: false,
-          excludedEnvVars: ['DEBUG', 'DEBUG_MODE'],
-        },
-        experimental: {
-          extensionManagement: true,
-        },
-        extensions: {
-          disabled: [],
-          workspacesWithMigrationNudge: [],
         },
         mcp: {
           allowed: ['server1', 'server2'],
@@ -654,7 +381,9 @@ describe('Settings Loading and Merging', () => {
 
       const settings = loadSettings(MOCK_WORKSPACE_DIR);
 
+      const defaultSettings = getDefaultSettings();
       expect(settings.merged).toEqual({
+        ...defaultSettings,
         mcpServers: {
           'legacy-server-1': {
             command: 'npm',
@@ -668,83 +397,20 @@ describe('Settings Loading and Merging', () => {
           },
         },
         general: {
+          ...defaultSettings.general,
           vimMode: true,
-          disableAutoUpdate: false,
-          disableUpdateNag: false,
-          checkpointing: {
-            enabled: false,
-          },
-          enablePromptCompletion: false,
-          debugKeystrokeLogging: false,
         },
         ui: {
-          customThemes: {},
-          hideWindowTitle: false,
-          hideTips: false,
-          hideBanner: false,
-          hideContextSummary: false,
-          footer: {
-            hideCWD: false,
-            hideSandboxStatus: false,
-            hideModelInfo: false,
-          },
-          hideFooter: false,
-          showMemoryUsage: false,
-          showLineNumbers: false,
-          showCitations: false,
-          customWittyPhrases: [],
-          accessibility: {
-            disableLoadingPhrases: false,
-          },
+          ...defaultSettings.ui,
           theme: 'legacy-dark',
         },
-        ide: {
-          enabled: false,
-          hasSeenNudge: false,
-        },
-        privacy: {
-          usageStatisticsEnabled: true,
-        },
         model: {
-          maxSessionTurns: -1,
-          skipNextSpeakerCheck: true,
+          ...defaultSettings.model,
           name: 'gemini-pro',
         },
         context: {
-          discoveryMaxDirs: 200,
-          includeDirectories: [],
-          loadMemoryFromIncludeDirectories: false,
-          fileFiltering: {
-            respectGitIgnore: true,
-            respectGeminiIgnore: true,
-            enableRecursiveFileSearch: true,
-            disableFuzzySearch: false,
-          },
+          ...defaultSettings.context,
           fileName: 'LEGACY_CONTEXT.md',
-        },
-        tools: {
-          usePty: false,
-          autoAccept: false,
-          useRipgrep: false,
-          truncateToolOutputThreshold: 4000000,
-          truncateToolOutputLines: 1000,
-        },
-        useSmartEdit: false,
-        security: {
-          folderTrust: {
-            enabled: false,
-          },
-        },
-        advanced: {
-          autoConfigureMemory: false,
-          excludedEnvVars: ['DEBUG', 'DEBUG_MODE'],
-        },
-        experimental: {
-          extensionManagement: true,
-        },
-        extensions: {
-          disabled: [],
-          workspacesWithMigrationNudge: [],
         },
         mcp: {
           allowed: ['legacy-server-1'],
@@ -877,52 +543,15 @@ describe('Settings Loading and Merging', () => {
       expect(settings.system.settings).toEqual(systemSettingsContent);
       expect(settings.user.settings).toEqual(userSettingsContent);
       expect(settings.workspace.settings).toEqual(workspaceSettingsContent);
+      const defaultSettings = getDefaultSettings();
       expect(settings.merged).toEqual({
-        mcpServers: {},
-        general: {
-          vimMode: false,
-          disableAutoUpdate: false,
-          disableUpdateNag: false,
-          checkpointing: {
-            enabled: false,
-          },
-          enablePromptCompletion: false,
-          debugKeystrokeLogging: false,
-        },
+        ...defaultSettings,
         ui: {
-          customThemes: {},
-          hideWindowTitle: false,
-          hideTips: false,
-          hideBanner: false,
-          hideContextSummary: false,
-          footer: {
-            hideCWD: false,
-            hideSandboxStatus: false,
-            hideModelInfo: false,
-          },
-          hideFooter: false,
-          showMemoryUsage: false,
-          showLineNumbers: false,
-          showCitations: false,
-          customWittyPhrases: [],
-          accessibility: {
-            disableLoadingPhrases: false,
-          },
+          ...defaultSettings.ui,
           theme: 'system-theme',
         },
-        ide: {
-          enabled: false,
-          hasSeenNudge: false,
-        },
-        privacy: {
-          usageStatisticsEnabled: true,
-        },
-        model: {
-          maxSessionTurns: -1,
-          skipNextSpeakerCheck: true,
-        },
         context: {
-          discoveryMaxDirs: 200,
+          ...defaultSettings.context,
           includeDirectories: [
             '/system/defaults/dir',
             '/user/dir1',
@@ -930,39 +559,11 @@ describe('Settings Loading and Merging', () => {
             '/workspace/dir',
             '/system/dir',
           ],
-          loadMemoryFromIncludeDirectories: false,
-          fileFiltering: {
-            respectGitIgnore: true,
-            respectGeminiIgnore: true,
-            enableRecursiveFileSearch: true,
-            disableFuzzySearch: false,
-          },
           fileName: 'WORKSPACE_CONTEXT.md',
         },
         tools: {
-          usePty: false,
-          autoAccept: false,
-          useRipgrep: false,
-          truncateToolOutputThreshold: 4000000,
-          truncateToolOutputLines: 1000,
+          ...defaultSettings.tools,
           sandbox: false,
-        },
-        useSmartEdit: false,
-        security: {
-          folderTrust: {
-            enabled: false,
-          },
-        },
-        advanced: {
-          autoConfigureMemory: false,
-          excludedEnvVars: ['DEBUG', 'DEBUG_MODE'],
-        },
-        experimental: {
-          extensionManagement: true,
-        },
-        extensions: {
-          disabled: [],
-          workspacesWithMigrationNudge: [],
         },
         telemetry: false,
       });
