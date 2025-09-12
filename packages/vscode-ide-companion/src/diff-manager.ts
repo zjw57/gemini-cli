@@ -132,7 +132,7 @@ export class DiffManager {
   /**
    * Closes an open diff view for a specific file.
    */
-  async closeDiff(filePath: string, suppressNotification = false) {
+  async closeDiff(filePath: string) {
     let uriToClose: vscode.Uri | undefined;
     for (const [uriString, diffInfo] of this.diffDocuments.entries()) {
       if (diffInfo.originalFilePath === filePath) {

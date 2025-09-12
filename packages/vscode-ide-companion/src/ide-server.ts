@@ -338,14 +338,8 @@ const createMcpServer = (diffManager: DiffManager) => {
       description: '(IDE Tool) Close an open diff view for a specific file.',
       inputSchema: CloseDiffRequestSchema.shape,
     },
-    async ({
-      filePath,
-      suppressNotification,
-    }: z.infer<typeof CloseDiffRequestSchema>) => {
-      const content = await diffManager.closeDiff(
-        filePath,
-        suppressNotification,
-      );
+    async ({ filePath }: z.infer<typeof CloseDiffRequestSchema>) => {
+      const content = await diffManager.closeDiff(filePath);
       const response = { content: content ?? undefined };
       return {
         content: [
