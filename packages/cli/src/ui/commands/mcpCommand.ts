@@ -185,13 +185,20 @@ const getMcpStatus = async (
           }`,
         );
       }
+      if (serverResources.length > 0) {
+        parts.push(
+          `${serverResources.length} ${
+            serverResources.length === 1 ? 'resource' : 'resources'
+          }`,
+        );
+      }
       if (parts.length > 0) {
         message += ` (${parts.join(', ')})`;
       } else {
         message += ` (0 tools)`;
       }
     } else if (status === MCPServerStatus.CONNECTING) {
-      message += ` (tools and prompts will appear when ready)`;
+      message += ` (tools, prompts, and resources will appear when ready)`;
     } else {
       message += ` (${serverTools.length} tools cached)`;
     }
@@ -282,8 +289,18 @@ const getMcpStatus = async (
       }
       message += `  ${COLOR_CYAN}Resources:${RESET_COLOR}\n`;
       serverResources.forEach((resource: DiscoveredMCPResource) => {
+        message += `  - ${COLOR_CYAN}${resource.name}${RESET_COLOR}`;
+        
+        // Show URI and MIME type for resources inline with the name
+        if (resource.uri) {
+          message += ` ${COLOR_GREY}(${resource.uri}`;
+          if (resource.mimeType) {
+            message += `, ${resource.mimeType}`;
+          }
+          message += `)${RESET_COLOR}`;
+        }
+
         if (showDescriptions && resource.description) {
-          message += `  - ${COLOR_CYAN}${resource.name}${RESET_COLOR}`;
           const descLines = resource.description.trim().split('\n');
           if (descLines) {
             message += ':\n';
@@ -294,18 +311,8 @@ const getMcpStatus = async (
             message += '\n';
           }
         } else {
-          message += `  - ${COLOR_CYAN}${resource.name}${RESET_COLOR}`;
+          message += '\n';
         }
-
-        // Show URI and MIME type for resources
-        if (resource.uri) {
-          message += ` ${COLOR_GREY}(${resource.uri}`;
-          if (resource.mimeType) {
-            message += `, ${resource.mimeType}`;
-          }
-          message += `)${RESET_COLOR}`;
-        }
-        message += '\n';
       });
     }
 
