@@ -14,6 +14,8 @@ import type {
 import { isSlashCommand } from './ui/utils/commandUtils.js';
 import type { LoadedSettings } from './config/settings.js';
 import {
+  CodebaseInvestigatorTool,
+  ContextHarvesterTool,
   executeToolCall,
   shutdownTelemetry,
   isTelemetrySdkInitialized,
@@ -25,6 +27,7 @@ import {
   uiTelemetryService,
   parseAndFormatApiError,
   shutdownTelemetry,
+  SolutionPlannerTool,
 } from '@google/gemini-cli-core';
 
 import type { Content, Part } from '@google/genai';
@@ -110,10 +113,8 @@ export async function runNonInteractive(
     const subAgentName = process.env['GEMINI_SUBAGENT_NAME'];
 
     if (subAgentName) {
-      const toolRegistry = config.getToolRegistry();
-
       if (subAgentName === 'contextHarvester') {
-        const subAgent = toolRegistry.getTool(subAgentName);
+        const subAgent = ContextHarvesterTool;
         const subAgentInput: ContextHarvesterInput = {
           user_objective: input,
           analysis_questions: [
@@ -134,7 +135,7 @@ export async function runNonInteractive(
           );
         }
       } else if (subAgentName === 'codebase_investigator') {
-        const subAgent = toolRegistry.getTool(subAgentName);
+        const subAgent = CodebaseInvestigatorTool;
         const subAgentInput: CodebaseInvestigatorInput = {
           user_objective: input,
         };
@@ -149,7 +150,7 @@ export async function runNonInteractive(
           );
         }
       } else if (subAgentName === 'codebase_investigator_with_files') {
-        const subAgent = toolRegistry.getTool(subAgentName);
+        const subAgent = CodebaseInvestigatorTool;
         const subAgentInput: CodebaseInvestigatorInput = {
           user_objective: input,
           include_file_content: true,
@@ -165,7 +166,7 @@ export async function runNonInteractive(
           );
         }
       } else if (subAgentName === 'planner') {
-        const subAgent = toolRegistry.getTool(subAgentName);
+        const subAgent = SolutionPlannerTool;
         const subAgentInput: SolutionPlannerInput = {
           user_objective: input,
         };
