@@ -111,8 +111,8 @@ const COMPRESSION_PRESERVE_THRESHOLD = 0.3;
 export class GeminiClient {
   private chat?: GeminiChat;
   private readonly generateContentConfig: GenerateContentConfig = {
-    temperature: 0,
-    topP: 1,
+    temperature: 0.25,
+    topP: 0.5,
   };
   private sessionTurnCount = 0;
 
