@@ -416,8 +416,8 @@ describe('Gemini Client (client.ts)', () => {
           config: {
             abortSignal,
             systemInstruction: getCoreSystemPrompt(''),
-            temperature: 0,
-            topP: 1,
+            temperature: 0.25,
+            topP: 0.5,
             responseJsonSchema: schema,
             responseMimeType: 'application/json',
           },
@@ -455,7 +455,7 @@ describe('Gemini Client (client.ts)', () => {
             abortSignal,
             systemInstruction: getCoreSystemPrompt(''),
             temperature: 0.9,
-            topP: 1, // from default
+            topP: 0.5, // from default
             topK: 20,
             responseJsonSchema: schema,
             responseMimeType: 'application/json',
@@ -2179,7 +2179,7 @@ ${JSON.stringify(
             abortSignal,
             systemInstruction: getCoreSystemPrompt(''),
             temperature: 0.5,
-            topP: 1,
+            topP: 0.5,
           },
           contents,
         },
