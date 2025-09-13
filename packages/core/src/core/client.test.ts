@@ -16,6 +16,8 @@ import {
 
 import type { Content, GenerateContentResponse, Part } from '@google/genai';
 import {
+  DEFAULT_TEMPERATURE,
+  DEFAULT_TOP_P,
   findIndexAfterFraction,
   isThinkingDefault,
   isThinkingSupported,
@@ -416,8 +418,8 @@ describe('Gemini Client (client.ts)', () => {
           config: {
             abortSignal,
             systemInstruction: getCoreSystemPrompt(''),
-            temperature: 0,
-            topP: 1,
+            temperature: DEFAULT_TEMPERATURE,
+            topP: DEFAULT_TOP_P,
             responseJsonSchema: schema,
             responseMimeType: 'application/json',
           },
@@ -455,7 +457,7 @@ describe('Gemini Client (client.ts)', () => {
             abortSignal,
             systemInstruction: getCoreSystemPrompt(''),
             temperature: 0.9,
-            topP: 1, // from default
+            topP: DEFAULT_TOP_P, // from default
             topK: 20,
             responseJsonSchema: schema,
             responseMimeType: 'application/json',
@@ -2179,7 +2181,7 @@ ${JSON.stringify(
             abortSignal,
             systemInstruction: getCoreSystemPrompt(''),
             temperature: 0.5,
-            topP: 1,
+            topP: DEFAULT_TOP_P,
           },
           contents,
         },

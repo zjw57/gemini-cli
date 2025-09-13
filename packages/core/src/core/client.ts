@@ -108,11 +108,14 @@ const COMPRESSION_TOKEN_THRESHOLD = 0.7;
  */
 const COMPRESSION_PRESERVE_THRESHOLD = 0.3;
 
+export const DEFAULT_TEMPERATURE = 0.1;
+export const DEFAULT_TOP_P = 0.95;
+
 export class GeminiClient {
   private chat?: GeminiChat;
   private readonly generateContentConfig: GenerateContentConfig = {
-    temperature: 0,
-    topP: 1,
+    temperature: DEFAULT_TEMPERATURE,
+    topP: DEFAULT_TOP_P,
   };
   private sessionTurnCount = 0;
 
