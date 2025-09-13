@@ -19,7 +19,7 @@ jobs:
       github.repository == 'google-gemini/gemini-cli'
     runs-on: 'ubuntu-latest'
     container:
-      image: 'ghcr.io/google-gemini/gemini-cli-swe-agent-eval@sha256:6e04cd5caf032450c682564fd1ea6d87cff9b22246e62e6872b3bfddaeb03fb3'
+      image: 'ghcr.io/google-gemini/gemini-cli-eval@sha256:1a5794f42d93c0c40be853e894f95691795ae016bd0e1b8affe5e6ee31a56d8e'
       credentials:
         username: '${{ github.actor }}'
         password: '${{ secrets.GITHUB_TOKEN }}'
@@ -44,5 +44,5 @@ jobs:
       - name: 'Run evaluation'
         working-directory: '/app'
         run: |
-          poetry run exp_run --experiment-config-name gcli_2.5_pro
-
+          poetry run exp_run --experiment-mode=adhoc --branch-or-commit=${{ github.event.inputs.branch_name }} --model-name=gemini-2.5-pro --num-examples=2 --concurrency=2
+          poetry run python agent_prototypes/scripts/parse_gcli_logs_experiment.py --experiment_dir=experiments/adhoc/gcli_temp_exp --gcs-bucket=gemini-cli-eval-gh-action --gcs-path=gh_action_artifacts
