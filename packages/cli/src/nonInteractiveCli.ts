@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Config, ToolCallRequestInfo, ToolCallResponseInfo } from '@google/gemini-cli-core';
+import type { Config, ToolCallRequestInfo } from '@google/gemini-cli-core';
 import {
   executeToolCall,
   shutdownTelemetry,
@@ -19,29 +19,6 @@ import type { Content, Part } from '@google/genai';
 
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
 import { handleAtCommand } from './ui/hooks/atCommandProcessor.js';
-
-function logToolCallResult(
-  config: Config,
-  requestInfo: ToolCallRequestInfo,
-  toolResponse: ToolCallResponseInfo,
-) {
-  const status = toolResponse.error ? 'ERROR' : 'OK';
-  if (toolResponse.error) {
-    process.stdout.write(
-      `\nTool call status:❌ ${status} ${requestInfo.name} => ${toolResponse.error.message}\n`,
-    );
-  } else {
-    if (toolResponse.resultDisplay) {
-      process.stdout.write(
-        `\nTool call status:✅ ${status} ${requestInfo.name} => ${toolResponse.resultDisplay}\n`,
-      );
-    } else {
-      process.stdout.write(
-        `\nTool call status:✅ ${status} ${requestInfo.name}\n`,
-      );
-    }
-  }
-}
 
 export async function runNonInteractive(
   config: Config,

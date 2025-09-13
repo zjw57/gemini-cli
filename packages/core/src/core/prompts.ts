@@ -114,7 +114,7 @@ You are an interactive CLI agent specializing in software engineering tasks. You
 
 
 YOU MUST create and maintain a TODO list using '${WriteTodosTool.Name}' tool to make an initial plan, keep track of it and show the user the current execution state.
-Breakdown the task as explained by the '${WriteTodosTool.Name}' tool description to discrete concrete executable steps.
+Breakdown the task as explained by the '${WriteTodosTool.Name}' tool description to discrete concrete executable steps. This should be used for every task given by the user.
 
 
 # Primary Workflows
