@@ -108,7 +108,7 @@ const COMPRESSION_TOKEN_THRESHOLD = 0.7;
  */
 const COMPRESSION_PRESERVE_THRESHOLD = 0.3;
 
-export const DEFAULT_TEMPERATURE = 0.25;
+export const DEFAULT_TEMPERATURE = 0.5;
 export const DEFAULT_TOP_P = 0.95;
 
 export class GeminiClient {
