@@ -12,71 +12,191 @@ import {
   type ToolResult,
 } from './tools.js';
 
-// Insprired by langchain/deepagents.
-export const WRITE_TODOS_DESCRIPTION = `This tool can help you list out the current subtasks that are required to be completed for a given user request. The list of subtasks helps you keep track of the current task, organize complex queries and help ensure that you don't miss any steps. With this list, the user can also see the current progress you are making in executing a given task.
+// Adapted from langchain/deepagents.
+export const WRITE_TODOS_DESCRIPTION = `Use this tool to create and manage a structured task list for your current work session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
+It also helps the user understand the progress of the task and overall progress of their requests.
 
-Depending on the task complexity, you should first divide a given task in subtasks and then use this tool to list out the subtasks that are required to be completed for a given user request.
-Each of the subtasks should be clear and distinct. 
+## When to Use This Tool
+Use this tool proactively in these scenarios:
 
-Use this tool for complex queries that require multiple steps. If you find that the request is actually complex after you have started executing the user task, create a todo list and use it. If execution of the user task requires multiple steps, planning and generally is higher complexity than a simple Q&A, use this tool.
+1. Complex multi-step tasks - When a task requires 3 or more distinct steps or actions
+2. Non-trivial and complex tasks - Tasks that require careful planning or multiple operations
+3. User explicitly requests todo list - When the user directly asks you to use the todo list
+4. User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)
+5. After receiving new instructions - Immediately capture user requirements as todos
+6. When you start working on a task - Mark it as in_progress BEFORE beginning work. Ideally you should only have one todo as in_progress at a time
+7. After completing a task - Mark it as completed and add any new follow-up tasks discovered during implementation
 
-DO NOT use this tool for simple tasks that can be completed in less than 2 steps. If the user query is simple and straightforward, do not use the tool. If you can respond with an answer in a single turn then this tool is not required.
+## When NOT to Use This Tool
 
-## Task state definitions
+Skip using this tool when:
+1. There is only a single, straightforward task
+2. The task is trivial and tracking it provides no organizational benefit
+3. The task can be completed in less than 3 trivial steps
+4. The task is purely conversational or informational
 
-- pending: Work has not begun on a given subtask.
-- in_progress: Marked just prior to beginning work on a given subtask. You should only have one subtask as in_progress at a time.
-- completed: Subtask was succesfully completed with no errors or issues. If the subtask required more more steps to complete, update the todo list. If more information is required from the user and you are in interactive mode, add that as a new subtask for request more information. All steps should be identified as completed only when they are completed.
-- cancelled: As you update the todo list, some tasks are not required anymore due to the dynamic nature of the task. In this case, mark the subtasks as cancelled so that the user still sees them in the list and knows that they are not required anymore.
-
-
-## Methodology for using this tool
-1. Use this too as soon as you receive a user request based on the complexity of the task.
-2. Keep track of every subtask that you take my update this list
-3. Mark a subtask as in_progress before you begin working on it. You should only have one subtask as in_progress at a time.
-4. Update the subtask list as you proceed in executing the task. The subtask list is not static and should reflect the current progress you are making.
-5. Mark a subtask as completed when you have completed it.
-6. Mark a subtask as cancelled if you update the todo list as you proceed in executing the task.
-7. You must update the todo list as soon as you start, stop or cancel a subtask. Don't batch or wait to update the todo list.
-
+NOTE that you should not use this tool if there is only one trivial task to do. In this case you are better off just doing the task directly.
 
 ## Examples of When to Use the Todo List
 
 <example>
-User request: Create a website with a React for creating fancy logos using gemini-2.5-flash-image
-
-ToDo list created by the agent:
-1. Initialize a new React project environment (e.g., using Vite).
-2. Design and build the core UI components: a text input (prompt field) for the logo description, selection controls for style parameters (if the API supports them), and an image preview area.
-3. Implement state management (e.g., React Context or Zustand) to manage the user's input prompt, the API loading status (pending, success, error), and the resulting image data.
-4. Create an API service module within the React app (using "fetch" or "axios") to securely format and send the prompt data via an HTTP POST request to the specified "gemini-2.5-flash-image" (Gemini model) endpoint.
-5. Implement asynchronous logic to handle the API call: show a loading indicator while the request is pending, retrieve the generated image (e.g., as a URL or base64 string) upon success, and display any errors.
-6. Display the returned "fancy logo" from the API response in the preview area component.
-7. Add functionality (e.g., a "Download" button) to allow the user to save the generated image file.
-8. Deploy the application to a web server or hosting platform.
+User: I want to add a dark mode toggle to the application settings. Make sure you run the tests and build when you're done!
+Assistant: I'll help add a dark mode toggle to your application settings. Let me create a todo list to track this implementation.
+*Creates todo list with the following items:*
+1. Create dark mode toggle component in Settings page
+2. Add dark mode state management (context/store)
+3. Implement CSS-in-JS styles for dark theme
+4. Update existing components to support theme switching
+5. Run tests and build process, addressing any failures or errors that occur
+*Begins working on the first task*
 
 <reasoning>
-The agent used the todo list to break the task into distinct, manageable steps:
-1. Building an entire interactive web application from scratch is a highly complex, multi-stage process involving setup, UI development, logic integration, and deployment.
-2. The agent inferred the core functionality required for a "logo creator," such as UI controls for customization (Task 3) and an export feature (Task 7), which must be tracked as distinct goals.
-3. The agent rightly inferred the requirement of a API service model for interacting with the image model endpoint.
+The assistant used the todo list because:
+1. Adding dark mode is a multi-step feature requiring UI, state management, and styling changes
+2. The user explicitly requested tests and build be run afterward
+3. The assistant inferred that tests and build need to pass by adding "Ensure tests and build succeed" as the final task
 </reasoning>
 </example>
 
+<example>
+User: Help me plan a comprehensive marketing campaign for our new product launch, including social media, email marketing, and press releases.
+Assistant: I'll help you plan a comprehensive marketing campaign for your product launch. Let me create a todo list to organize all the components.
+*Creates todo list with the following items:*
+1. Define target audience and key messaging
+2. Create social media content calendar and posting schedule
+3. Design email marketing sequence and automation flows
+4. Draft press release and identify media contacts
+5. Set up tracking and analytics for campaign performance
+6. Create visual assets and brand materials
+7. Coordinate launch timeline and deliverables
+*Begins working on the first task*
+
+<reasoning>
+The assistant used the todo list because:
+1. Marketing campaign planning involves multiple distinct channels and activities
+2. Each component requires careful coordination and planning
+3. The systematic approach ensures all aspects of the launch are covered
+4. Progress tracking helps maintain timeline and deliverables
+</reasoning>
+</example>
+
+<example>
+User: Help me rename the function getCwd to getCurrentWorkingDirectory across my project
+Assistant: Let me first search through your codebase to find all occurrences of 'getCwd'.
+*Uses search tools to locate all instances of getCwd in the codebase*
+Assistant: I've found 15 instances of 'getCwd' across 8 different files. Let me create a todo list to track these changes.
+*Creates todo list with specific items for each file that needs updating*
+
+<reasoning>
+The assistant used the todo list because:
+1. First, the assistant searched to understand the scope of the task
+2. Upon finding multiple occurrences across different files, it determined this was a complex task with multiple steps
+3. The todo list helps ensure every instance is tracked and updated systematically
+4. This approach prevents missing any occurrences and maintains consistency
+</reasoning>
+</example>
+
+<example>
+User: I need help organizing my home office: decluttering the desk, setting up a filing system, organizing digital files, and creating a daily workflow.
+Assistant: I'll help you organize your home office systematically. Let me create a todo list to track each area of organization.
+*Creates todo list with items like: 1) Sort and declutter desk items, 2) Set up physical filing system for documents, 3) Organize digital files and folders, 4) Create daily workflow and productivity systems, 5) Establish maintenance routines*
+Let's start with decluttering your desk space to create a clean foundation for the other organizational systems.
+
+<reasoning>
+The assistant used the todo list because:
+1. The user provided multiple distinct organizational tasks
+2. Each area requires different approaches and careful planning
+3. Home organization benefits from systematic, step-by-step completion
+4. Progress tracking ensures all areas are addressed thoroughly
+</reasoning>
+</example>
 
 ## Examples of When NOT to Use the Todo List
 
 <example>
-User request: Ensure that the test <test file> passes.
+User: How do I print 'Hello World' in Python?
+Assistant: In Python, you can print "Hello World" with this simple code:
 
-Agent:
-<Goes into a loop of running the test, identifying errors, and updating the code until the test passes.>
+python
+print("Hello World")
+
+This will output the text "Hello World" to the console when executed.</assistant>
 
 <reasoning>
-The agent did not use the todo list because this task could be completed by a tight loop of execute test->edit->execute test.
+The assistant did not use the todo list because this is a single, trivial task that can be completed in one step. There's no need to track multiple tasks or steps for such a straightforward request.
 </reasoning>
 </example>
-`;
+
+<example>
+User: What's the best way to water houseplants?
+Assistant: The best way to water houseplants depends on the specific plant type, but here are some general guidelines:
+
+- Check soil moisture by inserting your finger about 1-2 inches into the soil
+- Water thoroughly when the top inch feels dry, allowing water to drain from the bottom
+- Use room temperature water and water in the morning when possible
+- Avoid overwatering, which is more harmful than underwatering for most plants
+
+Different plants have different needs, so it's important to research your specific varieties for optimal care.
+
+<reasoning>
+The assistant did not use the todo list because this is an informational request with no actual tasks to complete. The user is simply asking for advice and explanation, not for the assistant to perform multiple steps or activities.
+</reasoning>
+</example>
+
+<example>
+User: Can you add a comment to the calculateTotal function to explain what it does?
+Assistant: Sure, let me add a comment to the calculateTotal function to explain what it does.
+* Uses the Edit tool to add a comment to the calculateTotal function *
+
+<reasoning>
+The assistant did not use the todo list because this is a single, straightforward task confined to one location. Adding a comment doesn't require tracking multiple steps or systematic organization.
+</reasoning>
+</example>
+
+<example>
+User: What time is it in Tokyo right now?
+Assistant: I'll check the current time in Tokyo for you.
+
+*Searches for current time in Tokyo*
+
+The current time in Tokyo, Japan is [current time]. Tokyo is in the Japan Standard Time (JST) zone, which is UTC+9.
+
+<reasoning>
+The assistant did not use the todo list because this is a single information lookup with immediate results. There are no multiple steps to track or organize, making the todo list unnecessary for this straightforward request.
+</reasoning>
+</example>
+
+## Task States and Management
+
+1. **Task States**: Use these states to track progress:
+   - pending: Task not yet started
+   - in_progress: Currently working on (limit to ONE task at a time)
+   - completed: Task finished successfully
+
+2. **Task Management**:
+   - Update task status in real-time as you work
+   - Mark tasks complete IMMEDIATELY after finishing (don't batch completions)
+   - Only have ONE task in_progress at any time
+   - Complete current tasks before starting new ones
+   - Remove tasks that are no longer relevant from the list entirely
+
+3. **Task Completion Requirements**:
+   - ONLY mark a task as completed when you have FULLY accomplished it
+   - If you encounter errors, blockers, or cannot finish, keep the task as in_progress
+   - When blocked, create a new task describing what needs to be resolved
+   - Never mark a task as completed if:
+     - There are unresolved issues or errors
+     - Work is partial or incomplete
+     - You encountered blockers that prevent completion
+     - You couldn't find necessary resources or dependencies
+     - Quality standards haven't been met
+
+4. **Task Breakdown**:
+   - Create specific, actionable items
+   - Break complex tasks into smaller, manageable steps
+   - Use clear, descriptive task names
+
+When in doubt, use this tool. Being proactive with task management demonstrates attentiveness and ensures you complete all requirements successfully.`;
 
 export type TodoStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 
