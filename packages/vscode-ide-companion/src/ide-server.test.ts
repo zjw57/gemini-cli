@@ -414,5 +414,32 @@ describe('IDEServer', () => {
       const body = await response.text();
       expect(body).toBe('Unauthorized');
     });
+
+    it('should reject request with malformed auth token', async () => {
+      const malformedHeaders = [
+        'Bearer',
+        'invalid-token',
+        'Bearer token extra',
+      ];
+
+      for (const header of malformedHeaders) {
+        const response = await fetch(`http://localhost:${port}/mcp`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: header,
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'initialize',
+            params: {},
+            id: 1,
+          }),
+        });
+        expect(response.status, `Failed for header: ${header}`).toBe(401);
+        const body = await response.text();
+        expect(body, `Failed for header: ${header}`).toBe('Unauthorized');
+      }
+    });
   });
 });

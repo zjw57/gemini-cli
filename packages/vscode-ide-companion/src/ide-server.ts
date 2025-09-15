@@ -32,8 +32,8 @@ async function writePortAndWorkspace(
   port: number,
   portFile: string,
   ppidPortFile: string,
-  log: (message: string) => void,
   authToken: string,
+  log: (message: string) => void,
 ): Promise<void> {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   const workspacePath =
@@ -120,11 +120,16 @@ export class IDEServer {
 
       const app = express();
       app.use(express.json({ limit: '10mb' }));
-
       app.use((req, res, next) => {
         const authHeader = req.headers.authorization;
         if (authHeader) {
-          const token = authHeader.split(' ')[1];
+          const parts = authHeader.split(' ');
+          if (parts.length !== 2 || parts[0] !== 'Bearer') {
+            this.log('Malformed Authorization header. Rejecting request.');
+            res.status(401).send('Unauthorized');
+            return;
+          }
+          const token = parts[1];
           if (token !== this.authToken) {
             this.log('Invalid auth token provided. Rejecting request.');
             res.status(401).send('Unauthorized');
@@ -272,14 +277,16 @@ export class IDEServer {
           );
           this.log(`IDE server listening on port ${this.port}`);
 
-          await writePortAndWorkspace(
-            context,
-            this.port,
-            this.portFile,
-            this.ppidPortFile,
-            this.log,
-            this.authToken!,
-          );
+          if (this.authToken) {
+            await writePortAndWorkspace(
+              context,
+              this.port,
+              this.portFile,
+              this.ppidPortFile,
+              this.authToken,
+              this.log,
+            );
+          }
         }
         resolve();
       });
@@ -313,8 +320,8 @@ export class IDEServer {
         this.port,
         this.portFile,
         this.ppidPortFile,
-        this.log,
         this.authToken,
+        this.log,
       );
       this.broadcastIdeContextUpdate();
     }
