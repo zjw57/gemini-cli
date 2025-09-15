@@ -121,10 +121,6 @@ export class IDEServer {
       const app = express();
       app.use(express.json({ limit: '10mb' }));
 
-      // The CLI will send the token in the authorization header.
-      // Older CLIs will not send this header.
-      // To maintain backwards compatibility, we only validate the token
-      // if the header is present.
       app.use((req, res, next) => {
         const authHeader = req.headers.authorization;
         if (authHeader) {
