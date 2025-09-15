@@ -169,7 +169,7 @@ class LSToolInvocation extends BaseToolInvocation<LSToolParams, ToolResult> {
 
       const fileDiscovery = this.config.getFileService();
       const { filteredPaths, gitIgnoredCount, geminiIgnoredCount } =
-        fileDiscovery.filterFilesWithReport(relativePaths, {
+        (fileDiscovery as any).filterFilesWithReport(relativePaths, {
           respectGitIgnore:
             this.params.file_filtering_options?.respect_git_ignore ??
             this.config.getFileFilteringOptions().respectGitIgnore ??
