@@ -365,7 +365,7 @@ describe('IDEServer', () => {
       port = (ideServer as unknown as { port: number }).port;
     });
 
-    it('should allow request without auth token for backwards compatibility', async () => {
+    it('should reject request without auth token', async () => {
       const response = await fetch(`http://localhost:${port}/mcp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -376,7 +376,9 @@ describe('IDEServer', () => {
           id: 1,
         }),
       });
-      expect(response.status).not.toBe(401);
+      expect(response.status).toBe(401);
+      const body = await response.text();
+      expect(body).toBe('Unauthorized');
     });
 
     it('should allow request with valid auth token', async () => {
