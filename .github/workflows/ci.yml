@@ -278,6 +278,10 @@ jobs:
 
       - name: 'Build project'
         run: |-
+          npm run build
+
+      - name: 'Build tests'
+        run: |-
           npm run build:tests
 
       - name: 'Install dependencies for testing'
