@@ -52,6 +52,8 @@ import {
 import { handleFallback } from '../fallback/handler.js';
 import { isFunctionResponse } from '../utils/messageInspectors.js';
 import { partListUnionToString } from './geminiRequest.js';
+import * as os from 'node:os';
+import { randomUUID } from 'node:crypto';
 
 export enum StreamEventType {
   /** A regular content chunk from the API. */
@@ -189,6 +191,7 @@ export class GeminiChat {
   private runner: InMemoryRunner | undefined;
   private agent: LlmAgent | undefined;
   private sessionId: string | undefined;
+  private userId: string | undefined;
   private appName: string = 'GeminiCLI';
 
   constructor(
@@ -240,9 +243,11 @@ export class GeminiChat {
 
   private async maybeSetSession(): Promise<string> {
     if (this.sessionId === undefined) {
+      this.userId = os.userInfo().username || randomUUID();
       const session = await this.runner?.sessionService.createSession({
         appName: this.appName,
-        userId: 'placeholder',
+        userId: this.userId,
+        sessionId: this.config.getSessionId(),
       });
       this.sessionId = session!.id;
     }
@@ -253,7 +258,7 @@ export class GeminiChat {
     const sessionId = await this.maybeSetSession();
     const session = await this.runner!.sessionService.getSession({
       appName: this.appName,
-      userId: 'placeholder',
+      userId: this.userId!,
       sessionId,
     });
     if (!session) {
@@ -485,7 +490,7 @@ export class GeminiChat {
     }
 
     const eventStream = (await this.runner?.run({
-      userId: 'placeholder',
+      userId: this.userId!,
       sessionId: this.sessionId || '',
       newMessage,
     })) as AsyncGenerator<Event>;
