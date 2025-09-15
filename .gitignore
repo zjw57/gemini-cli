@@ -43,3 +43,12 @@ packages/vscode-ide-companion/*.vsix
 
 # GHA credentials
 gha-creds-*.json
+
+# Output of 'npm pack'
+*.tgz
+
+# asciinema terminal captures
+*.cast
+
+# Output of process_summaries.py
+*.csv
