@@ -161,7 +161,7 @@ export async function performWorkspaceExtensionMigration(
     try {
       const installMetadata: ExtensionInstallMetadata = {
         source: extension.path,
-        type: 'link',
+        type: 'local',
       };
       await installExtension(installMetadata, workspaceDir);
       // Disable the extension at the user level and override it for this workspace.

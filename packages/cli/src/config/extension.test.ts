@@ -848,7 +848,7 @@ describe('performWorkspaceExtensionMigration', () => {
     const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
     expect(metadata).toEqual({
       source: ext1Path,
-      type: 'link',
+      type: 'local',
     });
     const settings = loadSettings(tempWorkspaceDir);
     const disabledExtensions =
