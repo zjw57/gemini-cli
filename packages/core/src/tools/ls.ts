@@ -103,10 +103,16 @@ class LSToolInvocation extends BaseToolInvocation<LSToolParams, ToolResult> {
    * @returns A string describing the file being read
    */
   getDescription(): string {
-    const relativePath = makeRelative(
-      this.params.path,
-      this.config.getTargetDir(),
-    );
+    const workspaceContext = this.config.getWorkspaceContext();
+    const workspaceDirs = workspaceContext.getDirectories();
+    let workspaceDir = this.config.getTargetDir();
+    for (const dir of workspaceDirs) {
+      if (this.params.path.startsWith(dir)) {
+        workspaceDir = dir;
+        break;
+      }
+    }
+    const relativePath = makeRelative(this.params.path, workspaceDir);
     return shortenPath(relativePath);
   }
 

@@ -289,7 +289,7 @@ describe('LSTool', () => {
       };
       const invocation = lsTool.build(params);
       const description = invocation.getDescription();
-      const expected = path.relative(tempRootDir, params.path);
+      const expected = path.relative(tempSecondaryDir, params.path);
       expect(description).toBe(shortenPath(expected));
     });
   });
