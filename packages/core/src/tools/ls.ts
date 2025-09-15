@@ -174,17 +174,30 @@ class LSToolInvocation extends BaseToolInvocation<LSToolParams, ToolResult> {
       );
 
       const fileDiscovery = this.config.getFileService();
-      const { filteredPaths, gitIgnoredCount, geminiIgnoredCount } =
-        (fileDiscovery as any).filterFilesWithReport(relativePaths, {
-          respectGitIgnore:
-            this.params.file_filtering_options?.respect_git_ignore ??
-            this.config.getFileFilteringOptions().respectGitIgnore ??
-            DEFAULT_FILE_FILTERING_OPTIONS.respectGitIgnore,
-          respectGeminiIgnore:
-            this.params.file_filtering_options?.respect_gemini_ignore ??
-            this.config.getFileFilteringOptions().respectGeminiIgnore ??
-            DEFAULT_FILE_FILTERING_OPTIONS.respectGeminiIgnore,
-        });
+      const { filteredPaths, gitIgnoredCount, geminiIgnoredCount } = (
+        fileDiscovery as unknown as {
+          filterFilesWithReport: (
+            paths: string[],
+            options?: {
+              respectGitIgnore?: boolean;
+              respectGeminiIgnore?: boolean;
+            },
+          ) => {
+            filteredPaths: string[];
+            gitIgnoredCount: number;
+            geminiIgnoredCount: number;
+          };
+        }
+      ).filterFilesWithReport(relativePaths, {
+        respectGitIgnore:
+          this.params.file_filtering_options?.respect_git_ignore ??
+          this.config.getFileFilteringOptions().respectGitIgnore ??
+          DEFAULT_FILE_FILTERING_OPTIONS.respectGitIgnore,
+        respectGeminiIgnore:
+          this.params.file_filtering_options?.respect_gemini_ignore ??
+          this.config.getFileFilteringOptions().respectGeminiIgnore ??
+          DEFAULT_FILE_FILTERING_OPTIONS.respectGeminiIgnore,
+      });
 
       const entries = [];
       for (const relativePath of filteredPaths) {
