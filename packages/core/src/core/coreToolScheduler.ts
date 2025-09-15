@@ -16,6 +16,7 @@ import type {
   ToolConfirmationPayload,
   AnyDeclarativeTool,
   AnyToolInvocation,
+  AnsiOutput,
 } from '../index.js';
 import {
   ToolConfirmationOutcome,
@@ -24,6 +25,9 @@ import {
   ReadFileTool,
   ToolErrorType,
   ToolCallEvent,
+  ShellTool,
+  logToolOutputTruncated,
+  ToolOutputTruncatedEvent,
 } from '../index.js';
 import type { Part, PartListUnion } from '@google/genai';
 import { getResponseTextFromParts } from '../utils/generateContentResponseUtilities.js';
@@ -37,6 +41,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { doesToolInvocationMatch } from '../utils/tool-utils.js';
 import levenshtein from 'fast-levenshtein';
+import { ShellToolInvocation } from '../tools/shell.js';
 
 export interface CIMOutput {
   reminders: string[]; // Formatted XML strings
@@ -91,9 +96,10 @@ export type ExecutingToolCall = {
   request: ToolCallRequestInfo;
   tool: AnyDeclarativeTool;
   invocation: AnyToolInvocation;
-  liveOutput?: string;
+  liveOutput?: string | AnsiOutput;
   startTime?: number;
   outcome?: ToolConfirmationOutcome;
+  pid?: number;
 };
 
 export type CancelledToolCall = {
@@ -138,7 +144,7 @@ export type ConfirmHandler = (
 
 export type OutputUpdateHandler = (
   toolCallId: string,
-  outputChunk: string,
+  outputChunk: string | AnsiOutput,
 ) => void;
 
 export type AllToolCallsCompleteHandler = (
@@ -255,6 +261,7 @@ const createErrorResponse = (
   ],
   resultDisplay: error.message,
   errorType,
+  contentLength: error.message.length,
 });
 
 export async function truncateAndSaveToFile(
@@ -474,6 +481,7 @@ export class CoreToolScheduler {
             }
           }
 
+          const errorMessage = `[Operation Cancelled] Reason: ${auxiliaryData}`;
           return {
             request: currentCall.request,
             tool: toolInstance,
@@ -487,7 +495,7 @@ export class CoreToolScheduler {
                     id: currentCall.request.callId,
                     name: currentCall.request.name,
                     response: {
-                      error: `[Operation Cancelled] Reason: ${auxiliaryData}`,
+                      error: errorMessage,
                     },
                   },
                 },
@@ -495,6 +503,7 @@ export class CoreToolScheduler {
               resultDisplay,
               error: undefined,
               errorType: undefined,
+              contentLength: errorMessage.length,
             },
             durationMs,
             outcome,
@@ -1003,7 +1012,7 @@ export class CoreToolScheduler {
 
         const liveOutputCallback =
           scheduledCall.tool.canUpdateOutput && this.outputUpdateHandler
-            ? (outputChunk: string) => {
+            ? (outputChunk: string | AnsiOutput) => {
                 if (this.outputUpdateHandler) {
                   this.outputUpdateHandler(callId, outputChunk);
                 }
@@ -1016,8 +1025,37 @@ export class CoreToolScheduler {
               }
             : undefined;
 
-        invocation
-          .execute(signal, liveOutputCallback)
+        const shellExecutionConfig = this.config.getShellExecutionConfig();
+
+        // TODO: Refactor to remove special casing for ShellToolInvocation.
+        // Introduce a generic callbacks object for the execute method to handle
+        // things like `onPid` and `onLiveOutput`. This will make the scheduler
+        // agnostic to the invocation type.
+        let promise: Promise<ToolResult>;
+        if (invocation instanceof ShellToolInvocation) {
+          const setPidCallback = (pid: number) => {
+            this.toolCalls = this.toolCalls.map((tc) =>
+              tc.request.callId === callId && tc.status === 'executing'
+                ? { ...tc, pid }
+                : tc,
+            );
+            this.notifyToolCallsUpdate();
+          };
+          promise = invocation.execute(
+            signal,
+            liveOutputCallback,
+            shellExecutionConfig,
+            setPidCallback,
+          );
+        } else {
+          promise = invocation.execute(
+            signal,
+            liveOutputCallback,
+            shellExecutionConfig,
+          );
+        }
+
+        promise
           .then(async (toolResult: ToolResult) => {
             if (signal.aborted) {
               this.setStatusInternal(
@@ -1031,17 +1069,43 @@ export class CoreToolScheduler {
             if (toolResult.error === undefined) {
               let content = toolResult.llmContent;
               let outputFile: string | undefined = undefined;
+              const contentLength =
+                typeof content === 'string' ? content.length : undefined;
               if (
                 typeof content === 'string' &&
-                this.config.getTruncateToolOutputThreshold() > 0
+                toolName === ShellTool.Name &&
+                this.config.getEnableToolOutputTruncation() &&
+                this.config.getTruncateToolOutputThreshold() > 0 &&
+                this.config.getTruncateToolOutputLines() > 0
               ) {
-                ({ content, outputFile } = await truncateAndSaveToFile(
+                const originalContentLength = content.length;
+                const threshold = this.config.getTruncateToolOutputThreshold();
+                const lines = this.config.getTruncateToolOutputLines();
+                const truncatedResult = await truncateAndSaveToFile(
                   content,
                   callId,
                   this.config.storage.getProjectTempDir(),
-                  this.config.getTruncateToolOutputThreshold(),
-                  this.config.getTruncateToolOutputLines(),
-                ));
+                  threshold,
+                  lines,
+                );
+                content = truncatedResult.content;
+                outputFile = truncatedResult.outputFile;
+
+                if (outputFile) {
+                  logToolOutputTruncated(
+                    this.config,
+                    new ToolOutputTruncatedEvent(
+                      scheduledCall.request.prompt_id,
+                      {
+                        toolName,
+                        originalContentLength,
+                        truncatedContentLength: content.length,
+                        threshold,
+                        lines,
+                      },
+                    ),
+                  );
+                }
               }
 
               const response = convertToFunctionResponse(
@@ -1056,6 +1120,7 @@ export class CoreToolScheduler {
                 error: undefined,
                 errorType: undefined,
                 outputFile,
+                contentLength,
               };
               this.setStatusInternal(callId, 'success', successResponse);
             } else {
