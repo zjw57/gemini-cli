@@ -103,9 +103,6 @@ function getDefaultExcludes(config?: Config): string[] {
   return config?.getFileExclusions().getReadManyFilesExcludes() ?? [];
 }
 
-const DEFAULT_OUTPUT_SEPARATOR_FORMAT = '--- {filePath} ---';
-const DEFAULT_OUTPUT_TERMINATOR = '\n--- End of content ---';
-
 class ReadManyFilesToolInvocation extends BaseToolInvocation<
   ReadManyFilesParams,
   ToolResult
@@ -161,10 +158,7 @@ ${finalExclusionPatternsForDescription
       }
     }
 
-    return `Will attempt to read and concatenate files ${pathDesc}. ${excludeDesc}. File encoding: ${DEFAULT_ENCODING}. Separator: "${DEFAULT_OUTPUT_SEPARATOR_FORMAT.replace(
-      '{filePath}',
-      'path/to/file.ext',
-    )}".`;
+    return `Will attempt to read files ${pathDesc}. ${excludeDesc}. File encoding: ${DEFAULT_ENCODING}. Output will be in JSON format.`;
   }
 
   async execute(signal: AbortSignal): Promise<ToolResult> {
@@ -347,6 +341,10 @@ ${finalExclusionPatternsForDescription
     );
 
     const results = await Promise.allSettled(fileProcessingPromises);
+    const fileDataForJson: Array<{
+      file_name: string;
+      file_contents: string | object;
+    }> = [];
 
     for (const result of results) {
       if (result.status === 'fulfilled') {
@@ -364,19 +362,21 @@ ${finalExclusionPatternsForDescription
             fileResult;
 
           if (typeof fileReadResult.llmContent === 'string') {
-            const separator = DEFAULT_OUTPUT_SEPARATOR_FORMAT.replace(
-              '{filePath}',
-              filePath,
-            );
             let fileContentForLlm = '';
             if (fileReadResult.isTruncated) {
               fileContentForLlm += `[WARNING: This file was truncated. To view the full content, use the 'read_file' tool on this specific file.]\n\n`;
             }
             fileContentForLlm += fileReadResult.llmContent;
-            contentParts.push(`${separator}\n\n${fileContentForLlm}\n\n`);
+            fileDataForJson.push({
+              file_name: relativePathForDisplay,
+              file_contents: fileContentForLlm,
+            });
           } else {
             // This is a Part for image/pdf, which we don't add the separator to.
-            contentParts.push(fileReadResult.llmContent);
+            fileDataForJson.push({
+              file_name: relativePathForDisplay,
+              file_contents: fileReadResult.llmContent,
+            });
           }
 
           processedFilesRelativePaths.push(relativePathForDisplay);
@@ -412,7 +412,7 @@ ${finalExclusionPatternsForDescription
 
     let displayMessage = `### ReadManyFiles Result (Target Dir: \`${this.config.getTargetDir()}\`)\n\n`;
     if (processedFilesRelativePaths.length > 0) {
-      displayMessage += `Successfully read and concatenated content from **${processedFilesRelativePaths.length} file(s)**.\n`;
+      displayMessage += `Successfully read content from **${processedFilesRelativePaths.length} file(s)**.\n`;
       if (processedFilesRelativePaths.length <= 10) {
         displayMessage += `\n**Processed Files:**\n`;
         processedFilesRelativePaths.forEach(
@@ -429,7 +429,7 @@ ${finalExclusionPatternsForDescription
 
     if (skippedFiles.length > 0) {
       if (processedFilesRelativePaths.length === 0) {
-        displayMessage += `No files were read and concatenated based on the criteria.\n`;
+        displayMessage += `No files were read based on the criteria.\n`;
       }
       if (skippedFiles.length <= 5) {
         displayMessage += `\n**Skipped ${skippedFiles.length} item(s):**\n`;
@@ -448,11 +448,11 @@ ${finalExclusionPatternsForDescription
       processedFilesRelativePaths.length === 0 &&
       skippedFiles.length === 0
     ) {
-      displayMessage += `No files were read and concatenated based on the criteria.\n`;
+      displayMessage += `No files were read based on the criteria.\n`;
     }
 
-    if (contentParts.length > 0) {
-      contentParts.push(DEFAULT_OUTPUT_TERMINATOR);
+    if (fileDataForJson.length > 0) {
+      contentParts.push(JSON.stringify(fileDataForJson, null, 2));
     } else {
       contentParts.push(
         'No files matching the criteria were found or all were skipped.',
@@ -546,7 +546,7 @@ export class ReadManyFilesTool extends BaseDeclarativeTool<
     super(
       ReadManyFilesTool.Name,
       'ReadManyFiles',
-      `Reads content from multiple files specified by paths or glob patterns within a configured target directory. For text files, it concatenates their content into a single string. It is primarily designed for text-based files. However, it can also process image (e.g., .png, .jpg) and PDF (.pdf) files if their file names or extensions are explicitly included in the 'paths' argument. For these explicitly requested non-text files, their data is read and included in a format suitable for model consumption (e.g., base64 encoded).
+      `Reads content from multiple files specified by paths or glob patterns within a configured target directory. The output is a JSON array of objects, where each object represents a file and has 'file_name' and 'file_contents' properties. It is primarily designed for text-based files. However, it can also process image (e.g., .png, .jpg) and PDF (.pdf) files if their file names or extensions are explicitly included in the 'paths' argument. For these explicitly requested non-text files, their data is read and included in a format suitable for model consumption (e.g., base64 encoded).
 
 This tool is useful when you need to understand or analyze a collection of files, such as:
 - Getting an overview of a codebase or parts of it (e.g., all TypeScript files in the 'src' directory).
@@ -555,7 +555,7 @@ This tool is useful when you need to understand or analyze a collection of files
 - Gathering context from multiple configuration files.
 - When the user asks to "read all files in X directory" or "show me the content of all Y files".
 
-Use this tool when the user's query implies needing the content of several files simultaneously for context, analysis, or summarization. For text files, it uses default UTF-8 encoding and a '--- {filePath} ---' separator between file contents. The tool inserts a '--- End of content ---' after the last file. Ensure paths are relative to the target directory. Glob patterns like 'src/**/*.js' are supported. Avoid using for single files if a more specific single-file reading tool is available, unless the user specifically requests to process a list containing just one file via this tool. Other binary files (not explicitly requested as image/PDF) are generally skipped. Default excludes apply to common non-text files (except for explicitly requested images/PDFs) and large dependency directories unless 'useDefaultExcludes' is false.`,
+Use this tool when the user's query implies needing the content of several files simultaneously for context, analysis, or summarization. For text files, it uses default UTF-8 encoding. Ensure paths are relative to the target directory. Glob patterns like 'src/**/*.js' are supported. Avoid using for single files if a more specific single-file reading tool is available, unless the user specifically requests to process a list containing just one file via this tool. Other binary files (not explicitly requested as image/PDF) are generally skipped. Default excludes apply to common non-text files (except for explicitly requested images/PDFs) and large dependency directories unless 'useDefaultExcludes' is false.`,
       Kind.Read,
       parameterSchema,
     );

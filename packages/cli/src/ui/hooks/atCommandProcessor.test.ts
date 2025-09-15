@@ -153,9 +153,18 @@ describe('handleAtCommand', () => {
       processedQuery: [
         { text: `@${filePath}` },
         { text: '\n--- Content from referenced files ---' },
-        { text: `\nContent from @${filePath}:\n` },
-        { text: fileContent },
-        { text: '\n--- End of content ---' },
+        {
+          text: JSON.stringify(
+            [
+              {
+                file_name: path.relative(testRootDir, filePath),
+                file_contents: fileContent,
+              },
+            ],
+            null,
+            2,
+          ),
+        },
       ],
       shouldProceed: true,
     });
@@ -191,9 +200,18 @@ describe('handleAtCommand', () => {
       processedQuery: [
         { text: `@${resolvedGlob}` },
         { text: '\n--- Content from referenced files ---' },
-        { text: `\nContent from @${filePath}:\n` },
-        { text: fileContent },
-        { text: '\n--- End of content ---' },
+        {
+          text: JSON.stringify(
+            [
+              {
+                file_name: path.relative(testRootDir, filePath),
+                file_contents: fileContent,
+              },
+            ],
+            null,
+            2,
+          ),
+        },
       ],
       shouldProceed: true,
     });
@@ -225,9 +243,18 @@ describe('handleAtCommand', () => {
       processedQuery: [
         { text: `${textBefore}@${filePath}${textAfter}` },
         { text: '\n--- Content from referenced files ---' },
-        { text: `\nContent from @${filePath}:\n` },
-        { text: fileContent },
-        { text: '\n--- End of content ---' },
+        {
+          text: JSON.stringify(
+            [
+              {
+                file_name: path.relative(testRootDir, filePath),
+                file_contents: fileContent,
+              },
+            ],
+            null,
+            2,
+          ),
+        },
       ],
       shouldProceed: true,
     });
@@ -255,9 +282,18 @@ describe('handleAtCommand', () => {
       processedQuery: [
         { text: `@${filePath}` },
         { text: '\n--- Content from referenced files ---' },
-        { text: `\nContent from @${filePath}:\n` },
-        { text: fileContent },
-        { text: '\n--- End of content ---' },
+        {
+          text: JSON.stringify(
+            [
+              {
+                file_name: path.relative(testRootDir, filePath),
+                file_contents: fileContent,
+              },
+            ],
+            null,
+            2,
+          ),
+        },
       ],
       shouldProceed: true,
     });
@@ -296,11 +332,22 @@ describe('handleAtCommand', () => {
       processedQuery: [
         { text: query },
         { text: '\n--- Content from referenced files ---' },
-        { text: `\nContent from @${file1Path}:\n` },
-        { text: content1 },
-        { text: `\nContent from @${file2Path}:\n` },
-        { text: content2 },
-        { text: '\n--- End of content ---' },
+        {
+          text: JSON.stringify(
+            [
+              {
+                file_name: path.relative(testRootDir, file1Path),
+                file_contents: content1,
+              },
+              {
+                file_name: path.relative(testRootDir, file2Path),
+                file_contents: content2,
+              },
+            ],
+            null,
+            2,
+          ),
+        },
       ],
       shouldProceed: true,
     });
@@ -335,11 +382,22 @@ describe('handleAtCommand', () => {
       processedQuery: [
         { text: query },
         { text: '\n--- Content from referenced files ---' },
-        { text: `\nContent from @${file1Path}:\n` },
-        { text: content1 },
-        { text: `\nContent from @${file2Path}:\n` },
-        { text: content2 },
-        { text: '\n--- End of content ---' },
+        {
+          text: JSON.stringify(
+            [
+              {
+                file_name: path.relative(testRootDir, file1Path),
+                file_contents: content1,
+              },
+              {
+                file_name: path.relative(testRootDir, file2Path),
+                file_contents: content2,
+              },
+            ],
+            null,
+            2,
+          ),
+        },
       ],
       shouldProceed: true,
     });
@@ -374,11 +432,22 @@ describe('handleAtCommand', () => {
           text: `Look at @${file1Path} then @${invalidFile} and also just @ symbol, then @${file2Path}`,
         },
         { text: '\n--- Content from referenced files ---' },
-        { text: `\nContent from @${file2Path}:\n` },
-        { text: content2 },
-        { text: `\nContent from @${file1Path}:\n` },
-        { text: content1 },
-        { text: '\n--- End of content ---' },
+        {
+          text: JSON.stringify(
+            [
+              {
+                file_name: path.relative(testRootDir, file2Path),
+                file_contents: content2,
+              },
+              {
+                file_name: path.relative(testRootDir, file1Path),
+                file_contents: content1,
+              },
+            ],
+            null,
+            2,
+          ),
+        },
       ],
       shouldProceed: true,
     });
@@ -476,9 +545,18 @@ describe('handleAtCommand', () => {
         processedQuery: [
           { text: `@${validFile}` },
           { text: '\n--- Content from referenced files ---' },
-          { text: `\nContent from @${validFile}:\n` },
-          { text: 'console.log("Hello world");' },
-          { text: '\n--- End of content ---' },
+          {
+            text: JSON.stringify(
+              [
+                {
+                  file_name: path.relative(testRootDir, validFile),
+                  file_contents: 'console.log("Hello world");',
+                },
+              ],
+              null,
+              2,
+            ),
+          },
         ],
         shouldProceed: true,
       });
@@ -509,9 +587,18 @@ describe('handleAtCommand', () => {
         processedQuery: [
           { text: `@${validFile} @${gitIgnoredFile}` },
           { text: '\n--- Content from referenced files ---' },
-          { text: `\nContent from @${validFile}:\n` },
-          { text: '# Project README' },
-          { text: '\n--- End of content ---' },
+          {
+            text: JSON.stringify(
+              [
+                {
+                  file_name: path.relative(testRootDir, validFile),
+                  file_contents: '# Project README',
+                },
+              ],
+              null,
+              2,
+            ),
+          },
         ],
         shouldProceed: true,
       });
@@ -635,9 +722,18 @@ describe('handleAtCommand', () => {
       processedQuery: [
         { text: `@${validFile}` },
         { text: '\n--- Content from referenced files ---' },
-        { text: `\nContent from @${validFile}:\n` },
-        { text: 'console.log("Hello world");' },
-        { text: '\n--- End of content ---' },
+        {
+          text: JSON.stringify(
+            [
+              {
+                file_name: path.relative(testRootDir, validFile),
+                file_contents: 'console.log("Hello world");',
+              },
+            ],
+            null,
+            2,
+          ),
+        },
       ],
       shouldProceed: true,
     });
@@ -671,9 +767,18 @@ describe('handleAtCommand', () => {
       processedQuery: [
         { text: `@${validFile} @${geminiIgnoredFile}` },
         { text: '\n--- Content from referenced files ---' },
-        { text: `\nContent from @${validFile}:\n` },
-        { text: '// Main application entry' },
-        { text: '\n--- End of content ---' },
+        {
+          text: JSON.stringify(
+            [
+              {
+                file_name: path.relative(testRootDir, validFile),
+                file_contents: '// Main application entry',
+              },
+            ],
+            null,
+            2,
+          ),
+        },
       ],
       shouldProceed: true,
     });
@@ -799,9 +904,18 @@ describe('handleAtCommand', () => {
           processedQuery: [
             { text: query },
             { text: '\n--- Content from referenced files ---' },
-            { text: `\nContent from @${filePath}:\n` },
-            { text: fileContent },
-            { text: '\n--- End of content ---' },
+            {
+              text: JSON.stringify(
+                [
+                  {
+                    file_name: path.relative(testRootDir, filePath),
+                    file_contents: fileContent,
+                  },
+                ],
+                null,
+                2,
+              ),
+            },
           ],
           shouldProceed: true,
         });
@@ -834,11 +948,22 @@ describe('handleAtCommand', () => {
         processedQuery: [
           { text: `Compare @${file1Path}, @${file2Path}; what's different?` },
           { text: '\n--- Content from referenced files ---' },
-          { text: `\nContent from @${file1Path}:\n` },
-          { text: content1 },
-          { text: `\nContent from @${file2Path}:\n` },
-          { text: content2 },
-          { text: '\n--- End of content ---' },
+          {
+            text: JSON.stringify(
+              [
+                {
+                  file_name: path.relative(testRootDir, file1Path),
+                  file_contents: content1,
+                },
+                {
+                  file_name: path.relative(testRootDir, file2Path),
+                  file_contents: content2,
+                },
+              ],
+              null,
+              2,
+            ),
+          },
         ],
         shouldProceed: true,
       });
@@ -866,9 +991,18 @@ describe('handleAtCommand', () => {
         processedQuery: [
           { text: `Check @${filePath}, it has spaces.` },
           { text: '\n--- Content from referenced files ---' },
-          { text: `\nContent from @${filePath}:\n` },
-          { text: fileContent },
-          { text: '\n--- End of content ---' },
+          {
+            text: JSON.stringify(
+              [
+                {
+                  file_name: path.relative(testRootDir, filePath),
+                  file_contents: fileContent,
+                },
+              ],
+              null,
+              2,
+            ),
+          },
         ],
         shouldProceed: true,
       });
@@ -895,9 +1029,18 @@ describe('handleAtCommand', () => {
         processedQuery: [
           { text: `Analyze @${filePath} for type definitions.` },
           { text: '\n--- Content from referenced files ---' },
-          { text: `\nContent from @${filePath}:\n` },
-          { text: fileContent },
-          { text: '\n--- End of content ---' },
+          {
+            text: JSON.stringify(
+              [
+                {
+                  file_name: path.relative(testRootDir, filePath),
+                  file_contents: fileContent,
+                },
+              ],
+              null,
+              2,
+            ),
+          },
         ],
         shouldProceed: true,
       });
@@ -924,9 +1067,18 @@ describe('handleAtCommand', () => {
         processedQuery: [
           { text: `Check @${filePath}. This file contains settings.` },
           { text: '\n--- Content from referenced files ---' },
-          { text: `\nContent from @${filePath}:\n` },
-          { text: fileContent },
-          { text: '\n--- End of content ---' },
+          {
+            text: JSON.stringify(
+              [
+                {
+                  file_name: path.relative(testRootDir, filePath),
+                  file_contents: fileContent,
+                },
+              ],
+              null,
+              2,
+            ),
+          },
         ],
         shouldProceed: true,
       });
@@ -953,9 +1105,18 @@ describe('handleAtCommand', () => {
         processedQuery: [
           { text: `Review @${filePath}, then check dependencies.` },
           { text: '\n--- Content from referenced files ---' },
-          { text: `\nContent from @${filePath}:\n` },
-          { text: fileContent },
-          { text: '\n--- End of content ---' },
+          {
+            text: JSON.stringify(
+              [
+                {
+                  file_name: path.relative(testRootDir, filePath),
+                  file_contents: fileContent,
+                },
+              ],
+              null,
+              2,
+            ),
+          },
         ],
         shouldProceed: true,
       });
@@ -982,9 +1143,18 @@ describe('handleAtCommand', () => {
         processedQuery: [
           { text: `Check @${filePath} contains version information.` },
           { text: '\n--- Content from referenced files ---' },
-          { text: `\nContent from @${filePath}:\n` },
-          { text: fileContent },
-          { text: '\n--- End of content ---' },
+          {
+            text: JSON.stringify(
+              [
+                {
+                  file_name: path.relative(testRootDir, filePath),
+                  file_contents: fileContent,
+                },
+              ],
+              null,
+              2,
+            ),
+          },
         ],
         shouldProceed: true,
       });
@@ -1011,9 +1181,18 @@ describe('handleAtCommand', () => {
         processedQuery: [
           { text: `Show me @${filePath}.` },
           { text: '\n--- Content from referenced files ---' },
-          { text: `\nContent from @${filePath}:\n` },
-          { text: fileContent },
-          { text: '\n--- End of content ---' },
+          {
+            text: JSON.stringify(
+              [
+                {
+                  file_name: path.relative(testRootDir, filePath),
+                  file_contents: fileContent,
+                },
+              ],
+              null,
+              2,
+            ),
+          },
         ],
         shouldProceed: true,
       });
@@ -1040,9 +1219,18 @@ describe('handleAtCommand', () => {
         processedQuery: [
           { text: `Check @${filePath} for content.` },
           { text: '\n--- Content from referenced files ---' },
-          { text: `\nContent from @${filePath}:\n` },
-          { text: fileContent },
-          { text: '\n--- End of content ---' },
+          {
+            text: JSON.stringify(
+              [
+                {
+                  file_name: path.relative(testRootDir, filePath),
+                  file_contents: fileContent,
+                },
+              ],
+              null,
+              2,
+            ),
+          },
         ],
         shouldProceed: true,
       });
@@ -1069,9 +1257,18 @@ describe('handleAtCommand', () => {
         processedQuery: [
           { text: `Check @${filePath} please.` },
           { text: '\n--- Content from referenced files ---' },
-          { text: `\nContent from @${filePath}:\n` },
-          { text: fileContent },
-          { text: '\n--- End of content ---' },
+          {
+            text: JSON.stringify(
+              [
+                {
+                  file_name: path.relative(testRootDir, filePath),
+                  file_contents: fileContent,
+                },
+              ],
+              null,
+              2,
+            ),
+          },
         ],
         shouldProceed: true,
       });

@@ -22,6 +22,11 @@ import {
 } from '../utils/ignorePatterns.js';
 import * as glob from 'glob';
 
+interface FileData {
+  file_name: string;
+  file_contents: string | object;
+}
+
 vi.mock('glob', { spy: true });
 
 vi.mock('mime', () => {
@@ -229,13 +234,20 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: ['file1.txt'] };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      const expectedPath = path.join(tempRootDir, 'file1.txt');
       expect(result.llmContent).toEqual([
-        `--- ${expectedPath} ---\n\nContent of file1\n\n`,
-        `\n--- End of content ---`,
+        JSON.stringify(
+          [
+            {
+              file_name: 'file1.txt',
+              file_contents: 'Content of file1',
+            },
+          ],
+          null,
+          2,
+        ),
       ]);
       expect(result.returnDisplay).toContain(
-        'Successfully read and concatenated content from **1 file(s)**',
+        'Successfully read content from **1 file(s)**',
       );
     });
 
@@ -245,21 +257,13 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: ['file1.txt', 'subdir/file2.js'] };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      const content = result.llmContent as string[];
-      const expectedPath1 = path.join(tempRootDir, 'file1.txt');
-      const expectedPath2 = path.join(tempRootDir, 'subdir/file2.js');
-      expect(
-        content.some((c) =>
-          c.includes(`--- ${expectedPath1} ---\n\nContent1\n\n`),
-        ),
-      ).toBe(true);
-      expect(
-        content.some((c) =>
-          c.includes(`--- ${expectedPath2} ---\n\nContent2\n\n`),
-        ),
-      ).toBe(true);
+      const content = JSON.parse((result.llmContent as string[])[0]);
+      expect(content).toEqual([
+        { file_name: 'file1.txt', file_contents: 'Content1' },
+        { file_name: 'subdir/file2.js', file_contents: 'Content2' },
+      ]);
       expect(result.returnDisplay).toContain(
-        'Successfully read and concatenated content from **2 file(s)**',
+        'Successfully read content from **2 file(s)**',
       );
     });
 
@@ -270,22 +274,13 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: ['*.txt'] };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      const content = result.llmContent as string[];
-      const expectedPath1 = path.join(tempRootDir, 'file.txt');
-      const expectedPath2 = path.join(tempRootDir, 'another.txt');
-      expect(
-        content.some((c) =>
-          c.includes(`--- ${expectedPath1} ---\n\nText file\n\n`),
-        ),
-      ).toBe(true);
-      expect(
-        content.some((c) =>
-          c.includes(`--- ${expectedPath2} ---\n\nAnother text\n\n`),
-        ),
-      ).toBe(true);
-      expect(content.find((c) => c.includes('sub/data.json'))).toBeUndefined();
+      const content = JSON.parse((result.llmContent as string[])[0]);
+      expect(content).toEqual([
+        { file_name: 'another.txt', file_contents: 'Another text' },
+        { file_name: 'file.txt', file_contents: 'Text file' },
+      ]);
       expect(result.returnDisplay).toContain(
-        'Successfully read and concatenated content from **2 file(s)**',
+        'Successfully read content from **2 file(s)**',
       );
     });
 
@@ -295,17 +290,12 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: ['src/**/*.ts'], exclude: ['**/*.test.ts'] };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      const content = result.llmContent as string[];
-      const expectedPath = path.join(tempRootDir, 'src/main.ts');
+      const content = JSON.parse((result.llmContent as string[])[0]);
       expect(content).toEqual([
-        `--- ${expectedPath} ---\n\nMain content\n\n`,
-        `\n--- End of content ---`,
+        { file_name: 'src/main.ts', file_contents: 'Main content' },
       ]);
-      expect(
-        content.find((c) => c.includes('src/main.test.ts')),
-      ).toBeUndefined();
       expect(result.returnDisplay).toContain(
-        'Successfully read and concatenated content from **1 file(s)**',
+        'Successfully read content from **1 file(s)**',
       );
     });
 
@@ -317,7 +307,7 @@ describe('ReadManyFilesTool', () => {
         'No files matching the criteria were found or all were skipped.',
       ]);
       expect(result.returnDisplay).toContain(
-        'No files were read and concatenated based on the criteria.',
+        'No files were read based on the criteria.',
       );
     });
 
@@ -327,17 +317,12 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: ['**/*.js'] };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      const content = result.llmContent as string[];
-      const expectedPath = path.join(tempRootDir, 'src/app.js');
+      const content = JSON.parse((result.llmContent as string[])[0]);
       expect(content).toEqual([
-        `--- ${expectedPath} ---\n\napp code\n\n`,
-        `\n--- End of content ---`,
+        { file_name: 'src/app.js', file_contents: 'app code' },
       ]);
-      expect(
-        content.find((c) => c.includes('node_modules/some-lib/index.js')),
-      ).toBeUndefined();
       expect(result.returnDisplay).toContain(
-        'Successfully read and concatenated content from **1 file(s)**',
+        'Successfully read content from **1 file(s)**',
       );
     });
 
@@ -347,24 +332,16 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: ['**/*.js'], useDefaultExcludes: false };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      const content = result.llmContent as string[];
-      const expectedPath1 = path.join(
-        tempRootDir,
-        'node_modules/some-lib/index.js',
-      );
-      const expectedPath2 = path.join(tempRootDir, 'src/app.js');
-      expect(
-        content.some((c) =>
-          c.includes(`--- ${expectedPath1} ---\n\nlib code\n\n`),
-        ),
-      ).toBe(true);
-      expect(
-        content.some((c) =>
-          c.includes(`--- ${expectedPath2} ---\n\napp code\n\n`),
-        ),
-      ).toBe(true);
+      const content = JSON.parse((result.llmContent as string[])[0]);
+      expect(content).toEqual([
+        {
+          file_name: 'node_modules/some-lib/index.js',
+          file_contents: 'lib code',
+        },
+        { file_name: 'src/app.js', file_contents: 'app code' },
+      ]);
       expect(result.returnDisplay).toContain(
-        'Successfully read and concatenated content from **2 file(s)**',
+        'Successfully read content from **2 file(s)**',
       );
     });
 
@@ -376,19 +353,22 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: ['*.png'] }; // Explicitly requesting .png
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      expect(result.llmContent).toEqual([
+      const content = JSON.parse((result.llmContent as string[])[0]);
+      expect(content).toEqual([
         {
-          inlineData: {
-            data: Buffer.from([
-              0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-            ]).toString('base64'),
-            mimeType: 'image/png',
+          file_name: 'image.png',
+          file_contents: {
+            inlineData: {
+              data: Buffer.from([
+                0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+              ]).toString('base64'),
+              mimeType: 'image/png',
+            },
           },
         },
-        '\n--- End of content ---',
       ]);
       expect(result.returnDisplay).toContain(
-        'Successfully read and concatenated content from **1 file(s)**',
+        'Successfully read content from **1 file(s)**',
       );
     });
 
@@ -400,16 +380,19 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: ['myExactImage.png'] }; // Explicitly requesting by full name
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      expect(result.llmContent).toEqual([
+      const content = JSON.parse((result.llmContent as string[])[0]);
+      expect(content).toEqual([
         {
-          inlineData: {
-            data: Buffer.from([
-              0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-            ]).toString('base64'),
-            mimeType: 'image/png',
+          file_name: 'myExactImage.png',
+          file_contents: {
+            inlineData: {
+              data: Buffer.from([
+                0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+              ]).toString('base64'),
+              mimeType: 'image/png',
+            },
           },
         },
-        '\n--- End of content ---',
       ]);
     });
 
@@ -419,15 +402,17 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: ['*'] }; // Generic glob, not specific to .pdf
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      const content = result.llmContent as string[];
-      const expectedPath = path.join(tempRootDir, 'notes.txt');
-      expect(
-        content.some(
-          (c) =>
-            typeof c === 'string' &&
-            c.includes(`--- ${expectedPath} ---\n\ntext notes\n\n`),
-        ),
-      ).toBe(true);
+      const content = JSON.parse((result.llmContent as string[])[0]);
+      expect(content).toEqual([
+        {
+          file_name: '.geminiignore',
+          file_contents: 'foo.*',
+        },
+        {
+          file_name: 'notes.txt',
+          file_contents: 'text notes',
+        },
+      ]);
       expect(result.returnDisplay).toContain('**Skipped 1 item(s):**');
       expect(result.returnDisplay).toContain(
         '- `document.pdf` (Reason: asset file (image/pdf) was not explicitly requested by name or extension)',
@@ -439,14 +424,17 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: ['*.pdf'] }; // Explicitly requesting .pdf files
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      expect(result.llmContent).toEqual([
+      const content = JSON.parse((result.llmContent as string[])[0]);
+      expect(content).toEqual([
         {
-          inlineData: {
-            data: Buffer.from('%PDF-1.4...').toString('base64'),
-            mimeType: 'application/pdf',
+          file_name: 'important.pdf',
+          file_contents: {
+            inlineData: {
+              data: Buffer.from('%PDF-1.4...').toString('base64'),
+              mimeType: 'application/pdf',
+            },
           },
         },
-        '\n--- End of content ---',
       ]);
     });
 
@@ -455,14 +443,17 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: ['report-final.pdf'] };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      expect(result.llmContent).toEqual([
+      const content = JSON.parse((result.llmContent as string[])[0]);
+      expect(content).toEqual([
         {
-          inlineData: {
-            data: Buffer.from('%PDF-1.4...').toString('base64'),
-            mimeType: 'application/pdf',
+          file_name: 'report-final.pdf',
+          file_contents: {
+            inlineData: {
+              data: Buffer.from('%PDF-1.4...').toString('base64'),
+              mimeType: 'application/pdf',
+            },
           },
         },
-        '\n--- End of content ---',
       ]);
     });
 
@@ -511,25 +502,18 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: ['*.txt'] };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      const content = result.llmContent as string[];
-      if (!Array.isArray(content)) {
-        throw new Error(`llmContent is not an array: ${content}`);
-      }
-      const expectedPath1 = path.join(tempDir1, 'file1.txt');
-      const expectedPath2 = path.join(tempDir2, 'file2.txt');
+      const content = JSON.parse((result.llmContent as string[])[0]);
 
-      expect(
-        content.some((c) =>
-          c.includes(`--- ${expectedPath1} ---\n\nContent1\n\n`),
-        ),
-      ).toBe(true);
-      expect(
-        content.some((c) =>
-          c.includes(`--- ${expectedPath2} ---\n\nContent2\n\n`),
-        ),
-      ).toBe(true);
+      expect(content).toEqual([
+        { file_name: 'file1.txt', file_contents: 'Content1' },
+        {
+          file_name: path.join(path.relative(tempDir1, tempDir2), 'file2.txt'),
+          file_contents: 'Content2',
+        },
+      ]);
+
       expect(result.returnDisplay).toContain(
-        'Successfully read and concatenated content from **2 file(s)**',
+        'Successfully read content from **2 file(s)**',
       );
 
       fs.rmSync(tempDir1, { recursive: true, force: true });
@@ -547,22 +531,26 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: ['*.txt'] };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      const content = result.llmContent as string[];
+      const content = JSON.parse(
+        (result.llmContent as string[])[0],
+      ) as FileData[];
 
-      const normalFileContent = content.find((c) => c.includes('file1.txt'));
-      const truncatedFileContent = content.find((c) =>
-        c.includes('large-file.txt'),
+      const normalFileContent = content.find(
+        (c: FileData) => c.file_name === 'file1.txt',
+      );
+      const truncatedFileContent = content.find(
+        (c: FileData) => c.file_name === 'large-file.txt',
       );
 
-      expect(normalFileContent).not.toContain(
+      expect(normalFileContent!.file_contents).not.toContain(
         '[WARNING: This file was truncated.',
       );
-      expect(truncatedFileContent).toContain(
+      expect(truncatedFileContent!.file_contents).toContain(
         "[WARNING: This file was truncated. To view the full content, use the 'read_file' tool on this specific file.]",
       );
       // Check that the actual content is still there but truncated
-      expect(truncatedFileContent).toContain('L200');
-      expect(truncatedFileContent).not.toContain('L2400');
+      expect(truncatedFileContent!.file_contents).toContain('L200');
+      expect(truncatedFileContent!.file_contents).not.toContain('L2400');
     });
 
     it('should read files with special characters like [] and () in the path', async () => {
@@ -571,17 +559,15 @@ describe('ReadManyFilesTool', () => {
       const params = { paths: [filePath] };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      const expectedPath = path.join(tempRootDir, filePath);
-      expect(result.llmContent).toEqual([
-        `--- ${expectedPath} ---
-
-Content of receive-detail
-
-`,
-        `\n--- End of content ---`,
+      const content = JSON.parse((result.llmContent as string[])[0]);
+      expect(content).toEqual([
+        {
+          file_name: filePath,
+          file_contents: 'Content of receive-detail',
+        },
       ]);
       expect(result.returnDisplay).toContain(
-        'Successfully read and concatenated content from **1 file(s)**',
+        'Successfully read content from **1 file(s)**',
       );
     });
 
@@ -590,17 +576,15 @@ Content of receive-detail
       const params = { paths: ['file[1].txt'] };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      const expectedPath = path.join(tempRootDir, 'file[1].txt');
-      expect(result.llmContent).toEqual([
-        `--- ${expectedPath} ---
-
-Content of file[1]
-
-`,
-        `\n--- End of content ---`,
+      const content = JSON.parse((result.llmContent as string[])[0]);
+      expect(content).toEqual([
+        {
+          file_name: 'file[1].txt',
+          file_contents: 'Content of file[1]',
+        },
       ]);
       expect(result.returnDisplay).toContain(
-        'Successfully read and concatenated content from **1 file(s)**',
+        'Successfully read content from **1 file(s)**',
       );
     });
   });
@@ -667,10 +651,14 @@ Content of file[1]
 
       // Verify all files were processed. The content should have fileCount
       // entries + 1 for the output terminator.
-      const content = result.llmContent as string[];
-      expect(content).toHaveLength(fileCount + 1);
+      const content = JSON.parse(
+        (result.llmContent as string[])[0],
+      ) as FileData[];
+      expect(content).toHaveLength(fileCount);
       for (let i = 0; i < fileCount; i++) {
-        expect(content.join('')).toContain(`Batch test ${i}`);
+        expect(
+          content.find((c: FileData) => c.file_contents === `Batch test ${i}`),
+        ).toBeDefined();
       }
 
       // Cleanup mock
@@ -694,17 +682,21 @@ Content of file[1]
 
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
-      const content = result.llmContent as string[];
+      const content = JSON.parse(
+        (result.llmContent as string[])[0],
+      ) as FileData[];
 
       // Should successfully process valid files despite one failure
       expect(content.length).toBeGreaterThanOrEqual(3);
       expect(result.returnDisplay).toContain('Successfully read');
 
       // Verify valid files were processed
-      const expectedPath1 = path.join(tempRootDir, 'valid1.txt');
-      const expectedPath3 = path.join(tempRootDir, 'valid3.txt');
-      expect(content.some((c) => c.includes(expectedPath1))).toBe(true);
-      expect(content.some((c) => c.includes(expectedPath3))).toBe(true);
+      expect(
+        content.find((c: FileData) => c.file_name === 'valid1.txt'),
+      ).toBeDefined();
+      expect(
+        content.find((c: FileData) => c.file_name === 'valid3.txt'),
+      ).toBeDefined();
     });
 
     it('should execute file operations concurrently', async () => {
