@@ -33,6 +33,7 @@ async function writePortAndWorkspace(
   portFile: string,
   ppidPortFile: string,
   log: (message: string) => void,
+  authToken: string,
 ): Promise<void> {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   const workspacePath =
@@ -49,7 +50,12 @@ async function writePortAndWorkspace(
     workspacePath,
   );
 
-  const content = JSON.stringify({ port, workspacePath, ppid: process.ppid });
+  const content = JSON.stringify({
+    port,
+    workspacePath,
+    ppid: process.ppid,
+    authToken,
+  });
 
   log(`Writing port file to: ${portFile}`);
   log(`Writing ppid port file to: ${ppidPortFile}`);
@@ -95,6 +101,7 @@ export class IDEServer {
   private portFile: string | undefined;
   private ppidPortFile: string | undefined;
   private port: number | undefined;
+  private authToken: string | undefined;
   private transports: { [sessionId: string]: StreamableHTTPServerTransport } =
     {};
   private openFilesManager: OpenFilesManager | undefined;
@@ -108,10 +115,29 @@ export class IDEServer {
   start(context: vscode.ExtensionContext): Promise<void> {
     return new Promise((resolve) => {
       this.context = context;
+      this.authToken = randomUUID();
       const sessionsWithInitialNotification = new Set<string>();
 
       const app = express();
       app.use(express.json({ limit: '10mb' }));
+
+      // The CLI will send the token in the authorization header.
+      // Older CLIs will not send this header.
+      // To maintain backwards compatibility, we only validate the token
+      // if the header is present.
+      app.use((req, res, next) => {
+        const authHeader = req.headers.authorization;
+        if (authHeader) {
+          const token = authHeader.split(' ')[1];
+          if (token !== this.authToken) {
+            this.log('Invalid auth token provided. Rejecting request.');
+            res.status(401).send('Unauthorized');
+            return;
+          }
+        }
+        next();
+      });
+
       const mcpServer = createMcpServer(this.diffManager);
 
       this.openFilesManager = new OpenFilesManager(context);
@@ -256,6 +282,7 @@ export class IDEServer {
             this.portFile,
             this.ppidPortFile,
             this.log,
+            this.authToken!,
           );
         }
         resolve();
@@ -282,7 +309,8 @@ export class IDEServer {
       this.server &&
       this.port &&
       this.portFile &&
-      this.ppidPortFile
+      this.ppidPortFile &&
+      this.authToken
     ) {
       await writePortAndWorkspace(
         this.context,
@@ -290,6 +318,7 @@ export class IDEServer {
         this.portFile,
         this.ppidPortFile,
         this.log,
+        this.authToken,
       );
       this.broadcastIdeContextUpdate();
     }
