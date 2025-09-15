@@ -20,6 +20,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     container:
       image: 'ghcr.io/google-gemini/gemini-cli-swe-agent-eval@sha256:e1ed7784fe50615e6144c22a057ce0a135bd914695b1c8e2db599414a2a71872'
+      credentials:
         username: '${{ github.actor }}'
         password: '${{ secrets.GITHUB_TOKEN }}'
       env:
