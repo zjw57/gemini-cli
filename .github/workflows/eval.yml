@@ -19,7 +19,7 @@ jobs:
       github.repository == 'google-gemini/gemini-cli'
     runs-on: 'ubuntu-latest'
     container:
-      image: 'ghcr.io/google-gemini/gemini-cli-swe-agent-eval@sha256:ea0cdf518c0d590bd33b2e02febe7af9d692288aa2acd2b5043d02c52c503d19'
+      image: 'ghcr.io/google-gemini/gemini-cli-swe-agent-eval@sha256:50c5e9c8aa6d8750fa8a53245a672ed0ba57b652acb0aac6a2a5f2c3f78a5ed6'
       credentials:
         username: '${{ github.actor }}'
         password: '${{ secrets.GITHUB_TOKEN }}'
