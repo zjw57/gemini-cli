@@ -342,6 +342,9 @@ def main() -> None:
 
     for group_name, tests in eval_groups.items():
         for t in tests:
+            # TODO: Switch to new structured output. (https://github.com/google-gemini/gemini-cli/issues/8022)
+            #   1. Replace "sessionMetrics." with "stats." in JSON paths
+            #   2. Update run_gemini_cli() to write structured output to a file
             x_path: str = f"sessionMetrics.tools.byName.['{t['tool_name']}'].success"
             y_path: str = f"sessionMetrics.tools.byName.['{t['wrong_tool_name']}'].count"
             # TODO: Enable a more reliable way to prevent KV caching besides prepending with random UUID
