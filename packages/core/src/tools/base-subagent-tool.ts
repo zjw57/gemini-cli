@@ -36,6 +36,7 @@ import type {
 } from '../core/subagent.js';
 import { DEFAULT_GEMINI_MODEL, DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 import { ToolErrorType } from './tool-error.js';
+import { WebFetchTool } from './web-fetch.js';
 
 export abstract class BaseSubAgentInvocation<
   TInput,
@@ -86,7 +87,7 @@ export abstract class BaseSubAgentInvocation<
   protected getRequiredTools(): Array<
     FunctionDeclaration | AnyDeclarativeTool
   > {
-    return [
+    const required_tools: Array<FunctionDeclaration | AnyDeclarativeTool> = [
       new LSTool(this.config),
       new GlobTool(this.config),
       this.config.getUseRipgrep()
@@ -95,6 +96,10 @@ export abstract class BaseSubAgentInvocation<
       new ReadFileTool(this.config),
       new ReadManyFilesTool(this.config),
     ];
+    if (process.env['GEMINI_SUBAGENT_ADD_WEB_TOOL']) {
+      required_tools.push(new WebFetchTool(this.config))
+    }
+    return required_tools;
   }
 
   private getSubagentModel(): string {
