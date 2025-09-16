@@ -111,15 +111,16 @@ export async function runNonInteractive(
       let currentMessages: Content[] = [{ role: 'user', parts: query }];
 
     const subAgentName = process.env['GEMINI_SUBAGENT_NAME'];
+    const includeFileContent = process.env['GEMINI_SUBAGENT_FILE_CONTENT'];
 
     if (subAgentName) {
       if (subAgentName === 'contextHarvester') {
         const subAgentTool = new ContextHarvesterTool(config);
         const analysis_questions = [
-            'Based on the user query, what is the primary goal?',
-            'Identify all relevant files, functions, and classes related to the user a request.',
-            'Provide a summary of the existing implementation.',
-            'What is the best file to start with to implement the user a request?',
+          'Based on the user query, what is the primary goal?',
+          'Identify all relevant files, functions, and classes related to the user a request.',
+          'Provide a summary of the existing implementation.',
+          'What is the best file to start with to implement the user a request?',
         ];
         const subAgentInput: ContextHarvesterInput = {
           user_objective: input,
@@ -131,9 +132,11 @@ export async function runNonInteractive(
 
         if (result.llmContent) {
           (currentMessages[0].parts as Part[]).push(
-            { text: `\n--- The user Ran the tool '${subAgentTool.name}'. The description of the tool is '${subAgentTool.description}'. 
+            {
+              text: `\n--- The user Ran the tool '${subAgentTool.name}'. The description of the tool is '${subAgentTool.description}'. 
               The questions the user asked are: '${analysis_questions}'.
-              This is the result of the tool: ---\n` },
+              This is the result of the tool: ---\n`,
+            },
             { text: result.llmContent as string },
           );
         }
@@ -141,6 +144,7 @@ export async function runNonInteractive(
         const subAgentTool = new CodebaseInvestigatorTool(config);
         const subAgentInput: CodebaseInvestigatorInput = {
           user_objective: input,
+          include_file_content: includeFileContent === 'true',
         };
 
         const invocation = subAgentTool.build(subAgentInput);
@@ -148,23 +152,9 @@ export async function runNonInteractive(
 
         if (result.llmContent) {
           (currentMessages[0].parts as Part[]).push(
-            { text: `\n--- The user Ran the tool '${subAgentTool.name}'. The description of the tool is '${subAgentTool.description}' and this is the result of the tool: ---\n` },
-            { text: result.llmContent as string },
-          );
-        }
-      } else if (subAgentName === 'codebase_investigator_with_files') {
-        const subAgentTool = new CodebaseInvestigatorTool(config);
-        const subAgentInput: CodebaseInvestigatorInput = {
-          user_objective: input,
-          include_file_content: true,
-        };
-
-        const invocation = subAgentTool.build(subAgentInput);
-        const result = await invocation.execute(abortController.signal);
-
-        if (result.llmContent) {
-          (currentMessages[0].parts as Part[]).push(
-          { text: `\n--- The user Ran the tool '${subAgentTool.name}'. The description of the tool is '${subAgentTool.description}' and this is the result of the tool: ---\n` },
+            {
+              text: `\n--- The user Ran the tool '${subAgentTool.name}'. The description of the tool is '${subAgentTool.description}' and this is the result of the tool: ---\n`,
+            },
             { text: result.llmContent as string },
           );
         }
@@ -172,6 +162,7 @@ export async function runNonInteractive(
         const subAgentTool = new SolutionPlannerTool(config);
         const subAgentInput: SolutionPlannerInput = {
           user_objective: input,
+          include_file_content: includeFileContent === 'true',
         };
 
         const invocation = subAgentTool.build(subAgentInput);
@@ -195,6 +186,7 @@ export async function runNonInteractive(
         const subAgentTool = new SolutionPlannerTool(config);
         const subAgentInput: SolutionPlannerInput = {
           user_objective: input,
+          include_file_content: includeFileContent === 'true',
         };
 
         const invocation = subAgentTool.build(subAgentInput);
