@@ -189,6 +189,11 @@ describe('simple-mcp-server', () => {
       const { chmodSync } = await import('node:fs');
       chmodSync(testServerPath, 0o755);
     }
+
+    // Allow a moment for the file system to sync, which can help
+    // prevent race conditions in some CI environments where the test
+    // might run before the script is fully available.
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   });
 
   it('should add two numbers', async () => {
