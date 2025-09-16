@@ -190,9 +190,7 @@ describe('simple-mcp-server', () => {
       chmodSync(testServerPath, 0o755);
     }
 
-    // Allow a moment for the file system to sync, which can help
-    // prevent race conditions in some CI environments where the test
-    // might run before the script is fully available.
+    // Wait 1s for the file system to sync to prevent race conditions
     await new Promise((resolve) => setTimeout(resolve, 1000));
   });
 
