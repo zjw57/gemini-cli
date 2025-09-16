@@ -53,34 +53,39 @@ export class StagnationDetector {
     const lastAction = recentActions[recentActions.length - 1];
 
     const isLoop = recentActions.every(
-      action => action.command === lastAction.command && action.target === lastAction.target
+      (action) =>
+        action.command === lastAction.command &&
+        action.target === lastAction.target,
     );
 
     if (isLoop) {
-        return `Repetitive action detected: "${lastAction.command}" executed ${threshold} times consecutively. You MUST change your strategy. Do not repeat this command.`;
+      return `Repetitive action detected: "${lastAction.command}" executed ${threshold} times consecutively. You MUST change your strategy. Do not repeat this command.`;
     }
     return null;
   }
 
   private _checkRepetitiveReads(): string | null {
     const threshold = cimConfig.stagnation.repetitiveReadLimit;
-    const readActions = this.actionHistory.filter(a => a.command === 'read_file' || (a.command === 'run_shell_command' && a.target.startsWith('cat')));
+    const readActions = this.actionHistory.filter(
+      (a) =>
+        a.command === 'read_file' ||
+        (a.command === 'run_shell_command' && a.target.startsWith('cat')),
+    );
 
     const counts: Record<string, number> = {};
     for (const action of readActions) {
-        counts[action.target] = (counts[action.target] || 0) + 1;
-        if (counts[action.target] >= threshold) {
-            return `Excessive reading detected: File '${action.target}' read ${counts[action.target]} times recently. Stop re-reading and start analyzing the information you have (trace imports, find usages) or transition to modification.`;
-        }
+      counts[action.target] = (counts[action.target] || 0) + 1;
+      if (counts[action.target] >= threshold) {
+        return `Excessive reading detected: File '${action.target}' read ${counts[action.target]} times recently. Stop re-reading and start analyzing the information you have (trace imports, find usages) or transition to modification.`;
+      }
     }
     return null;
   }
 
-
   private _checkStateTimeouts(): string | null {
     const timeouts = cimConfig.stagnation.stateTimeouts;
     const timeout = timeouts[this.currentState as keyof typeof timeouts];
-    
+
     if (timeout && this.currentTurnsInState > timeout) {
       if (this.currentState === TDDState.EXPLORING) {
         return `Excessive time spent exploring (${this.currentTurnsInState} turns). Stop exploring and transition to WRITING_TEST based on your current findings NOW.`;

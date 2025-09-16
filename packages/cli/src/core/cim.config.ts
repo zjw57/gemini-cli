@@ -1,3 +1,9 @@
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { TDDState } from './reminder-types.js';
 
 export const cimConfig = {
@@ -18,6 +24,6 @@ export const cimConfig = {
       [TDDState.EXPLORING]: 15,
       [TDDState.WRITING_TEST]: 8,
       [TDDState.WRITING_FIX]: 12,
-    }
-  }
+    },
+  },
 };

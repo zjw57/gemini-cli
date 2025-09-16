@@ -680,7 +680,10 @@ export const useGeminiStream = (
       stream: AsyncIterable<GeminiEvent>,
       userMessageTimestamp: number,
       signal: AbortSignal,
-    ): Promise<{ status: StreamProcessingStatus; geminiMessageBuffer: string }> => {
+    ): Promise<{
+      status: StreamProcessingStatus;
+      geminiMessageBuffer: string;
+    }> => {
       let geminiMessageBuffer = '';
       const toolCallRequests: ToolCallRequestInfo[] = [];
       for await (const event of stream) {
@@ -785,7 +788,6 @@ export const useGeminiStream = (
         prompt_id = config.getSessionId() + '########' + getPromptCount();
       }
 
-
       let reminders: string[] | undefined;
       if (!options?.isContinuation) {
         const startOfTurnOutput = await contextInjectionManager.processHook(
@@ -803,7 +805,7 @@ export const useGeminiStream = (
           userMessageTimestamp,
           abortSignal,
           prompt_id,
-          reminders
+          reminders,
         );
 
         if (!shouldProceed || queryToSend === null) {
@@ -830,7 +832,9 @@ export const useGeminiStream = (
             abortSignal,
           );
 
-          if (processingStatus.status === StreamProcessingStatus.UserCancelled) {
+          if (
+            processingStatus.status === StreamProcessingStatus.UserCancelled
+          ) {
             return;
           }
 
@@ -880,7 +884,7 @@ export const useGeminiStream = (
       startNewPrompt,
       getPromptCount,
       handleLoopDetectedEvent,
-      contextInjectionManager
+      contextInjectionManager,
     ],
   );
 
@@ -1027,7 +1031,10 @@ export const useGeminiStream = (
         const reminderText = postExecOutput.reminders.join('\n');
         if (responsesToSend.length > 0) {
           const lastResponse = responsesToSend[responsesToSend.length - 1];
-          if ('toolResponse' in lastResponse && (lastResponse as any).toolResponse) {
+          if (
+            'toolResponse' in lastResponse &&
+            (lastResponse as any).toolResponse
+          ) {
             (lastResponse as any).toolResponse.output += `\n${reminderText}`;
           }
         }

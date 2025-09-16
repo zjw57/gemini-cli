@@ -35,3 +35,15 @@ export enum TDDState {
   // 5: Reverting temporary tests/debugging code.
   CLEANUP = 5,
 }
+
+export interface PreToolExecutionPayload {
+  requestsToProcess: unknown[];
+}
+
+export interface PostToolExecutionPayload {
+  completedToolCalls: unknown[];
+}
+
+export interface PreResponseFinalizationPayload {
+  modelResponse: string;
+}
