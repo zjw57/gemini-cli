@@ -13,6 +13,11 @@ on:
         required: false
         type: 'boolean'
         default: false
+      ref:
+        description: 'The branch, tag, or SHA to release from.'
+        required: false
+        type: 'string'
+        default: 'main'
 
 jobs:
   calculate-versions:
@@ -60,16 +65,21 @@ jobs:
           echo "PREVIEW_SHA=$(git rev-parse "$(echo "${PREVIEW_JSON}" | jq -r .previousReleaseTag)"^{commit})" >> "${GITHUB_OUTPUT}"
           echo "PREVIOUS_PREVIEW_TAG=$(echo "${PREVIEW_JSON}" | jq -r .previousReleaseTag)" >> "${GITHUB_OUTPUT}"
           echo "NEXT_NIGHTLY_VERSION=$(echo "${NIGHTLY_JSON}" | jq -r .releaseVersion)" >> "${GITHUB_OUTPUT}"
+          CURRENT_NIGHTLY_TAG=$(git describe --tags --abbrev=0 --match="*nightly*")
+          echo "CURRENT_NIGHTLY_TAG=${CURRENT_NIGHTLY_TAG}" >> "${GITHUB_OUTPUT}"
+          echo "NEXT_SHA=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
-      - name: 'Debug Calculated Versions'
+      - name: 'Display Pending Updates'
         run: |
-          echo "STABLE_VERSION: ${{ steps.versions.outputs.STABLE_VERSION }}"
-          echo "STABLE_SHA: ${{ steps.versions.outputs.STABLE_SHA }}"
-          echo "PREVIOUS_STABLE_TAG: ${{ steps.versions.outputs.PREVIOUS_STABLE_TAG }}"
-          echo "PREVIEW_VERSION: ${{ steps.versions.outputs.PREVIEW_VERSION }}"
-          echo "PREVIEW_SHA: ${{ steps.versions.outputs.PREVIEW_SHA }}"
-          echo "PREVIOUS_PREVIEW_TAG: ${{ steps.versions.outputs.PREVIOUS_PREVIEW_TAG }}"
-          echo "NEXT_NIGHTLY_VERSION: ${{ steps.versions.outputs.NEXT_NIGHTLY_VERSION }}"
+          echo "Pending Changes:"
+          echo "  Nightly: ${{ steps.versions.outputs.CURRENT_NIGHTLY_TAG }} -> ${{ steps.versions.outputs.NEXT_NIGHTLY_VERSION }}"
+          echo "  Preview: ${{ steps.versions.outputs.PREVIOUS_PREVIEW_TAG }} -> ${{ steps.versions.outputs.PREVIEW_VERSION }}"
+          echo "  Stable:  ${{ steps.versions.outputs.PREVIOUS_STABLE_TAG }} -> ${{ steps.versions.outputs.STABLE_VERSION }}"
+          echo ""
+          echo "Relevant SHAs:"
+          echo "  Current (Stable):  ${{ steps.versions.outputs.STABLE_SHA }}"
+          echo "  Current (Preview): ${{ steps.versions.outputs.PREVIEW_SHA }}"
+          echo "  Next (to be promoted): ${{ steps.versions.outputs.NEXT_SHA }}"
 
   promote:
     name: 'Promote to ${{ matrix.channel }}'
