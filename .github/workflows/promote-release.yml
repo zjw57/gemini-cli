@@ -61,6 +61,16 @@ jobs:
           echo "PREVIOUS_PREVIEW_TAG=$(echo "${PREVIEW_JSON}" | jq -r .previousReleaseTag)" >> "${GITHUB_OUTPUT}"
           echo "NEXT_NIGHTLY_VERSION=$(echo "${NIGHTLY_JSON}" | jq -r .releaseVersion)" >> "${GITHUB_OUTPUT}"
 
+      - name: 'Debug Calculated Versions'
+        run: |
+          echo "STABLE_VERSION: ${{ steps.versions.outputs.STABLE_VERSION }}"
+          echo "STABLE_SHA: ${{ steps.versions.outputs.STABLE_SHA }}"
+          echo "PREVIOUS_STABLE_TAG: ${{ steps.versions.outputs.PREVIOUS_STABLE_TAG }}"
+          echo "PREVIEW_VERSION: ${{ steps.versions.outputs.PREVIEW_VERSION }}"
+          echo "PREVIEW_SHA: ${{ steps.versions.outputs.PREVIEW_SHA }}"
+          echo "PREVIOUS_PREVIEW_TAG: ${{ steps.versions.outputs.PREVIOUS_PREVIEW_TAG }}"
+          echo "NEXT_NIGHTLY_VERSION: ${{ steps.versions.outputs.NEXT_NIGHTLY_VERSION }}"
+
   promote:
     name: 'Promote to ${{ matrix.channel }}'
     needs: 'calculate-versions'
@@ -165,7 +175,13 @@ jobs:
           BRANCH_NAME: '${{ steps.release_branch.outputs.BRANCH_NAME }}'
           DRY_RUN: '${{ github.event.inputs.dry_run }}'
         run: |-
-          git add package.json npm-shrinkwrap.json packages/*/package.json
+          git add package.json packages/*/package.json
+          if [ -f npm-shrinkwrap.json ]; then
+            git add npm-shrinkwrap.json
+          fi
+          if [ -f package-lock.json ]; then
+            git add package-lock.json
+          fi
           git commit -m "chore(release): bump version to ${{ needs.calculate-versions.outputs.NEXT_NIGHTLY_VERSION }}"
           if [[ "${DRY_RUN}" == "false" ]]; then
             echo "Pushing release branch to remote..."
