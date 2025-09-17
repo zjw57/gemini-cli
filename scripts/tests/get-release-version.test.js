@@ -18,19 +18,27 @@ describe('getVersion', () => {
 
   const mockExecSync = (command) => {
     // NPM Mocks
-    if (command.includes('npm view') && command.includes('--tag=latest')) return '0.4.1';
-    if (command.includes('npm view') && command.includes('--tag=preview')) return '0.5.0-preview-2';
-    if (command.includes('npm view') && command.includes('--tag=nightly')) return '0.6.0-nightly.20250910.a31830a3';
+    if (command.includes('npm view') && command.includes('--tag=latest'))
+      return '0.4.1';
+    if (command.includes('npm view') && command.includes('--tag=preview'))
+      return '0.5.0-preview-2';
+    if (command.includes('npm view') && command.includes('--tag=nightly'))
+      return '0.6.0-nightly.20250910.a31830a3';
 
     // Git Tag Mocks
-    if (command.includes("git tag --sort=-creatordate -l 'v[0-9].[0-9].[0-9]'")) return 'v0.4.1';
-    if (command.includes("git tag --sort=-creatordate -l 'v*-preview*'")) return 'v0.5.0-preview-2';
-    if (command.includes("git tag --sort=-creatordate -l 'v*-nightly*'")) return 'v0.6.0-nightly.20250910.a31830a3';
+    if (command.includes("git tag --sort=-creatordate -l 'v[0-9].[0-9].[0-9]'"))
+      return 'v0.4.1';
+    if (command.includes("git tag --sort=-creatordate -l 'v*-preview*'"))
+      return 'v0.5.0-preview-2';
+    if (command.includes("git tag --sort=-creatordate -l 'v*-nightly*'"))
+      return 'v0.6.0-nightly.20250910.a31830a3';
 
     // GitHub Release Mocks
     if (command.includes('gh release view "v0.4.1"')) return 'v0.4.1';
-    if (command.includes('gh release view "v0.5.0-preview-2"')) return 'v0.5.0-preview-2';
-    if (command.includes('gh release view "v0.6.0-nightly.20250910.a31830a3"')) return 'v0.6.0-nightly.20250910.a31830a3';
+    if (command.includes('gh release view "v0.5.0-preview-2"'))
+      return 'v0.5.0-preview-2';
+    if (command.includes('gh release view "v0.6.0-nightly.20250910.a31830a3"'))
+      return 'v0.6.0-nightly.20250910.a31830a3';
 
     // Git Hash Mock
     if (command.includes('git rev-parse --short HEAD')) return 'd3bf8a3d';
@@ -60,7 +68,9 @@ describe('getVersion', () => {
       const result = getVersion({ type: 'nightly' });
       expect(result.releaseVersion).toBe('0.7.0-nightly.20250917.d3bf8a3d');
       expect(result.npmTag).toBe('nightly');
-      expect(result.previousReleaseTag).toBe('v0.6.0-nightly.20250910.a31830a3');
+      expect(result.previousReleaseTag).toBe(
+        'v0.6.0-nightly.20250910.a31830a3',
+      );
     });
 
     it('should calculate the next patch version for a stable release', () => {
@@ -83,13 +93,14 @@ describe('getVersion', () => {
   describe('Failure Path - Discrepancy Checks', () => {
     it('should throw an error if the git tag does not match npm', () => {
       const mockWithMismatchGitTag = (command) => {
-        if (command.includes("git tag --sort=-creatordate -l 'v*-preview*'")) return 'v0.4.0-preview-99'; // Mismatch
+        if (command.includes("git tag --sort=-creatordate -l 'v*-preview*'"))
+          return 'v0.4.0-preview-99'; // Mismatch
         return mockExecSync(command);
       };
       vi.mocked(execSync).mockImplementation(mockWithMismatchGitTag);
 
       expect(() => getVersion({ type: 'stable' })).toThrow(
-        'Discrepancy found! NPM preview tag (0.5.0-preview-2) does not match latest git preview tag (v0.4.0-preview-99).'
+        'Discrepancy found! NPM preview tag (0.5.0-preview-2) does not match latest git preview tag (v0.4.0-preview-99).',
       );
     });
 
@@ -103,7 +114,7 @@ describe('getVersion', () => {
       vi.mocked(execSync).mockImplementation(mockWithMissingRelease);
 
       expect(() => getVersion({ type: 'stable' })).toThrow(
-        'Discrepancy found! Failed to verify GitHub release for v0.5.0-preview-2.'
+        'Discrepancy found! Failed to verify GitHub release for v0.5.0-preview-2.',
       );
     });
   });
