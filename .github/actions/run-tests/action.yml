@@ -22,9 +22,7 @@ runs:
       if: '${{ !inputs.force_skip_tests }}'
       env:
         GEMINI_API_KEY: '${{ inputs.gemini_api_key }}'
-      defaults:
-        run:
-          working-directory: '${{ inputs.working-directory }}'
+      working-directory: '${{ inputs.working-directory }}'
       run: |-
         npm run build
         npm run test:ci
