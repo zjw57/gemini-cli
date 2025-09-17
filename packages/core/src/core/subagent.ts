@@ -641,7 +641,6 @@ export class SubAgentScope {
       } = {
         temperature: this.modelConfig.temp,
         topP: this.modelConfig.top_p,
-        responseMimeType: 'application/json',
       };
 
       if (systemInstruction) {
