@@ -68,8 +68,22 @@ export function resolvePathFromEnv(envVar?: string): {
     isDisabled: false,
   };
 }
+import type { Config } from '../config/config.js';
+import { getSubagentSystemPrompt } from './prompts-subagents.js';
 
-export function getCoreSystemPrompt(userMemory?: string): string {
+export function getCoreSystemPrompt(
+  config: Config,
+  userMemory?: string,
+): string {
+  const subagentTestingConfig = config.getSubagentTestingConfig();
+  if (subagentTestingConfig.invocationMode === 'agent_tool') {
+    const prompt = getSubagentSystemPrompt(
+      subagentTestingConfig.toolName ?? '',
+    );
+    if (prompt) {
+      return prompt;
+    }
+  }
   // A flag to indicate whether the system prompt override is active.
   let systemMdEnabled = false;
   // The default path for the system prompt file. This can be overridden.

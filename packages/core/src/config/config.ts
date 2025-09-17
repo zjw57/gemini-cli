@@ -61,6 +61,9 @@ import { RipgrepFallbackEvent } from '../telemetry/types.js';
 import type { FallbackModelHandler } from '../fallback/types.js';
 import { ModelRouterService } from '../routing/modelRouterService.js';
 import { OutputFormat } from '../output/types.js';
+import { ContextHarvesterTool } from '../tools/context-harvester.js';
+import { CodebaseInvestigatorTool } from '../tools/codebase-investigator.js';
+import { SolutionPlannerTool } from '../tools/planner.js';
 
 // Re-export OAuth config type
 export type { MCPOAuthConfig, AnyToolInvocation };
@@ -80,6 +83,12 @@ export enum ApprovalMode {
   DEFAULT = 'default',
   AUTO_EDIT = 'autoEdit',
   YOLO = 'yolo',
+}
+
+export interface SubagentTestingConfig {
+  toolName?: string;
+  invocationMode?: 'heuristic' | 'agent_tool';
+  includeFileContent?: boolean;
 }
 
 export interface AccessibilitySettings {
@@ -342,6 +351,7 @@ export class Config {
   private readonly outputSettings: OutputSettings;
   private readonly useModelRouter: boolean;
   private readonly enableMessageBusIntegration: boolean;
+  private readonly subagentTestingConfig: SubagentTestingConfig;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -440,6 +450,26 @@ export class Config {
     this.messageBus = new MessageBus(this.policyEngine);
     this.outputSettings = {
       format: params.output?.format ?? OutputFormat.TEXT,
+    };
+
+    const subagentTools = [
+      ContextHarvesterTool,
+      CodebaseInvestigatorTool,
+      SolutionPlannerTool,
+    ];
+    const toolNameFromEnv = process.env['GEMINI_SUBAGENT_TOOL_NAME'];
+    const foundTool = subagentTools.find(
+      (tool) => tool.Name === toolNameFromEnv,
+    );
+
+    this.subagentTestingConfig = {
+      toolName: foundTool ? foundTool.Name : undefined,
+      invocationMode: process.env['GEMINI_SUBAGENT_INVOCATION_MODE'] as
+        | 'heuristic'
+        | 'agent_tool'
+        | undefined,
+      includeFileContent:
+        process.env['GEMINI_SUBAGENT_INCLUDE_FILE_CONTENT'] === 'true',
     };
 
     if (params.contextFileName) {
@@ -970,6 +1000,10 @@ export class Config {
     return this.useModelRouter;
   }
 
+  getSubagentTestingConfig(): SubagentTestingConfig {
+    return this.subagentTestingConfig;
+  }
+
   async getGitService(): Promise<GitService> {
     if (!this.gitService) {
       this.gitService = new GitService(this.targetDir, this.storage);
@@ -1084,6 +1118,18 @@ export class Config {
     if (this.getUseWriteTodos()) {
       registerCoreTool(WriteTodosTool, this);
     }
+
+    const subagentTestingConfig = this.getSubagentTestingConfig();
+    if (subagentTestingConfig.invocationMode === 'agent_tool') {
+      if (subagentTestingConfig.toolName === CodebaseInvestigatorTool.Name) {
+        registry.registerTool(new CodebaseInvestigatorTool(this));
+      } else if (subagentTestingConfig.toolName === SolutionPlannerTool.Name) {
+        registry.registerTool(new SolutionPlannerTool(this));
+      } else if (subagentTestingConfig.toolName === ContextHarvesterTool.Name) {
+        registry.registerTool(new ContextHarvesterTool(this));
+      }
+    }
+
     await registry.discoverAllTools();
     return registry;
   }

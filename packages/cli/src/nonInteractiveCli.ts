@@ -4,6 +4,26 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+ * This file implements the non-interactive mode for the Gemini CLI.
+ * It supports experimental subagent configurations via environment variables:
+ *
+ * GEMINI_SUBAGENT_TOOL_NAME:
+ *   Specifies the subagent tool to run.
+ *   Values: 'context_harvester', 'codebase_investigator', 'planner', 'flexible_planner'
+ *
+ * GEMINI_SUBAGENT_INVOCATION_MODE:
+ *   Determines how the subagent is invoked.
+ *   - 'heuristic': The subagent runs before the main agent, and its output is
+ *     prepended to the user's prompt as context. This is the default behavior.
+ *   - 'agent_tool': The subagent is registered as a tool that the main agent
+ *     can choose to call. The system prompt is modified to guide the agent.
+ *
+ * GEMINI_SUBAGENT_INCLUDE_FILE_CONTENT:
+ *   If set to 'true', the content of relevant files found by the subagent
+ *   will be included in its final report.
+ */
+
 import type {
   Config,
   ToolCallRequestInfo,
@@ -110,10 +130,12 @@ export async function runNonInteractive(
 
       let currentMessages: Content[] = [{ role: 'user', parts: query }];
 
-    const subAgentName = process.env['GEMINI_SUBAGENT_NAME'];
-    const includeFileContent = process.env['GEMINI_SUBAGENT_FILE_CONTENT'];
+    const subagentTestingConfig = config.getSubagentTestingConfig();
 
-    if (subAgentName) {
+    if (subagentTestingConfig.invocationMode === 'heuristic') {
+      const subAgentName = subagentTestingConfig.toolName;
+      const includeFileContent = subagentTestingConfig.includeFileContent;
+
       if (subAgentName === 'contextHarvester') {
         const subAgentTool = new ContextHarvesterTool(config);
         const analysis_questions = [
@@ -144,7 +166,7 @@ export async function runNonInteractive(
         const subAgentTool = new CodebaseInvestigatorTool(config);
         const subAgentInput: CodebaseInvestigatorInput = {
           user_objective: input,
-          include_file_content: includeFileContent === 'true',
+          include_file_content: includeFileContent,
         };
 
         const invocation = subAgentTool.build(subAgentInput);
@@ -162,7 +184,7 @@ export async function runNonInteractive(
         const subAgentTool = new SolutionPlannerTool(config);
         const subAgentInput: SolutionPlannerInput = {
           user_objective: input,
-          include_file_content: includeFileContent === 'true',
+          include_file_content: includeFileContent,
         };
 
         const invocation = subAgentTool.build(subAgentInput);
@@ -186,7 +208,7 @@ export async function runNonInteractive(
         const subAgentTool = new SolutionPlannerTool(config);
         const subAgentInput: SolutionPlannerInput = {
           user_objective: input,
-          include_file_content: includeFileContent === 'true',
+          include_file_content: includeFileContent,
         };
 
         const invocation = subAgentTool.build(subAgentInput);
