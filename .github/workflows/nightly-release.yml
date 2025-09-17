@@ -25,6 +25,8 @@ jobs:
   release:
     runs-on: 'ubuntu-latest'
     permissions:
+      contents: 'write'
+      packages: 'write'
       issues: 'write'
     steps:
       - name: 'Checkout'
