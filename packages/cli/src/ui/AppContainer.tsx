@@ -717,7 +717,11 @@ Logging in with Google... Please restart Gemini CLI to continue.
     const getIde = async () => {
       const ideClient = await IdeClient.getInstance();
       const currentIde = ideClient.getCurrentIde();
-      setCurrentIDE(currentIde || null);
+      if (currentIde && typeof currentIde !== 'string') {
+        setCurrentIDE(currentIde.name as DetectedIde);
+      } else {
+        setCurrentIDE(currentIde || null);
+      }
     };
     getIde();
   }, []);

@@ -16,54 +16,69 @@ export enum DetectedIde {
   VSCodeFork = 'vscodefork',
 }
 
-export interface IdeInfo {
+export interface CustomIde {
+  name: string;
   displayName: string;
 }
 
-export function getIdeInfo(ide: DetectedIde): IdeInfo {
-  switch (ide) {
-    case DetectedIde.Devin:
-      return {
-        displayName: 'Devin',
-      };
-    case DetectedIde.Replit:
-      return {
-        displayName: 'Replit',
-      };
-    case DetectedIde.Cursor:
-      return {
-        displayName: 'Cursor',
-      };
-    case DetectedIde.CloudShell:
-      return {
-        displayName: 'Cloud Shell',
-      };
-    case DetectedIde.Codespaces:
-      return {
-        displayName: 'GitHub Codespaces',
-      };
-    case DetectedIde.FirebaseStudio:
-      return {
-        displayName: 'Firebase Studio',
-      };
-    case DetectedIde.Trae:
-      return {
-        displayName: 'Trae',
-      };
-    case DetectedIde.VSCode:
-      return {
-        displayName: 'VS Code',
-      };
-    case DetectedIde.VSCodeFork:
-      return {
-        displayName: 'IDE',
-      };
-    default: {
-      // This ensures that if a new IDE is added to the enum, we get a compile-time error.
-      const exhaustiveCheck: never = ide;
-      return exhaustiveCheck;
+export type DetectedIdeInfo = DetectedIde | CustomIde;
+
+export function getIdeInfo(ide: DetectedIdeInfo): CustomIde {
+  if (typeof ide === 'string') {
+    switch (ide) {
+      case DetectedIde.Devin:
+        return {
+          name: DetectedIde.Devin,
+          displayName: 'Devin',
+        };
+      case DetectedIde.Replit:
+        return {
+          name: DetectedIde.Replit,
+          displayName: 'Replit',
+        };
+      case DetectedIde.Cursor:
+        return {
+          name: DetectedIde.Cursor,
+          displayName: 'Cursor',
+        };
+      case DetectedIde.CloudShell:
+        return {
+          name: DetectedIde.CloudShell,
+          displayName: 'Cloud Shell',
+        };
+      case DetectedIde.Codespaces:
+        return {
+          name: DetectedIde.Codespaces,
+          displayName: 'GitHub Codespaces',
+        };
+      case DetectedIde.FirebaseStudio:
+        return {
+          name: DetectedIde.FirebaseStudio,
+          displayName: 'Firebase Studio',
+        };
+      case DetectedIde.Trae:
+        return {
+          name: DetectedIde.Trae,
+          displayName: 'Trae',
+        };
+      case DetectedIde.VSCode:
+        return {
+          name: DetectedIde.VSCode,
+          displayName: 'VS Code',
+        };
+      case DetectedIde.VSCodeFork:
+        return {
+          name: DetectedIde.VSCodeFork,
+          displayName: 'IDE',
+        };
+      default: {
+        // This ensures that if a new IDE is added to the enum, we get a compile-time error.
+        const exhaustiveCheck: never = ide;
+        return exhaustiveCheck;
+      }
     }
   }
+  return ide;
 }
 
 export function detectIdeFromEnv(): DetectedIde {
@@ -107,7 +122,7 @@ function verifyVSCode(
   return DetectedIde.VSCodeFork;
 }
 
-export function detectIde(ideProcessInfo: {
+export function detectIdeInternal(ideProcessInfo: {
   pid: number;
   command: string;
 }): DetectedIde | undefined {
@@ -118,4 +133,17 @@ export function detectIde(ideProcessInfo: {
 
   const ide = detectIdeFromEnv();
   return verifyVSCode(ide, ideProcessInfo);
+}
+
+export function detectIde(
+  ideProcessInfo: {
+    pid: number;
+    command: string;
+  },
+  connectionConfig?: { ide?: CustomIde },
+): DetectedIdeInfo | undefined {
+  if (connectionConfig?.ide) {
+    return connectionConfig.ide;
+  }
+  return detectIdeInternal(ideProcessInfo);
 }

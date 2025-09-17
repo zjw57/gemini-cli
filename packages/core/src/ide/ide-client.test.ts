@@ -24,7 +24,7 @@ import {
   detectIde,
   DetectedIde,
   getIdeInfo,
-  type IdeInfo,
+  type CustomIde,
 } from './detect-ide.js';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -69,8 +69,9 @@ describe('IdeClient', () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/test/workspace/sub-dir');
     vi.mocked(detectIde).mockReturnValue(DetectedIde.VSCode);
     vi.mocked(getIdeInfo).mockReturnValue({
+      name: DetectedIde.VSCode,
       displayName: 'VS Code',
-    } as IdeInfo);
+    } as CustomIde);
     vi.mocked(getIdeProcessInfo).mockResolvedValue({
       pid: 12345,
       command: 'test-ide',

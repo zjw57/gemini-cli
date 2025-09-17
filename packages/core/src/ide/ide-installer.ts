@@ -9,7 +9,12 @@ import * as process from 'node:process';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
-import { DetectedIde, getIdeInfo, type IdeInfo } from './detect-ide.js';
+import {
+  DetectedIde,
+  getIdeInfo,
+  type CustomIde,
+  type DetectedIdeInfo,
+} from './detect-ide.js';
 import { GEMINI_CLI_COMPANION_EXTENSION_NAME } from './constants.js';
 
 function getVsCodeCommand(platform: NodeJS.Platform = process.platform) {
@@ -100,10 +105,10 @@ async function findVsCodeCommand(
 
 class VsCodeInstaller implements IdeInstaller {
   private vsCodeCommand: Promise<string | null>;
-  private readonly ideInfo: IdeInfo;
+  private readonly ideInfo: CustomIde;
 
   constructor(
-    readonly ide: DetectedIde,
+    readonly ide: DetectedIdeInfo,
     readonly platform = process.platform,
   ) {
     this.vsCodeCommand = findVsCodeCommand(platform);
@@ -150,10 +155,11 @@ class VsCodeInstaller implements IdeInstaller {
 }
 
 export function getIdeInstaller(
-  ide: DetectedIde,
+  ide: DetectedIdeInfo,
   platform = process.platform,
 ): IdeInstaller | null {
-  switch (ide) {
+  const ideName = typeof ide === 'string' ? ide : ide.name;
+  switch (ideName) {
     case DetectedIde.VSCode:
     case DetectedIde.FirebaseStudio:
       return new VsCodeInstaller(ide, platform);

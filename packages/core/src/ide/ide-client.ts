@@ -6,7 +6,12 @@
 
 import * as fs from 'node:fs';
 import { isSubpath } from '../utils/paths.js';
-import { detectIde, type DetectedIde, getIdeInfo } from '../ide/detect-ide.js';
+import {
+  detectIde,
+  type DetectedIdeInfo,
+  getIdeInfo,
+  type CustomIde,
+} from '../ide/detect-ide.js';
 import { ideContextStore } from './ideContext.js';
 import {
   IdeContextNotificationSchema,
@@ -62,6 +67,7 @@ type ConnectionConfig = {
   port?: string;
   stdio?: StdioConfig;
   authToken?: string;
+  ide?: CustomIde;
 };
 
 function getRealPath(path: string): string {
@@ -85,7 +91,7 @@ export class IdeClient {
     details:
       'IDE integration is currently disabled. To enable it, run /ide enable.',
   };
-  private currentIde: DetectedIde | undefined;
+  private currentIde: DetectedIdeInfo | undefined;
   private currentIdeDisplayName: string | undefined;
   private ideProcessInfo: { pid: number; command: string } | undefined;
   private authToken: string | undefined;
@@ -107,7 +113,10 @@ export class IdeClient {
       IdeClient.instancePromise = (async () => {
         const client = new IdeClient();
         client.ideProcessInfo = await getIdeProcessInfo();
-        client.currentIde = detectIde(client.ideProcessInfo);
+        // We need to read the config file to see if the IDE has identified
+        // itself.
+        const configFromFile = await client.getConnectionConfigFromFile();
+        client.currentIde = detectIde(client.ideProcessInfo, configFromFile);
         if (client.currentIde) {
           client.currentIdeDisplayName = getIdeInfo(
             client.currentIde,
@@ -139,7 +148,7 @@ export class IdeClient {
     if (!this.currentIde || !this.currentIdeDisplayName) {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        `IDE integration is not supported in your current environment. To use this feature, run Gemini CLI in one of these supported IDEs: VS Code or VS Code forks`,
+        `IDE integration is not supported in your current environment. To use this feature, run Gemini CLI in one of the supported IDEs.`,
         false,
       );
       return;
@@ -407,7 +416,7 @@ export class IdeClient {
     this.client?.close();
   }
 
-  getCurrentIde(): DetectedIde | undefined {
+  getCurrentIde(): DetectedIdeInfo | undefined {
     return this.currentIde;
   }
 

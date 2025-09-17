@@ -144,7 +144,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
         ({
           type: 'message',
           messageType: 'error',
-          content: `IDE integration is not supported in your current environment. To use this feature, run Gemini CLI in one of these supported IDEs: VS Code or VS Code forks.`,
+          content: `IDE integration is not supported in your current environment. To use this feature, run Gemini CLI in one of the supported IDEs.`,
         }) as const,
     };
   }
@@ -176,6 +176,17 @@ export const ideCommand = async (): Promise<SlashCommand> => {
     description: `install required IDE companion for ${ideClient.getDetectedIdeDisplayName()}`,
     kind: CommandKind.BUILT_IN,
     action: async (context) => {
+      if (!currentIDE) {
+        // This should not happen based on the check above, but it satisfies the compiler.
+        context.ui.addItem(
+          {
+            type: 'error',
+            text: 'Could not determine the current IDE.',
+          },
+          Date.now(),
+        );
+        return;
+      }
       const installer = getIdeInstaller(currentIDE);
       if (!installer) {
         context.ui.addItem(
