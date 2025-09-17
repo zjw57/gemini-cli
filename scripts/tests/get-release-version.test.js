@@ -13,26 +13,19 @@ vi.mock('node:child_process');
 describe('getVersion', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    // Mock date to be consistent for nightly versions
     vi.setSystemTime(new Date('2025-09-17T00:00:00.000Z'));
   });
 
   const mockExecSync = (command) => {
     // NPM Mocks
-    if (command.includes('npm view') && command.includes('--tag=latest')) {
-      return '0.4.1';
-    }
-    if (command.includes('npm view') && command.includes('--tag=preview')) {
-      return '0.5.0-preview-2';
-    }
-    if (command.includes('npm view') && command.includes('--tag=nightly')) {
-      return '0.6.0-nightly.20250910.a31830a3';
-    }
+    if (command.includes('npm view') && command.includes('--tag=latest')) return '0.4.1';
+    if (command.includes('npm view') && command.includes('--tag=preview')) return '0.5.0-preview-2';
+    if (command.includes('npm view') && command.includes('--tag=nightly')) return '0.6.0-nightly.20250910.a31830a3';
 
     // Git Tag Mocks
-    if (command.includes('git tag -l "v0.4.1"')) return 'v0.4.1';
-    if (command.includes('git tag -l "v0.5.0-preview-2"')) return 'v0.5.0-preview-2';
-    if (command.includes('git tag -l "v0.6.0-nightly.20250910.a31830a3"')) return 'v0.6.0-nightly.20250910.a31830a3';
+    if (command.includes("git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n 1")) return 'v0.4.1';
+    if (command.includes("git tag -l 'v*-preview*' | sort -V | tail -n 1")) return 'v0.5.0-preview-2';
+    if (command.includes("git tag -l 'v*-nightly*' | sort -V | tail -n 1")) return 'v0.6.0-nightly.20250910.a31830a3';
 
     // GitHub Release Mocks
     if (command.includes('gh release view "v0.4.1"')) return 'v0.4.1';
@@ -88,15 +81,15 @@ describe('getVersion', () => {
   });
 
   describe('Failure Path - Discrepancy Checks', () => {
-    it('should throw an error if the git tag is missing', () => {
-      const mockWithMissingGitTag = (command) => {
-        if (command.includes('git tag -l "v0.5.0-preview-2"')) return ''; // Simulate missing tag
+    it('should throw an error if the git tag does not match npm', () => {
+      const mockWithMismatchGitTag = (command) => {
+        if (command.includes("git tag -l 'v*-preview*'")) return 'v0.4.0-preview-99'; // Mismatch
         return mockExecSync(command);
       };
-      vi.mocked(execSync).mockImplementation(mockWithMissingGitTag);
+      vi.mocked(execSync).mockImplementation(mockWithMismatchGitTag);
 
       expect(() => getVersion({ type: 'stable' })).toThrow(
-        'Discrepancy found! NPM version v0.5.0-preview-2 is missing a corresponding git tag.'
+        'Discrepancy found! NPM preview tag (0.5.0-preview-2) does not match latest git preview tag (v0.4.0-preview-99).'
       );
     });
 
