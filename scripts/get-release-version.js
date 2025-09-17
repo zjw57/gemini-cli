@@ -21,7 +21,8 @@ function getArgs() {
 }
 
 function getLatestTag(pattern) {
-  const command = `git tag -l '${pattern}' | sort -V | tail -n 1`;
+  // Use git's built-in sorting by creation date to find the most recent tag.
+  const command = `git tag --sort=-creatordate -l '${pattern}' | head -n 1`;
   try {
     return execSync(command).toString().trim();
   } catch {
@@ -60,7 +61,7 @@ export function getVersion(options = {}) {
 
   if (type === 'nightly') {
     const latestStableVersion = getVersionFromNPM('latest');
-    const latestStableTag = getLatestTag('v[0-9]*.[0-9]*.[0-9]*');
+    const latestStableTag = getLatestTag('v[0-9].[0-9].[0-9]');
     if (`v${latestStableVersion}` !== latestStableTag) {
       throw new Error(`Discrepancy found! NPM latest tag (${latestStableVersion}) does not match latest git stable tag (${latestStableTag}).`);
     }
@@ -87,7 +88,7 @@ export function getVersion(options = {}) {
 
     releaseVersion = latestPreviewVersion.replace(/-preview.*/, '');
     npmTag = 'latest';
-    previousReleaseTag = getLatestTag('v[0-9]*.[0-9]*.[0-9]*');
+    previousReleaseTag = getLatestTag('v[0-9].[0-9].[0-9]');
   } else if (type === 'preview') {
     const latestNightlyVersion = getVersionFromNPM('nightly');
     const latestNightlyTag = getLatestTag('v*-nightly*');
@@ -107,7 +108,7 @@ export function getVersion(options = {}) {
 
     const distTag = patchFrom === 'stable' ? 'latest' : 'preview';
     const latestVersion = getVersionFromNPM(distTag);
-    const pattern = distTag === 'latest' ? 'v[0-9]*.[0-9]*.[0-9]*' : 'v*-preview*';
+    const pattern = distTag === 'latest' ? 'v[0-9].[0-9].[0-9]' : 'v*-preview*';
     previousReleaseTag = getLatestTag(pattern);
     if (`v${latestVersion}` !== previousReleaseTag) {
        throw new Error(`Discrepancy found! NPM ${distTag} tag (${latestVersion}) does not match latest git tag (${previousReleaseTag}).`);
