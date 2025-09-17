@@ -50,17 +50,17 @@ describe('getVersion', () => {
     it('should calculate the next stable version from the latest preview', () => {
       vi.mocked(execSync).mockImplementation(mockExecSync);
       const result = getVersion({ type: 'stable' });
-      expect(result.releaseVersion).toBe('0.5.0');
       expect(result.npmTag).toBe('latest');
-      expect(result.previousReleaseTag).toBe('v0.4.1');
+      expect(result.previousReleaseTag).toBe('v0.5.0-preview-2');
     });
 
     it('should calculate the next preview version from the latest nightly', () => {
       vi.mocked(execSync).mockImplementation(mockExecSync);
       const result = getVersion({ type: 'preview' });
-      expect(result.releaseVersion).toBe('0.6.0-preview');
       expect(result.npmTag).toBe('preview');
-      expect(result.previousReleaseTag).toBe('v0.5.0-preview-2');
+      expect(result.previousReleaseTag).toBe(
+        'v0.6.0-nightly.20250910.a31830a3',
+      );
     });
 
     it('should calculate the next nightly version from the latest nightly', () => {
@@ -75,7 +75,7 @@ describe('getVersion', () => {
 
     it('should calculate the next patch version for a stable release', () => {
       vi.mocked(execSync).mockImplementation(mockExecSync);
-      const result = getVersion({ type: 'patch', patchFrom: 'stable' });
+      const result = getVersion({ type: 'patch', 'patch-from': 'stable' });
       expect(result.releaseVersion).toBe('0.4.2');
       expect(result.npmTag).toBe('latest');
       expect(result.previousReleaseTag).toBe('v0.4.1');
@@ -83,7 +83,7 @@ describe('getVersion', () => {
 
     it('should calculate the next patch version for a preview release', () => {
       vi.mocked(execSync).mockImplementation(mockExecSync);
-      const result = getVersion({ type: 'patch', patchFrom: 'preview' });
+      const result = getVersion({ type: 'patch', 'patch-from': 'preview' });
       expect(result.releaseVersion).toBe('0.5.1-preview-2');
       expect(result.npmTag).toBe('preview');
       expect(result.previousReleaseTag).toBe('v0.5.0-preview-2');

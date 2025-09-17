@@ -59,7 +59,7 @@ function getAndVerifyTags(npmDistTag, gitTagPattern) {
   const latestTag = getLatestTag(gitTagPattern);
   if (`v${latestVersion}` !== latestTag) {
     throw new Error(
-      `Discrepancy found! NPM ${npmDistTag} tag (${latestVersion}) does not match latest git tag (${latestTag}).`,
+      `Discrepancy found! NPM ${npmDistTag} tag (${latestVersion}) does not match latest git ${npmDistTag} tag (${latestTag}).`,
     );
   }
   verifyGitHubReleaseExists(latestTag);
@@ -90,7 +90,7 @@ function getStableVersion() {
   return {
     releaseVersion: latestVersion.replace(/-preview.*/, ''),
     npmTag: 'latest',
-    previousReleaseTag: getLatestTag('v[0-9].[0-9].[0-9]'),
+    previousReleaseTag: getLatestTag('v*-preview*'),
   };
 }
 
