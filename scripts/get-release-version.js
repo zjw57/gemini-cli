@@ -25,13 +25,32 @@ function getArgs() {
   return args;
 }
 
-function getLatestTag(pattern) {
-  const command = `gh release list --limit 100 --json tagName | jq -r '[.[] | select(.tagName | ${pattern})] | .[0].tagName'`;
+function getLatestTagFromNPM(distTag) {
+  const command = `npm view @google/gemini-cli version --json --tag=${distTag}`;
   try {
     return execSync(command).toString().trim();
   } catch {
-    // Suppress error output for cleaner test failures
     return '';
+  }
+}
+
+function verifyGitTagExists(tagName) {
+  const command = `git tag -l "${tagName}"`;
+  const output = execSync(command).toString().trim();
+  if (!output) {
+    throw new Error(`Discrepancy found! NPM version ${tagName} is missing a corresponding git tag.`);
+  }
+}
+
+function verifyGitHubReleaseExists(tagName) {
+  const command = `gh release view "${tagName}" --json tagName --jq .tagName`;
+  try {
+    const output = execSync(command).toString().trim();
+    if (output !== tagName) {
+      throw new Error(`Discrepancy found! NPM version ${tagName} is missing a corresponding GitHub release.`);
+    }
+  } catch (error) {
+    throw new Error(`Discrepancy found! Failed to verify GitHub release for ${tagName}. Error: ${error.message}`);
   }
 }
 
@@ -44,66 +63,62 @@ export function getVersion(options = {}) {
   let previousReleaseTag;
 
   if (type === 'nightly') {
-    const packageJson = JSON.parse(
-      readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'),
-    );
-    const versionParts = packageJson.version.split('.');
+    const latestStableVersion = getLatestTagFromNPM('latest');
+    verifyGitTagExists(`v${latestStableVersion}`);
+    verifyGitHubReleaseExists(`v${latestStableVersion}`);
+    
+    const versionParts = latestStableVersion.split('.');
     const major = versionParts[0];
     const minor = versionParts[1] ? parseInt(versionParts[1]) : 0;
     const nextMinor = minor + 1;
+    
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const gitShortHash = execSync('git rev-parse --short HEAD')
-      .toString()
-      .trim();
+    const gitShortHash = execSync('git rev-parse --short HEAD').toString().trim();
+    
     releaseVersion = `${major}.${nextMinor}.0-nightly.${date}.${gitShortHash}`;
     npmTag = 'nightly';
-    previousReleaseTag = getLatestTag('contains("nightly")');
+    previousReleaseTag = `v${getLatestTagFromNPM('nightly')}`;
   } else if (type === 'stable') {
-    const latestPreviewTag = getLatestTag('contains("preview")');
-    releaseVersion = latestPreviewTag
-      .replace(/-preview.*/, '')
-      .replace(/^v/, '');
+    const latestPreviewVersion = getLatestTagFromNPM('preview');
+    verifyGitTagExists(`v${latestPreviewVersion}`);
+    verifyGitHubReleaseExists(`v${latestPreviewVersion}`);
+
+    releaseVersion = latestPreviewVersion.replace(/-preview.*/, '');
     npmTag = 'latest';
-    previousReleaseTag = getLatestTag(
-      '(contains("nightly") or contains("preview")) | not',
-    );
+    previousReleaseTag = `v${getLatestTagFromNPM('latest')}`;
   } else if (type === 'preview') {
-    const latestNightlyTag = getLatestTag('contains("nightly")');
-    releaseVersion =
-      latestNightlyTag.replace(/-nightly.*/, '').replace(/^v/, '') + '-preview';
+    const latestNightlyVersion = getLatestTagFromNPM('nightly');
+    verifyGitTagExists(`v${latestNightlyVersion}`);
+    verifyGitHubReleaseExists(`v${latestNightlyVersion}`);
+
+    releaseVersion = latestNightlyVersion.replace(/-nightly.*/, '') + '-preview';
     npmTag = 'preview';
-    previousReleaseTag = getLatestTag('contains("preview")');
+    previousReleaseTag = `v${getLatestTagFromNPM('preview')}`;
   } else if (type === 'patch') {
     const patchFrom = options.patchFrom || args.patchFrom;
     if (!patchFrom || (patchFrom !== 'stable' && patchFrom !== 'preview')) {
-      throw new Error(
-        'Patch type must be specified with --patch-from=stable or --patch-from=preview',
-      );
+      throw new Error('Patch type must be specified with --patch-from=stable or --patch-from=preview');
     }
 
-    if (patchFrom === 'stable') {
-      previousReleaseTag = getLatestTag(
-        '(contains("nightly") or contains("preview")) | not',
-      );
-      const versionParts = previousReleaseTag.replace(/^v/, '').split('.');
-      const major = versionParts[0];
-      const minor = versionParts[1];
-      const patch = versionParts[2] ? parseInt(versionParts[2]) : 0;
-      releaseVersion = `${major}.${minor}.${patch + 1}`;
-      npmTag = 'latest';
-    } else {
-      // patchFrom === 'preview'
-      previousReleaseTag = getLatestTag('contains("preview")');
-      const [version, prerelease] = previousReleaseTag
-        .replace(/^v/, '')
-        .split('-');
-      const versionParts = version.split('.');
-      const major = versionParts[0];
-      const minor = versionParts[1];
-      const patch = versionParts[2] ? parseInt(versionParts[2]) : 0;
+    const distTag = patchFrom === 'stable' ? 'latest' : 'preview';
+    const latestVersion = getLatestTagFromNPM(distTag);
+    previousReleaseTag = `v${latestVersion}`;
+    verifyGitTagExists(previousReleaseTag);
+    verifyGitHubReleaseExists(previousReleaseTag);
+
+    const [version, ...prereleaseParts] = latestVersion.split('-');
+    const prerelease = prereleaseParts.join('-');
+    const versionParts = version.split('.');
+    const major = versionParts[0];
+    const minor = versionParts[1];
+    const patch = versionParts[2] ? parseInt(versionParts[2]) : 0;
+    
+    if (prerelease) {
       releaseVersion = `${major}.${minor}.${patch + 1}-${prerelease}`;
-      npmTag = 'preview';
+    } else {
+      releaseVersion = `${major}.${minor}.${patch + 1}`;
     }
+    npmTag = distTag;
   }
 
   const releaseTag = `v${releaseVersion}`;
