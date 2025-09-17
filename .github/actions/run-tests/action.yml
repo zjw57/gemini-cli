@@ -17,14 +17,14 @@ inputs:
 
 runs:
   using: 'composite'
-  defaults:
-    run:
-      working-directory: '${{ inputs.working-directory }}'
   steps:
     - name: 'Run Tests'
       if: '${{ !inputs.force_skip_tests }}'
       env:
         GEMINI_API_KEY: '${{ inputs.gemini_api_key }}'
+      defaults:
+        run:
+          working-directory: '${{ inputs.working-directory }}'
       run: |-
         npm run build
         npm run test:ci
