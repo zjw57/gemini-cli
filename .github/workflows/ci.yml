@@ -250,7 +250,12 @@ jobs:
             }
             /^\+/ {
               current_line++
-              if (match($0, /gemini-/)) {
+              if (match($0, /gemini-[0-9]/) && \
+                  !match($0, /gemini-2\.5-/) && \
+                  !match($0, /gemini-2\.0-/) && \
+                  !match($0, /gemini-1\.5-/) && \
+                  !match($0, /gemini-1\.0-/) \
+              ) {
                 keyword = substr($0, RSTART, RLENGTH)
                 print "::warning file=" current_file ",line=" current_line "::Found sensitive keyword: " "\x27" keyword "\x27" ". Please double check this code is appropriate to submit."
               }
