@@ -49,6 +49,9 @@ import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import { logCliConfiguration, logIdeConnection } from '../telemetry/loggers.js';
 import { IdeConnectionEvent, IdeConnectionType } from '../telemetry/types.js';
+import { ContextHarvesterTool } from '../tools/context-harvester.js';
+import { CodebaseInvestigatorTool } from '../tools/codebase-investigator.js';
+import { SolutionPlannerTool } from '../tools/planner.js';
 
 // Re-export OAuth config type
 export type { MCPOAuthConfig, AnyToolInvocation };
@@ -62,6 +65,12 @@ export enum ApprovalMode {
   DEFAULT = 'default',
   AUTO_EDIT = 'autoEdit',
   YOLO = 'yolo',
+}
+
+export interface SubagentTestingConfig {
+  toolName?: string;
+  invocationMode?: 'heuristic' | 'agent_tool';
+  includeFileContent?: boolean;
 }
 
 export interface AccessibilitySettings {
@@ -289,6 +298,7 @@ export class Config {
   private readonly fileExclusions: FileExclusions;
   private readonly eventEmitter?: EventEmitter;
   private readonly useSmartEdit: boolean;
+  private readonly subagentTestingConfig: SubagentTestingConfig;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -365,6 +375,26 @@ export class Config {
     this.enablePromptCompletion = params.enablePromptCompletion ?? false;
     this.fileExclusions = new FileExclusions(this);
     this.eventEmitter = params.eventEmitter;
+
+    const subagentTools = [
+      ContextHarvesterTool,
+      CodebaseInvestigatorTool,
+      SolutionPlannerTool,
+    ];
+    const toolNameFromEnv = process.env['GEMINI_SUBAGENT_TOOL_NAME'];
+    const foundTool = subagentTools.find(
+      (tool) => tool.Name === toolNameFromEnv,
+    );
+
+    this.subagentTestingConfig = {
+      toolName: foundTool ? foundTool.Name : undefined,
+      invocationMode: process.env['GEMINI_SUBAGENT_INVOCATION_MODE'] as
+        | 'heuristic'
+        | 'agent_tool'
+        | undefined,
+      includeFileContent:
+        process.env['GEMINI_SUBAGENT_INCLUDE_FILE_CONTENT'] === 'true',
+    };
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -813,6 +843,10 @@ export class Config {
     return this.useSmartEdit;
   }
 
+  getSubagentTestingConfig(): SubagentTestingConfig {
+    return this.subagentTestingConfig;
+  }
+
   async getGitService(): Promise<GitService> {
     if (!this.gitService) {
       this.gitService = new GitService(this.targetDir, this.storage);
@@ -883,6 +917,18 @@ export class Config {
     registerCoreTool(ShellTool, this);
     registerCoreTool(MemoryTool);
     registerCoreTool(WebSearchTool, this);
+
+    const subagentTestingConfig = this.getSubagentTestingConfig();
+    if (subagentTestingConfig.invocationMode === 'agent_tool') {
+      if (subagentTestingConfig.toolName === CodebaseInvestigatorTool.Name) {
+        registry.registerTool(new CodebaseInvestigatorTool(this));
+      } else if (subagentTestingConfig.toolName === SolutionPlannerTool.Name) {
+        registry.registerTool(new SolutionPlannerTool(this));
+      } else if (subagentTestingConfig.toolName === ContextHarvesterTool.Name) {
+        registry.registerTool(new ContextHarvesterTool(this));
+      }
+    }
+
     await registry.discoverAllTools();
     return registry;
   }

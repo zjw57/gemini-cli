@@ -18,8 +18,22 @@ import { WriteFileTool } from '../tools/write-file.js';
 import process from 'node:process';
 import { isGitRepository } from '../utils/gitUtils.js';
 import { MemoryTool, GEMINI_CONFIG_DIR } from '../tools/memoryTool.js';
+import type { Config } from '../config/config.js';
+import { getSubagentSystemPrompt } from './prompts-subagents.js';
 
-export function getCoreSystemPrompt(userMemory?: string): string {
+export function getCoreSystemPrompt(
+  config: Config,
+  userMemory?: string,
+): string {
+  const subagentTestingConfig = config.getSubagentTestingConfig();
+  if (subagentTestingConfig.invocationMode === 'agent_tool') {
+    const prompt = getSubagentSystemPrompt(
+      subagentTestingConfig.toolName ?? '',
+    );
+    if (prompt) {
+      return prompt;
+    }
+  }
   // if GEMINI_SYSTEM_MD is set (and not 0|false), override system prompt from file
   // default path is .gemini/system.md but can be modified via custom path in GEMINI_SYSTEM_MD
   let systemMdEnabled = false;
