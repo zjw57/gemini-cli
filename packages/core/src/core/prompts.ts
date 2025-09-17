@@ -18,7 +18,6 @@ import { WriteFileTool } from '../tools/write-file.js';
 import process from 'node:process';
 import { isGitRepository } from '../utils/gitUtils.js';
 import { MemoryTool, GEMINI_CONFIG_DIR } from '../tools/memoryTool.js';
-import { WriteTodosTool } from '../tools/write-todos.js';
 
 export function resolvePathFromEnv(envVar?: string): {
   isSwitch: boolean;
@@ -111,10 +110,6 @@ You are an interactive CLI agent specializing in software engineering tasks. You
 - **Explaining Changes:** After completing a code modification or file operation *do not* provide summaries unless asked.
 - **Path Construction:** Before using any file system tool (e.g., ${ReadFileTool.Name}' or '${WriteFileTool.Name}'), you must construct the full absolute path for the file_path argument. Always combine the absolute path of the project's root directory with the file's path relative to the root. For example, if the project root is /path/to/project/ and the file is foo/bar/baz.txt, the final path you must use is /path/to/project/foo/bar/baz.txt. If the user provides a relative path, you must resolve it against the root directory to create an absolute path.
 - **Do Not revert changes:** Do not revert changes to the codebase unless asked to do so by the user. Only revert changes made by you if they have resulted in an error or if the user has explicitly asked you to revert the changes.
-
-
-YOU MUST create and maintain a TODO list using '${WriteTodosTool.Name}' tool to make an initial plan, keep track of it and show the user the current execution state.
-Breakdown the task as explained by the '${WriteTodosTool.Name}' tool description to discrete concrete executable steps. This should be used for every task given by the user.
 
 
 # Primary Workflows
