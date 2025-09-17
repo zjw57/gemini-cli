@@ -43,6 +43,7 @@ const OAUTH_CLIENT_SECRET = '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';
 // OAuth Scopes for Cloud Code authorization.
 const OAUTH_SCOPE = [
   'https://www.googleapis.com/auth/cloud-platform',
+  'https://www.googleapis.com/auth/aiplatform',
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/userinfo.profile',
 ];
