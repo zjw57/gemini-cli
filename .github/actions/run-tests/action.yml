@@ -22,6 +22,7 @@ runs:
       env:
         GEMINI_API_KEY: '${{ inputs.gemini_api_key }}'
       run: |-
+        npm run build
         npm run test:ci
         npm run test:integration:sandbox:none
         npm run test:integration:sandbox:docker
