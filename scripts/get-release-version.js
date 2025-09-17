@@ -95,14 +95,11 @@ function getStableVersion() {
 }
 
 function getPreviewVersion() {
-  const { latestVersion, latestTag } = getAndVerifyTags(
-    'nightly',
-    'v*-nightly*',
-  );
+  const { latestVersion } = getAndVerifyTags('nightly', 'v*-nightly*');
   return {
     releaseVersion: latestVersion.replace(/-nightly.*/, '') + '-preview',
     npmTag: 'preview',
-    previousReleaseTag: latestTag,
+    previousReleaseTag: getLatestTag('v*-preview*'),
   };
 }
 
