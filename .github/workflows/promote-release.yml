@@ -136,7 +136,7 @@ jobs:
           working-directory: './release'
 
       - name: 'Publish Release'
-        uses: './release/.github/actions/publish-release'
+        uses: './.github/actions/publish-release'
         with:
           release-version: '${{ matrix.version }}'
           release-tag: 'v${{ matrix.version }}'
