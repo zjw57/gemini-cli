@@ -125,11 +125,11 @@ jobs:
         run: 'npm ci'
 
       - name: 'Run Tests'
-        working-directory: './release'
         uses: './.github/actions/run-tests'
         with:
           force_skip_tests: '${{ github.event.inputs.force_skip_tests }}'
           gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
+          working-directory: './release'
 
       - name: 'Publish Release'
         uses: './.github/actions/publish-release'

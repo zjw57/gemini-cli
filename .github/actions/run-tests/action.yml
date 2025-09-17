@@ -9,6 +9,10 @@ inputs:
   gemini_api_key:
     description: 'The API key for running integration tests.'
     required: true
+  working-directory:
+    description: 'The working directory to run the tests in.'
+    required: false
+    default: '.'
 
 runs:
   using: 'composite'
