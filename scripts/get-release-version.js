@@ -60,14 +60,15 @@ export function getVersion(options = {}) {
   let previousReleaseTag;
 
   if (type === 'nightly') {
-    const latestStableVersion = getVersionFromNPM('latest');
-    const latestStableTag = getLatestTag('v[0-9].[0-9].[0-9]');
-    if (`v${latestStableVersion}` !== latestStableTag) {
-      throw new Error(`Discrepancy found! NPM latest tag (${latestStableVersion}) does not match latest git stable tag (${latestStableTag}).`);
+    const latestNightlyVersion = getVersionFromNPM('nightly');
+    const latestNightlyTag = getLatestTag('v*-nightly*');
+    if (`v${latestNightlyVersion}` !== latestNightlyTag) {
+      throw new Error(`Discrepancy found! NPM nightly tag (${latestNightlyVersion}) does not match latest git nightly tag (${latestNightlyTag}).`);
     }
-    verifyGitHubReleaseExists(latestStableTag);
+    verifyGitHubReleaseExists(latestNightlyTag);
     
-    const versionParts = latestStableVersion.split('.');
+    const baseVersion = latestNightlyVersion.split('-')[0];
+    const versionParts = baseVersion.split('.');
     const major = versionParts[0];
     const minor = versionParts[1] ? parseInt(versionParts[1]) : 0;
     const nextMinor = minor + 1;
@@ -77,7 +78,7 @@ export function getVersion(options = {}) {
     
     releaseVersion = `${major}.${nextMinor}.0-nightly.${date}.${gitShortHash}`;
     npmTag = 'nightly';
-    previousReleaseTag = getLatestTag('v*-nightly*');
+    previousReleaseTag = latestNightlyTag;
   } else if (type === 'stable') {
     const latestPreviewVersion = getVersionFromNPM('preview');
     const latestPreviewTag = getLatestTag('v*-preview*');

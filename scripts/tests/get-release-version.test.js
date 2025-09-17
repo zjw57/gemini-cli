@@ -23,9 +23,9 @@ describe('getVersion', () => {
     if (command.includes('npm view') && command.includes('--tag=nightly')) return '0.6.0-nightly.20250910.a31830a3';
 
     // Git Tag Mocks
-    if (command.includes("git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n 1")) return 'v0.4.1';
-    if (command.includes("git tag -l 'v*-preview*' | sort -V | tail -n 1")) return 'v0.5.0-preview-2';
-    if (command.includes("git tag -l 'v*-nightly*' | sort -V | tail -n 1")) return 'v0.6.0-nightly.20250910.a31830a3';
+    if (command.includes("git tag --sort=-creatordate -l 'v[0-9].[0-9].[0-9]'")) return 'v0.4.1';
+    if (command.includes("git tag --sort=-creatordate -l 'v*-preview*'")) return 'v0.5.0-preview-2';
+    if (command.includes("git tag --sort=-creatordate -l 'v*-nightly*'")) return 'v0.6.0-nightly.20250910.a31830a3';
 
     // GitHub Release Mocks
     if (command.includes('gh release view "v0.4.1"')) return 'v0.4.1';
@@ -55,10 +55,10 @@ describe('getVersion', () => {
       expect(result.previousReleaseTag).toBe('v0.5.0-preview-2');
     });
 
-    it('should calculate the next nightly version from the latest stable', () => {
+    it('should calculate the next nightly version from the latest nightly', () => {
       vi.mocked(execSync).mockImplementation(mockExecSync);
       const result = getVersion({ type: 'nightly' });
-      expect(result.releaseVersion).toBe('0.5.0-nightly.20250917.d3bf8a3d');
+      expect(result.releaseVersion).toBe('0.7.0-nightly.20250917.d3bf8a3d');
       expect(result.npmTag).toBe('nightly');
       expect(result.previousReleaseTag).toBe('v0.6.0-nightly.20250910.a31830a3');
     });
@@ -83,7 +83,7 @@ describe('getVersion', () => {
   describe('Failure Path - Discrepancy Checks', () => {
     it('should throw an error if the git tag does not match npm', () => {
       const mockWithMismatchGitTag = (command) => {
-        if (command.includes("git tag -l 'v*-preview*'")) return 'v0.4.0-preview-99'; // Mismatch
+        if (command.includes("git tag --sort=-creatordate -l 'v*-preview*'")) return 'v0.4.0-preview-99'; // Mismatch
         return mockExecSync(command);
       };
       vi.mocked(execSync).mockImplementation(mockWithMismatchGitTag);
