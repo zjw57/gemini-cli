@@ -84,9 +84,44 @@ jobs:
           echo "  Current (Preview): ${{ steps.versions.outputs.PREVIEW_SHA }}"
           echo "  Next (to be promoted): ${{ steps.versions.outputs.NEXT_SHA }}"
 
-  promote:
-    name: 'Promote to ${{ matrix.channel }}'
+  test:
+    name: 'Test ${{ matrix.channel }}'
     needs: 'calculate-versions'
+    runs-on: 'ubuntu-latest'
+    strategy:
+      matrix:
+        include:
+          - channel: 'stable'
+            sha: '${{ needs.calculate-versions.outputs.STABLE_SHA }}'
+          - channel: 'preview'
+            sha: '${{ needs.calculate-versions.outputs.PREVIEW_SHA }}'
+          - channel: 'nightly'
+            sha: '${{ github.event.inputs.ref }}'
+    steps:
+      - name: 'Checkout correct SHA'
+        uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'
+        with:
+          ref: '${{ matrix.sha }}'
+          fetch-depth: 0
+
+      - name: 'Setup Node.js'
+        uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: 'Install Dependencies'
+        run: 'npm ci'
+
+      - name: 'Run Tests'
+        uses: './.github/actions/run-tests'
+        with:
+          force_skip_tests: '${{ github.event.inputs.force_skip_tests }}'
+          gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
+
+  publish:
+    name: 'Publish ${{ matrix.channel }}'
+    needs: 'test'
     runs-on: 'ubuntu-latest'
     permissions:
       contents: 'write'
@@ -128,13 +163,6 @@ jobs:
         working-directory: './release'
         run: 'npm ci'
 
-      - name: 'Run Tests'
-        uses: './.github/actions/run-tests'
-        with:
-          force_skip_tests: '${{ github.event.inputs.force_skip_tests }}'
-          gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
-          working-directory: './release'
-
       - name: 'Publish Release'
         uses: './.github/actions/publish-release'
         with:
@@ -150,7 +178,7 @@ jobs:
 
   nightly-pr:
     name: 'Create Nightly PR'
-    needs: 'calculate-versions'
+    needs: 'test'
     runs-on: 'ubuntu-latest'
     permissions:
       contents: 'write'
