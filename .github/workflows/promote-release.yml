@@ -103,10 +103,10 @@ jobs:
             previous-tag: '${{ needs.calculate-versions.outputs.PREVIOUS_PREVIEW_TAG }}'
 
     steps:
-      - name: 'Checkout main'
+      - name: 'Checkout Ref'
         uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'
         with:
-          ref: 'main'
+          ref: '${{ github.event.inputs.ref }}'
 
       - name: 'Checkout correct SHA'
         uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'
@@ -125,6 +125,7 @@ jobs:
         run: 'npm ci'
 
       - name: 'Run Tests'
+        working-directory: './release'
         uses: './.github/actions/run-tests'
         with:
           force_skip_tests: '${{ github.event.inputs.force_skip_tests }}'
@@ -151,10 +152,10 @@ jobs:
       contents: 'write'
       pull-requests: 'write'
     steps:
-      - name: 'Checkout main'
+      - name: 'Checkout Ref'
         uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'
         with:
-          ref: 'main'
+          ref: '${{ github.event.inputs.ref }}'
 
       - name: 'Setup Node.js'
         uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
