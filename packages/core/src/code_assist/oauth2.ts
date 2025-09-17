@@ -74,6 +74,7 @@ async function initOauthClient(
   authType: AuthType,
   config: Config,
 ): Promise<OAuth2Client> {
+  await clearCachedCredentialFile();
   const client = new OAuth2Client({
     clientId: OAUTH_CLIENT_ID,
     clientSecret: OAUTH_CLIENT_SECRET,

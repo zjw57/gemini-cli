@@ -159,6 +159,7 @@ export class CodeAssistServer implements ContentGenerator {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-user-project': this.projectId,
         ...this.httpOptions.headers,
       },
       responseType: 'json',
@@ -174,6 +175,7 @@ export class CodeAssistServer implements ContentGenerator {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-user-project': this.projectId,
         ...this.httpOptions.headers,
       },
       responseType: 'json',
