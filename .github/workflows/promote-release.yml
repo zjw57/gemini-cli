@@ -98,10 +98,16 @@ jobs:
           - channel: 'nightly'
             sha: '${{ github.event.inputs.ref }}'
     steps:
+      - name: 'Checkout Ref'
+        uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'
+        with:
+          ref: '${{ github.event.inputs.ref }}'
+
       - name: 'Checkout correct SHA'
         uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'
         with:
           ref: '${{ matrix.sha }}'
+          path: 'release'
           fetch-depth: 0
 
       - name: 'Setup Node.js'
@@ -111,6 +117,7 @@ jobs:
           cache: 'npm'
 
       - name: 'Install Dependencies'
+        working-directory: './release'
         run: 'npm ci'
 
       - name: 'Run Tests'
@@ -118,6 +125,7 @@ jobs:
         with:
           force_skip_tests: '${{ github.event.inputs.force_skip_tests }}'
           gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
+          working-directory: './release'
 
   publish:
     name: 'Publish ${{ matrix.channel }}'
