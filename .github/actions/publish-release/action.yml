@@ -51,10 +51,10 @@ runs:
         git switch -c "${BRANCH_NAME}"
         echo "BRANCH_NAME=${BRANCH_NAME}" >> "${GITHUB_OUTPUT}"
 
-    - name: 'Update package versions'
-      working-directory: '${{ inputs.working-directory }}'
-      shell: 'bash'
-      run: 'npm run release:version "${{ inputs.release-version }}"'
+    # - name: 'Update package versions'
+    #   working-directory: '${{ inputs.working-directory }}'
+    #   shell: 'bash'
+    #   run: 'npm run release:version "${{ inputs.release-version }}"'
 
     - name: 'Commit and Conditionally Push package versions'
       working-directory: '${{ inputs.working-directory }}'
