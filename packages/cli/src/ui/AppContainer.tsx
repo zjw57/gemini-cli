@@ -48,6 +48,7 @@ import { loadHierarchicalGeminiMemory } from '../config/config.js';
 import process from 'node:process';
 import { useHistory } from './hooks/useHistoryManager.js';
 import { useThemeCommand } from './hooks/useThemeCommand.js';
+import { useModelCommand } from './hooks/useModelCommand.js';
 import { useAuthCommand } from './auth/useAuth.js';
 import { useQuotaAndFallback } from './hooks/useQuotaAndFallback.js';
 import { useEditorSettings } from './hooks/useEditorSettings.js';
@@ -300,6 +301,9 @@ export const AppContainer = (props: AppContainerProps) => {
     initializationResult.themeError,
   );
 
+  const { isModelDialogOpen, openModelDialog, closeModelDialog } =
+    useModelCommand();
+
   const { authState, setAuthState, authError, onAuthError } = useAuthCommand(
     settings,
     config,
@@ -414,6 +418,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       openAuthDialog: () => setAuthState(AuthState.Updating),
       openThemeDialog,
       openEditorDialog,
+      openModelDialog,
       openPrivacyNotice: () => setShowPrivacyNotice(true),
       openSettingsDialog,
       quit: (messages: HistoryItem[]) => {
@@ -431,6 +436,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       setAuthState,
       openThemeDialog,
       openEditorDialog,
+      openModelDialog,
       openSettingsDialog,
       setQuittingMessages,
       setDebugMessage,
@@ -991,6 +997,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     () => ({
       history: historyManager.history,
       isThemeDialogOpen,
+      isModelDialogOpen,
       themeError,
       isAuthenticating,
       isConfigInitialized,
@@ -1067,6 +1074,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     [
       historyManager.history,
       isThemeDialogOpen,
+      isModelDialogOpen,
       themeError,
       isAuthenticating,
       isConfigInitialized,
@@ -1146,6 +1154,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     () => ({
       handleThemeSelect,
       handleThemeHighlight,
+      closeModelDialog,
       handleAuthSelect,
       setAuthState,
       onAuthError,
@@ -1169,6 +1178,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     [
       handleThemeSelect,
       handleThemeHighlight,
+      closeModelDialog,
       handleAuthSelect,
       setAuthState,
       onAuthError,

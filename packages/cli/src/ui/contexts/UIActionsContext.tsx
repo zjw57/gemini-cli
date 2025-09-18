@@ -18,6 +18,7 @@ export interface UIActions {
     scope: SettingScope,
   ) => void;
   handleThemeHighlight: (themeName: string | undefined) => void;
+  closeModelDialog: () => void;
   handleAuthSelect: (
     authType: AuthType | undefined,
     scope: SettingScope,

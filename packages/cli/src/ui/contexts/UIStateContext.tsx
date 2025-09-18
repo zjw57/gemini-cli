@@ -38,6 +38,7 @@ export interface ProQuotaDialogRequest {
 export interface UIState {
   history: HistoryItem[];
   isThemeDialogOpen: boolean;
+  isModelDialogOpen: boolean;
   themeError: string | null;
   isAuthenticating: boolean;
   isConfigInitialized: boolean;
