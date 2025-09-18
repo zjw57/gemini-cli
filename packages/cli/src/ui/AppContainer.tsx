@@ -29,6 +29,7 @@ import {
 } from './types.js';
 import { MessageType, StreamingState } from './types.js';
 import {
+  logUserPrompt,
   type EditorType,
   type Config,
   type DetectedIde,
@@ -602,9 +603,18 @@ Logging in with Google... Please restart Gemini CLI to continue.
 
   const handleFinalSubmit = useCallback(
     (submittedValue: string) => {
+      const prompt_id = Math.random().toString(16).slice(2);
+      logUserPrompt(config, {
+        'event.name': 'user_prompt',
+        'event.timestamp': new Date().toISOString(),
+        prompt: submittedValue,
+        prompt_id,
+        auth_type: config.getContentGeneratorConfig()?.authType,
+        prompt_length: submittedValue.length,
+      });
       addMessage(submittedValue);
     },
-    [addMessage],
+    [addMessage, config],
   );
 
   const handleClearScreen = useCallback(() => {

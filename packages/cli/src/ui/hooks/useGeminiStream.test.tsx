@@ -198,6 +198,8 @@ describe('useGeminiStream', () => {
       getGeminiClient: mockGetGeminiClient,
       getApprovalMode: () => ApprovalMode.DEFAULT,
       getUsageStatisticsEnabled: () => true,
+      getTelemetryLogPromptsEnabled: () => true,
+      getTelemetryEnabled: () => true,
       getDebugMode: () => false,
       addHistory: vi.fn(),
       getSessionId() {
