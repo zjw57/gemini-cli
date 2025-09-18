@@ -124,7 +124,7 @@ export function logCliConfiguration(
 
 export function logUserPrompt(config: Config, event: UserPromptEvent): void {
   console.log(
-    `[DEBUG] logUserPrompt called. usageStatisticsEnabled: ${config.getUsageStatisticsEnabled()}`,
+    `[DEBUG] logUserPrompt called. usageStatisticsEnabled: ${config.getUsageStatisticsEnabled()}, getTelemetryLogPromptsEnabled: ${config.getTelemetryLogPromptsEnabled()}, getTelemetryEnabled: ${config.getTelemetryEnabled()}`,
   );
   ClearcutLogger.getInstance(config)?.logNewPromptEvent(event);
   if (!isTelemetrySdkInitialized()) return;
