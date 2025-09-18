@@ -132,6 +132,7 @@ export const AppContainer = (props: AppContainerProps) => {
     HistoryItem[] | null
   >(null);
   const [showPrivacyNotice, setShowPrivacyNotice] = useState<boolean>(false);
+  const [isModelDialogOpen, setIsModelDialogOpen] = useState<boolean>(false);
   const [themeError, setThemeError] = useState<string | null>(
     initializationResult.themeError,
   );
@@ -420,6 +421,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       openEditorDialog,
       openPrivacyNotice: () => setShowPrivacyNotice(true),
       openSettingsDialog,
+      openModelDialog: () => setIsModelDialogOpen(true),
       quit: (messages: HistoryItem[]) => {
         setQuittingMessages(messages);
         setTimeout(async () => {
@@ -982,6 +984,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     !!loopDetectionConfirmationRequest ||
     isThemeDialogOpen ||
     isSettingsDialogOpen ||
+    isModelDialogOpen ||
     isAuthenticating ||
     isAuthDialogOpen ||
     isEditorDialogOpen ||
@@ -1009,6 +1012,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       debugMessage,
       quittingMessages,
       isSettingsDialogOpen,
+      isModelDialogOpen,
       slashCommands,
       pendingSlashCommandHistoryItems,
       commandContext,
@@ -1085,6 +1089,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       debugMessage,
       quittingMessages,
       isSettingsDialogOpen,
+      isModelDialogOpen,
       slashCommands,
       pendingSlashCommandHistoryItems,
       commandContext,
@@ -1159,6 +1164,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       exitEditorDialog,
       exitPrivacyNotice: () => setShowPrivacyNotice(false),
       closeSettingsDialog,
+      closeModelDialog: () => setIsModelDialogOpen(false),
       setShellModeActive,
       vimHandleInput,
       handleIdePromptComplete,
