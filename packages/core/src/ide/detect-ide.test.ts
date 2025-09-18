@@ -4,15 +4,44 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { detectIde, DetectedIde, getIdeInfo } from './detect-ide.js';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import {
+  detectIde,
+  DetectedIde,
+  getIdeInfo,
+  type CustomIde,
+} from './detect-ide.js';
 
 describe('detectIde', () => {
   const ideProcessInfo = { pid: 123, command: 'some/path/to/code' };
   const ideProcessInfoNoCode = { pid: 123, command: 'some/path/to/fork' };
 
+  beforeEach(() => {
+    vi.stubEnv('TERM_PROGRAM', 'vscode');
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it('should return the IDE from connectionConfig if provided', () => {
+    const customIde: CustomIde = {
+      name: 'custom-ide',
+      displayName: 'Custom IDE',
+    };
+    expect(detectIde(ideProcessInfo, { ide: customIde })).toBe(customIde);
+  });
+
+  it('should prioritize connectionConfig over environment detection', () => {
+    vi.stubEnv('TERM_PROGRAM', 'vscode');
+    vi.stubEnv('REPLIT_USER', 'testuser');
+    const customIde: CustomIde = {
+      name: 'custom-ide',
+      displayName: 'Custom IDE',
+    };
+    expect(detectIde(ideProcessInfo, { ide: customIde })).toBe(customIde);
+    // And without it, it should detect from env
+    expect(detectIde(ideProcessInfo)).toBe(DetectedIde.Replit);
   });
 
   it('should return undefined if TERM_PROGRAM is not vscode', () => {
@@ -89,44 +118,73 @@ describe('detectIde', () => {
 
 describe('getIdeInfo', () => {
   it('should return correct info for Devin', () => {
-    expect(getIdeInfo(DetectedIde.Devin)).toEqual({ displayName: 'Devin' });
+    expect(getIdeInfo(DetectedIde.Devin)).toEqual({
+      name: DetectedIde.Devin,
+      displayName: 'Devin',
+    });
   });
 
   it('should return correct info for Replit', () => {
-    expect(getIdeInfo(DetectedIde.Replit)).toEqual({ displayName: 'Replit' });
+    expect(getIdeInfo(DetectedIde.Replit)).toEqual({
+      name: DetectedIde.Replit,
+      displayName: 'Replit',
+    });
   });
 
   it('should return correct info for Cursor', () => {
-    expect(getIdeInfo(DetectedIde.Cursor)).toEqual({ displayName: 'Cursor' });
+    expect(getIdeInfo(DetectedIde.Cursor)).toEqual({
+      name: DetectedIde.Cursor,
+      displayName: 'Cursor',
+    });
   });
 
   it('should return correct info for CloudShell', () => {
     expect(getIdeInfo(DetectedIde.CloudShell)).toEqual({
+      name: DetectedIde.CloudShell,
       displayName: 'Cloud Shell',
     });
   });
 
   it('should return correct info for Codespaces', () => {
     expect(getIdeInfo(DetectedIde.Codespaces)).toEqual({
+      name: DetectedIde.Codespaces,
       displayName: 'GitHub Codespaces',
     });
   });
 
   it('should return correct info for FirebaseStudio', () => {
     expect(getIdeInfo(DetectedIde.FirebaseStudio)).toEqual({
+      name: DetectedIde.FirebaseStudio,
       displayName: 'Firebase Studio',
     });
   });
 
   it('should return correct info for Trae', () => {
-    expect(getIdeInfo(DetectedIde.Trae)).toEqual({ displayName: 'Trae' });
+    expect(getIdeInfo(DetectedIde.Trae)).toEqual({
+      name: DetectedIde.Trae,
+      displayName: 'Trae',
+    });
   });
 
   it('should return correct info for VSCode', () => {
-    expect(getIdeInfo(DetectedIde.VSCode)).toEqual({ displayName: 'VS Code' });
+    expect(getIdeInfo(DetectedIde.VSCode)).toEqual({
+      name: DetectedIde.VSCode,
+      displayName: 'VS Code',
+    });
   });
 
   it('should return correct info for VSCodeFork', () => {
-    expect(getIdeInfo(DetectedIde.VSCodeFork)).toEqual({ displayName: 'IDE' });
+    expect(getIdeInfo(DetectedIde.VSCodeFork)).toEqual({
+      name: DetectedIde.VSCodeFork,
+      displayName: 'IDE',
+    });
+  });
+
+  it('should return the same object for a custom IDE', () => {
+    const customIde: CustomIde = {
+      name: 'my-ide',
+      displayName: 'My Custom IDE',
+    };
+    expect(getIdeInfo(customIde)).toBe(customIde);
   });
 });

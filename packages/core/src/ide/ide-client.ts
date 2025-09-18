@@ -4,14 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import * as fs from 'node:fs';
-import { isSubpath } from '../utils/paths.js';
-import {
-  detectIde,
-  type DetectedIdeInfo,
-  getIdeInfo,
-  type CustomIde,
-} from '../ide/detect-ide.js';
+import { detectIde, type IdeInfo } from '../ide/detect-ide.js';
 import { ideContextStore } from './ideContext.js';
 import {
   IdeContextNotificationSchema,
@@ -67,7 +60,7 @@ type ConnectionConfig = {
   port?: string;
   stdio?: StdioConfig;
   authToken?: string;
-  ide?: CustomIde;
+  ide?: IdeInfo;
 };
 
 function getRealPath(path: string): string {
@@ -91,8 +84,7 @@ export class IdeClient {
     details:
       'IDE integration is currently disabled. To enable it, run /ide enable.',
   };
-  private currentIde: DetectedIdeInfo | undefined;
-  private currentIdeDisplayName: string | undefined;
+  private currentIde: IdeInfo | undefined;
   private ideProcessInfo: { pid: number; command: string } | undefined;
   private authToken: string | undefined;
   private diffResponses = new Map<string, (result: DiffUpdateResult) => void>();
@@ -117,11 +109,6 @@ export class IdeClient {
         // itself.
         const configFromFile = await client.getConnectionConfigFromFile();
         client.currentIde = detectIde(client.ideProcessInfo, configFromFile);
-        if (client.currentIde) {
-          client.currentIdeDisplayName = getIdeInfo(
-            client.currentIde,
-          ).displayName;
-        }
         return client;
       })();
     }
@@ -145,7 +132,7 @@ export class IdeClient {
   }
 
   async connect(): Promise<void> {
-    if (!this.currentIde || !this.currentIdeDisplayName) {
+    if (!this.currentIde) {
       this.setState(
         IDEConnectionStatus.Disconnected,
         `IDE integration is not supported in your current environment. To use this feature, run Gemini CLI in one of the supported IDEs.`,
@@ -166,7 +153,7 @@ export class IdeClient {
 
     const { isValid, error } = IdeClient.validateWorkspacePath(
       workspacePath,
-      this.currentIdeDisplayName,
+      this.currentIde.displayName,
       process.cwd(),
     );
 
@@ -212,7 +199,7 @@ export class IdeClient {
 
     this.setState(
       IDEConnectionStatus.Disconnected,
-      `Failed to connect to IDE companion extension in ${this.currentIdeDisplayName}. Please ensure the extension is running. To install the extension, run /ide install.`,
+      `Failed to connect to IDE companion extension in ${this.currentIde.displayName}. Please ensure the extension is running. To install the extension, run /ide install.`,
       true,
     );
   }
@@ -416,7 +403,7 @@ export class IdeClient {
     this.client?.close();
   }
 
-  getCurrentIde(): DetectedIdeInfo | undefined {
+  getCurrentIde(): IdeInfo | undefined {
     return this.currentIde;
   }
 
@@ -425,7 +412,7 @@ export class IdeClient {
   }
 
   getDetectedIdeDisplayName(): string | undefined {
-    return this.currentIdeDisplayName;
+    return this.currentIde?.displayName;
   }
 
   isDiffingEnabled(): boolean {
@@ -645,7 +632,7 @@ export class IdeClient {
       }
       const { isValid } = IdeClient.validateWorkspacePath(
         content.workspacePath,
-        this.currentIdeDisplayName,
+        this.currentIde?.displayName,
         process.cwd(),
       );
       return isValid;

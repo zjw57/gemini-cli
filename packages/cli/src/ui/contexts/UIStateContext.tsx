@@ -21,7 +21,6 @@ import type {
   IdeContext,
   ApprovalMode,
   UserTierId,
-  DetectedIde,
   FallbackIntent,
 } from '@google/gemini-cli-core';
 import type { DOMElement } from 'ink';
@@ -104,8 +103,8 @@ export interface UIState {
   sessionStats: SessionStatsState;
   terminalWidth: number;
   terminalHeight: number;
-  mainControlsRef: React.MutableRefObject<DOMElement | null>;
-  currentIDE: DetectedIde | null;
+  mainControlsRef: React.RefObject<DOMElement>;
+  currentIDE: string | null;
   updateInfo: UpdateObject | null;
   showIdeRestartPrompt: boolean;
   isRestarting: boolean;

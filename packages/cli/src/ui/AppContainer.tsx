@@ -31,7 +31,6 @@ import { MessageType, StreamingState } from './types.js';
 import {
   type EditorType,
   type Config,
-  type DetectedIde,
   type IdeContext,
   type UserTierId,
   DEFAULT_GEMINI_FLASH_MODEL,
@@ -711,16 +710,20 @@ Logging in with Google... Please restart Gemini CLI to continue.
   ]);
 
   const [idePromptAnswered, setIdePromptAnswered] = useState(false);
-  const [currentIDE, setCurrentIDE] = useState<DetectedIde | null>(null);
+  const [currentIDE, setCurrentIDE] = useState<string | null>(null);
 
   useEffect(() => {
     const getIde = async () => {
       const ideClient = await IdeClient.getInstance();
       const currentIde = ideClient.getCurrentIde();
-      if (currentIde && typeof currentIde !== 'string') {
-        setCurrentIDE(currentIde.name as DetectedIde);
+      if (currentIde) {
+        if (typeof currentIde === 'string') {
+          setCurrentIDE(currentIde);
+        } else {
+          setCurrentIDE(currentIde.name);
+        }
       } else {
-        setCurrentIDE(currentIde || null);
+        setCurrentIDE(null);
       }
     };
     getIde();
