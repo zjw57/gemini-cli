@@ -77,6 +77,7 @@ describe('ShellExecutionService', () => {
   let mockHeadlessTerminal: {
     resize: Mock;
     scrollLines: Mock;
+    dispose: Mock;
   };
   let onOutputEventMock: Mock<(event: ShellOutputEvent) => void>;
 
@@ -110,6 +111,7 @@ describe('ShellExecutionService', () => {
     mockHeadlessTerminal = {
       resize: vi.fn(),
       scrollLines: vi.fn(),
+      dispose: vi.fn(),
     };
 
     mockPtySpawn.mockReturnValue(mockPtyProcess);
