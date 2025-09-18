@@ -6,7 +6,7 @@
 
 import * as fs from 'node:fs';
 import { isSubpath } from '../utils/paths.js';
-import { detectIde, type DetectedIde, getIdeInfo } from '../ide/detect-ide.js';
+import { detectIde, type IdeInfo } from '../ide/detect-ide.js';
 import { ideContextStore } from './ideContext.js';
 import {
   IdeContextNotificationSchema,
@@ -23,6 +23,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { EnvHttpProxyAgent } from 'undici';
 import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { IDE_REQUEST_TIMEOUT_MS } from './constants.js';
 
 const logger = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -84,8 +85,7 @@ export class IdeClient {
     details:
       'IDE integration is currently disabled. To enable it, run /ide enable.',
   };
-  private currentIde: DetectedIde | undefined;
-  private currentIdeDisplayName: string | undefined;
+  private currentIde: IdeInfo | undefined;
   private ideProcessInfo: { pid: number; command: string } | undefined;
   private authToken: string | undefined;
   private diffResponses = new Map<string, (result: DiffUpdateResult) => void>();
@@ -107,11 +107,6 @@ export class IdeClient {
         const client = new IdeClient();
         client.ideProcessInfo = await getIdeProcessInfo();
         client.currentIde = detectIde(client.ideProcessInfo);
-        if (client.currentIde) {
-          client.currentIdeDisplayName = getIdeInfo(
-            client.currentIde,
-          ).displayName;
-        }
         return client;
       })();
     }
@@ -135,7 +130,7 @@ export class IdeClient {
   }
 
   async connect(): Promise<void> {
-    if (!this.currentIde || !this.currentIdeDisplayName) {
+    if (!this.currentIde) {
       this.setState(
         IDEConnectionStatus.Disconnected,
         `IDE integration is not supported in your current environment. To use this feature, run Gemini CLI in one of these supported IDEs: VS Code or VS Code forks`,
@@ -156,7 +151,7 @@ export class IdeClient {
 
     const { isValid, error } = IdeClient.validateWorkspacePath(
       workspacePath,
-      this.currentIdeDisplayName,
+      this.currentIde.displayName,
       process.cwd(),
     );
 
@@ -202,7 +197,7 @@ export class IdeClient {
 
     this.setState(
       IDEConnectionStatus.Disconnected,
-      `Failed to connect to IDE companion extension in ${this.currentIdeDisplayName}. Please ensure the extension is running. To install the extension, run /ide install.`,
+      `Failed to connect to IDE companion extension in ${this.currentIde.displayName}. Please ensure the extension is running. To install the extension, run /ide install.`,
       true,
     );
   }
@@ -238,31 +233,29 @@ export class IdeClient {
       }
       this.diffResponses.set(filePath, resolve);
       this.client
-        .callTool({
-          name: `openDiff`,
-          arguments: {
-            filePath,
-            newContent,
+        .request(
+          {
+            method: 'tools/call',
+            params: {
+              name: `openDiff`,
+              arguments: {
+                filePath,
+                newContent,
+              },
+            },
           },
-        })
-        .then((result) => {
-          const parsedResult = CallToolResultSchema.safeParse(result);
-          if (!parsedResult.success) {
-            const err = new Error('Failed to parse tool result from IDE');
-            logger.debug(err, parsedResult.error);
-            this.diffResponses.delete(filePath);
-            reject(err);
-            return;
-          }
-
-          if (parsedResult.data.isError) {
-            const textPart = parsedResult.data.content.find(
+          CallToolResultSchema,
+          { timeout: IDE_REQUEST_TIMEOUT_MS },
+        )
+        .then((parsedResultData) => {
+          if (parsedResultData.isError) {
+            const textPart = parsedResultData.content.find(
               (part) => part.type === 'text',
             );
             const errorMessage =
               textPart?.text ?? `Tool 'openDiff' reported an error.`;
             logger.debug(
-              `callTool for ${filePath} failed with isError:`,
+              `Request for openDiff ${filePath} failed with isError:`,
               errorMessage,
             );
             this.diffResponses.delete(filePath);
@@ -270,7 +263,7 @@ export class IdeClient {
           }
         })
         .catch((err) => {
-          logger.debug(`callTool for ${filePath} failed:`, err);
+          logger.debug(`Request for openDiff ${filePath} failed:`, err);
           this.diffResponses.delete(filePath);
           reject(err);
         });
@@ -314,43 +307,42 @@ export class IdeClient {
     options?: { suppressNotification?: boolean },
   ): Promise<string | undefined> {
     try {
-      const result = await this.client?.callTool({
-        name: `closeDiff`,
-        arguments: {
-          filePath,
-          suppressNotification: options?.suppressNotification,
+      if (!this.client) {
+        return undefined;
+      }
+      const resultData = await this.client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: `closeDiff`,
+            arguments: {
+              filePath,
+              suppressNotification: options?.suppressNotification,
+            },
+          },
         },
-      });
+        CallToolResultSchema,
+        { timeout: IDE_REQUEST_TIMEOUT_MS },
+      );
 
-      if (!result) {
+      if (!resultData) {
         return undefined;
       }
 
-      const parsedResult = CallToolResultSchema.safeParse(result);
-      if (!parsedResult.success) {
-        logger.debug(
-          `Failed to parse tool result from IDE for closeDiff:`,
-          parsedResult.error,
-        );
-        return undefined;
-      }
-
-      if (parsedResult.data.isError) {
-        const textPart = parsedResult.data.content.find(
+      if (resultData.isError) {
+        const textPart = resultData.content.find(
           (part) => part.type === 'text',
         );
         const errorMessage =
           textPart?.text ?? `Tool 'closeDiff' reported an error.`;
         logger.debug(
-          `callTool for closeDiff ${filePath} failed with isError:`,
+          `Request for closeDiff ${filePath} failed with isError:`,
           errorMessage,
         );
         return undefined;
       }
 
-      const textPart = parsedResult.data.content.find(
-        (part) => part.type === 'text',
-      );
+      const textPart = resultData.content.find((part) => part.type === 'text');
 
       if (textPart?.text) {
         try {
@@ -369,7 +361,7 @@ export class IdeClient {
         }
       }
     } catch (err) {
-      logger.debug(`callTool for closeDiff ${filePath} failed:`, err);
+      logger.debug(`Request for closeDiff ${filePath} failed:`, err);
     }
     return undefined;
   }
@@ -409,7 +401,7 @@ export class IdeClient {
     this.client?.close();
   }
 
-  getCurrentIde(): DetectedIde | undefined {
+  getCurrentIde(): IdeInfo | undefined {
     return this.currentIde;
   }
 
@@ -418,7 +410,7 @@ export class IdeClient {
   }
 
   getDetectedIdeDisplayName(): string | undefined {
-    return this.currentIdeDisplayName;
+    return this.currentIde?.displayName;
   }
 
   isDiffingEnabled(): boolean {
@@ -638,7 +630,7 @@ export class IdeClient {
       }
       const { isValid } = IdeClient.validateWorkspacePath(
         content.workspacePath,
-        this.currentIdeDisplayName,
+        this.currentIde?.displayName,
         process.cwd(),
       );
       return isValid;
@@ -706,16 +698,17 @@ export class IdeClient {
       },
     );
     this.client.onerror = (_error) => {
+      const errorMessage = _error instanceof Error ? _error.message : `_error`;
       this.setState(
         IDEConnectionStatus.Disconnected,
-        `IDE connection error. The connection was lost unexpectedly. Please try reconnecting by running /ide enable`,
+        `IDE connection error. The connection was lost unexpectedly. Please try reconnecting by running /ide enable\n${errorMessage}`,
         true,
       );
     };
     this.client.onclose = () => {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        `IDE connection error. The connection was lost unexpectedly. Please try reconnecting by running /ide enable`,
+        `IDE connection closed. To reconnect, run /ide enable.`,
         true,
       );
     };
