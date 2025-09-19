@@ -1,0 +1,43 @@
+name: 'Verify an NPM release'
+description: 'Fetches a package from NPM and verifies Gemini CLI'
+
+inputs:
+  npm-tag:
+    description: 'NPM Tag'
+    required: true
+  npm-package:
+    description: 'NPM Package'
+    required: true
+    default: '@google/gemini-cli'
+  expected-version:
+    description: 'Expected version'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Checkout'
+      uses: 'actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955' # ratchet:actions/checkout@v4
+      with:
+        ref: '${{ inputs.github-sha }}'
+        fetch-depth: 0
+    - name: 'Install from NPM'
+      id: 'npm_install'
+      shell: 'bash'
+      run: |-
+        npm install -g ${{ inputs.npm-package }}@${{ inputs.npm-tag }}
+    - name: 'Run Gemini CLI'
+      id: 'gemini_cli'
+      shell: 'bash'
+      run: |-
+        echo "gemini_version=$(gemini --version)" >> $GITHUB_OUTPUT
+
+    # Force a failure
+    - name: 'Fail workflow if version does not match'
+      if: '${{ steps.gemini_cli.outputs.gemini_version != inputs.expected-version }}'
+      shell: 'bash'
+      run: |-
+        echo 'Got ${{ steps.gemini_cli.outputs.gemini_version }} from ${{ inputs.npm-package }}@${{ inputs.npm-tag }}'
+        echo '❌ Expected Version ${{ inputs.expected-version }}'
+
+        exit 1

@@ -1,0 +1,15 @@
+name: Verify NPM release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run my composite action
+        uses: ./.github/actions/verify-release # Path to your composite action
+        with:
+          npm-tag: 'preview'
+          expected-version: '1234'
