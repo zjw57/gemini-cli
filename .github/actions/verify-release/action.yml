@@ -34,8 +34,8 @@ runs:
       if: '${{ steps.gemini_cli.outputs.gemini_version != inputs.expected-version }}'
       shell: 'bash'
       run: |-
-        echo '❌ Got ${{ steps.gemini_cli.outputs.gemini_version }} from ${{ inputs.npm-package }}@${{ inputs.npm-tag }}\n'
-        echo '❌ Expected Version ${{ inputs.expected-version }}\n'
-        echo '⚠️ You may need to rollback!\n\n'
+        echo '❌ Got ${{ steps.gemini_cli.outputs.gemini_version }} from ${{ inputs.npm-package }}@${{ inputs.npm-tag }}'
+        echo '❌ Expected Version ${{ inputs.expected-version }}'
+        echo '⚠️ You may need to rollback!'
 
         exit 1
