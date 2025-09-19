@@ -137,7 +137,7 @@ runs:
         ref: '${{ steps.release_branch.outputs.BRANCH_NAME }}'
 
     - name: '🏷️ Tag release'
-      uses: './.github/actions/tag-release'
+      uses: './.github/actions/tag-npm-release'
       if: "${{ inputs.dry-run == 'false' }}"
       with:
         channel: '${{ inputs.release-tag }}'
