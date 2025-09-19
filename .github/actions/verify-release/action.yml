@@ -18,13 +18,16 @@ runs:
   steps:
     - name: 'Checkout'
       uses: 'actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955' # ratchet:actions/checkout@v4
+
     - name: 'Install from NPM'
       id: 'npm_install'
       shell: 'bash'
       run: |-
         npm install -g ${{ inputs.npm-package }}@${{ inputs.npm-tag }}
+
+    # This provides a very basic smoke test for Gemini CLI
     - name: 'Run Gemini CLI'
-      id: 'gemini_cli' 
+      id: 'gemini_cli'
       shell: 'bash'
       run: |-
         echo "gemini_version=$(gemini --version)" >> $GITHUB_OUTPUT
