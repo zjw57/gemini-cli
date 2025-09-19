@@ -31,6 +31,10 @@ inputs:
     description: 'The working directory to run the steps in.'
     required: false
     default: '.'
+  force-skip-tests:
+    description: 'Skip tests and validation'
+    required: false
+    default: false
 
 runs:
   using: 'composite'
@@ -124,7 +128,7 @@ runs:
 
     - name: '🔬 Verify NPM release by version'
       uses: './.github/actions/verify-release'
-      if: "${{ inputs.dry-run == 'false' }}"
+      if: "${{ inputs.dry-run == 'false' && inputs.force-skip-tests == 'false' }}"
       with:
         npm-package: '@google/gemini-cli@${{ inputs.release-version }}'
         expected-version: '${{ inputs.release-version }}'
@@ -140,7 +144,7 @@ runs:
 
     - name: '🔬 Verify NPM release by channel tag'
       uses: './.github/actions/verify-release'
-      if: "${{ inputs.dry-run == 'false' }}"
+      if: "${{ inputs.dry-run == 'false' && inputs.force-skip-tests == 'false' }}"
       with:
         npm-package: '@google/gemini-cli@${{ inputs.npm-tag }}'
         expected-version: '${{ inputs.release-version }}'

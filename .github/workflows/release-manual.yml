@@ -72,6 +72,7 @@ jobs:
       - name: 'Publish Release'
         uses: './.github/actions/publish-release'
         with:
+          force-skip-tests: '${{ github.event.inputs.force_skip_tests }}'
           release-version: '${{ steps.release_info.outputs.RELEASE_VERSION }}'
           release-tag: '${{ github.event.inputs.version }}'
           npm-tag: '${{ github.event.inputs.npm_channel }}'
