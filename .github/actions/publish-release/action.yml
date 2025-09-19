@@ -124,6 +124,7 @@ runs:
 
     - name: '🔬 Verify NPM release by version'
       uses: './.github/actions/verify-release'
+      if: "${{ inputs.dry-run == 'false' }}"
       with:
         npm-package: '@google/gemini-cli@${{ inputs.release-version }}'
         expected-version: '${{ inputs.release-version }}'
@@ -131,6 +132,7 @@ runs:
 
     - name: '🏷️ Tag release'
       uses: './.github/actions/tag-release'
+      if: "${{ inputs.dry-run == 'false' }}"
       with:
         channel: '${{ inputs.release-tag }}'
         version: '${{ inputs.release-version }}'
@@ -138,6 +140,7 @@ runs:
 
     - name: '🔬 Verify NPM release by channel tag'
       uses: './.github/actions/verify-release'
+      if: "${{ inputs.dry-run == 'false' }}"
       with:
         npm-package: '@google/gemini-cli@${{ inputs.npm-tag }}'
         expected-version: '${{ inputs.release-version }}'
