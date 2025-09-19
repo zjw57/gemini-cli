@@ -160,7 +160,8 @@ runs:
 
     - name: '🎉 Create GitHub Release'
       working-directory: '${{ inputs.working-directory }}'
-      if: "${{ inputs.dry-run == 'false' }}"
+      # Don't publish dev tags.
+      if: "${{ inputs.dry-run == 'false' && inputs.npm-tag != 'dev'}}"
       env:
         GITHUB_TOKEN: '${{ inputs.github-token }}'
       shell: 'bash'
