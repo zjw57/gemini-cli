@@ -139,7 +139,7 @@ runs:
       uses: './.github/actions/verify-release'
       with:
         npm-package: '@google/gemini-cli@${{ inputs.npm-tag }}'
-        expected-version: '${{ inputs.release-version }}
+        expected-version: '${{ inputs.release-version }}'
 
     - name: '🎁 Bundle'
       working-directory: '${{ inputs.working-directory }}'
