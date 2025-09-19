@@ -18,9 +18,6 @@ runs:
   steps:
     - name: 'Checkout'
       uses: 'actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955' # ratchet:actions/checkout@v4
-      with:
-        ref: '${{ inputs.github-sha }}'
-        fetch-depth: 0
     - name: 'Install from NPM'
       id: 'npm_install'
       shell: 'bash'
@@ -32,7 +29,7 @@ runs:
       run: |-
         echo "gemini_version=$(gemini --version)" >> $GITHUB_OUTPUT
 
-    # Force a failure
+    # Force a failure if it doesn't match
     - name: 'Fail workflow if version does not match'
       if: '${{ steps.gemini_cli.outputs.gemini_version != inputs.expected-version }}'
       shell: 'bash'

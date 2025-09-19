@@ -2,19 +2,20 @@ name: Verify NPM release tag
 
 on:
   workflow_dispatch:
-    version:
-      description: 'The expected Gemini binary version that should be released (e.g., 0.5.0-preview-2).'
-      required: true
-      type: 'string'
-    channel:
-      description: 'The npm dist-tag to apply (e.g., preview, stable).'
-      required: true
-      type: 'choice'
-      options:
-        - 'stable'
-        - 'preview'
-        - 'nightly'
-        - 'dev'
+    inputs:
+      version:
+        description: 'The expected Gemini binary version that should be released (e.g., 0.5.0-preview-2).'
+        required: true
+        type: 'string'
+      channel:
+        description: 'The npm dist-tag to apply (e.g., preview, stable).'
+        required: true
+        type: 'choice'
+        options:
+          - 'stable'
+          - 'preview'
+          - 'nightly'
+          - 'dev'
 
 jobs:
   build:
