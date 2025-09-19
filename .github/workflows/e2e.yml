@@ -24,7 +24,41 @@ jobs:
       github.event_name == 'merge_group' ||
       (github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event.label.name == 'maintainer:e2e:ok')
-    runs-on: '${{ matrix.os }}'
+    steps:
+      - name: 'Checkout'
+        uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8' # ratchet:actions/checkout@v5
+
+      - name: 'Set up Node.js'
+        uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020' # ratchet:actions-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: 'Install dependencies'
+        run: 'npm ci'
+
+      - name: 'Build project'
+        run: 'npm run build'
+
+      - name: 'Archive build artifacts'
+        run: 'tar -cvf build-artifacts.tar bundle/ node_modules/ packages/ package.json'
+
+      - name: 'Upload build artifacts'
+        uses: 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02'
+        with:
+          name: 'build-artifacts-${{ github.run_id }}'
+          path: 'build-artifacts.tar'
+
+  e2e_linux:
+    name: 'E2E Test (Linux) - ${{ matrix.sandbox }}'
+    needs:
+      - 'build'
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'merge_group' ||
+      (github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event.label.name == 'maintainer:e2e:ok')
+    runs-on: 'gemini-cli-ubuntu-16-core'
     strategy:
       fail-fast: false
       matrix:
