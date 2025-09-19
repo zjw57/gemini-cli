@@ -106,7 +106,7 @@ export abstract class BaseSubAgentInvocation<
   }
 
   private getSubagentModel(): string {
-    const model = process.env['GEMINI_SUBAGENT_MODEL'];
+    const model = this.config.getSubagentTestingConfig().subagentModel;
     if (model) {
       if ([DEFAULT_GEMINI_FLASH_MODEL, DEFAULT_GEMINI_MODEL].includes(model)) {
         return model;

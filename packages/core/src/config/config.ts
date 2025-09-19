@@ -39,6 +39,7 @@ import { StartSessionEvent } from '../telemetry/index.js';
 import {
   DEFAULT_GEMINI_EMBEDDING_MODEL,
   DEFAULT_GEMINI_FLASH_MODEL,
+  DEFAULT_GEMINI_MODEL,
 } from './models.js';
 import { shouldAttemptBrowserLaunch } from '../utils/browser.js';
 import type { MCPOAuthConfig } from '../mcp/oauth-provider.js';
@@ -51,6 +52,7 @@ import { logCliConfiguration, logIdeConnection } from '../telemetry/loggers.js';
 import { IdeConnectionEvent, IdeConnectionType } from '../telemetry/types.js';
 import { ContextHarvesterTool } from '../tools/context-harvester.js';
 import { CodebaseInvestigatorTool } from '../tools/codebase-investigator.js';
+import { CodebaseInvestigatorFlashTool } from '../tools/codebase-investigator-flash.js';
 import { SolutionPlannerTool } from '../tools/planner.js';
 
 // Re-export OAuth config type
@@ -70,6 +72,7 @@ export enum ApprovalMode {
 export interface SubagentTestingConfig {
   toolName?: string;
   invocationMode?: 'heuristic' | 'agent_tool';
+  subagentModel: string;
   includeFileContent?: boolean;
 }
 
@@ -394,6 +397,9 @@ export class Config {
         | undefined,
       includeFileContent:
         process.env['GEMINI_SUBAGENT_INCLUDE_FILE_CONTENT'] === 'true',
+      subagentModel: process.env['GEMINI_SUBAGENT_MODEL']
+        ? process.env['GEMINI_SUBAGENT_MODEL']
+        : DEFAULT_GEMINI_MODEL,
     };
 
     if (params.contextFileName) {
@@ -921,7 +927,9 @@ export class Config {
     const subagentTestingConfig = this.getSubagentTestingConfig();
     if (subagentTestingConfig.invocationMode === 'agent_tool') {
       if (subagentTestingConfig.toolName === CodebaseInvestigatorTool.Name) {
-        registry.registerTool(new CodebaseInvestigatorTool(this));
+        subagentTestingConfig.subagentModel === DEFAULT_GEMINI_MODEL
+          ? registry.registerTool(new CodebaseInvestigatorTool(this))
+          : registry.registerTool(new CodebaseInvestigatorFlashTool(this));
       } else if (subagentTestingConfig.toolName === SolutionPlannerTool.Name) {
         registry.registerTool(new SolutionPlannerTool(this));
       } else if (subagentTestingConfig.toolName === ContextHarvesterTool.Name) {

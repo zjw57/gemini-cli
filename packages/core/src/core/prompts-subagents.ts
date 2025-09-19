@@ -100,7 +100,7 @@ export function getCodebaseInvestigatorAgentPrompt(): string {
     // Determine sandbox status based on environment variables
     const isSandboxExec = process.env['SANDBOX'] === 'sandbox-exec';
     const isGenericSandbox = !!process.env['SANDBOX']; // Check if SANDBOX is set to any non-empty value
-  
+
     if (isSandboxExec) {
       return `
   # macOS Seatbelt
