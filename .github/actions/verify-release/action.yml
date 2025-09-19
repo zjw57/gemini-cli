@@ -34,7 +34,6 @@ runs:
         timeout_seconds: 900
         retry_wait_seconds: 30
         max_attempts: 10
-        delay: 5000
         command: 'npm install -g ${{ inputs.npm-package }}'
 
     # This provides a very basic smoke test for Gemini CLI
