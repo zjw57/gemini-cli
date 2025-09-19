@@ -138,7 +138,7 @@ runs:
     - name: '🔬 Verify NPM release by channel tag'
       uses: './.github/actions/verify-release'
       with:
-        npm-package: '@google/gemini-cli@{{ inputs.npm-tag }}'
+        npm-package: '@google/gemini-cli@${{ inputs.npm-tag }}'
         expected-version: '${{ inputs.release-version }}
 
     - name: '🎁 Bundle'
