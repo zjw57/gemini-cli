@@ -132,10 +132,10 @@ async function relaunchAppInChildProcess(additionalArgs: string[]) {
     // The parent process should not be reading from stdin while the child is running.
     process.stdin.pause();
 
-  const child = spawn(process.execPath, nodeArgs, {
-    stdio: 'inherit',
-    env: newEnv,
-  });
+    const child = spawn(process.execPath, nodeArgs, {
+      stdio: 'inherit',
+      env: newEnv,
+    });
 
     return new Promise<number>((resolve, reject) => {
       child.on('error', reject);
