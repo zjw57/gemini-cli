@@ -1,15 +1,28 @@
-name: Verify NPM release
+name: Verify NPM release tag
 
 on:
   workflow_dispatch:
+    version:
+      description: 'The expected Gemini binary version that should be released (e.g., 0.5.0-preview-2).'
+      required: true
+      type: 'string'
+    channel:
+      description: 'The npm dist-tag to apply (e.g., preview, stable).'
+      required: true
+      type: 'choice'
+      options:
+        - 'stable'
+        - 'preview'
+        - 'nightly'
+        - 'dev'
 
 jobs:
   build:
-    runs-on: 'ubuntu-latest'
+    runs-on: 'self-hosted'
     steps:
-      - uses: actions/checkout@v4
-      - name: Run my composite action
-        uses: ./.github/actions/verify-release # Path to your composite action
+      - uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'
+      - name: 'Run my composite action'
+        uses: './.github/actions/verify-release'
         with:
-          npm-tag: 'preview'
-          expected-version: '1234'
+          npm-tag: '${github.event.inputs.channel}'
+          expected-version: '${github.event.inputs.version}'

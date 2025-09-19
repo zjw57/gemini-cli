@@ -129,6 +129,13 @@ runs:
           --dry-run="${{ inputs.dry-run }}" \
           --workspace="@google/gemini-cli" \
           --tag="${{ inputs.npm-tag }}"
+    
+    - name: '🔬 Verify release'
+      uses: './.github/actions/verify-release'
+      with:
+        npm-tag: '${{ inputs.npm-tag }}'
+        npm-package: '@google/gemini-cli'
+        expected-version: '${{ inputs.release-version }}'
 
     - name: '🎁 Bundle'
       working-directory: '${{ inputs.working-directory }}'
