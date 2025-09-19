@@ -68,7 +68,7 @@ async function getDependencyLicense(depName, depVersion) {
         let fileContent = await fs.readFile(licenseFile, 'utf-8');
         if (path.basename(licenseFile).toLowerCase().startsWith('readme')) {
           const licenseSection = fileContent.match(
-            /(#+ license\s*|(?:\(the )?mit license\)?\s*)((?:.|\n)*)/i,
+            /(#+\s*license\s*|(?:\(the )?mit license\)?\s*)([\s\S]+?)(?=\n#|$)/i,
           );
           if (licenseSection && licenseSection[2]) {
             fileContent = licenseSection[2].trim();
