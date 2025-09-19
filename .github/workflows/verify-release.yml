@@ -12,15 +12,6 @@ on:
         required: true
         type: 'string'
         default: '@google/gemini-cli@latest'
-      channel:
-        description: 'The npm dist-tag to apply (e.g., preview, stable).'
-        required: true
-        type: 'choice'
-        options:
-          - 'stable'
-          - 'preview'
-          - 'nightly'
-          - 'dev'
       ref:
         description: 'The branch, tag, or SHA to release from.'
         required: false
@@ -35,6 +26,6 @@ jobs:
       - name: 'Verify release'
         uses: './.github/actions/verify-release'
         with:
-          npm-package: '${github.event.inputs.npm-package}@${github.event.inputs.channel}'
+          npm-package: '${github.event.inputs.npm-package}'
           expected-version: '${github.event.inputs.version}'
           ref: '${github.event.inputs.ref}'
