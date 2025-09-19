@@ -9,12 +9,20 @@ inputs:
   expected-version:
     description: 'Expected version'
     required: true
+  ref:
+    description: 'The branch, tag, or SHA to release from.'
+    required: false
+    type: 'string'
+    default: 'main'
 
 runs:
   using: 'composite'
   steps:
     - name: 'Checkout'
       uses: 'actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955' # ratchet:actions/checkout@v4
+      with:
+        ref: '${{ github.event.inputs.ref }}'
+        fetch-depth: 0
 
     - name: 'Install from NPM'
       id: 'npm_install'

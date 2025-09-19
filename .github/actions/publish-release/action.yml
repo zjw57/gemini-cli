@@ -127,6 +127,7 @@ runs:
       with:
         npm-package: '@google/gemini-cli@${{ inputs.release-version }}'
         expected-version: '${{ inputs.release-version }}'
+        ref: '${{ steps.release_branch.outputs.BRANCH_NAME }}'
 
     - name: '🏷️ Tag release'
       uses: './.github/actions/tag-release'
@@ -140,6 +141,7 @@ runs:
       with:
         npm-package: '@google/gemini-cli@${{ inputs.npm-tag }}'
         expected-version: '${{ inputs.release-version }}'
+        ref: '${{ steps.release_branch.outputs.BRANCH_NAME }}'
 
     - name: '🎁 Bundle'
       working-directory: '${{ inputs.working-directory }}'

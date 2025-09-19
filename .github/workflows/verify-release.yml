@@ -21,14 +21,20 @@ on:
           - 'preview'
           - 'nightly'
           - 'dev'
+      ref:
+        description: 'The branch, tag, or SHA to release from.'
+        required: false
+        type: 'string'
+        default: 'main'
 
 jobs:
   build:
     runs-on: 'self-hosted'
     steps:
       - uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'
-      - name: 'Run my composite action'
+      - name: 'Verify release'
         uses: './.github/actions/verify-release'
         with:
           npm-package: '${github.event.inputs.npm-package}@${github.event.inputs.channel}'
           expected-version: '${github.event.inputs.version}'
+          ref: '${github.event.inputs.ref}'
