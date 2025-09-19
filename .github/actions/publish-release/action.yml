@@ -106,6 +106,7 @@ runs:
         npm publish \
           --dry-run="${{ inputs.dry-run }}" \
           --workspace="@google/gemini-cli-core" \
+          --no-tag
 
     - name: '🔗 Install latest core package'
       working-directory: '${{ inputs.working-directory }}'
@@ -125,6 +126,7 @@ runs:
         npm publish \
           --dry-run="${{ inputs.dry-run }}" \
           --workspace="@google/gemini-cli" \
+          --no-tag
 
     - name: '🔬 Verify NPM release by version'
       uses: './.github/actions/verify-release'
