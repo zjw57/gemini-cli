@@ -1,14 +1,11 @@
 name: 'Verify an NPM release'
-description: 'Fetches a package from NPM and verifies Gemini CLI'
+description: 'Fetches a package from NPM and does some basic smoke tests'
 
 inputs:
-  npm-tag:
-    description: 'NPM Tag'
-    required: true
   npm-package:
     description: 'NPM Package'
     required: true
-    default: '@google/gemini-cli'
+    default: '@google/gemini-cli@latest'
   expected-version:
     description: 'Expected version'
     required: true
@@ -23,7 +20,7 @@ runs:
       id: 'npm_install'
       shell: 'bash'
       run: |-
-        npm install -g ${{ inputs.npm-package }}@${{ inputs.npm-tag }}
+        npm install -g ${{ inputs.npm-package }}
 
     # This provides a very basic smoke test for Gemini CLI
     - name: 'Run Gemini CLI'
@@ -37,7 +34,7 @@ runs:
       if: '${{ steps.gemini_cli.outputs.gemini_version != inputs.expected-version }}'
       shell: 'bash'
       run: |-
-        echo '❌ Got ${{ steps.gemini_cli.outputs.gemini_version }} from ${{ inputs.npm-package }}@${{ inputs.npm-tag }}'
+        echo '❌ Got ${{ steps.gemini_cli.outputs.gemini_version }} from ${{ inputs.npm-package }}'
         echo '❌ Expected Version ${{ inputs.expected-version }}'
         echo '⚠️ You may need to rollback!'
 
