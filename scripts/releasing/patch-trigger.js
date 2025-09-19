@@ -69,8 +69,20 @@ async function main() {
   };
 
   // Get inputs from CLI args or environment
-  const headRef = argv.headRef || process.env.HEAD_REF;
+  let headRef = argv.headRef || process.env.HEAD_REF;
+  const commitMessage = process.env.COMMIT_MESSAGE || '';
   const body = argv.prBody || process.env.PR_BODY || '';
+
+  // If we don't have HEAD_REF but have a commit message, extract it from merge commit
+  if (!headRef && commitMessage && context.eventName === 'push') {
+    // Extract branch name from merge commit message like "Merge pull request #8815 from google-gemini/hotfix/v0.6.0-preview.2/preview/cherry-pick-f3abfb8"
+    const match = commitMessage.match(/from [^/]+\/(.+)$/m);
+    if (match) {
+      headRef = match[1];
+      console.log(`Extracted branch name from commit message: ${headRef}`);
+    }
+  }
+
   const isDryRun = argv.dryRun || body.includes('[DRY RUN]');
 
   if (!headRef) {
