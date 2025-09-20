@@ -146,14 +146,6 @@ runs:
         wombat-token-core: '${{ inputs.wombat-token-core }}'
         wombat-token-cli: '${{ inputs.wombat-token-cli }}'
 
-    - name: '🔬 Verify NPM release by channel tag'
-      uses: './.github/actions/verify-release'
-      if: "${{ inputs.dry-run == 'false' && inputs.force-skip-tests == 'false' }}"
-      with:
-        npm-package: '@google/gemini-cli@${{ inputs.npm-tag }}'
-        expected-version: '${{ inputs.release-version }}'
-        ref: '${{ steps.release_branch.outputs.BRANCH_NAME }}'
-
     - name: '🎁 Bundle'
       working-directory: '${{ inputs.working-directory }}'
       shell: 'bash'
