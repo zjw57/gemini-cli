@@ -11,6 +11,11 @@ inputs:
   dry-run:
     description: 'Whether to run in dry-run mode.'
     required: true
+  wombat-token-core:
+    description: 'The npm token for the wombat @google/gemini-cli-core'
+    required: true
+  wombat-token-cli:
+    description: 'The npm token for wombat @google/gemini-cli'
 
 runs:
   using: 'composite'
@@ -26,7 +31,8 @@ runs:
       if: |-
         ${{ inputs.dry-run == 'false' }}
       env:
-        NODE_AUTH_TOKEN: '${{ secrets.WOMBAT_TOKEN_CORE }}'
+        NODE_AUTH_TOKEN: '${{ inputs.wombat-token-core }}'
+      shell: 'bash'
       run: |
         npm dist-tag add @google/gemini-cli-core@${{ inputs.version }} ${{ inputs.channel }}
 
@@ -34,12 +40,14 @@ runs:
       if: |-
         ${{ inputs.dry-run == 'false' }}
       env:
-        NODE_AUTH_TOKEN: '${{ secrets.WOMBAT_TOKEN_CLI }}'
+        NODE_AUTH_TOKEN: '${{ inputs.wombat-token-cli }}'
+      shell: 'bash'
       run: |
         npm dist-tag add @google/gemini-cli@${{ inputs.version }} ${{ inputs.channel }}
 
     - name: 'Log dry run'
       if: |-
         ${{ inputs.dry-run == 'true' }}
+      shell: 'bash'
       run: |
         echo "Dry run: Would have added tag '${{ inputs.channel }}' to version '${{ inputs.version }}' for @google/gemini-cli and @google/gemini-cli-core."

@@ -52,3 +52,5 @@ jobs:
           channel: '${{ github.event.inputs.channel }}'
           version: '${{ github.event.inputs.version }}'
           dry-run: '${{ github.event.inputs.dry-run }}'
+          wombat-token-core: '${{ secrets.WOMBAT_TOKEN_CORE }}'
+          wombat-token-cli: '${{ secrets.WOMBAT_TOKEN_CLI }}'

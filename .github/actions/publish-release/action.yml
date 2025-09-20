@@ -143,6 +143,8 @@ runs:
         channel: '${{ inputs.release-tag }}'
         version: '${{ inputs.release-version }}'
         dry-run: '${{ inputs.dry-run }}'
+        wombat-token-core: '${{ inputs.wombat-token-core }}'
+        wombat-token-cli: '${{ inputs.wombat-token-cli }}'
 
     - name: '🔬 Verify NPM release by channel tag'
       uses: './.github/actions/verify-release'
