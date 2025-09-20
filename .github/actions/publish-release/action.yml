@@ -140,7 +140,7 @@ runs:
       uses: './.github/actions/tag-npm-release'
       if: "${{ inputs.dry-run == 'false' }}"
       with:
-        channel: '${{ inputs.release-tag }}'
+        channel: '${{ inputs.npm-tag }}'
         version: '${{ inputs.release-version }}'
         dry-run: '${{ inputs.dry-run }}'
         wombat-token-core: '${{ inputs.wombat-token-core }}'
