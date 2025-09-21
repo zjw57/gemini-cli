@@ -693,7 +693,7 @@ export class SmartEditTool
     super(
       SmartEditTool.Name,
       'Edit',
-      `Replaces text within a file. Replaces a single occurrence. This tool requires providing significant context around the change to ensure precise targeting. Always use the ${ReadFileTool.Name} tool to examine the file's current content before attempting a text replacement.
+      `Replaces text within a file. Replaces a single occurrence. This tool requires providing sufficient context around the change to ensure precise targeting. Always use the ${ReadFileTool.Name} tool to examine the file's current content before attempting a text replacement.
       
       The user has the ability to modify the \`new_string\` content. If modified, this will be stated in the response.
       
@@ -703,8 +703,8 @@ export class SmartEditTool
       3. \`new_string\` MUST be the exact literal text to replace \`old_string\` with (also including all whitespace, indentation, newlines, and surrounding code etc.). Ensure the resulting code is correct and idiomatic and that \`old_string\` and \`new_string\` are different.
       4. \`instruction\` is the detailed instruction of what needs to be changed. It is important to Make it specific and detailed so developers or large language models can understand what needs to be changed and perform the changes on their own if necessary. 
       5. NEVER escape \`old_string\` or \`new_string\`, that would break the exact literal text requirement.
-      **Important:** If ANY of the above are not satisfied, the tool will fail. CRITICAL for \`old_string\`: Must uniquely identify the single instance to change. Include at least 3 lines of context BEFORE and AFTER the target text, matching whitespace and indentation precisely. If this string matches multiple locations, or does not match exactly, the tool will fail.
       6. Prefer to break down complex and long changes into multiple smaller atomic calls to this tool. Always check the content of the file after changes or not finding a string to match.
+      **Important:** If ANY of the above are not satisfied, the tool will fail. CRITICAL for \`old_string\`: Must uniquely identify the single instance to change. If this string matches multiple locations, or does not match exactly, the tool will fail.
       **Multiple replacements:** If there are multiple and ambiguous occurences of the \`old_string\` in the file, the tool will also fail.`,
       Kind.Edit,
       {
@@ -734,12 +734,11 @@ A good instruction should concisely answer:
           },
           old_string: {
             description:
-              'The exact literal text to replace, preferably unescaped. Include at least 3 lines of context BEFORE and AFTER the target text, matching whitespace and indentation precisely. If this string is not the exact literal text (i.e. you escaped it) or does not match exactly, the tool will fail.',
+              'The exact literal text to replace matching whitespace and indentation precisely. If this string is not the exact literal text (i.e. you over escaped it) or does not match exactly, the tool will fail.',
             type: 'string',
           },
           new_string: {
-            description:
-              'The exact literal text to replace `old_string` with, preferably unescaped. Provide the EXACT text. Ensure the resulting code is correct and idiomatic.',
+            description: 'The exact literal text to replace `old_string` with.',
             type: 'string',
           },
         },
