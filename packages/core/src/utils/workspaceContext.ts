@@ -105,6 +105,10 @@ export class WorkspaceContext {
     return Array.from(this.directories);
   }
 
+  getDirectoriesPrefix(): string {
+    return this.getDirectories().join(', ');
+  }
+
   getInitialDirectories(): readonly string[] {
     return Array.from(this.initialDirectories);
   }

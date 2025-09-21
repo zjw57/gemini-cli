@@ -251,6 +251,8 @@ describe('Gemini Client (client.ts)', () => {
     vi.resetAllMocks();
     vi.mocked(uiTelemetryService.setLastPromptTokenCount).mockClear();
 
+    vi.mocked(getCoreSystemPrompt).mockReturnValue('test system prompt');
+
     mockGenerateContentFn = vi.fn().mockResolvedValue({
       candidates: [{ content: { parts: [{ text: '{"key": "value"}' }] } }],
     });
@@ -2293,7 +2295,10 @@ ${JSON.stringify(
           model: DEFAULT_GEMINI_FLASH_MODEL,
           config: {
             abortSignal,
-            systemInstruction: getCoreSystemPrompt(''),
+            systemInstruction: getCoreSystemPrompt(
+              '',
+              mockConfig as unknown as Config,
+            ),
             temperature: 0.5,
             topP: 1,
           },
