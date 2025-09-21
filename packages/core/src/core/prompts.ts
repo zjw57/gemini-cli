@@ -7,10 +7,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { LSTool } from '../tools/ls.js';
-import { EditTool } from '../tools/edit.js';
-import { GlobTool } from '../tools/glob.js';
-import { GrepTool } from '../tools/grep.js';
 import { ReadFileTool } from '../tools/read-file.js';
 import { ReadManyFilesTool } from '../tools/read-many-files.js';
 import { ShellTool } from '../tools/shell.js';
