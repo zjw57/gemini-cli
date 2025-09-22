@@ -11,6 +11,7 @@ const mockGenerateJson = vi.hoisted(() => vi.fn());
 const mockOpenDiff = vi.hoisted(() => vi.fn());
 
 import { IdeClient } from '../ide/ide-client.js';
+import { parseAiderDiff } from '../utils/aider_diff_parser.js';
 
 vi.mock('../ide/ide-client.js', () => ({
   IdeClient: {
@@ -191,52 +192,27 @@ describe('SmartEditTool', () => {
   });
 
   describe('calculateReplacement', () => {
-    const abortSignal = new AbortController().signal;
-
     it('should perform an exact replacement', async () => {
       const content = 'hello world';
-      const result = await calculateReplacement({
-        params: {
-          file_path: 'test.txt',
-          instruction: 'test',
-          old_string: 'world',
-          new_string: 'moon',
-        },
-        currentContent: content,
-        abortSignal,
-      });
+      const result = await calculateReplacement(content, 'world', 'moon');
       expect(result.newContent).toBe('hello moon');
       expect(result.occurrences).toBe(1);
     });
 
     it('should perform a flexible, whitespace-insensitive replacement', async () => {
       const content = '  hello\n    world\n';
-      const result = await calculateReplacement({
-        params: {
-          file_path: 'test.txt',
-          instruction: 'test',
-          old_string: 'hello\nworld',
-          new_string: 'goodbye\nmoon',
-        },
-        currentContent: content,
-        abortSignal,
-      });
+      const result = await calculateReplacement(
+        content,
+        'hello\nworld',
+        'goodbye\nmoon',
+      );
       expect(result.newContent).toBe('  goodbye\n  moon\n');
       expect(result.occurrences).toBe(1);
     });
 
     it('should return 0 occurrences if no match is found', async () => {
       const content = 'hello world';
-      const result = await calculateReplacement({
-        params: {
-          file_path: 'test.txt',
-          instruction: 'test',
-          old_string: 'nomatch',
-          new_string: 'moon',
-        },
-        currentContent: content,
-        abortSignal,
-      });
+      const result = await calculateReplacement(content, 'nomatch', 'moon');
       expect(result.newContent).toBe(content);
       expect(result.occurrences).toBe(0);
     });
@@ -245,20 +221,16 @@ describe('SmartEditTool', () => {
   describe('validateToolParams', () => {
     it('should return null for valid params', () => {
       const params: EditToolParams = {
-        file_path: path.join(rootDir, 'test.txt'),
+        diff: `${path.join(rootDir, 'test.txt')}\n<<<<<<< SEARCH\nold\n=======  \nnew\n>>>>>>> REPLACE`,
         instruction: 'An instruction',
-        old_string: 'old',
-        new_string: 'new',
       };
       expect(tool.validateToolParams(params)).toBeNull();
     });
 
     it('should return error for relative path', () => {
       const params: EditToolParams = {
-        file_path: 'test.txt',
+        diff: `test.txt\n<<<<<<< SEARCH\nold\n=======  \nnew\n>>>>>>> REPLACE`,
         instruction: 'An instruction',
-        old_string: 'old',
-        new_string: 'new',
       };
       expect(tool.validateToolParams(params)).toMatch(
         /File path must be absolute/,
@@ -279,10 +251,8 @@ describe('SmartEditTool', () => {
       const newContent = 'This is some new text.';
       fs.writeFileSync(filePath, initialContent, 'utf8');
       const params: EditToolParams = {
-        file_path: filePath,
+        diff: `${filePath}\n<<<<<<< SEARCH\nold\n=======  \nnew\n>>>>>>> REPLACE`,
         instruction: 'Replace old with new',
-        old_string: 'old',
-        new_string: 'new',
       };
 
       const invocation = tool.build(params);
@@ -299,10 +269,8 @@ describe('SmartEditTool', () => {
     it('should return error if old_string is not found in file', async () => {
       fs.writeFileSync(filePath, 'Some content.', 'utf8');
       const params: EditToolParams = {
-        file_path: filePath,
+        diff: `${filePath}\n<<<<<<< SEARCH\nnonexistent\n=======  \nreplacement\n>>>>>>> REPLACE`,
         instruction: 'Replace non-existent text',
-        old_string: 'nonexistent',
-        new_string: 'replacement',
       };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
@@ -318,10 +286,8 @@ describe('SmartEditTool', () => {
       const finalContent = 'This is some brand new text.';
       fs.writeFileSync(filePath, initialContent, 'utf8');
       const params: EditToolParams = {
-        file_path: filePath,
+        diff: `${filePath}\n<<<<<<< SEARCH\noriginal text that is slightly wrong\n=======  \nbrand new text\n>>>>>>> REPLACE`,
         instruction: 'Replace original with brand new',
-        old_string: 'original text that is slightly wrong', // This will fail first
-        new_string: 'brand new text',
       };
 
       mockFixLLMEditWithInstruction.mockResolvedValueOnce({
@@ -344,10 +310,8 @@ describe('SmartEditTool', () => {
       const initialContent = 'The price is $100.';
       fs.writeFileSync(filePath, initialContent, 'utf8');
       const params: EditToolParams = {
-        file_path: filePath,
+        diff: `${filePath}\n<<<<<<< SEARCH\nprice is $50\n=======  \nprice is $100\n>>>>>>> REPLACE`,
         instruction: 'Ensure the price is $100',
-        old_string: 'price is $50', // Incorrect old string
-        new_string: 'price is $100',
       };
 
       mockFixLLMEditWithInstruction.mockResolvedValueOnce({
@@ -370,10 +334,8 @@ describe('SmartEditTool', () => {
       const newContent = 'line one\r\nline three\r\n';
       fs.writeFileSync(filePath, initialContent, 'utf8');
       const params: EditToolParams = {
-        file_path: filePath,
+        diff: `${filePath}\n<<<<<<< SEARCH\nline two\n=======  \nline three\n>>>>>>> REPLACE`,
         instruction: 'Replace two with three',
-        old_string: 'line two',
-        new_string: 'line three',
       };
 
       const invocation = tool.build(params);
@@ -386,10 +348,8 @@ describe('SmartEditTool', () => {
     it('should create a new file with CRLF line endings if new_string has them', async () => {
       const newContentWithCRLF = 'new line one\r\nnew line two\r\n';
       const params: EditToolParams = {
-        file_path: filePath,
+        diff: `${filePath}\n<<<<<<< SEARCH\n=======  \n${newContentWithCRLF}\n>>>>>>> REPLACE`,
         instruction: 'Create a new file',
-        old_string: '',
-        new_string: newContentWithCRLF,
       };
 
       const invocation = tool.build(params);
@@ -410,10 +370,8 @@ describe('SmartEditTool', () => {
 
     it('should return FILE_NOT_FOUND error', async () => {
       const params: EditToolParams = {
-        file_path: filePath,
+        diff: `${filePath}\n<<<<<<< SEARCH\nany\n=======  \nnew\n>>>>>>> REPLACE`,
         instruction: 'test',
-        old_string: 'any',
-        new_string: 'new',
       };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
@@ -423,10 +381,8 @@ describe('SmartEditTool', () => {
     it('should return ATTEMPT_TO_CREATE_EXISTING_FILE error', async () => {
       fs.writeFileSync(filePath, 'existing content', 'utf8');
       const params: EditToolParams = {
-        file_path: filePath,
+        diff: `${filePath}\n<<<<<<< SEARCH\n=======  \nnew content\n>>>>>>> REPLACE`,
         instruction: 'test',
-        old_string: '',
-        new_string: 'new content',
       };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
@@ -438,10 +394,8 @@ describe('SmartEditTool', () => {
     it('should return NO_OCCURRENCE_FOUND error', async () => {
       fs.writeFileSync(filePath, 'content', 'utf8');
       const params: EditToolParams = {
-        file_path: filePath,
+        diff: `${filePath}\n<<<<<<< SEARCH\nnot-found\n=======  \nnew\n>>>>>>> REPLACE`,
         instruction: 'test',
-        old_string: 'not-found',
-        new_string: 'new',
       };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
@@ -451,10 +405,8 @@ describe('SmartEditTool', () => {
     it('should return EXPECTED_OCCURRENCE_MISMATCH error', async () => {
       fs.writeFileSync(filePath, 'one one two', 'utf8');
       const params: EditToolParams = {
-        file_path: filePath,
+        diff: `${filePath}\n<<<<<<< SEARCH\none\n=======  \nnew\n>>>>>>> REPLACE`,
         instruction: 'test',
-        old_string: 'one',
-        new_string: 'new',
       };
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
@@ -485,10 +437,8 @@ describe('SmartEditTool', () => {
       const modifiedContent = 'some modified content here';
       fs.writeFileSync(filePath, initialContent);
       const params: EditToolParams = {
-        file_path: filePath,
+        diff: `${filePath}\n<<<<<<< SEARCH\nold\n=======  \nnew\n>>>>>>> REPLACE`,
         instruction: 'test',
-        old_string: 'old',
-        new_string: 'new',
       };
 
       ideClient.openDiff.mockResolvedValueOnce({
@@ -507,8 +457,9 @@ describe('SmartEditTool', () => {
         await confirmation.onConfirm(ToolConfirmationOutcome.ProceedOnce);
       }
 
-      expect(params.old_string).toBe(initialContent);
-      expect(params.new_string).toBe(modifiedContent);
+      const parsedDiff = parseAiderDiff(params.diff);
+      expect(parsedDiff[0].search).toBe(initialContent);
+      expect(parsedDiff[0].replace).toBe(modifiedContent);
     });
   });
 });
