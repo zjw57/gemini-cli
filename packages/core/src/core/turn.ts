@@ -204,6 +204,7 @@ export class Turn {
   private debugResponses: GenerateContentResponse[] = [];
   private pendingCitations = new Set<string>();
   finishReason: FinishReason | undefined = undefined;
+  finished: boolean = false;
 
   constructor(
     private readonly chat: GeminiChat,
@@ -354,6 +355,11 @@ export class Turn {
       `${fnCall.name}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const name = fnCall.name || 'undefined_tool_name';
     const args = (fnCall.args || {}) as Record<string, unknown>;
+
+    if (name === 'finished') {
+      this.finished = true;
+      return null;
+    }
 
     const toolCallRequest: ToolCallRequestInfo = {
       callId,

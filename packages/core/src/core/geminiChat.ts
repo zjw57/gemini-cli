@@ -100,10 +100,12 @@ function isValidContent(content: Content): boolean {
   if (content.parts === undefined || content.parts.length === 0) {
     return false;
   }
+
   for (const part of content.parts) {
     if (part === undefined || Object.keys(part).length === 0) {
       return false;
     }
+
     if (!part.thought && part.text !== undefined && part.text === '') {
       return false;
     }
@@ -142,6 +144,16 @@ function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
   let i = 0;
   while (i < length) {
     if (comprehensiveHistory[i].role === 'user') {
+      const systemNudge = `System: Your work appears to be complete. If you are satisfied with the results, please call the 'finished' tool to end the session. Otherwise, continue with the next step.`;
+      if (
+        i !== length - 1 &&
+        comprehensiveHistory[i].parts &&
+        comprehensiveHistory[i].parts?.length === 1 &&
+        comprehensiveHistory[i].parts?.[0]?.text === systemNudge
+      ) {
+        continue;
+      }
+
       curatedHistory.push(comprehensiveHistory[i]);
       i++;
     } else {
@@ -594,7 +606,13 @@ export class GeminiChat {
       }
     }
 
-    this.history.push({ role: 'model', parts: consolidatedParts });
+    const finalParts = consolidatedParts.filter(
+      (part) => !part.functionCall || part.functionCall.name !== 'finished',
+    );
+
+    // Push to history even if parts are empty to ensure the turn count
+    // remains correct.
+    this.history.push({ role: 'model', parts: finalParts });
   }
 
   /**

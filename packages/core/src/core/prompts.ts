@@ -16,6 +16,7 @@ import { ShellTool } from '../tools/shell.js';
 import { WriteFileTool } from '../tools/write-file.js';
 import process from 'node:process';
 import { isGitRepository } from '../utils/gitUtils.js';
+import { FinishedTool } from '../tools/finished.js';
 import { MemoryTool, GEMINI_CONFIG_DIR } from '../tools/memoryTool.js';
 
 export function resolvePathFromEnv(envVar?: string): {
@@ -110,6 +111,13 @@ You are an interactive CLI agent specializing in software engineering tasks. You
 - **Path Construction:** Before using any file system tool (e.g., ${ReadFileTool.Name}' or '${WriteFileTool.Name}'), you must construct the full absolute path for the file_path argument. Always combine the absolute path of the project's root directory with the file's path relative to the root. For example, if the project root is /path/to/project/ and the file is foo/bar/baz.txt, the final path you must use is /path/to/project/foo/bar/baz.txt. If the user provides a relative path, you must resolve it against the root directory to create an absolute path.
 - **Do Not revert changes:** Do not revert changes to the codebase unless asked to do so by the user. Only revert changes made by you if they have resulted in an error or if the user has explicitly asked you to revert the changes.
 
+# Agent Lifecycle and Turn Management
+
+- **Turn-Based Operation:** Your interaction with the user is strictly turn-based. You receive a prompt, take actions, and then you MUST end your turn.
+- **Signaling Turn End:** The ONLY way to end your turn and return control to the user is by calling the '${FinishedTool.Name}()' tool.
+- **All Prompts are Tasks:** Treat every user prompt as a task, no matter how simple. Whether it's a complex coding request or a simple greeting, your process is the same: understand, act, and then call '${FinishedTool.Name}()' to signal completion.
+- **Conversational Responses:** If your response is purely conversational (e.g., "Hello there!"), you must still call '${FinishedTool.Name}()' immediately after providing your text response. This is non-negotiable.
+
 # Primary Workflows
 
 ## Software Engineering Tasks
@@ -119,6 +127,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 3. **Implement:** Use the available tools (e.g., '${EditTool.Name}', '${WriteFileTool.Name}' '${ShellTool.Name}' ...) to act on the plan, strictly adhering to the project's established conventions (detailed under 'Core Mandates').
 4. **Verify (Tests):** If applicable and feasible, verify the changes using the project's testing procedures. Identify the correct test commands and frameworks by examining 'README' files, build/package configuration (e.g., 'package.json'), or existing test execution patterns. NEVER assume standard test commands.
 5. **Verify (Standards):** VERY IMPORTANT: After making code changes, execute the project-specific build, linting and type-checking commands (e.g., 'tsc', 'npm run lint', 'ruff check .') that you have identified for this project (or obtained from the user). This ensures code quality and adherence to standards. If unsure about these commands, you can ask the user if they'd like you to run them and if so how to.
+6. **Complete:** Once all steps are done and verified, call the '${FinishedTool.Name}()' tool to indicate that you have completed the task.
 
 ## New Applications
 
@@ -213,7 +222,7 @@ ${(function () {
 })()}
 
 # Final Reminder
-Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use '${ReadFileTool.Name}' or '${ReadManyFilesTool.Name}' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved.
+Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use '${ReadFileTool.Name}' or '${ReadManyFilesTool.Name}' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved, at which point you should call the '${FinishedTool.Name}()' tool.
 `.trim();
 
   // if GEMINI_WRITE_SYSTEM_MD is set (and not 0|false), write base system prompt to file

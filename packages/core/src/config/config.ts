@@ -51,6 +51,7 @@ import { shouldAttemptBrowserLaunch } from '../utils/browser.js';
 import type { MCPOAuthConfig } from '../mcp/oauth-provider.js';
 import { ideContextStore } from '../ide/ideContext.js';
 import { WriteTodosTool } from '../tools/write-todos.js';
+import { FinishedTool } from '../tools/finished.js';
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import {
@@ -1058,6 +1059,7 @@ export class Config {
     if (this.getUseWriteTodos()) {
       registerCoreTool(WriteTodosTool, this);
     }
+    registerCoreTool(FinishedTool);
 
     await registry.discoverAllTools();
     return registry;

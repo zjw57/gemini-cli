@@ -546,6 +546,22 @@ export class GeminiClient {
         return turn;
       }
 
+      if (turn.finished) {
+        return turn;
+      } else {
+        const nextRequest = [
+          {
+            text: `System: Your work appears to be complete. If you are satisfied with the results, please call the 'finished' tool to end the session. Otherwise, continue with the next step.`,
+          },
+        ];
+        yield* this.sendMessageStream(
+          nextRequest,
+          signal,
+          prompt_id,
+          boundedTurns - 1,
+        );
+      }
+
       if (this.config.getSkipNextSpeakerCheck()) {
         return turn;
       }
