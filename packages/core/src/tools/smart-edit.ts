@@ -643,13 +643,19 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
 
       const llmSuccessMessageParts = [
         editData.isNewFile
-          ? `Created new file: ${this.params.file_path} with provided content.`
+          ? `Created new file: ${this.params.file_path}.`
           : `Successfully modified file: ${this.params.file_path} (${editData.occurrences} replacements).`,
       ];
       if (this.params.modified_by_user) {
-        llmSuccessMessageParts.push(
-          `User modified the \`new_string\` content to be: ${this.params.new_string}.`,
-        );
+        const userModificationNotice =
+          'The user manually modified the proposed changes before applying them.';
+        if (this.params.new_string.length > 200) {
+          llmSuccessMessageParts.push(userModificationNotice);
+        } else {
+          llmSuccessMessageParts.push(
+            `${userModificationNotice} The final content was: ${this.params.new_string}`,
+          );
+        }
       }
 
       return {

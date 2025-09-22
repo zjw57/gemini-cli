@@ -148,13 +148,18 @@ export async function runNonInteractive(
           const result = await invocation.execute(abortController.signal);
 
           if (result.llmContent) {
+            let toolResultContent = result.llmContent as string;
+            if (toolResultContent.length > 4000) {
+              toolResultContent = `(Tool output was long and has been summarized)\n${toolResultContent.slice(0, 4000)}...`;
+            }
+
             (currentMessages[0].parts as Part[]).push(
               {
                 text: `\n--- The user Ran the tool '${subAgentTool.name}'. The description of the tool is '${subAgentTool.description}'. 
               The questions the user asked are: '${analysis_questions}'.
               This is the result of the tool: ---\n`,
               },
-              { text: result.llmContent as string },
+              { text: toolResultContent },
             );
           }
         } else if (subAgentName === 'codebase_investigator') {
@@ -168,11 +173,16 @@ export async function runNonInteractive(
           const result = await invocation.execute(abortController.signal);
 
           if (result.llmContent) {
+            let toolResultContent = result.llmContent as string;
+            if (toolResultContent.length > 4000) {
+              toolResultContent = `(Tool output was long and has been summarized)\n${toolResultContent.slice(0, 4000)}...`;
+            }
+
             (currentMessages[0].parts as Part[]).push(
               {
                 text: `\n--- The user Ran the tool '${subAgentTool.name}'. The description of the tool is '${subAgentTool.description}' and this is the result of the tool: ---\n`,
               },
-              { text: result.llmContent as string },
+              { text: toolResultContent },
             );
           }
         } else if (subAgentName === 'planner') {
@@ -186,6 +196,11 @@ export async function runNonInteractive(
           const result = await invocation.execute(abortController.signal);
 
           if (result.llmContent) {
+            let toolResultContent = result.llmContent as string;
+            if (toolResultContent.length > 4000) {
+              toolResultContent = `(Tool output was long and has been summarized)\n${toolResultContent.slice(0, 4000)}...`;
+            }
+
             (currentMessages[0].parts as Part[]).push(
               {
                 text: `\n--
@@ -196,7 +211,7 @@ export async function runNonInteractive(
               2.  **Constant Updates:** After **every** \`turn\`, you **MUST** update the scratchpad. * Mark checklist items as complete: \`[x]\`. * **Dynamically add new checklist items** as you uncover more complexity. 
               3. **Thinking on Paper:** The scratchpad shows your work. It must always reflect your current understanding of the codebase and what your next immediate step should be. \n\n Here is the context and plan given by the planner:  ---\n`,
               },
-              { text: result.llmContent as string },
+              { text: toolResultContent },
             );
           }
         } else if (subAgentName === 'flexible_planner') {
@@ -210,13 +225,18 @@ export async function runNonInteractive(
           const result = await invocation.execute(abortController.signal);
 
           if (result.llmContent) {
+            let toolResultContent = result.llmContent as string;
+            if (toolResultContent.length > 4000) {
+              toolResultContent = `(Tool output was long and has been summarized)\n${toolResultContent.slice(0, 4000)}...`;
+            }
+
             (currentMessages[0].parts as Part[]).push(
               {
                 text: `\n--
               The user Ran the tool '${subAgentTool.name}'. The description of the tool is '${subAgentTool.description}'.
               Here is the context and plan given by the planner:  ---\n`,
               },
-              { text: result.llmContent as string },
+              { text: toolResultContent },
             );
           }
         }
