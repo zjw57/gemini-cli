@@ -54,7 +54,7 @@ export const CloudFreePrivacyNotice = ({
   if (privacyState.isFreeTier === false) {
     return (
       <Box flexDirection="column" marginY={1}>
-        <Text bold color={theme.text.accent}>
+        <Text bold color={Colors.AccentPurple}>
           Gemini Code Assist Privacy Notice
         </Text>
         <Newline />
@@ -62,7 +62,7 @@ export const CloudFreePrivacyNotice = ({
           https://developers.google.com/gemini-code-assist/resources/privacy-notices
         </Text>
         <Newline />
-        <Text color={theme.text.secondary}>Press Esc to exit.</Text>
+        <Text color={Colors.Gray}>Press Esc to exit.</Text>
       </Box>
     );
   }
