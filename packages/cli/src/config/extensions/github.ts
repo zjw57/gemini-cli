@@ -61,7 +61,19 @@ export async function cloneFromGit(
       );
     }
 
-    const refToFetch = installMetadata.ref || 'HEAD';
+    let refToFetch = installMetadata.ref;
+    if (!refToFetch) {
+      try {
+        const { owner, repo } = parseGitHubRepoForReleases(
+          installMetadata.source,
+        );
+        const releaseData = await fetchFromGithub(owner, repo);
+        refToFetch = releaseData.tag_name;
+      } catch {
+        // If we can't fetch the latest release, we'll just use HEAD.
+        refToFetch = 'HEAD';
+      }
+    }
 
     await git.fetch(remotes[0].name, refToFetch);
 
@@ -249,11 +261,9 @@ export async function downloadFromGitHubRelease(
       return releaseData.tag_name;
     }
 
-    const downloadedAssetPath = path.join(
-      destination,
-      path.basename(asset.browser_download_url),
-    );
-    await downloadFile(asset.browser_download_url, downloadedAssetPath);
+    const downloadedAssetPath = path.join(destination, asset.name);
+    const downloadUrl = asset.url;
+    await downloadFile(downloadUrl, downloadedAssetPath);
 
     extractFile(downloadedAssetPath, destination);
 
@@ -286,7 +296,7 @@ export async function downloadFromGitHubRelease(
 
 interface Asset {
   name: string;
-  browser_download_url: string;
+  url: string;
 }
 
 export function findReleaseAsset(assets: Asset[]): Asset | undefined {
@@ -326,60 +336,135 @@ export function findReleaseAsset(assets: Asset[]): Asset | undefined {
   return undefined;
 }
 
+/**
+ * Fetches JSON from a URL, handling auth and redirects.
+ */
 async function fetchJson(
   url: string,
 ): Promise<{ assets: Asset[]; tag_name: string }> {
-  const headers: { 'User-Agent': string; Authorization?: string } = {
+  const headers: {
+    'User-Agent': string;
+    Authorization?: string;
+    Accept: string;
+  } = {
     'User-Agent': 'gemini-cli',
+    Accept: 'application/vnd.github+json',
   };
   const token = getGitHubToken();
+
   if (token) {
-    headers.Authorization = `token ${token}`;
+    headers.Authorization = `Bearer ${token}`;
+  } else {
+    console.log('GITHUB_TOKEN is missing.');
   }
+
   return new Promise((resolve, reject) => {
-    https
-      .get(url, { headers }, (res) => {
-        if (res.statusCode !== 200) {
-          return reject(
-            new Error(`Request failed with status code ${res.statusCode}`),
-          );
-        }
+    const request = https.get(url, { headers }, (res) => {
+      if (
+        (res.statusCode === 301 || res.statusCode === 302) &&
+        res.headers.location
+      ) {
+        fetchJson(res.headers.location).then(resolve).catch(reject);
+        return;
+      }
+
+      // Check for non-200 status
+      if (res.statusCode !== 200) {
+        // Read the error body from GitHub for a detailed message
         const chunks: Buffer[] = [];
         res.on('data', (chunk) => chunks.push(chunk));
         res.on('end', () => {
+          const errorBody = Buffer.concat(chunks).toString();
+          reject(
+            new Error(
+              `Request failed with status code ${res.statusCode} ${res.statusMessage}. Body: ${errorBody}`,
+            ),
+          );
+        });
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        try {
           const data = Buffer.concat(chunks).toString();
           resolve(JSON.parse(data) as { assets: Asset[]; tag_name: string });
-        });
-      })
-      .on('error', reject);
+        } catch (e) {
+          reject(
+            new Error(
+              `Failed to parse JSON response from ${url}: ${getErrorMessage(e)}`,
+            ),
+          );
+        }
+      });
+    });
+
+    request.on('error', (err) => {
+      reject(
+        new Error(`HTTPS request failed for ${url}: ${getErrorMessage(err)}`),
+      );
+    });
   });
 }
 
+/**
+ * Downloads a file from a URL using native https, handling auth and redirects.
+ */
 async function downloadFile(url: string, dest: string): Promise<void> {
-  const headers: { 'User-agent': string; Authorization?: string } = {
-    'User-agent': 'gemini-cli',
-  };
   const token = getGitHubToken();
-  if (token) {
-    headers.Authorization = `token ${token}`;
+  const parsedUrl = new URL(url);
+
+  const options: https.RequestOptions = {
+    headers: {
+      'User-Agent': 'gemini-cli',
+    },
+  };
+
+  if (token && parsedUrl.hostname === 'api.github.com') {
+    options.headers = {
+      ...options.headers,
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/octet-stream',
+    };
   }
+
   return new Promise((resolve, reject) => {
-    https
-      .get(url, { headers }, (res) => {
-        if (res.statusCode === 302 || res.statusCode === 301) {
-          downloadFile(res.headers.location!, dest).then(resolve).catch(reject);
-          return;
-        }
-        if (res.statusCode !== 200) {
-          return reject(
-            new Error(`Request failed with status code ${res.statusCode}`),
-          );
-        }
-        const file = fs.createWriteStream(dest);
-        res.pipe(file);
-        file.on('finish', () => file.close(resolve as () => void));
-      })
-      .on('error', reject);
+    const request = https.get(url, options, (res) => {
+      // Handle redirects (this is the main flow for asset downloads)
+      if (
+        (res.statusCode === 301 || res.statusCode === 302) &&
+        res.headers.location
+      ) {
+        downloadFile(res.headers.location, dest).then(resolve).catch(reject);
+        return;
+      }
+
+      if (res.statusCode !== 200) {
+        return reject(
+          new Error(
+            `Download failed with status code ${res.statusCode}: ${res.statusMessage}`,
+          ),
+        );
+      }
+
+      const fileStream = fs.createWriteStream(dest);
+      res.pipe(fileStream);
+
+      fileStream.on('finish', () => {
+        fileStream.close();
+        resolve();
+      });
+
+      fileStream.on('error', (err) => {
+        fs.unlink(dest, () => {}); // Clean up broken file
+        reject(new Error(`Failed to write to file: ${getErrorMessage(err)}`));
+      });
+    });
+
+    request.on('error', (err) => {
+      reject(new Error(`Download request failed: ${getErrorMessage(err)}`));
+    });
   });
 }
 
