@@ -7,10 +7,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { LSTool } from '../tools/ls.js';
-import { EditTool } from '../tools/edit.js';
-import { GlobTool } from '../tools/glob.js';
-import { GrepTool } from '../tools/grep.js';
 import { ReadFileTool } from '../tools/read-file.js';
 import { ReadManyFilesTool } from '../tools/read-many-files.js';
 import { ShellTool } from '../tools/shell.js';
@@ -19,7 +15,6 @@ import process from 'node:process';
 import { isGitRepository } from '../utils/gitUtils.js';
 import { MemoryTool, GEMINI_CONFIG_DIR } from '../tools/memoryTool.js';
 import { WriteTodosTool } from '../tools/write-todos.js';
-import type { Config } from '../config/config.js';
 
 export function resolvePathFromEnv(envVar?: string): {
   isSwitch: boolean;
@@ -72,7 +67,6 @@ export function resolvePathFromEnv(envVar?: string): {
 }
 
 export function getCoreSystemPrompt(
-  config: Config,
   userMemory?: string,
 ): string {
   // A flag to indicate whether the system prompt override is active.

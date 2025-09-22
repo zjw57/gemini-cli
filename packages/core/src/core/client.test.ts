@@ -2293,7 +2293,7 @@ ${JSON.stringify(
           model: DEFAULT_GEMINI_FLASH_MODEL,
           config: {
             abortSignal,
-            systemInstruction: getCoreSystemPrompt(mockConfig, ''),
+            systemInstruction: getCoreSystemPrompt(''),
             temperature: 0.5,
             topP: 1,
           },
