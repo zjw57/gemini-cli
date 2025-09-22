@@ -744,6 +744,11 @@ export class SmartEditTool
   static readonly Name = 'replace';
 
   constructor(private readonly config: Config) {
+    const context = config.getWorkspaceContext();
+    const dirs = context
+      .getDirectories()
+      .map((dir) => (dir.endsWith('/') ? dir : dir + '/'));
+    const directoryRoots = dirs.join(', ');
     super(
       SmartEditTool.Name,
       'Edit',
@@ -752,18 +757,30 @@ export class SmartEditTool
       {
         properties: {
           diff: {
-            description: `An Aider-formatted diff string that specifies the file path, the content to search for, and the content to replace it with.
+            description: `An Aider-formatted diff string that specifies the absolute file path, the content to search for, and the content to replace it with.
 
 The format is as follows:
 
-path/to/your/file.ts
+/absolute/path/to/some/file.ts
 <<<<<<< SEARCH
   content to be replaced
   (can be multi-line)
 =======
   new content to insert
   (can also be multi-line)
->>>>>>> REPLACE`,
+>>>>>>> REPLACE
+
+It's important that the file is within this directory: ${directoryRoots}
+
+So to elaborate on this format:
+- Each SEARCH/REPLACE block starts with: <<<<<<< SEARCH
+- Followed by a contiguous chunk of lines to search for in the existing file
+- Then a line with: =======
+- Followed by a contiguous chunk of lines to replace the searched content with
+- The end of the replace block: >>>>>>> REPLACE
+
+It's important to keep the SEARCH/REPLACE block concise and targeted
+`,
             type: 'string',
           },
           instruction: {
