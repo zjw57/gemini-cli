@@ -30,7 +30,11 @@ import {
   ApprovalMode,
 } from '../index.js';
 import type { Part, PartListUnion } from '@google/genai';
-import { MockModifiableTool, MockTool } from '../test-utils/mock-tool.js';
+import {
+  MockModifiableTool,
+  MockTool,
+  MOCK_TOOL_SHOULD_CONFIRM_EXECUTE,
+} from '../test-utils/mock-tool.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
@@ -148,14 +152,7 @@ describe('CoreToolScheduler', () => {
   it('should cancel a tool call if the signal is aborted before confirmation', async () => {
     const mockTool = new MockTool({
       name: 'mockTool',
-      shouldConfirmExecute: () =>
-        Promise.resolve({
-          type: 'exec' as const,
-          title: 'Confirm mockTool',
-          command: 'mockTool',
-          rootCommand: 'mockTool',
-          onConfirm: async () => {},
-        }),
+      shouldConfirmExecute: MOCK_TOOL_SHOULD_CONFIRM_EXECUTE,
     });
     const declarativeTool = mockTool;
     const mockToolRegistry = {
@@ -684,21 +681,14 @@ describe('CoreToolScheduler edit cancellation', () => {
 describe('CoreToolScheduler YOLO mode', () => {
   it('should execute tool requiring confirmation directly without waiting', async () => {
     // Arrange
-    const executeFn = vi.fn().mockReturnValue({
+    const executeFn = vi.fn().mockResolvedValue({
       llmContent: 'Tool executed',
       returnDisplay: 'Tool executed',
     });
     const mockTool = new MockTool({
       name: 'mockTool',
       execute: executeFn,
-      shouldConfirmExecute: () =>
-        Promise.resolve({
-          type: 'exec' as const,
-          title: 'Confirm mockTool',
-          command: 'mockTool',
-          rootCommand: 'mockTool',
-          onConfirm: async () => {},
-        }),
+      shouldConfirmExecute: MOCK_TOOL_SHOULD_CONFIRM_EXECUTE,
     });
     const declarativeTool = mockTool;
 
@@ -774,7 +764,7 @@ describe('CoreToolScheduler YOLO mode', () => {
 
     // Assert
     // 1. The tool's execute method was called directly.
-    expect(executeFn).toHaveBeenCalledWith({ param: 'value' });
+    expect(executeFn.mock.calls[0][0]).toEqual({ param: 'value' });
 
     // 2. The tool call status never entered 'awaiting_approval'.
     const statusUpdates = onToolCallsUpdate.mock.calls
@@ -808,10 +798,7 @@ describe('CoreToolScheduler request queueing', () => {
     });
 
     const executeFn = vi.fn().mockImplementation(() => firstCallPromise);
-    const mockTool = new MockTool({
-      name: 'mockTool',
-      execute: executeFn,
-    });
+    const mockTool = new MockTool({ name: 'mockTool', execute: executeFn });
     const declarativeTool = mockTool;
 
     const mockToolRegistry = {
@@ -894,8 +881,7 @@ describe('CoreToolScheduler request queueing', () => {
     );
 
     // Ensure the second tool call hasn't been executed yet.
-    expect(executeFn).toHaveBeenCalledTimes(1);
-    expect(executeFn).toHaveBeenCalledWith({ a: 1 });
+    expect(executeFn.mock.calls[0][0]).toEqual({ a: 1 });
 
     // Complete the first tool call.
     resolveFirstCall!({
@@ -919,7 +905,7 @@ describe('CoreToolScheduler request queueing', () => {
       // Now the second tool call should have been executed.
       expect(executeFn).toHaveBeenCalledTimes(2);
     });
-    expect(executeFn).toHaveBeenCalledWith({ b: 2 });
+    expect(executeFn.mock.calls[1][0]).toEqual({ b: 2 });
 
     // Wait for the second completion.
     await vi.waitFor(() => {
@@ -933,21 +919,14 @@ describe('CoreToolScheduler request queueing', () => {
 
   it('should auto-approve a tool call if it is on the allowedTools list', async () => {
     // Arrange
-    const executeFn = vi.fn().mockReturnValue({
+    const executeFn = vi.fn().mockResolvedValue({
       llmContent: 'Tool executed',
       returnDisplay: 'Tool executed',
     });
     const mockTool = new MockTool({
       name: 'mockTool',
       execute: executeFn,
-      shouldConfirmExecute: () =>
-        Promise.resolve({
-          type: 'exec' as const,
-          title: 'Confirm mockTool',
-          command: 'mockTool',
-          rootCommand: 'mockTool',
-          onConfirm: async () => {},
-        }),
+      shouldConfirmExecute: MOCK_TOOL_SHOULD_CONFIRM_EXECUTE,
     });
     const declarativeTool = mockTool;
 
@@ -1024,7 +1003,7 @@ describe('CoreToolScheduler request queueing', () => {
 
     // Assert
     // 1. The tool's execute method was called directly.
-    expect(executeFn).toHaveBeenCalledWith({ param: 'value' });
+    expect(executeFn.mock.calls[0][0]).toEqual({ param: 'value' });
 
     // 2. The tool call status never entered 'awaiting_approval'.
     const statusUpdates = onToolCallsUpdate.mock.calls
@@ -1051,7 +1030,10 @@ describe('CoreToolScheduler request queueing', () => {
   });
 
   it('should handle two synchronous calls to schedule', async () => {
-    const executeFn = vi.fn();
+    const executeFn = vi.fn().mockResolvedValue({
+      llmContent: 'Tool executed',
+      returnDisplay: 'Tool executed',
+    });
     const mockTool = new MockTool({ name: 'mockTool', execute: executeFn });
     const declarativeTool = mockTool;
     const mockToolRegistry = {
@@ -1135,8 +1117,8 @@ describe('CoreToolScheduler request queueing', () => {
 
     // Ensure the tool was called twice with the correct arguments.
     expect(executeFn).toHaveBeenCalledTimes(2);
-    expect(executeFn).toHaveBeenCalledWith({ a: 1 });
-    expect(executeFn).toHaveBeenCalledWith({ b: 2 });
+    expect(executeFn.mock.calls[0][0]).toEqual({ a: 1 });
+    expect(executeFn.mock.calls[1][0]).toEqual({ b: 2 });
 
     // Ensure completion callbacks were called twice.
     expect(onAllToolCallsComplete).toHaveBeenCalledTimes(2);

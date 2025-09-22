@@ -80,7 +80,7 @@ describe('executeToolCall', () => {
       returnDisplay: 'Success!',
     };
     vi.mocked(mockToolRegistry.getTool).mockReturnValue(mockTool);
-    executeFn.mockReturnValue(toolResult);
+    executeFn.mockResolvedValue(toolResult);
 
     const response = await executeToolCall(
       mockConfig,
@@ -89,7 +89,11 @@ describe('executeToolCall', () => {
     );
 
     expect(mockToolRegistry.getTool).toHaveBeenCalledWith('testTool');
-    expect(executeFn).toHaveBeenCalledWith(request.args);
+    expect(executeFn).toHaveBeenCalledWith(
+      request.args,
+      expect.any(AbortSignal),
+      undefined,
+    );
     expect(response).toStrictEqual({
       callId: 'call1',
       error: undefined,
@@ -210,7 +214,7 @@ describe('executeToolCall', () => {
       },
     };
     vi.mocked(mockToolRegistry.getTool).mockReturnValue(mockTool);
-    executeFn.mockReturnValue(executionErrorResult);
+    executeFn.mockResolvedValue(executionErrorResult);
 
     const response = await executeToolCall(
       mockConfig,
@@ -246,9 +250,7 @@ describe('executeToolCall', () => {
       prompt_id: 'prompt-id-5',
     };
     vi.mocked(mockToolRegistry.getTool).mockReturnValue(mockTool);
-    executeFn.mockImplementation(() => {
-      throw new Error('Something went very wrong');
-    });
+    executeFn.mockRejectedValue(new Error('Something went very wrong'));
 
     const response = await executeToolCall(
       mockConfig,
@@ -290,7 +292,7 @@ describe('executeToolCall', () => {
       returnDisplay: 'Image processed',
     };
     vi.mocked(mockToolRegistry.getTool).mockReturnValue(mockTool);
-    executeFn.mockReturnValue(toolResult);
+    executeFn.mockResolvedValue(toolResult);
 
     const response = await executeToolCall(
       mockConfig,
@@ -333,7 +335,7 @@ describe('executeToolCall', () => {
       returnDisplay: 'String returned',
     };
     vi.mocked(mockToolRegistry.getTool).mockReturnValue(mockTool);
-    executeFn.mockReturnValue(toolResult);
+    executeFn.mockResolvedValue(toolResult);
 
     const response = await executeToolCall(
       mockConfig,
@@ -361,7 +363,7 @@ describe('executeToolCall', () => {
       returnDisplay: 'Image data returned',
     };
     vi.mocked(mockToolRegistry.getTool).mockReturnValue(mockTool);
-    executeFn.mockReturnValue(toolResult);
+    executeFn.mockResolvedValue(toolResult);
 
     const response = await executeToolCall(
       mockConfig,

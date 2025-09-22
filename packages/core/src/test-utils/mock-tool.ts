@@ -119,6 +119,15 @@ export class MockTool extends BaseDeclarativeTool<
   }
 }
 
+export const MOCK_TOOL_SHOULD_CONFIRM_EXECUTE = () =>
+  Promise.resolve({
+    type: 'exec' as const,
+    title: 'Confirm mockTool',
+    command: 'mockTool',
+    rootCommand: 'mockTool',
+    onConfirm: async () => {},
+  });
+
 export class MockModifiableToolInvocation extends BaseToolInvocation<
   Record<string, unknown>,
   ToolResult
