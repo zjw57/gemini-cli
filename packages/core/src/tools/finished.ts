@@ -12,14 +12,18 @@ import {
   BaseToolInvocation,
 } from './tools.js';
 
-export type FinishedToolParams = Record<string, never>;
+export type FinishedToolParams = {
+  testsPass: boolean;
+  workCrossChecked: boolean;
+  usersRequestFulfilledEntirely: boolean;
+};
 
 class FinishedToolInvocation extends BaseToolInvocation<
   FinishedToolParams,
   ToolResult
 > {
-  constructor() {
-    super({});
+  constructor(params: FinishedToolParams) {
+    super(params);
   }
 
   getDescription(): string {
@@ -48,19 +52,39 @@ export class FinishedTool extends BaseDeclarativeTool<
     super(
       FinishedTool.Name,
       'Finished',
-      'Call this tool only after you have completed all your work, verified it with tests, linting, or other quality checks, and are ready to end the interaction. This signals that the task is complete.',
+      'Call this tool only after you have completed all your work and are ready to end the interaction. If you have written or modified any code, you MUST run the appropriate tests and report the outcome in the `testsPass` parameter. This signals that the task is complete.',
       Kind.Other,
       {
         type: 'object',
-        properties: {},
-        required: [],
+        properties: {
+          testsPass: {
+            type: 'boolean',
+            description:
+              'Required if any code was written or modified. Set to `true` if all tests passed. Cannot be called with false.',
+          },
+          workCrossChecked: {
+            type: 'boolean',
+            description:
+              'You must think through the work you have done and set this to `true`. This is a mandatory check. Cannot be called with false.',
+          },
+          usersRequestFulfilledEntirely: {
+            type: 'boolean',
+            description:
+              "Set to `true` if the user's request was fulfilled entirely. Cannot be called with false.",
+          },
+        },
+        required: [
+          'testsPass',
+          'workCrossChecked',
+          'usersRequestFulfilledEntirely',
+        ],
       },
     );
   }
 
   protected createInvocation(
-    _params: FinishedToolParams,
+    params: FinishedToolParams,
   ): ToolInvocation<FinishedToolParams, ToolResult> {
-    return new FinishedToolInvocation();
+    return new FinishedToolInvocation(params);
   }
 }

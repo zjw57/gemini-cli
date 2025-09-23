@@ -357,7 +357,7 @@ export class Turn {
     const args = (fnCall.args || {}) as Record<string, unknown>;
 
     if (name === 'finished') {
-      this.finished = true;
+      this.finished = JSON.stringify(args).indexOf('false') === -1;
       return null;
     }
 
