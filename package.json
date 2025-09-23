@@ -70,6 +70,7 @@
     "LICENSE"
   ],
   "devDependencies": {
+    "@microsoft/tui-test": "git+https://github.com/jacob314/tui-test#6ae29841deaed8affbca4bb8a00b4229e561d8ba",
     "@types/marked": "^5.0.2",
     "@types/mime-types": "^3.0.1",
     "@types/minimatch": "^5.1.2",
