@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import mime from 'mime/lite';
+import mime from 'mime';
 
 import {
   isWithinRoot,
@@ -32,7 +32,7 @@ import {
 } from './fileUtils.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 
-vi.mock('mime/lite', () => ({
+vi.mock('mime', () => ({
   default: { getType: vi.fn() },
   getType: vi.fn(),
 }));

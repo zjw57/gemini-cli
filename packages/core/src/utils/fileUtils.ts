@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
 import type { PartUnion } from '@google/genai';
-import mime from 'mime/lite';
+import mime from 'mime';
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { ToolErrorType } from '../tools/tool-error.js';
 import { BINARY_EXTENSIONS } from './ignorePatterns.js';

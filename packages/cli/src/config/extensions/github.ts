@@ -6,13 +6,17 @@
 
 import { simpleGit } from 'simple-git';
 import { getErrorMessage } from '../../utils/errors.js';
-import type { ExtensionInstallMetadata } from '@google/gemini-cli-core';
+import type {
+  ExtensionInstallMetadata,
+  GeminiCLIExtension,
+} from '@google/gemini-cli-core';
 import { ExtensionUpdateState } from '../../ui/state/extensions.js';
 import * as os from 'node:os';
 import * as https from 'node:https';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execSync } from 'node:child_process';
+import { loadExtension } from '../extension.js';
 
 function getGitHubToken(): string | undefined {
   return process.env['GITHUB_TOKEN'];
@@ -110,39 +114,64 @@ async function fetchFromGithub(
 }
 
 export async function checkForExtensionUpdate(
-  installMetadata: ExtensionInstallMetadata,
-): Promise<ExtensionUpdateState> {
+  extension: GeminiCLIExtension,
+  setExtensionUpdateState: (updateState: ExtensionUpdateState) => void,
+  cwd: string = process.cwd(),
+): Promise<void> {
+  setExtensionUpdateState(ExtensionUpdateState.CHECKING_FOR_UPDATES);
+  const installMetadata = extension.installMetadata;
+  if (installMetadata?.type === 'local') {
+    const newExtension = loadExtension({
+      extensionDir: installMetadata.source,
+      workspaceDir: cwd,
+    });
+    if (!newExtension) {
+      console.error(
+        `Failed to check for update for local extension "${extension.name}". Could not load extension from source path: ${installMetadata.source}`,
+      );
+      setExtensionUpdateState(ExtensionUpdateState.ERROR);
+      return;
+    }
+    if (newExtension.config.version !== extension.version) {
+      setExtensionUpdateState(ExtensionUpdateState.UPDATE_AVAILABLE);
+      return;
+    }
+    setExtensionUpdateState(ExtensionUpdateState.UP_TO_DATE);
+    return;
+  }
   if (
-    installMetadata.type !== 'git' &&
-    installMetadata.type !== 'github-release'
+    !installMetadata ||
+    (installMetadata.type !== 'git' &&
+      installMetadata.type !== 'github-release')
   ) {
-    return ExtensionUpdateState.NOT_UPDATABLE;
+    setExtensionUpdateState(ExtensionUpdateState.NOT_UPDATABLE);
+    return;
   }
   try {
     if (installMetadata.type === 'git') {
-      const git = simpleGit(installMetadata.source);
+      const git = simpleGit(extension.path);
       const remotes = await git.getRemotes(true);
       if (remotes.length === 0) {
         console.error('No git remotes found.');
-        return ExtensionUpdateState.ERROR;
+        setExtensionUpdateState(ExtensionUpdateState.ERROR);
+        return;
       }
       const remoteUrl = remotes[0].refs.fetch;
       if (!remoteUrl) {
         console.error(`No fetch URL found for git remote ${remotes[0].name}.`);
-        return ExtensionUpdateState.ERROR;
+        setExtensionUpdateState(ExtensionUpdateState.ERROR);
+        return;
       }
 
       // Determine the ref to check on the remote.
       const refToCheck = installMetadata.ref || 'HEAD';
 
-      const lsRemoteOutput = await git.listRemote([
-        remotes[0].name,
-        refToCheck,
-      ]);
+      const lsRemoteOutput = await git.listRemote([remoteUrl, refToCheck]);
 
       if (typeof lsRemoteOutput !== 'string' || lsRemoteOutput.trim() === '') {
         console.error(`Git ref ${refToCheck} not found.`);
-        return ExtensionUpdateState.ERROR;
+        setExtensionUpdateState(ExtensionUpdateState.ERROR);
+        return;
       }
 
       const remoteHash = lsRemoteOutput.split('\t')[0];
@@ -152,16 +181,21 @@ export async function checkForExtensionUpdate(
         console.error(
           `Unable to parse hash from git ls-remote output "${lsRemoteOutput}"`,
         );
-        return ExtensionUpdateState.ERROR;
+        setExtensionUpdateState(ExtensionUpdateState.ERROR);
+        return;
       }
       if (remoteHash === localHash) {
-        return ExtensionUpdateState.UP_TO_DATE;
+        setExtensionUpdateState(ExtensionUpdateState.UP_TO_DATE);
+        return;
       }
-      return ExtensionUpdateState.UPDATE_AVAILABLE;
+      setExtensionUpdateState(ExtensionUpdateState.UPDATE_AVAILABLE);
+      return;
     } else {
-      const { source, ref } = installMetadata;
+      const { source, releaseTag } = installMetadata;
       if (!source) {
-        return ExtensionUpdateState.ERROR;
+        console.error(`No "source" provided for extension.`);
+        setExtensionUpdateState(ExtensionUpdateState.ERROR);
+        return;
       }
       const { owner, repo } = parseGitHubRepoForReleases(source);
 
@@ -170,16 +204,19 @@ export async function checkForExtensionUpdate(
         repo,
         installMetadata.ref,
       );
-      if (releaseData.tag_name !== ref) {
-        return ExtensionUpdateState.UPDATE_AVAILABLE;
+      if (releaseData.tag_name !== releaseTag) {
+        setExtensionUpdateState(ExtensionUpdateState.UPDATE_AVAILABLE);
+        return;
       }
-      return ExtensionUpdateState.UP_TO_DATE;
+      setExtensionUpdateState(ExtensionUpdateState.UP_TO_DATE);
+      return;
     }
   } catch (error) {
     console.error(
       `Failed to check for updates for extension "${installMetadata.source}": ${getErrorMessage(error)}`,
     );
-    return ExtensionUpdateState.ERROR;
+    setExtensionUpdateState(ExtensionUpdateState.ERROR);
+    return;
   }
 }
 
@@ -192,21 +229,24 @@ export async function downloadFromGitHubRelease(
 
   try {
     const releaseData = await fetchFromGithub(owner, repo, ref);
-    if (
-      !releaseData ||
-      !releaseData.assets ||
-      releaseData.assets.length === 0
-    ) {
+    if (!releaseData) {
       throw new Error(
-        `No release assets found for ${owner}/${repo} at tag ${ref}`,
+        `No release data found for ${owner}/${repo} at tag ${ref}`,
       );
     }
 
     const asset = findReleaseAsset(releaseData.assets);
     if (!asset) {
-      throw new Error(
-        `No suitable release asset found for platform ${os.platform()}-${os.arch()}`,
+      // If there are no release assets, then we just clone the repo using the
+      // ref the release points to.
+      await cloneFromGit(
+        {
+          ...installMetadata,
+          ref: releaseData.tag_name,
+        },
+        destination,
       );
+      return releaseData.tag_name;
     }
 
     const downloadedAssetPath = path.join(

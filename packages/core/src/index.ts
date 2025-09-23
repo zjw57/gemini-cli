@@ -8,6 +8,8 @@
 export * from './config/config.js';
 export * from './output/types.js';
 export * from './output/json-formatter.js';
+export * from './policy/types.js';
+export * from './policy/policy-engine.js';
 
 // Export Core Logic
 export * from './core/client.js';
@@ -94,6 +96,7 @@ export * from './tools/web-search.js';
 export * from './tools/read-many-files.js';
 export * from './tools/mcp-client.js';
 export * from './tools/mcp-tool.js';
+export * from './tools/write-todos.js';
 
 // MCP OAuth
 export { MCPOAuthProvider } from './mcp/oauth-provider.js';
