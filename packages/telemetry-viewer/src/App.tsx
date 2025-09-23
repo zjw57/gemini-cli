@@ -4,13 +4,29 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+
+const EVENT_TYPES_OF_INTEREST = new Set([
+  'user-prompt',
+  'llm-request',
+  'llm-response',
+  'tool-code',
+  'tool-call',
+  'tool-result',
+]);
+
+type LogEntry = {
+  timestamp: string;
+  eventName: string;
+  sessionId: string;
+  [key: string]: unknown;
+};
 
 function App() {
-  const [logs, setLogs] = useState<object[]>([]);
-  const [filteredLogs, setFilteredLogs] = useState<object[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeSession, setActiveSession] = useState<string | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -22,53 +38,63 @@ function App() {
     reader.onload = (e) => {
       const contents = e.target?.result as string;
       try {
-        const logObjects = contents.trim().split('}\n{');
-        const parsedLogs = logObjects
-          .map((logObject, index) => {
+        const parsedLogs = contents
+          .trim()
+          .split('}\n{')
+          .map((line) => {
             try {
-              if (logObjects.length > 1 && index > 0) {
-                logObject = '{' + logObject;
-              }
-              if (logObjects.length > 1 && index < logObjects.length - 1) {
-                logObject = logObject + '}';
-              }
-              return JSON.parse(logObject);
+              return JSON.parse(line);
             } catch (err) {
               console.error('Failed to parse individual log object:', err);
               return null;
             }
           })
-          .filter((log) => log !== null) as object[];
+          .filter((log): log is LogEntry => log !== null);
 
         setLogs(parsedLogs);
-        setFilteredLogs(parsedLogs);
         setError(null);
       } catch (err) {
         setError(`Failed to parse log file. Error: ${err}`);
         setLogs([]);
-        setFilteredLogs([]);
       }
     };
     reader.onerror = () => {
       setError('Failed to read file.');
       setLogs([]);
-      setFilteredLogs([]);
     };
     reader.readAsText(file);
   };
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const term = event.target.value;
-    setSearchTerm(term);
-    if (term === '') {
-      setFilteredLogs(logs);
-    } else {
-      const lowerCaseTerm = term.toLowerCase();
-      const filtered = logs.filter((log) =>
-        JSON.stringify(log).toLowerCase().includes(lowerCaseTerm),
-      );
-      setFilteredLogs(filtered);
+    setSearchTerm(event.target.value);
+  };
+
+  const sessions = useMemo(() => {
+    const lowerCaseTerm = searchTerm.toLowerCase();
+    const sessionsMap = new Map<string, LogEntry[]>();
+
+    for (const log of logs) {
+      if (!EVENT_TYPES_OF_INTEREST.has(log.eventName)) {
+        continue;
+      }
+
+      if (
+        searchTerm &&
+        !JSON.stringify(log).toLowerCase().includes(lowerCaseTerm)
+      ) {
+        continue;
+      }
+
+      if (!sessionsMap.has(log.sessionId)) {
+        sessionsMap.set(log.sessionId, []);
+      }
+      sessionsMap.get(log.sessionId)!.push(log);
     }
+    return sessionsMap;
+  }, [logs, searchTerm]);
+
+  const toggleSession = (sessionId: string) => {
+    setActiveSession(activeSession === sessionId ? null : sessionId);
   };
 
   return (
@@ -104,26 +130,51 @@ function App() {
               onChange={handleSearchChange}
             />
           </div>
-          <table className="table table-striped table-bordered">
-            <thead className="thead-dark">
-              <tr>
-                <th>Timestamp</th>
-                <th>Event Name</th>
-                <th>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredLogs.map((log, index) => (
-                <tr key={index}>
-                  <td>{new Date(log.timestamp).toLocaleString()}</td>
-                  <td>{log.eventName}</td>
-                  <td>
-                    <pre>{JSON.stringify(log, null, 2)}</pre>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="accordion" id="sessions-accordion">
+            {Array.from(sessions.entries()).map(([sessionId, sessionLogs]) => (
+              <div className="accordion-item" key={sessionId}>
+                <h2 className="accordion-header" id={`heading-${sessionId}`}>
+                  <button
+                    className={`accordion-button ${
+                      activeSession === sessionId ? '' : 'collapsed'
+                    }`}
+                    type="button"
+                    onClick={() => toggleSession(sessionId)}
+                  >
+                    Session: {sessionId} ({sessionLogs.length} events)
+                  </button>
+                </h2>
+                <div
+                  className={`accordion-collapse collapse ${
+                    activeSession === sessionId ? 'show' : ''
+                  }`}
+                >
+                  <div className="accordion-body">
+                    <table className="table table-striped table-bordered">
+                      <thead className="thead-dark">
+                        <tr>
+                          <th>Timestamp</th>
+                          <th>Event Name</th>
+                          <th>Details</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sessionLogs.map((log, index) => (
+                          <tr key={index}>
+                            <td>{new Date(log.timestamp).toLocaleString()}</td>
+                            <td>{log.eventName}</td>
+                            <td>
+                              <pre>{JSON.stringify(log, null, 2)}</pre>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </>
       )}
     </div>
