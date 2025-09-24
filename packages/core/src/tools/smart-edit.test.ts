@@ -291,27 +291,6 @@ describe('SmartEditTool', () => {
       expect(params.file_path).toBe(fullPath);
     });
 
-    it('should resolve a relative path to the root even if ambiguous in subdirectories', () => {
-      const testFile = 'ambiguous.txt';
-      const subDir = path.join(rootDir, 'sub');
-      fs.mkdirSync(subDir);
-      fs.writeFileSync(path.join(rootDir, testFile), 'content1');
-      fs.writeFileSync(path.join(subDir, testFile), 'content2');
-
-      const params: EditToolParams = {
-        file_path: testFile,
-        instruction: 'An instruction',
-        old_string: 'old',
-        new_string: 'new',
-      };
-      const result = tool.validateToolParams(params);
-
-      // The validation should succeed because it finds the file in the root dir first.
-      expect(result).toBeNull();
-      // It should have resolved the path to the one in the root directory.
-      expect(params.file_path).toBe(path.join(rootDir, testFile));
-    });
-
     it('should return an error for a relative path that does not exist', () => {
       const params: EditToolParams = {
         file_path: 'test.txt',
@@ -332,6 +311,58 @@ describe('SmartEditTool', () => {
       };
       expect(tool.validateToolParams(params)).toMatch(
         /must be within one of the workspace directories/,
+      );
+    });
+
+    it('should use heuristic to resolve ambiguous path', () => {
+      const subDir1 = path.join(rootDir, 'api', 'v1');
+      const subDir2 = path.join(rootDir, 'services');
+      fs.mkdirSync(subDir1, { recursive: true });
+      fs.mkdirSync(subDir2, { recursive: true });
+
+      const ambiguousFile = 'auth.ts';
+      const correctPath = path.join(subDir2, ambiguousFile);
+      fs.writeFileSync(path.join(subDir1, ambiguousFile), 'api auth');
+      fs.writeFileSync(correctPath, 'service auth');
+
+      const params: EditToolParams = {
+        file_path: path.join('services', ambiguousFile),
+        instruction: 'An instruction',
+        old_string: 'old',
+        new_string: 'new',
+      };
+
+      const validationResult = tool.validateToolParams(params);
+
+      expect(validationResult).toBeNull();
+      expect(params.file_path).toBe(correctPath);
+    });
+
+    it('should return an error for an ambiguous path that heuristic cannot resolve', () => {
+      const subDir1 = path.join(rootDir, 'module1');
+      const subDir2 = path.join(rootDir, 'module2');
+      fs.mkdirSync(subDir1, { recursive: true });
+      fs.mkdirSync(subDir2, { recursive: true });
+
+      const ambiguousFile = 'component.ts';
+      const path1 = path.join(subDir1, 'component.ts');
+      const path2 = path.join(subDir2, 'component.ts');
+      fs.writeFileSync(path1, 'content 1');
+      fs.writeFileSync(path2, 'content 2');
+
+      // Here, both paths end with 'component.ts', but the input is just 'component.ts'
+      // The heuristic for direct structural match won't find a unique winner.
+      const params: EditToolParams = {
+        file_path: ambiguousFile,
+        instruction: 'An instruction',
+        old_string: 'old',
+        new_string: 'new',
+      };
+
+      const validationResult = tool.validateToolParams(params);
+
+      expect(validationResult).toMatch(
+        /The file path 'component.ts' is too ambiguous and matches multiple files with similar structure./,
       );
     });
   });

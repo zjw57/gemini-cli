@@ -785,13 +785,28 @@ A good instruction should concisely answer:
         const foundFiles = fileSystem.findFiles(params.file_path, searchPaths);
 
         if (foundFiles.length === 1) {
-          // It's unambiguous, so we can correct it.
           params.file_path = foundFiles[0];
         } else if (foundFiles.length > 1) {
-          return (
-            `The file path '${params.file_path}' is ambiguous and matches multiple files. ` +
-            `Please provide an absolute path to one of the following: ${foundFiles.join(', ')}`
+          // Heuristic: When multiple files match (e.g., searching for 'auth.ts' finds two),
+          // prefer the one where the full path has a more direct structural match to the
+          // user's input (e.g., input 'services/auth.ts' matches '/proj/services/auth.ts'
+          // better than '/proj/api/v1/auth.ts').
+          const normalizedInput = path.normalize(params.file_path);
+          const directMatches = foundFiles.filter(
+            (file: string) =>
+              file.endsWith(normalizedInput) &&
+              (file.length === normalizedInput.length ||
+                file[file.length - normalizedInput.length - 1] === path.sep),
           );
+
+          if (directMatches.length === 1) {
+            params.file_path = directMatches[0];
+          } else if (directMatches.length > 1) {
+            return (
+              `The file path '${params.file_path}' is ambiguous and matches multiple files with similar structure. ` +
+              `Please provide an absolute path to one of the following: ${directMatches.join(', ')}`
+            );
+          }
         } else {
           // No files found, fall through to the absolute path check which will now fail,
           // or just return a more specific error.
