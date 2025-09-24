@@ -40,6 +40,12 @@ inputs:
     description: 'Skip tests and validation'
     required: false
     default: false
+  dockerhub-username:
+    description: 'Dockerhub username'
+    required: true
+  dcokerhub-token:
+    description: 'Dockerhub PAT w/ R+W'
+    required: true
 
 runs:
   using: 'composite'
@@ -135,6 +141,16 @@ runs:
         npm-package: '@google/gemini-cli@${{ inputs.release-version }}'
         expected-version: '${{ inputs.release-version }}'
         ref: '${{ steps.release_branch.outputs.BRANCH_NAME }}'
+
+    - name: 'Push Sandbox'
+      uses: './.github/actions/push-sandbox'
+      if: "${{ inputs.dry-run == 'false' }}"
+      with:
+        github-secret: '${{ inputs.github-token }}'
+        dockerhub-username: '${{ inputs.dockerhub-username }}'
+        dockerhub-token: '${{ inputs.dockerhub-token }}'
+        github-ref-name: '${{ inputs.release-tag }}'
+        dry-run: '${{ inputs.dry-run }}'
 
     - name: '🏷️ Tag release'
       uses: './.github/actions/tag-npm-release'

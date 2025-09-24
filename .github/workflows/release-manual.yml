@@ -85,6 +85,8 @@ jobs:
           npm-tag: '${{ github.event.inputs.npm_channel }}'
           wombat-token-core: '${{ secrets.WOMBAT_TOKEN_CORE }}'
           wombat-token-cli: '${{ secrets.WOMBAT_TOKEN_CLI }}'
+          dockerhub-username: '${{ secrets.DOCKER_SERVICE_ACCOUNT_NAME }}'
+          dockerhub-token: '${{ secrets.DOCKER_SERVICE_ACCOUNT_KEY }}'
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           dry-run: '${{ github.event.inputs.dry_run }}'
           previous-tag: '${{ steps.release_info.outputs.PREVIOUS_TAG }}'
