@@ -253,15 +253,66 @@ describe('SmartEditTool', () => {
       expect(tool.validateToolParams(params)).toBeNull();
     });
 
-    it('should return error for relative path', () => {
+    it('should correct a relative path if it is unambiguous', () => {
+      const testFile = 'unique.txt';
+      fs.writeFileSync(path.join(rootDir, testFile), 'content');
+
+      const params: EditToolParams = {
+        file_path: testFile,
+        instruction: 'An instruction',
+        old_string: 'old',
+        new_string: 'new',
+      };
+
+      expect(tool.validateToolParams(params)).toBeNull();
+      expect(params.file_path).toBe(path.join(rootDir, testFile));
+    });
+
+    it('should return an error for an ambiguous relative path', () => {
+      const testFile = 'ambiguous.txt';
+      const subDir = path.join(rootDir, 'sub');
+      fs.mkdirSync(subDir);
+      fs.writeFileSync(path.join(rootDir, testFile), 'content1');
+      fs.writeFileSync(path.join(subDir, testFile), 'content2');
+
+      // We need to update the workspace context for the test
+      (mockConfig as any).getWorkspaceContext = () =>
+        createMockWorkspaceContext(rootDir, [rootDir, subDir]);
+      tool = new SmartEditTool(mockConfig);
+
+      const params: EditToolParams = {
+        file_path: testFile,
+        instruction: 'An instruction',
+        old_string: 'old',
+        new_string: 'new',
+      };
+
+      const result = tool.validateToolParams(params);
+      expect(result).toMatch(/The file path 'ambiguous.txt' is ambiguous/);
+      expect(result).toMatch(path.join(rootDir, testFile));
+      expect(result).toMatch(path.join(subDir, testFile));
+    });
+
+    it('should return an error for a relative path that does not exist', () => {
       const params: EditToolParams = {
         file_path: 'test.txt',
         instruction: 'An instruction',
         old_string: 'old',
         new_string: 'new',
       };
+      const result = tool.validateToolParams(params);
+      expect(result).toMatch(/File not found for 'test.txt'/);
+    });
+
+    it('should return an error if path is outside the workspace', () => {
+      const params: EditToolParams = {
+        file_path: path.join(os.tmpdir(), 'outside.txt'),
+        instruction: 'An instruction',
+        old_string: 'old',
+        new_string: 'new',
+      };
       expect(tool.validateToolParams(params)).toMatch(
-        /File path must be absolute/,
+        /must be within one of the workspace directories/,
       );
     });
   });

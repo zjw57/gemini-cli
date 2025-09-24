@@ -767,11 +767,29 @@ A good instruction should concisely answer:
       return "The 'file_path' parameter must be non-empty.";
     }
 
+    const workspaceContext = this.config.getWorkspaceContext();
     if (!path.isAbsolute(params.file_path)) {
-      return `File path must be absolute: ${params.file_path}`;
+      const fileSystem = this.config.getFileSystemService();
+      const searchPaths = workspaceContext.getDirectories();
+      const foundFiles = fileSystem.findFiles(params.file_path, searchPaths);
+
+      if (foundFiles.length === 1) {
+        // It's unambiguous, so we can correct it.
+        params.file_path = foundFiles[0];
+      } else if (foundFiles.length > 1) {
+        return (
+          `The file path '${params.file_path}' is ambiguous and matches multiple files. ` +
+          `Please provide an absolute path to one of the following: ${foundFiles.join(', ')}`
+        );
+      } else {
+        // No files found, fall through to the absolute path check which will now fail,
+        // or just return a more specific error.
+        if (!path.isAbsolute(params.file_path)) {
+          return `File not found for '${params.file_path}' and path is not absolute.`;
+        }
+      }
     }
 
-    const workspaceContext = this.config.getWorkspaceContext();
     if (!workspaceContext.isPathWithinWorkspace(params.file_path)) {
       const directories = workspaceContext.getDirectories();
       return `File path must be within one of the workspace directories: ${directories.join(', ')}`;
