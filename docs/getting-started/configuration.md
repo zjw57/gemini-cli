@@ -1,4 +1,4 @@
-# Gemini CLI Configuration
+# Configure Gemini CLI
 
 **Note on New Configuration Format**
 

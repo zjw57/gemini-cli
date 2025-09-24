@@ -48,7 +48,7 @@ To explore your configuration options, see [Configure Gemini CLI](./configuratio
 
 Once installed and authenticated, you can start using Gemini CLI by issuing commands and prompts in your terminal. Aask it to generate code, explain files, and more. 
 
-To explore the power of Gemini CLI, see [Gemini CLI tutorials](./tutorials.md).
+To explore the power of Gemini CLI, see [Gemini CLI examples](./examples.md).
 
 ## What's next?
 - Find out more about [Gemini CLI's tools](../tools/index.md).

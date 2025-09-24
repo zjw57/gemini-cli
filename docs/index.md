@@ -15,7 +15,7 @@ This documentation is organized into the following sections:
 - **[Deployment](./getting-started/deployment.md):** Install and run Gemini CLI.
 - **[Authentication](./getting-started/authentication.md):** Authenticate Gemini CLI.
 - **[Configuration](./getting-started/configuration.md):** Information on configuring the CLI.
-- **[Tutorials](./getting-started/tutorials.md):** Example usage of Gemini CLI.
+- **[Examples](./getting-started/examples.md):** Example usage of Gemini CLI.
 
 ### CLI
 - **[CLI overview](./cli/index.md):** Overview of the command-line interface.
@@ -23,6 +23,7 @@ This documentation is organized into the following sections:
 - **[Enterprise](./cli/enterprise.md):** Gemini CLI for enterprise.
 - **[Themes](./cli/themes.md):** Themes for Gemini CLI.
 - **[Token Caching](./cli/token-caching.md):** Token caching and optimization.
+- **[Tutorials](./cli-started/tutorials.md):** Tutorials for Gemini CLI.
 
 ### Core
 - **[Gemini CLI core overview](./core/index.md):** Information about Gemini CLI core.
