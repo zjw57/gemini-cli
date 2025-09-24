@@ -311,9 +311,12 @@ describe('SmartEditTool', () => {
       };
 
       const result = tool.validateToolParams(params);
-      expect(result).toMatch(/The file path 'ambiguous.txt' is ambiguous/);
-      expect(result).toMatch(path.join(rootDir, testFile));
-      expect(result).toMatch(path.join(subDir, testFile));
+      const errorMessage = (result as any).message;
+      expect(errorMessage).toMatch(
+        /The file path 'ambiguous.txt' is ambiguous/,
+      );
+      expect(errorMessage).toMatch(path.join(rootDir, testFile));
+      expect(errorMessage).toMatch(path.join(subDir, testFile));
     });
 
     it('should return an error for a relative path that does not exist', () => {
