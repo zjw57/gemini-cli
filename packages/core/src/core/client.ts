@@ -465,7 +465,7 @@ export class GeminiClient {
       return new Turn(this.getChat(), prompt_id);
     }
 
-    const compressed = await this.tryCompressChat(prompt_id, false);
+    const compressed = await this.tryCompressChat(request, prompt_id, false);
 
     if (compressed.compressionStatus === CompressionStatus.COMPRESSED) {
       yield { type: GeminiEventType.ChatCompressed, value: compressed };
@@ -650,6 +650,7 @@ export class GeminiClient {
   }
 
   async tryCompressChat(
+    request: PartListUnion,
     prompt_id: string,
     force: boolean = false,
   ): Promise<ChatCompressionInfo> {
@@ -679,21 +680,12 @@ export class GeminiClient {
       };
     }
 
-    const { totalTokens: originalTokenCount } =
-      await this.getContentGeneratorOrFail().countTokens({
-        model,
-        contents: curatedHistory,
-      });
-    if (originalTokenCount === undefined) {
-      console.warn(`Could not determine token count for model ${model}.`);
-      this.hasFailedCompressionAttempt = !force && true;
-      return {
-        originalTokenCount: 0,
-        newTokenCount: 0,
-        compressionStatus:
-          CompressionStatus.COMPRESSION_FAILED_TOKEN_COUNT_ERROR,
-      };
-    }
+    const lastTokenCount = uiTelemetryService.getLastPromptTokenCount();
+    // A rough estimate of token count.
+    const estimatedRequestTokens = Math.ceil(
+      JSON.stringify(request).length / 4,
+    );
+    const originalTokenCount = lastTokenCount + estimatedRequestTokens;
 
     const contextPercentageThreshold =
       this.config.getChatCompression()?.contextPercentageThreshold;
