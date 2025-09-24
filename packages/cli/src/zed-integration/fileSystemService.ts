@@ -44,4 +44,12 @@ export class AcpFileSystemService implements FileSystemService {
       sessionId: this.sessionId,
     });
   }
+
+  findFiles(fileName: string, searchPaths: readonly string[]): string[] {
+    // The ACP protocol does not currently have a findFiles equivalent.
+    // We will rely on the fallback implementation which uses the local file system.
+    // This is acceptable because file discovery for relative paths is a server-side
+    // operation, and the client (Zed) doesn't need to be involved.
+    return this.fallback.findFiles(fileName, searchPaths);
+  }
 }
