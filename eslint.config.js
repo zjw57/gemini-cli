@@ -92,6 +92,15 @@ export default tseslint.config(
       'arrow-body-style': ['error', 'as-needed'],
       curly: ['error', 'multi-line'],
       eqeqeq: ['error', 'always', { null: 'ignore' }],
+      "no-use-before-define": "off",
+      "@typescript-eslint/no-use-before-define": [
+        "error",
+        {
+          "functions": false,
+          "classes": true,
+          "variables": true
+        }
+      ],
       '@typescript-eslint/consistent-type-assertions': [
         'error',
         { assertionStyle: 'as' },
