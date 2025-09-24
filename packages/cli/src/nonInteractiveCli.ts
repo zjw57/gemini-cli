@@ -168,12 +168,17 @@ export async function runNonInteractive(
           const result = await invocation.execute(abortController.signal);
 
           if (result.llmContent) {
-            (currentMessages[0].parts as Part[]).push(
-              {
-                text: `\n--- The user Ran the tool '${subAgentTool.name}'. The description of the tool is '${subAgentTool.description}' and this is the result of the tool: ---\n`,
-              },
-              { text: result.llmContent as string },
-            );
+            (currentMessages[0].parts as Part[]).push({
+              text: `\n--- The user Ran the tool '${subAgentTool.name}'. 
+                The description of the tool is '${subAgentTool.description}'. Bellow, you will find the output of the tool. 
+                Notice that the content of the files are already up-to-date so you do not need to re-read them. 
+                The RelevantLocations are locations that are identified as relevant to solve the problem and may need to be edited.
+                
+                <tool_result>
+                '${result.llmContent as string}'
+                </tool_result>
+                ---\n `,
+            });
           }
         } else if (subAgentName === 'planner') {
           const subAgentTool = new SolutionPlannerTool(config);
