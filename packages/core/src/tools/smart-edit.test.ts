@@ -311,7 +311,10 @@ describe('SmartEditTool', () => {
       };
 
       const result = tool.validateToolParams(params);
-      const errorMessage = (result as any).message;
+
+      const errorMessage =
+        typeof result === 'string' ? result : (result as any)?.message;
+
       expect(errorMessage).toMatch(
         /The file path 'ambiguous.txt' is ambiguous/,
       );
