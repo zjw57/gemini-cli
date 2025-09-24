@@ -8,17 +8,6 @@
  * @fileoverview A tool to apply edits using a custom search and replace format.
  */
 
-import * as path from 'node:path';
-import {
-  StandardFileSystemService,
-  type FileSystemService,
-} from '../services/fileSystemService.js';
-
-export interface PatcherConfig {
-  getTargetDir(): string;
-  isPathWithinWorkspace(path: string): boolean;
-}
-
 /**
  * Custom error class for patch-related failures.
  */

@@ -81,8 +81,7 @@ export async function fixFailedSearchReplace(
   const prompt = PATCH_FIXER_PROMPT.replace('{currentContent}', currentContent)
     .replace('{failedBlock}', failedOp.originalBlock)
     .replace('{errorMessage}', errorMessage)
-    .replace('{instruction}', instruction)
-    .replace('{filepath}', filepath);
+    .replace('{instruction}', instruction);
 
   const contents: Content[] = [
     {

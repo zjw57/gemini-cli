@@ -213,7 +213,7 @@ class PatchToolInvocation
     const patchData = await this.calculatePatch(signal);
 
     if (patchData.error) {
-      console.log(`Error: ${patchData.error.display}`);
+      console.log(`Error: ${patchData.error.display ?? 'Unknown error'}`);
       return false;
     }
 
@@ -237,7 +237,7 @@ class PatchToolInvocation
     const ideConfirmation =
       this.config.getIdeMode() &&
       ideClient?.getConnectionStatus().status === IDEConnectionStatus.Connected
-        ? ideClient.openDiff(
+        ? await ideClient.openDiff(
             this.params.file_path,
             patchData.newContent,
           )
