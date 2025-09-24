@@ -769,23 +769,35 @@ A good instruction should concisely answer:
 
     const workspaceContext = this.config.getWorkspaceContext();
     if (!path.isAbsolute(params.file_path)) {
-      const fileSystem = this.config.getFileSystemService();
-      const searchPaths = workspaceContext.getDirectories();
-      const foundFiles = fileSystem.findFiles(params.file_path, searchPaths);
-
-      if (foundFiles.length === 1) {
-        // It's unambiguous, so we can correct it.
-        params.file_path = foundFiles[0];
-      } else if (foundFiles.length > 1) {
-        return (
-          `The file path '${params.file_path}' is ambiguous and matches multiple files. ` +
-          `Please provide an absolute path to one of the following: ${foundFiles.join(', ')}`
-        );
+      // First, try to resolve the path directly relative to the workspace root.
+      // This handles cases like `src/app.js` correctly and efficiently.
+      const directPath = path.join(
+        this.config.getTargetDir(),
+        params.file_path,
+      );
+      if (fs.existsSync(directPath)) {
+        params.file_path = directPath;
+        // Path is now absolute and verified, continue to the next check.
       } else {
-        // No files found, fall through to the absolute path check which will now fail,
-        // or just return a more specific error.
-        if (!path.isAbsolute(params.file_path)) {
-          return `File not found for '${params.file_path}' and path is not absolute.`;
+        // If direct resolution fails, fall back to searching across workspace directories.
+        const fileSystem = this.config.getFileSystemService();
+        const searchPaths = workspaceContext.getDirectories();
+        const foundFiles = fileSystem.findFiles(params.file_path, searchPaths);
+
+        if (foundFiles.length === 1) {
+          // It's unambiguous, so we can correct it.
+          params.file_path = foundFiles[0];
+        } else if (foundFiles.length > 1) {
+          return (
+            `The file path '${params.file_path}' is ambiguous and matches multiple files. ` +
+            `Please provide an absolute path to one of the following: ${foundFiles.join(', ')}`
+          );
+        } else {
+          // No files found, fall through to the absolute path check which will now fail,
+          // or just return a more specific error.
+          if (!path.isAbsolute(params.file_path)) {
+            return `File not found for '${params.file_path}' and path is not absolute.`;
+          }
         }
       }
     }

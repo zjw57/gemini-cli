@@ -264,8 +264,31 @@ describe('SmartEditTool', () => {
         new_string: 'new',
       };
 
-      expect(tool.validateToolParams(params)).toBeNull();
+      const validationResult = tool.validateToolParams(params);
+
+      expect(validationResult).toBeNull();
       expect(params.file_path).toBe(path.join(rootDir, testFile));
+    });
+
+    it('should correct a partial relative path if it is unambiguous', () => {
+      const subDir = path.join(rootDir, 'sub');
+      fs.mkdirSync(subDir);
+      const testFile = 'file.txt';
+      const partialPath = path.join('sub', testFile);
+      const fullPath = path.join(subDir, testFile);
+      fs.writeFileSync(fullPath, 'content');
+
+      const params: EditToolParams = {
+        file_path: partialPath,
+        instruction: 'An instruction',
+        old_string: 'old',
+        new_string: 'new',
+      };
+
+      const validationResult = tool.validateToolParams(params);
+
+      expect(validationResult).toBeNull();
+      expect(params.file_path).toBe(fullPath);
     });
 
     it('should return an error for an ambiguous relative path', () => {
