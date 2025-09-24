@@ -141,6 +141,15 @@ runs:
         expected-version: '${{ inputs.release-version }}'
         ref: '${{ steps.release_branch.outputs.BRANCH_NAME }}'
 
+    - name: '🏝️ Publish sandbox'
+      uses: './.github/actions/push-sandbox'
+      with:
+        github-actor: '${{ github.actor }}'
+        github-secret: '${{ secrets.GITHUB_TOKEN }}'
+        github-sha: '${{github.sha}}'
+        github-ref-name: '${{steps.release_branch.outputs.BRANCH_NAME}}'
+        dry-run: '${{ inputs.dry-run }}'
+
     - name: '🏷️ Tag release'
       uses: './.github/actions/tag-npm-release'
       if: "${{ inputs.dry-run == 'false' }}"
