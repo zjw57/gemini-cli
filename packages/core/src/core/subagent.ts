@@ -649,7 +649,7 @@ export class SubAgentScope {
       // TODO, only enable for pro and flash
       generationConfig.thinkingConfig = {
         includeThoughts: true,
-        thinkingBudget: -1,
+        thinkingBudget: 24500,
       };
       this.runtimeContext.setModel(this.modelConfig.model);
 
