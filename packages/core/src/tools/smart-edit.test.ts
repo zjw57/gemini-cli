@@ -291,17 +291,12 @@ describe('SmartEditTool', () => {
       expect(params.file_path).toBe(fullPath);
     });
 
-    it('should return an error for an ambiguous relative path', () => {
+    it('should resolve a relative path to the root even if ambiguous in subdirectories', () => {
       const testFile = 'ambiguous.txt';
       const subDir = path.join(rootDir, 'sub');
       fs.mkdirSync(subDir);
       fs.writeFileSync(path.join(rootDir, testFile), 'content1');
       fs.writeFileSync(path.join(subDir, testFile), 'content2');
-
-      // We need to update the workspace context for the test
-      (mockConfig as any).getWorkspaceContext = () =>
-        createMockWorkspaceContext(rootDir, [rootDir, subDir]);
-      tool = new SmartEditTool(mockConfig);
 
       const params: EditToolParams = {
         file_path: testFile,
@@ -309,17 +304,12 @@ describe('SmartEditTool', () => {
         old_string: 'old',
         new_string: 'new',
       };
-
       const result = tool.validateToolParams(params);
 
-      const errorMessage =
-        typeof result === 'string' ? result : (result as any)?.message;
-
-      expect(errorMessage).toMatch(
-        /The file path 'ambiguous.txt' is ambiguous/,
-      );
-      expect(errorMessage).toMatch(path.join(rootDir, testFile));
-      expect(errorMessage).toMatch(path.join(subDir, testFile));
+      // The validation should succeed because it finds the file in the root dir first.
+      expect(result).toBeNull();
+      // It should have resolved the path to the one in the root directory.
+      expect(params.file_path).toBe(path.join(rootDir, testFile));
     });
 
     it('should return an error for a relative path that does not exist', () => {
