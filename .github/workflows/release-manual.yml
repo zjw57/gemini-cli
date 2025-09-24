@@ -91,3 +91,4 @@ jobs:
           dry-run: '${{ github.event.inputs.dry_run }}'
           previous-tag: '${{ steps.release_info.outputs.PREVIOUS_TAG }}'
           skip-github-release: '${{ github.event.inputs.skip_github_release }}'
+          ref: '${{ github.event.inputs.ref }}'

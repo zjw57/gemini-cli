@@ -46,6 +46,9 @@ inputs:
   dockerhub-token:
     description: 'Dockerhub PAT w/ R+W'
     required: true
+  ref:
+    description: 'The branch, tag, or SHA to release from.'
+    required: true
 
 runs:
   using: 'composite'
@@ -148,7 +151,7 @@ runs:
         github-secret: '${{ inputs.github-token }}'
         dockerhub-username: '${{ inputs.dockerhub-username }}'
         dockerhub-token: '${{ inputs.dockerhub-token }}'
-        github-ref-name: '${{ inputs.release-tag }}'
+        github-ref-name: '${{ inputs.ref }}'
         dry-run: '${{ inputs.dry-run }}'
 
     - name: '🏷️ Tag release'
