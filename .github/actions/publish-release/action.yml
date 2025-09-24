@@ -143,6 +143,7 @@ runs:
 
     - name: '🏝️ Publish sandbox'
       uses: './.github/actions/push-sandbox'
+      if: "${{ inputs.dry-run == 'false' }}"
       with:
         github-actor: '${{ github.actor }}'
         github-secret: '${{ secrets.GITHUB_TOKEN }}'
