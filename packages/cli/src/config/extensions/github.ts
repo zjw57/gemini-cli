@@ -53,7 +53,7 @@ export async function cloneFromGit(
         // We let git handle the source as is.
       }
     }
-    await git.clone(sourceUrl, './', ['--depth', '1']);
+    await git.clone(sourceUrl, destination, ['--depth', '1']);
 
     const remotes = await git.getRemotes(true);
     if (remotes.length === 0) {
@@ -423,7 +423,7 @@ function extractFile(file: string, dest: string) {
   if (file.endsWith('.tar.gz')) {
     execSync(`tar -xzf ${safeFile} -C ${safeDest}`);
   } else if (file.endsWith('.zip')) {
-    execSync(`unzip ${safeFile} -d ${safeDest}`);
+    execSync(`tar -xf ${safeFile} -C ${safeDest}`);
   } else {
     throw new Error(`Unsupported file extension for extraction: ${file}`);
   }
