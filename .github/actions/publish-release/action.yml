@@ -43,7 +43,7 @@ inputs:
   dockerhub-username:
     description: 'Dockerhub username'
     required: true
-  dcokerhub-token:
+  dockerhub-token:
     description: 'Dockerhub PAT w/ R+W'
     required: true
 
@@ -144,7 +144,6 @@ runs:
 
     - name: 'Push Sandbox'
       uses: './.github/actions/push-sandbox'
-      if: "${{ inputs.dry-run == 'false' }}"
       with:
         github-secret: '${{ inputs.github-token }}'
         dockerhub-username: '${{ inputs.dockerhub-username }}'
