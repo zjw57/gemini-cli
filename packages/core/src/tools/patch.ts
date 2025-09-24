@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import * as Diff from 'diff';
 import * as path from 'node:path';
 import type {
   ToolCallConfirmationDetails,
@@ -19,64 +18,39 @@ import { makeRelative, shortenPath } from '../utils/paths.js';
 import type { Config } from '../config/config.js';
 import { ApprovalMode } from '../config/config.js';
 import {
-  parse,
-  applyHunksToContent,
-  applyPatchesToFS,
-  isFileDeletionHunk,
+  parseSearchReplace,
+  applySearchReplaceToContent,
 } from '../utils/patcher.js';
-import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
-import type { Hunk, PatchError } from '../utils/patcher.js';
+import type { SearchReplaceOp, PatchError } from '../utils/patcher.js';
 import { IdeClient, IDEConnectionStatus } from '../ide/ide-client.js';
-import { fixFailedHunk } from '../utils/patch-fixer.js';
+import { fixFailedSearchReplace } from '../utils/patch-fixer.js';
+import type { PatchFixResult } from '../utils/patch-fixer.js';
 
 /**
- * Parameters for the Patch tool
+ * Parameters for the Patch tool using Search/Replace format.
  */
 export interface PatchToolParams {
-  /**
-   * A complete, multi-file patch in the standard unified diff format.
-   */
-  unified_diff: string;
-
-  /**
-   * Initially proposed content by the user.
-   */
-  ai_proposed_content?: string;
+  /** The path to the file to edit. */
+  file_path: string;
+  /** A series of SEARCH and REPLACE blocks. */
+  search_replace_diff: string;
+  /** The high-level instruction for the edit. */
+  instruction: string;
 }
 
-/**
- * Data structure to hold the results of the dry-run.
- */
+interface HealedOpInfo {
+  op: SearchReplaceOp;
+  explanation: string;
+}
+
 interface CalculatedPatch {
-  // Map from filepath to its original content and the new content after applying only successful hunks.
-  fileDiffInfo: Map<string, { originalContent: string; newContent: string }>;
-  // A map of filepaths to just the hunks that were successful in the dry-run.
-  successfulHunks: Map<string, Hunk[]>;
-  // A map of filepaths to hunks that failed the dry-run, including the error.
-  failedHunks: Map<string, Array<{ hunk: Hunk; error: PatchError }>>;
-  // A map of filepaths to hunks that were skipped as no-ops.
-  noOpHunks: Map<string, Hunk[]>;
-  // For fatal errors like parsing failure.
+  originalContent: string;
+  newContent: string;
+  appliedOps: SearchReplaceOp[];
+  healedOps: HealedOpInfo[];
+  failedOps: Array<{ op: SearchReplaceOp; error: PatchError }>;
+  noOpOps: SearchReplaceOp[];
   error?: { display: string; raw: string; type: ToolErrorType };
-  // The total number of files identified in the original patch.
-  totalFiles: number;
-}
-
-/**
- * Formats a map of failed hunks back into a unified diff string for the LLM.
- */
-function formatFailedHunksToDiff(
-  failedHunks: Map<string, Array<{ hunk: Hunk; error: PatchError }>>,
-): string {
-  let diffString = '';
-  for (const [filepath, failures] of failedHunks.entries()) {
-    diffString += `--- a/${filepath}\n`;
-    diffString += `+++ b/${filepath}\n`;
-    for (const { hunk } of failures) {
-      diffString += `${hunk.originalHunk}\n`;
-    }
-  }
-  return diffString.trim();
 }
 
 class PatchToolInvocation
@@ -90,197 +64,135 @@ class PatchToolInvocation
   ) {}
 
   toolLocations(): ToolLocation[] {
-    try {
-      const fileHunks = parse(this.params.unified_diff);
-      return Array.from(fileHunks.keys()).map((path) => ({ path }));
-    } catch (_e) {
-      return [];
-    }
+    return [{ path: this.params.file_path }];
   }
 
-  /**
-   * Performs a dry-run of the patch to validate it, separating successful
-   * hunks from failed ones and generating a diff for the successful changes.
-   */
   private async _calculatePatch(signal: AbortSignal): Promise<CalculatedPatch> {
-    let parsedHunks: Map<string, Hunk[]>;
+    const { file_path, search_replace_diff, instruction } = this.params;
+    let ops: SearchReplaceOp[];
+
     try {
-      parsedHunks = parse(this.params.unified_diff);
-      if (parsedHunks.size === 0) {
+      ops = parseSearchReplace(search_replace_diff);
+      if (ops.length === 0) {
         return {
-          fileDiffInfo: new Map(),
-          successfulHunks: new Map(),
-          failedHunks: new Map(),
-          noOpHunks: new Map(),
-          totalFiles: 0,
+          originalContent: '', newContent: '', appliedOps: [], healedOps: [], failedOps: [], noOpOps: [],
           error: {
-            display: 'The provided diff was empty or invalid.',
-            raw: 'Patch failed: The unified_diff parameter did not contain any valid hunks.',
+            display: 'The provided search_replace_diff was empty or invalid.',
+            raw: 'Patch failed: The search_replace_diff parameter did not contain any valid operations.',
             type: ToolErrorType.INVALID_TOOL_PARAMS,
           },
         };
       }
     } catch (e: unknown) {
       return {
-        fileDiffInfo: new Map(),
-        successfulHunks: new Map(),
-        failedHunks: new Map(),
-        noOpHunks: new Map(),
-        totalFiles: 0,
+        originalContent: '', newContent: '', appliedOps: [], healedOps: [], failedOps: [], noOpOps: [],
         error: {
-          display: `Failed to parse the diff: ${(e as Error).message}`,
+          display: `Failed to parse the search_replace_diff: ${(e as Error).message}`,
           raw: `Patch failed during parsing: ${(e as Error).message}`,
           type: ToolErrorType.INVALID_TOOL_PARAMS,
         },
       };
     }
 
-    const totalFiles = parsedHunks.size;
-    const fileDiffInfo = new Map<
-      string,
-      { originalContent: string; newContent: string }
-    >();
-    const successfulHunks = new Map<string, Hunk[]>();
-    const failedHunks = new Map<
-      string,
-      Array<{ hunk: Hunk; error: PatchError }>
-    >();
-    const noOpHunks = new Map<string, Hunk[]>();
-
-    for (const [filepath, hunks] of parsedHunks.entries()) {
-      // Handle file deletion as a special case first.
-      if (hunks.length > 0 && isFileDeletionHunk(hunks[0])) {
-        try {
-          const absolutePath = path.join(this.config.getTargetDir(), filepath);
-          const originalContent = await this.config
-            .getFileSystemService()
-            .readTextFile(absolutePath);
-          // If successful, mark for deletion and show diff.
-          successfulHunks.set(filepath, hunks);
-          fileDiffInfo.set(filepath, {
-            originalContent: originalContent.replace(/\r\n/g, '\n'),
-            newContent: '',
-          });
-        } catch (err: unknown) {
-          if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-            // File doesn't exist, so deletion is a silent success (no-op).
-            successfulHunks.set(filepath, hunks);
-            fileDiffInfo.set(filepath, {
-              originalContent: '',
-              newContent: '',
-            });
-          } else {
-            failedHunks.set(filepath, [
-              { hunk: hunks[0], error: err as PatchError },
-            ]);
-          }
-        }
-        continue; // Move to the next file.
-      }
-
-      let originalContent = '';
-      try {
-        const absolutePath = path.join(this.config.getTargetDir(), filepath);
-        originalContent = await this.config
-          .getFileSystemService()
-          .readTextFile(absolutePath);
-        originalContent = originalContent.replace(/\r\n/g, '\n');
-      } catch (err: unknown) {
-        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-      }
-
-      const {
-        newContent,
-        failedHunks: firstPassFailures,
-        noOpHunks: firstPassNoOps,
-        appliedHunks: firstPassApplied,
-      } = applyHunksToContent(originalContent, hunks);
-      const finalFailedHunks: Array<{ hunk: Hunk; error: PatchError }> = [];
-      const healedAndAppliedHunks: Hunk[] = [];
-      let contentAfterHealing = newContent;
-
-      if (firstPassFailures.length > 0) {
-        for (const failure of firstPassFailures) {
-          console.log(
-            `Attempting to heal failed hunk for ${filepath}:`,
-            failure.hunk.originalHunk,
-          );
-          try {
-            const correctedPatchString = await fixFailedHunk(
-              failure.hunk,
-              filepath,
-              contentAfterHealing, // Use the latest content for fixing
-              this.config.getGeminiClient(),
-              signal,
-            );
-
-            const newlyHealedHunks = parse(correctedPatchString).get(filepath);
-
-            if (!newlyHealedHunks || newlyHealedHunks.length === 0) {
-              throw new Error('LLM fixer returned an empty or invalid patch.');
-            }
-
-            // Try to apply the newly healed hunk immediately
-            const { newContent: healedContent, failedHunks: healedFailures } =
-              applyHunksToContent(contentAfterHealing, newlyHealedHunks);
-
-            if (healedFailures.length > 0) {
-              throw new Error('Healed hunk failed to apply.');
-            }
-
-            // Success! Update content and track the healed hunk.
-            contentAfterHealing = healedContent;
-            healedAndAppliedHunks.push(...newlyHealedHunks);
-          } catch (_e) {
-            finalFailedHunks.push(failure);
-          }
-        }
-      }
-
-      if (finalFailedHunks.length > 0) {
-        failedHunks.set(filepath, finalFailedHunks);
-      }
-
-      if (firstPassNoOps.length > 0) {
-        noOpHunks.set(filepath, firstPassNoOps);
-      }
-
-      const allSuccessfulHunks = [
-        ...firstPassApplied,
-        ...healedAndAppliedHunks,
-        ...firstPassNoOps, // No-ops are also a form of success
-      ];
-
-      if (allSuccessfulHunks.length > 0) {
-        successfulHunks.set(filepath, allSuccessfulHunks);
-        fileDiffInfo.set(filepath, {
-          originalContent,
-          newContent: contentAfterHealing,
-        });
+    let originalContent = '';
+    const absolutePath = path.join(this.config.getTargetDir(), file_path);
+    try {
+      originalContent = await this.config
+        .getFileSystemService()
+        .readTextFile(absolutePath);
+      originalContent = originalContent.replace(/\r\n/g, '\n');
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+         // Allow creation of new files if the first op is a pure insert
+         if (!(ops[0].search === '' && ops[0].replace !== '')) {
+            return {
+              originalContent: '', newContent: '', appliedOps: [], healedOps: [], failedOps: [], noOpOps: [],
+              error: {
+                display: `File not found: ${file_path}`,
+                raw: `Patch failed: File not found: ${file_path}`,
+                type: ToolErrorType.FILE_NOT_FOUND,
+              },
+            };
+         }
+      } else {
+        throw err;
       }
     }
 
-    const changedFileDiffInfo = new Map<
-      string,
-      { originalContent: string; newContent: string }
-    >();
-    const changedSuccessfulHunks = new Map<string, Hunk[]>();
+    const {
+      newContent: firstPassContent,
+      failedOps: firstPassFailures,
+      noOpOps: firstPassNoOps,
+      appliedOps: firstPassApplied,
+    } = applySearchReplaceToContent(originalContent, ops);
 
-    for (const [filepath, diffInfo] of fileDiffInfo.entries()) {
-      if (diffInfo.originalContent !== diffInfo.newContent) {
-        changedFileDiffInfo.set(filepath, diffInfo);
-        if (successfulHunks.has(filepath)) {
-          changedSuccessfulHunks.set(filepath, successfulHunks.get(filepath)!);
+    const finalFailedOps: Array<{ op: SearchReplaceOp; error: PatchError }> = [];
+    const currentHealedOps: HealedOpInfo[] = [];
+    let contentAfterHealing = firstPassContent;
+
+    if (firstPassFailures.length > 0) {
+      console.log(`[PatchTool] ${firstPassFailures.length} ops failed on first pass for ${file_path}. Attempting to heal...`);
+      for (const failure of firstPassFailures) {
+        try {
+          const fixResult: PatchFixResult = await fixFailedSearchReplace(
+            failure.op,
+            file_path,
+            contentAfterHealing,
+            failure.error.message,
+            instruction,
+            this.config.getGeminiClient(),
+            signal,
+          );
+
+          if (fixResult.changes_already_present) {
+            console.log(`[PatchTool] Healing indicated changes already present for an op in ${file_path}: ${fixResult.explanation}`);
+            firstPassNoOps.push(failure.op);
+            continue;
+          }
+
+          if (!fixResult.corrected_search_replace_diff) {
+            throw new Error('LLM fixer returned no correction.');
+          }
+
+          const newlyHealedOps = parseSearchReplace(fixResult.corrected_search_replace_diff);
+          if (!newlyHealedOps || newlyHealedOps.length === 0) {
+            throw new Error('LLM fixer returned an empty or invalid search_replace_diff.');
+          }
+
+          console.log(`[PatchTool] LLM fixer proposed a correction for ${file_path}:\n${fixResult.corrected_search_replace_diff}`);
+
+          const {
+            newContent: healedContent,
+            failedOps: healedFailures,
+            appliedOps: healedApplied,
+          } = applySearchReplaceToContent(contentAfterHealing, newlyHealedOps);
+
+          if (healedFailures.length > 0) {
+            throw new Error(`Healed op failed to apply: ${healedFailures[0].error.message}`);
+          }
+
+          contentAfterHealing = healedContent;
+          healedApplied.forEach((op) =>
+            currentHealedOps.push({
+              op: op,
+              explanation: fixResult.explanation,
+            }),
+          );
+          console.log(`[PatchTool] Successfully applied healed op to ${file_path}. Explanation: ${fixResult.explanation}`);
+        } catch (e: unknown) {
+          console.error(`[PatchTool] Failed to heal op for ${file_path}: ${(e as Error).message}`);
+          finalFailedOps.push(failure);
         }
       }
     }
 
     return {
-      fileDiffInfo: changedFileDiffInfo,
-      successfulHunks: changedSuccessfulHunks,
-      failedHunks,
-      noOpHunks,
-      totalFiles,
+      originalContent,
+      newContent: contentAfterHealing,
+      appliedOps: firstPassApplied,
+      healedOps: currentHealedOps,
+      failedOps: finalFailedOps,
+      noOpOps: firstPassNoOps,
     };
   }
 
@@ -305,60 +217,41 @@ class PatchToolInvocation
       return false;
     }
 
-    if (patchData.successfulHunks.size === 0) {
-      const firstError = Array.from(patchData.failedHunks.values())[0]?.[0]
-        ?.error.message;
+    if (patchData.newContent === patchData.originalContent && patchData.failedOps.length === 0) {
+      console.log('No changes to apply.');
+      return false;
+    }
+     if (patchData.appliedOps.length === 0 && patchData.healedOps.length === 0 && patchData.failedOps.length > 0) {
+      const firstError = patchData.failedOps[0]?.error.message;
       console.log(
         `Error: No changes could be applied from the patch. First error: ${firstError || 'Unknown error'}`,
       );
       return false;
     }
 
-    let combinedDiff = '';
-    for (const [filepath, contents] of patchData.fileDiffInfo.entries()) {
-      const fileDiff = Diff.createPatch(
-        path.basename(filepath),
-        contents.originalContent,
-        contents.newContent,
-        'Current',
-        'Proposed',
-        DEFAULT_DIFF_OPTIONS,
-      );
-      combinedDiff += fileDiff + '\n';
-    }
-
-    const firstFilePath = Array.from(patchData.fileDiffInfo.keys())[0];
-    const isPartial = patchData.failedHunks.size > 0;
-    const numFiles = patchData.successfulHunks.size;
-    const firstFileContents = patchData.fileDiffInfo.get(firstFilePath);
-
-    const title = isPartial
-      ? `Confirm Partial Patch (${numFiles} file(s), some changes failed)`
-      : `Confirm Patch Application (${numFiles} file(s))`;
+    const title = patchData.failedOps.length > 0
+      ? `Confirm Partial Edit for ${path.basename(this.params.file_path)}`
+      : `Confirm Edit for ${path.basename(this.params.file_path)}`;
 
     const ideClient = await IdeClient.getInstance();
     const ideConfirmation =
-      numFiles === 1 &&
       this.config.getIdeMode() &&
       ideClient?.getConnectionStatus().status === IDEConnectionStatus.Connected
         ? ideClient.openDiff(
-            firstFilePath,
-            patchData.fileDiffInfo.get(firstFilePath)!.newContent,
+            this.params.file_path,
+            patchData.newContent,
           )
         : undefined;
 
     const confirmationDetails: ToolEditConfirmationDetails = {
       type: 'edit',
       title,
-      fileName:
-        numFiles === 1
-          ? path.basename(firstFilePath)
-          : `${numFiles} file(s) will be changed`,
-      filePath: firstFilePath,
-      fileDiff: combinedDiff.trim(),
-      originalContent:
-        numFiles === 1 ? (firstFileContents?.originalContent ?? null) : null,
-      newContent: numFiles === 1 ? (firstFileContents?.newContent ?? '') : '',
+      fileName: path.basename(this.params.file_path),
+      filePath: this.params.file_path,
+      // We don't have a standard diff, so show full content
+      fileDiff: `--- a/${this.params.file_path}\n+++ b/${this.params.file_path}\n... content diff ...`,
+      originalContent: patchData.originalContent,
+      newContent: patchData.newContent,
       onConfirm: async (outcome: ToolConfirmationOutcome) => {
         if (outcome === ToolConfirmationOutcome.ProceedAlways) {
           this.config.setApprovalMode(ApprovalMode.YOLO);
@@ -370,128 +263,86 @@ class PatchToolInvocation
   }
 
   getDescription(): string {
-    try {
-      const fileHunks = parse(this.params.unified_diff);
-      const filePaths = Array.from(fileHunks.keys()).map((p) =>
-        shortenPath(makeRelative(p, this.config.getTargetDir())),
-      );
-      if (filePaths.length === 0) return 'Apply an empty patch';
-      if (filePaths.length === 1) return `Apply patch to ${filePaths[0]}`;
-      return `Apply patch to ${filePaths.length} files: ${filePaths
-        .slice(0, 2)
-        .join(', ')}...`;
-    } catch {
-      return 'Apply an invalid patch';
-    }
+    return `Apply search and replace edits to ${shortenPath(makeRelative(this.params.file_path, this.config.getTargetDir()))}`;
   }
 
   async execute(signal: AbortSignal): Promise<ToolResult> {
     const patchData = await this.calculatePatch(signal);
+    const { file_path } = this.params;
 
     if (patchData.error) {
-      console.log(`Error: Failed to apply patch: ${patchData.error.display}`);
       return {
         llmContent: patchData.error.raw,
         returnDisplay: `Error: ${patchData.error.display}`,
-        error: {
-          message: patchData.error.raw,
-          type: patchData.error.type,
-        },
+        error: { message: patchData.error.raw, type: patchData.error.type },
       };
     }
 
-    // Display failed hunks for debugging
-    if (patchData.failedHunks.size > 0) {
-      for (const [filepath, failures] of patchData.failedHunks.entries()) {
-        let originalContent =
-          patchData.fileDiffInfo.get(filepath)?.originalContent;
-        if (originalContent === undefined) {
-          try {
-            const absolutePath = path.join(
-              this.config.getTargetDir(),
-              filepath,
-            );
-            originalContent = await this.config
-              .getFileSystemService()
-              .readTextFile(absolutePath);
-          } catch (readError) {
-            originalContent = `[Content not available: Failed to re-read file during logging. Error: ${(readError as Error).message}]`;
-          }
-        }
-        console.error('Original File Content:\n' + originalContent);
-        console.error(
-          'Failed Hunks:\n' +
-            failures.map((f) => f.hunk.originalHunk).join('\n'),
-        );
-      }
+    const { originalContent, newContent, appliedOps, healedOps, failedOps, noOpOps } = patchData;
+
+    if (newContent === originalContent && failedOps.length === 0) {
+      return {
+        llmContent: 'The file content already matches the desired state. No changes were needed.',
+        returnDisplay: '✅ No changes needed.',
+      };
     }
 
-    if (patchData.successfulHunks.size === 0) {
-      if (patchData.failedHunks.size > 0) {
-        console.error('Error: No hunks could be applied from the patch.');
-        const failedHunksDiff = formatFailedHunksToDiff(patchData.failedHunks);
-        const rawError = `Patch failed. No hunks could be applied. Please correct the following hunks:\n${failedHunksDiff}`;
-        return {
-          llmContent: rawError,
-          returnDisplay: `Error: No changes could be applied from the patch.`,
-          error: {
-            message: rawError,
-            type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
-          },
-        };
-      } else {
-        return {
-          llmContent:
-            'The patch was applied successfully. No changes were needed as the code already matched the patch.',
-          returnDisplay: '✅ All changes from the patch are already present.',
-        };
-      }
+    if (appliedOps.length === 0 && healedOps.length === 0 && failedOps.length > 0) {
+      let failedDetail = 'The following operations failed:\n';
+      failedOps.forEach(f => {
+        failedDetail += `\n--- FAILED OP ---\n${f.op.originalBlock}\nError: ${f.error.message}\n`;
+      });
+      return {
+        llmContent: `Patch failed for ${file_path}. No operations could be applied, even after attempting to heal.\n${failedDetail}`,
+        returnDisplay: `Error: No changes could be applied to ${file_path}.`,
+        error: {
+          message: `Patch failed for ${file_path}. No operations could be applied.`,
+          type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
+        },
+      };
     }
 
     try {
-      const report = await applyPatchesToFS(
-        patchData.successfulHunks,
-        this.config,
-        patchData.totalFiles,
-        this.config.getFileSystemService(),
-      );
-
-      let llmContent = `Successfully applied some changes.\n${report}`;
-      if (patchData.failedHunks.size > 0) {
-        const failedHunksDiff = formatFailedHunksToDiff(patchData.failedHunks);
-        console.log(`Warning: Some hunks failed to apply:\n${failedHunksDiff}`);
-        llmContent += `\n\nThe following hunks failed to apply:\n${failedHunksDiff}`;
+      if (newContent !== originalContent) {
+        const absolutePath = path.join(this.config.getTargetDir(), file_path);
+        await this.config.getFileSystemService().writeTextFile(absolutePath, newContent);
       }
 
-      if (patchData.noOpHunks.size > 0) {
-        let noOpMessage =
-          '\n\nThe following hunks were skipped as no-ops (the changes were already present):';
-        for (const [filepath, hunks] of patchData.noOpHunks.entries()) {
-          noOpMessage += `\n- ${hunks.length} hunk(s) for ${filepath}`;
-        }
-        llmContent += noOpMessage;
+      let llmContent = `Successfully applied changes to ${file_path}.`;
+      let returnDisplay = `Applied changes to ${file_path}.`;
+      const totalOps = appliedOps.length + healedOps.length + failedOps.length + noOpOps.length;
+      const successfulOps = appliedOps.length + healedOps.length;
+
+      if (healedOps.length > 0) {
+        llmContent += `\n\n${healedOps.length} operation(s) required automated healing:`;
+        healedOps.forEach(h => {
+          llmContent += `\n- Healed Op: ${h.op.originalBlock.split('\n')[1]} -> ${h.op.replace.split('\n')[0]}... Explanation: ${h.explanation}`;
+        });
+      }
+      if (failedOps.length > 0) {
+        returnDisplay = `Partially applied changes to ${file_path} (${successfulOps}/${totalOps} ops successful).`;
+        llmContent += `\n\n${failedOps.length} operation(s) FAILED to apply for ${file_path}:`;
+        failedOps.forEach(f => {
+          llmContent += `\n--- FAILED OP ---\n${f.op.originalBlock}\nError: ${f.error.message}`;
+        });
+      }
+      if (noOpOps.length > 0) {
+        llmContent += `\n\n${noOpOps.length} operation(s) were skipped as no-ops (already present).`;
       }
 
-      return {
-        llmContent,
-        returnDisplay: report.trim(),
-      };
+      return { llmContent, returnDisplay };
     } catch (e: unknown) {
-      console.log(`Error: Failed to execute patch: ${(e as Error).message}`);
       return {
-        llmContent: `Error executing patch: ${(e as Error).message}`,
+        llmContent: `Error writing file ${file_path}: ${(e as Error).message}`,
         returnDisplay: `Error applying patch: ${(e as Error).message}`,
-        error: {
-          message: (e as Error).message,
-          type: ToolErrorType.EXECUTION_FAILED,
-        },
+        error: { message: (e as Error).message, type: ToolErrorType.EXECUTION_FAILED },
       };
     }
   }
 }
 
 /**
- * Implementation of the Patch tool
+ * Implementation of the Patch tool using Search/Replace format.
  */
 export class PatchTool extends BaseDeclarativeTool<
   PatchToolParams,
@@ -502,28 +353,38 @@ export class PatchTool extends BaseDeclarativeTool<
     super(
       PatchTool.Name,
       'Patch',
-      `Applies a code change to one or more files using the standard unified diff format.
+      `Applies a series of search and replace operations to a single file.
 
 **MANDATORY WORKFLOW:**
-1. **ALWAYS** read the full, current content of the file(s) you intend to patch *immediately* before creating the \`unified_diff\`. This prevents errors from stale context.
-2. If the patch application fails, **NEVER** manually retry the patch. The tool has already attempted an automatic self-heal.
-3. If self-healing fails, your **ONLY** next step is to use the \`write_file\` tool to overwrite the entire file with the desired changes.
+1.  Read the file content before generating the 'search_replace_diff'.
+2.  If the application fails, the tool will attempt to self-heal the SEARCH blocks.
+3.  If self-healing fails, use 'write_file' to overwrite the file.
 
-**Key Features:**
-* **Multi-File Operations:** Can create, delete, and modify multiple files in a single operation.
-* **Content-Based Matching:** The patch is applied based on the content of the context lines (' '), not on line numbers.
-* **Partial Success:** The tool will attempt to apply every hunk independently. If some hunks succeed and others fail, the successful changes are kept.
-* **Automatic Self-Healing:** If a hunk fails, the tool automatically tries to fix it.`,
+**Format:**
+The 'search_replace_diff' string consists of pairs of blocks:
+SEARCH
+(exact text to find)
+REPLACE
+(text to replace with)
+
+Multiple pairs can be provided to perform sequential replacements.`,
       Kind.Edit,
       {
         properties: {
-          unified_diff: {
-            description:
-              'A string containing the full patch in the standard unified diff format.',
+          file_path: {
+            description: 'The path to the file to edit.',
+            type: 'string',
+          },
+          search_replace_diff: {
+            description: 'A string containing SEARCH and REPLACE blocks.',
+            type: 'string',
+          },
+          instruction: {
+            description: 'The high-level instruction for the edit, used for healing.',
             type: 'string',
           },
         },
-        required: ['unified_diff'],
+        required: ['file_path', 'search_replace_diff', 'instruction'],
         type: 'object',
       },
     );
