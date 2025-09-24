@@ -755,6 +755,56 @@ A good instruction should concisely answer:
     );
   }
 
+  private correctRelativePath(params: EditToolParams): string | null {
+    // First, try to resolve the path directly relative to the workspace root.
+    // This handles cases like `src/app.js` correctly and efficiently.
+    const directPath = path.join(this.config.getTargetDir(), params.file_path);
+    if (fs.existsSync(directPath)) {
+      params.file_path = directPath;
+      // Path is now absolute and verified, continue to the next check.
+      return null;
+    }
+
+    // If direct resolution fails, fall back to searching across workspace directories.
+    const workspaceContext = this.config.getWorkspaceContext();
+    const fileSystem = this.config.getFileSystemService();
+    const searchPaths = workspaceContext.getDirectories();
+    const foundFiles = fileSystem.findFiles(params.file_path, searchPaths);
+
+    if (foundFiles.length === 1) {
+      params.file_path = foundFiles[0];
+    } else if (foundFiles.length > 1) {
+      // Heuristic: When multiple files match (e.g., searching for 'auth.ts' finds two),
+      // prefer the one where the full path has a more direct structural match to the
+      // user's input (e.g., input 'services/auth.ts' matches '/proj/services/auth.ts'
+      // better than '/proj/api/v1/auth.ts').
+      const normalizedInput = path.normalize(params.file_path);
+      const directMatches = foundFiles.filter(
+        (file: string) =>
+          file.endsWith(normalizedInput) &&
+          (file.length === normalizedInput.length ||
+            file[file.length - normalizedInput.length - 1] === path.sep),
+      );
+
+      if (directMatches.length === 1) {
+        params.file_path = directMatches[0];
+      } else if (directMatches.length > 1) {
+        return (
+          `The file path '${params.file_path}' is ambiguous and matches multiple files with similar structure. ` +
+          `Please provide an absolute path to one of the following: ${directMatches.join(', ')}`
+        );
+      }
+    } else {
+      // No files found, fall through to the absolute path check which will now fail,
+      // or just return a more specific error.
+      if (!path.isAbsolute(params.file_path)) {
+        return `File not found for '${params.file_path}' and path is not absolute.`;
+      }
+    }
+
+    return null;
+  }
+
   /**
    * Validates the parameters for the Edit tool
    * @param params Parameters to validate
@@ -767,56 +817,12 @@ A good instruction should concisely answer:
       return "The 'file_path' parameter must be non-empty.";
     }
 
-    const workspaceContext = this.config.getWorkspaceContext();
     if (!path.isAbsolute(params.file_path)) {
-      // First, try to resolve the path directly relative to the workspace root.
-      // This handles cases like `src/app.js` correctly and efficiently.
-      const directPath = path.join(
-        this.config.getTargetDir(),
-        params.file_path,
-      );
-      if (fs.existsSync(directPath)) {
-        params.file_path = directPath;
-        // Path is now absolute and verified, continue to the next check.
-      } else {
-        // If direct resolution fails, fall back to searching across workspace directories.
-        const fileSystem = this.config.getFileSystemService();
-        const searchPaths = workspaceContext.getDirectories();
-        const foundFiles = fileSystem.findFiles(params.file_path, searchPaths);
-
-        if (foundFiles.length === 1) {
-          params.file_path = foundFiles[0];
-        } else if (foundFiles.length > 1) {
-          // Heuristic: When multiple files match (e.g., searching for 'auth.ts' finds two),
-          // prefer the one where the full path has a more direct structural match to the
-          // user's input (e.g., input 'services/auth.ts' matches '/proj/services/auth.ts'
-          // better than '/proj/api/v1/auth.ts').
-          const normalizedInput = path.normalize(params.file_path);
-          const directMatches = foundFiles.filter(
-            (file: string) =>
-              file.endsWith(normalizedInput) &&
-              (file.length === normalizedInput.length ||
-                file[file.length - normalizedInput.length - 1] === path.sep),
-          );
-
-          if (directMatches.length === 1) {
-            params.file_path = directMatches[0];
-          } else if (directMatches.length > 1) {
-            return (
-              `The file path '${params.file_path}' is ambiguous and matches multiple files with similar structure. ` +
-              `Please provide an absolute path to one of the following: ${directMatches.join(', ')}`
-            );
-          }
-        } else {
-          // No files found, fall through to the absolute path check which will now fail,
-          // or just return a more specific error.
-          if (!path.isAbsolute(params.file_path)) {
-            return `File not found for '${params.file_path}' and path is not absolute.`;
-          }
-        }
-      }
+      const error = this.correctRelativePath(params);
+      if (error) return error;
     }
 
+    const workspaceContext = this.config.getWorkspaceContext();
     if (!workspaceContext.isPathWithinWorkspace(params.file_path)) {
       const directories = workspaceContext.getDirectories();
       return `File path must be within one of the workspace directories: ${directories.join(', ')}`;

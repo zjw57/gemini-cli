@@ -242,17 +242,7 @@ describe('SmartEditTool', () => {
     });
   });
 
-  describe('validateToolParams', () => {
-    it('should return null for valid params', () => {
-      const params: EditToolParams = {
-        file_path: path.join(rootDir, 'test.txt'),
-        instruction: 'An instruction',
-        old_string: 'old',
-        new_string: 'new',
-      };
-      expect(tool.validateToolParams(params)).toBeNull();
-    });
-
+  describe('correctRelativePath', () => {
     it('should correct a relative path if it is unambiguous', () => {
       const testFile = 'unique.txt';
       fs.writeFileSync(path.join(rootDir, testFile), 'content');
@@ -264,7 +254,7 @@ describe('SmartEditTool', () => {
         new_string: 'new',
       };
 
-      const validationResult = tool.validateToolParams(params);
+      const validationResult = (tool as any).correctRelativePath(params);
 
       expect(validationResult).toBeNull();
       expect(params.file_path).toBe(path.join(rootDir, testFile));
@@ -285,7 +275,7 @@ describe('SmartEditTool', () => {
         new_string: 'new',
       };
 
-      const validationResult = tool.validateToolParams(params);
+      const validationResult = (tool as any).correctRelativePath(params);
 
       expect(validationResult).toBeNull();
       expect(params.file_path).toBe(fullPath);
@@ -298,20 +288,8 @@ describe('SmartEditTool', () => {
         old_string: 'old',
         new_string: 'new',
       };
-      const result = tool.validateToolParams(params);
+      const result = (tool as any).correctRelativePath(params);
       expect(result).toMatch(/File not found for 'test.txt'/);
-    });
-
-    it('should return an error if path is outside the workspace', () => {
-      const params: EditToolParams = {
-        file_path: path.join(os.tmpdir(), 'outside.txt'),
-        instruction: 'An instruction',
-        old_string: 'old',
-        new_string: 'new',
-      };
-      expect(tool.validateToolParams(params)).toMatch(
-        /must be within one of the workspace directories/,
-      );
     });
 
     it('should use heuristic to resolve ambiguous path', () => {
@@ -332,7 +310,7 @@ describe('SmartEditTool', () => {
         new_string: 'new',
       };
 
-      const validationResult = tool.validateToolParams(params);
+      const validationResult = (tool as any).correctRelativePath(params);
 
       expect(validationResult).toBeNull();
       expect(params.file_path).toBe(correctPath);
@@ -345,13 +323,9 @@ describe('SmartEditTool', () => {
       fs.mkdirSync(subDir2, { recursive: true });
 
       const ambiguousFile = 'component.ts';
-      const path1 = path.join(subDir1, 'component.ts');
-      const path2 = path.join(subDir2, 'component.ts');
-      fs.writeFileSync(path1, 'content 1');
-      fs.writeFileSync(path2, 'content 2');
+      fs.writeFileSync(path.join(subDir1, ambiguousFile), 'content 1');
+      fs.writeFileSync(path.join(subDir2, ambiguousFile), 'content 2');
 
-      // Here, both paths end with 'component.ts', but the input is just 'component.ts'
-      // The heuristic for direct structural match won't find a unique winner.
       const params: EditToolParams = {
         file_path: ambiguousFile,
         instruction: 'An instruction',
@@ -359,10 +333,31 @@ describe('SmartEditTool', () => {
         new_string: 'new',
       };
 
-      const validationResult = tool.validateToolParams(params);
+      const validationResult = (tool as any).correctRelativePath(params);
+      expect(validationResult).toMatch(/ambiguous and matches multiple files/);
+    });
+  });
 
-      expect(validationResult).toMatch(
-        /The file path 'component.ts' is too ambiguous and matches multiple files with similar structure./,
+  describe('validateToolParams', () => {
+    it('should return null for valid params', () => {
+      const params: EditToolParams = {
+        file_path: path.join(rootDir, 'test.txt'),
+        instruction: 'An instruction',
+        old_string: 'old',
+        new_string: 'new',
+      };
+      expect(tool.validateToolParams(params)).toBeNull();
+    });
+
+    it('should return an error if path is outside the workspace', () => {
+      const params: EditToolParams = {
+        file_path: path.join(os.tmpdir(), 'outside.txt'),
+        instruction: 'An instruction',
+        old_string: 'old',
+        new_string: 'new',
+      };
+      expect(tool.validateToolParams(params)).toMatch(
+        /must be within one of the workspace directories/,
       );
     });
   });
