@@ -73,6 +73,9 @@ jobs:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           dry-run: '${{ github.event.inputs.dry_run }}'
           previous-tag: '${{ steps.nightly_version.outputs.PREVIOUS_TAG }}'
+          ref: '${{ github.event.inputs.ref }}'
+          dockerhub-username: '${{ secrets.DOCKER_SERVICE_ACCOUNT_NAME }}'
+          dockerhub-token: '${{ secrets.DOCKER_SERVICE_ACCOUNT_KEY }}'
 
       - name: 'Create and Merge Pull Request'
         uses: './.github/actions/create-pull-request'
