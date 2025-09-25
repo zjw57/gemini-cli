@@ -469,7 +469,8 @@ export class Config {
         | 'agent_tool'
         | undefined,
       includeFileContent:
-        process.env['GEMINI_SUBAGENT_INCLUDE_FILE_CONTENT'] === 'true',
+        process.env['GEMINI_SUBAGENT_INCLUDE_FILE_CONTENT'] === 'true' ||
+        process.env['GEMINI_SUBAGENT_INCLUDE_FILE_CONTENT'] === 'True',
     };
 
     if (params.contextFileName) {

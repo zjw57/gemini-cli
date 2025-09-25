@@ -104,7 +104,10 @@ export abstract class BaseSubAgentInvocation<
       new ReadFileTool(this.config),
       new ReadManyFilesTool(this.config),
     ];
-    if (process.env['GEMINI_SUBAGENT_ADD_WEB_TOOL']) {
+    if (
+      process.env['GEMINI_SUBAGENT_ADD_WEB_TOOL'] === 'true' ||
+      process.env['GEMINI_SUBAGENT_ADD_WEB_TOOL'] === 'True'
+    ) {
       required_tools.push(new WebFetchTool(this.config));
     }
     return required_tools;
