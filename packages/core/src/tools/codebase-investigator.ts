@@ -226,22 +226,24 @@ ${this.params.user_objective}
   ): Promise<string> {
     const report = JSON.parse(reportJson) as CodebaseInvestigatorOutput;
 
-    for (const location of report.relevant_locations) {
-      try {
-        const fileStats = await fs.promises.stat(location.file_path);
-        if (fileStats.isFile()) {
-          const result = await processSingleFileContent(
-            location.file_path,
-            this.config.getTargetDir(),
-            this.config.getFileSystemService(),
-          );
+    if (this.params.include_file_content) {
+      for (const location of report.relevant_locations) {
+        try {
+          const fileStats = await fs.promises.stat(location.file_path);
+          if (fileStats.isFile()) {
+            const result = await processSingleFileContent(
+              location.file_path,
+              this.config.getTargetDir(),
+              this.config.getFileSystemService(),
+            );
 
-          if (!result.error && typeof result.llmContent === 'string') {
-            location.content = result.llmContent;
+            if (!result.error && typeof result.llmContent === 'string') {
+              location.content = result.llmContent;
+            }
           }
+        } catch (_e) {
+          // Ignore errors if file doesn't exist or is not accessible
         }
-      } catch (_e) {
-        // Ignore errors if file doesn't exist or is not accessible
       }
     }
     return this.convertReportToXmlString(report);
