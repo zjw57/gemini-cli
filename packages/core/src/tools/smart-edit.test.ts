@@ -293,7 +293,7 @@ describe('SmartEditTool', () => {
     });
 
     it('should use heuristic to resolve ambiguous path', () => {
-      const subDir1 = path.join(rootDir, 'api', 'v1');
+      const subDir1 = path.join(rootDir, 'api', 'services');
       const subDir2 = path.join(rootDir, 'services');
       fs.mkdirSync(subDir1, { recursive: true });
       fs.mkdirSync(subDir2, { recursive: true });
