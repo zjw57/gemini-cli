@@ -23,14 +23,32 @@ export class AcpFileSystemService implements FileSystemService {
       return this.fallback.readTextFile(filePath);
     }
 
-    const response = await this.client.readTextFile({
-      path: filePath,
-      sessionId: this.sessionId,
-      line: null,
-      limit: null,
-    });
+    try {
+      const response = await this.client.readTextFile({
+        path: filePath,
+        sessionId: this.sessionId,
+        line: null,
+        limit: null,
+      });
 
-    return response.content;
+      return response.content;
+    } catch (e) {
+      if (
+        e &&
+        typeof e === 'object' &&
+        'code' in e &&
+        e.code === -32002 &&
+        'message' in e &&
+        typeof e.message === 'string' &&
+        e.message.includes('not found')
+      ) {
+        const err = new Error(e.message);
+        (err as NodeJS.ErrnoException).code = 'ENOENT';
+        throw err;
+      }
+
+      throw e;
+    }
   }
 
   async writeTextFile(filePath: string, content: string): Promise<void> {
