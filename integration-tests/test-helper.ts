@@ -136,6 +136,7 @@ export class TestRig {
   ) {
     this.testName = testName;
     const sanitizedName = sanitizeTestName(testName);
+    process.env['GEMINI_CLI_TEST_RUN_ID'] = sanitizedName;
     this.testDir = join(env.INTEGRATION_TEST_FILE_DIR!, sanitizedName);
     mkdirSync(this.testDir, { recursive: true });
 
