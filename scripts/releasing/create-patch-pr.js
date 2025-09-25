@@ -192,14 +192,14 @@ async function main() {
   console.log(
     `Creating pull request from ${hotfixBranch} to ${releaseBranch}...`,
   );
-  let prTitle = `fix(patch): release ${nextVersion} (from ${latestTag})`;
+  let prTitle = `fix(patch): cherry-pick ${commit.substring(0, 7)} to ${nextVersion} (from ${latestTag})`;
   let prBody = `This PR automatically cherry-picks commit \`${commit.substring(
     0,
     7,
   )}\` to create patch release **${nextVersion}** for the \`${channel}\` release channel, based on version \`${latestTag}\`.`;
 
   if (hasConflicts) {
-    prTitle = `fix(patch): release ${nextVersion} (from ${latestTag}) [CONFLICTS]`;
+    prTitle = `fix(patch): cherry-pick ${commit.substring(0, 7)} to ${nextVersion} (from ${latestTag}) [CONFLICTS]`;
     prBody += `
 
 ## ⚠️ Merge Conflicts Detected
