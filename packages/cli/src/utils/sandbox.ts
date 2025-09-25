@@ -561,10 +561,13 @@ export async function start_sandbox(
 
     // name container after image, plus random suffix to avoid conflicts
     const imageName = parseImageName(image);
-    const testRunId = process.env['GEMINI_CLI_TEST_RUN_ID'];
+    const isIntegrationTest =
+      process.env['GEMINI_CLI_INTEGRATION_TEST'] === 'true';
     let containerName;
-    if (testRunId) {
-      containerName = `${randomBytes(4).toString('hex')}`;
+    if (isIntegrationTest) {
+      containerName = `gemini-cli-integration-test-${randomBytes(4).toString(
+        'hex',
+      )}`;
       console.log(`ContainerName: ${containerName}`);
     } else {
       let index = 0;
@@ -577,6 +580,7 @@ export async function start_sandbox(
         index++;
       }
       containerName = `${imageName}-${index}`;
+      console.log(`ContainerName (regular): ${containerName}`);
     }
     args.push('--name', containerName, '--hostname', containerName);
 
