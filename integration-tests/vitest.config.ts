@@ -10,7 +10,7 @@ export default defineConfig({
   test: {
     testTimeout: 300000, // 5 minutes
     globalSetup: './globalSetup.ts',
-    reporters: ['default'],
+    reporters: ['verbose'],
     include: ['**/*.test.ts'],
     retry: 2,
     fileParallelism: true,
