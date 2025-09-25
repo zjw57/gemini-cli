@@ -27,7 +27,11 @@ describe('create-patch-pr', () => {
   // Helper to set up mocks with default "happy path" behavior
   const setupMocks = (overrides = {}) => {
     const defaultMocks = {
-      'gh release list': () => 'v1.0.0',
+      'get-release-version.js': () =>
+        JSON.stringify({
+          previousReleaseTag: 'v1.0.0',
+          releaseVersion: 'v1.0.1',
+        }),
       'git ls-remote': () => {
         throw new Error('exit code 1');
       }, // Default: branches don't exist
