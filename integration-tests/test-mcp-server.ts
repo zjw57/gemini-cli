@@ -30,7 +30,7 @@ export class TestMcpServer {
     });
     mcpServer.connect(transport);
 
-    app.post('/mcp', async (req, res) => {
+    app.use('/mcp', async (req, res) => {
       await transport.handleRequest(req, res, req.body);
     });
 

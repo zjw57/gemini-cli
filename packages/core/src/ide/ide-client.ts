@@ -792,6 +792,7 @@ export class IdeClient {
       this.setState(IDEConnectionStatus.Connected);
       return true;
     } catch (_error) {
+      console.error('[DEBUG] establishHttpConnection error:', _error);
       if (transport) {
         try {
           await transport.close();
@@ -839,6 +840,9 @@ export class IdeClient {
 }
 
 function getIdeServerHost() {
+  if (process.env['GEMINI_CLI_INTEGRATION_TEST'] === 'true') {
+    return 'localhost';
+  }
   const isInContainer =
     fs.existsSync('/.dockerenv') || fs.existsSync('/run/.containerenv');
   return isInContainer ? 'host.docker.internal' : 'localhost';
