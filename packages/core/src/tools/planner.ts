@@ -10,6 +10,7 @@ import { BaseSubAgentInvocation } from './base-subagent-tool.js';
 import type { Config } from '../config/config.js';
 import type { ContextState } from '../core/subagent.js';
 import { processSingleFileContent } from '../utils/fileUtils.js';
+import type { Content } from '@google/genai';
 import fs from 'node:fs';
 
 const OUTPUT_SCHEMA_JSON = `
@@ -189,14 +190,6 @@ Here is an example for a task: "Add a new '/api/v2/invoice/discount' endpoint th
   ]
 }
 \`\`\`
-
-**The task**
-
-This is the task you must investigate and plan for:
-
-<TASK>
-\${user_objective}
-</TASK>
 `;
 
 /**
@@ -254,7 +247,21 @@ class SolutionPlannerInvocation extends BaseSubAgentInvocation<
   getSystemPrompt(): string {
     return SYSTEM_PROMPT;
   }
-
+  override getInitialMessages(): Content[] {
+    return [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: `Your task is to investigate the codebase to find all relevant files and code locations for the following user objective:
+<USER_OBJECTIVE>
+${this.params.user_objective}
+</USER_OBJECTIVE>`,
+          },
+        ],
+      },
+    ];
+  }
   getOutputSchemaName(): string {
     return 'SolutionPlannerOutput';
   }

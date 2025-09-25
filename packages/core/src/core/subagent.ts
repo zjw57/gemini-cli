@@ -613,11 +613,6 @@ export class SubAgentScope {
         'PromptConfig must have either `systemPrompt` or `initialMessages` defined.',
       );
     }
-    if (this.promptConfig.systemPrompt && this.promptConfig.initialMessages) {
-      throw new Error(
-        'PromptConfig cannot have both `systemPrompt` and `initialMessages` defined.',
-      );
-    }
 
     const envParts = await getEnvironmentContext(this.runtimeContext);
     const envHistory: Content[] = [

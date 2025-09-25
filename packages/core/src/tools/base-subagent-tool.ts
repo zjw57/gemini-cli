@@ -19,7 +19,7 @@ import { ReadFileTool } from './read-file.js';
 import { ReadManyFilesTool } from './read-many-files.js';
 import { RipGrepTool } from './ripGrep.js';
 import type { AnyDeclarativeTool } from '../tools/tools.js';
-import type { FunctionDeclaration } from '@google/genai';
+import type { FunctionDeclaration, Content } from '@google/genai';
 
 import type { Config } from '../config/config.js';
 import {
@@ -63,6 +63,8 @@ export abstract class BaseSubAgentInvocation<
    * Returns the system prompt that defines the agent's behavior.
    */
   abstract getSystemPrompt(): string;
+
+  abstract getInitialMessages(): Content[];
 
   /**
    * Returns the name of the output schema for display in the prompt.
@@ -149,6 +151,7 @@ export abstract class BaseSubAgentInvocation<
 
     const promptConfig: PromptConfig = {
       systemPrompt: this.getSystemPrompt(),
+      initialMessages: this.getInitialMessages(),
     };
 
     // 2. Initialize and Run the Sub-Agent Scope
