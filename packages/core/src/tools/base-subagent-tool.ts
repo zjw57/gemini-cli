@@ -64,6 +64,9 @@ export abstract class BaseSubAgentInvocation<
    */
   abstract getSystemPrompt(): string;
 
+  /*
+   * Initial messages with task
+   */
   abstract getInitialMessages(): Content[];
 
   /**
