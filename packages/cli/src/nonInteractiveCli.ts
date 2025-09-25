@@ -127,6 +127,18 @@ export async function runNonInteractive(
 
       const subagentTestingConfig = config.getSubagentTestingConfig();
 
+      let problemStatement: string = input;
+
+      // Check if both tags exist before trying to split
+      if (
+        input.includes('<pr_description>') &&
+        input.includes('</pr_description>')
+      ) {
+        problemStatement = input
+          .split('<pr_description>')[1] // Get everything after the opening tag
+          .split('</pr_description>')[0] // Get everything before the closing tag
+          .trim(); // Clean up whitespace
+      }
       if (subagentTestingConfig.invocationMode === 'heuristic') {
         const subAgentName = subagentTestingConfig.toolName;
         const includeFileContent = subagentTestingConfig.includeFileContent;
@@ -140,7 +152,7 @@ export async function runNonInteractive(
             'What is the best file to start with to implement the user a request?',
           ];
           const subAgentInput: ContextHarvesterInput = {
-            user_objective: input,
+            user_objective: problemStatement,
             analysis_questions,
           };
 
@@ -160,7 +172,7 @@ export async function runNonInteractive(
         } else if (subAgentName === 'codebase_investigator') {
           const subAgentTool = new CodebaseInvestigatorTool(config);
           const subAgentInput: CodebaseInvestigatorInput = {
-            user_objective: input,
+            user_objective: problemStatement,
             include_file_content: includeFileContent,
           };
 
@@ -183,7 +195,7 @@ export async function runNonInteractive(
         } else if (subAgentName === 'planner') {
           const subAgentTool = new SolutionPlannerTool(config);
           const subAgentInput: SolutionPlannerInput = {
-            user_objective: input,
+            user_objective: problemStatement,
             include_file_content: includeFileContent,
           };
 
@@ -207,7 +219,7 @@ export async function runNonInteractive(
         } else if (subAgentName === 'flexible_planner') {
           const subAgentTool = new SolutionPlannerTool(config);
           const subAgentInput: SolutionPlannerInput = {
-            user_objective: input,
+            user_objective: problemStatement,
             include_file_content: includeFileContent,
           };
 
