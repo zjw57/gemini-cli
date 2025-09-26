@@ -124,6 +124,13 @@ const COMPRESSION_TOKEN_THRESHOLD = 0.7;
  */
 const COMPRESSION_PRESERVE_THRESHOLD = 0.3;
 
+/**
+ * Number of initial context messages to preserve during compression.
+ * These are the environment context message and model acknowledgment that
+ * should not be included in compression calculations.
+ */
+const INITIAL_CONTEXT_LENGTH = 2;
+
 export class GeminiClient {
   private chat?: GeminiChat;
   private readonly generateContentConfig: GenerateContentConfig = {
@@ -665,7 +672,9 @@ export class GeminiClient {
     // Check if the model needs to be a fallback
     model = getEffectiveModel(this.config.isInFallbackMode(), model);
 
-    const curatedHistory = this.getChat().getHistory(true);
+    const curatedHistory = this.getChat()
+      .getHistory(true)
+      .slice(INITIAL_CONTEXT_LENGTH);
 
     // Regardless of `force`, don't do anything if the history is empty.
     if (
@@ -715,6 +724,14 @@ export class GeminiClient {
       curatedHistory,
       1 - COMPRESSION_PRESERVE_THRESHOLD,
     );
+
+    if (splitPoint === 0) {
+      return {
+        originalTokenCount: 0,
+        newTokenCount: 0,
+        compressionStatus: CompressionStatus.NOOP,
+      };
+    }
 
     const historyToCompress = curatedHistory.slice(0, splitPoint);
     const historyToKeep = curatedHistory.slice(splitPoint);
