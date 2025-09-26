@@ -214,11 +214,7 @@ The commit has been created with conflict markers for easier manual resolution.
   }
 
   const prCommand = `gh pr create --base ${releaseBranch} --head ${hotfixBranch} --title "${prTitle}" --body "${prBody}"`;
-  // Temporarily set the environment variable for the gh command.
-  process.env.GH_TOKEN = process.env.GEMINI_CLI_ROBOT_GITHUB_PAT;
   run(prCommand, dryRun);
-  // Unset the environment variable to avoid side effects.
-  delete process.env.GH_TOKEN;
 
   if (hasConflicts) {
     console.log(

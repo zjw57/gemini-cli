@@ -52,7 +52,6 @@ jobs:
       - name: 'Install Script Dependencies'
         run: 'npm install yargs'
 
-
       - name: 'Configure Git User'
         run: |-
           git config user.name "gemini-cli-robot"
@@ -64,7 +63,7 @@ jobs:
         id: 'create_patch'
         env:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
-          GEMINI_CLI_ROBOT_GITHUB_PAT: '${{ secrets.GEMINI_CLI_ROBOT_GITHUB_PAT }}'
+          GH_TOKEN: '${{ secrets.GEMINI_CLI_ROBOT_GITHUB_PAT }}'
         continue-on-error: true
         run: |
           # Capture output and display it in logs using tee
