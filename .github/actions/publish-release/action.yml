@@ -114,11 +114,6 @@ runs:
         registry-url: 'https://npm.pkg.github.com'
         scope: '@google'
 
-    - name: 'Debug npm config'
-      working-directory: '${{ inputs.working-directory }}'
-      shell: 'bash'
-      run: 'npm config list'
-
     - name: '📦 Publish @google/gemini-cli-core'
       working-directory: '${{ inputs.working-directory }}'
       env:
@@ -128,7 +123,8 @@ runs:
         npm publish \
           --dry-run="${{ inputs.dry-run }}" \
           --workspace="@google/gemini-cli-core" \
-          --no-tag
+          --no-tag \
+          --registry="${{ inputs.registry == 'npm' && 'https://wombat-dressing-room.appspot.com' || 'https://npm.pkg.github.com' }}" 
 
     - name: '🔗 Install latest core package'
       working-directory: '${{ inputs.working-directory }}'
@@ -148,7 +144,8 @@ runs:
         npm publish \
           --dry-run="${{ inputs.dry-run }}" \
           --workspace="@google/gemini-cli" \
-          --no-tag
+          --no-tag \
+          --registry="${{ inputs.registry == 'npm' && 'https://wombat-dressing-room.appspot.com' || 'https://npm.pkg.github.com' }}"
 
     - name: '🔬 Verify NPM release by version'
       uses: './.github/actions/verify-release'
