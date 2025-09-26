@@ -113,7 +113,8 @@
     "wrap-ansi": "9.0.2",
     "cliui": {
       "wrap-ansi": "7.0.0"
-    }
+    },
+    "ansi-regex": "6.2.2"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
