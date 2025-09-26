@@ -26,7 +26,7 @@ export const CodebaseInvestigatorAgent: AgentDefinition = {
     inputs: {
       investigation_focus: {
         description:
-          'A high-level description of what the agent should investigate (e.g., "frontend framework", "authentication implementation", "testing conventions").',
+          'A description of what the agent should investigate with as detailed as possible, including questions and goals etc.',
         type: 'string',
         required: true,
       },
