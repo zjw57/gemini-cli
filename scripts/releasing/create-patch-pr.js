@@ -214,7 +214,9 @@ The commit has been created with conflict markers for easier manual resolution.
   }
 
   const prCommand = `gh pr create --base ${releaseBranch} --head ${hotfixBranch} --title "${prTitle}" --body "${prBody}"`;
-  run(prCommand, dryRun);
+  run(prCommand, dryRun, {
+    env: { GH_TOKEN: process.env.GEMINI_CLI_ROBOT_GITHUB_PAT },
+  });
 
   if (hasConflicts) {
     console.log(

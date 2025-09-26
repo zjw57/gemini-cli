@@ -320,8 +320,7 @@ jobs:
           branch-name: '${{ steps.release_branch.outputs.BRANCH_NAME }}'
           pr-title: 'chore(release): bump version to ${{ needs.calculate-versions.outputs.NEXT_NIGHTLY_VERSION }}'
           pr-body: 'Automated version bump to prepare for the next nightly release.'
-          app-id: '${{ secrets.APP_ID }}'
-          private-key: '${{ secrets.PRIVATE_KEY }}'
+          github-token: '${{ secrets.GEMINI_CLI_ROBOT_GITHUB_PAT }}'
           dry-run: '${{ github.event.inputs.dry_run }}'
 
       - name: 'Create Issue on Failure'
