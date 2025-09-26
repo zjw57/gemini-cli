@@ -39,6 +39,7 @@ import { ExtensionEnablementManager } from './extensions/extensionEnablement.js'
 import type { UseHistoryManagerReturn } from '../ui/hooks/useHistoryManager.js';
 import chalk from 'chalk';
 import { resolveEnvVarsInObject } from '../utils/envVarResolver.js';
+import * as dotenv from 'dotenv';
 
 export const EXTENSIONS_DIRECTORY_NAME = path.join(GEMINI_DIR, 'extensions');
 
@@ -230,19 +231,11 @@ export function loadExtension(context: LoadExtensionContext): Extension | null {
   }
 
   try {
-    const customEnv: Record<string, string> = {};
+    let customEnv: Record<string, string> = {};
     const envPath = path.join(effectiveExtensionPath, '.env');
     if (fs.existsSync(envPath)) {
       const envFile = fs.readFileSync(envPath, 'utf-8');
-      for (const line of envFile.split('\n')) {
-        const trimmedLine = line.trim();
-        if (trimmedLine && !trimmedLine.startsWith('#')) {
-          const [key, ...valueParts] = trimmedLine.split('=');
-          if (key) {
-            customEnv[key.trim()] = valueParts.join('=').trim();
-          }
-        }
-      }
+      customEnv = dotenv.parse(envFile);
     }
 
     let config = loadExtensionConfig({

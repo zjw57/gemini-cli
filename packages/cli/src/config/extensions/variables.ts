@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { resolveEnvVarsInString } from '../../utils/envVarResolver.js';
 import { type VariableSchema, VARIABLE_SCHEMA } from './variableSchema.js';
 
 export type JsonObject = { [key: string]: JsonValue };
@@ -33,39 +32,31 @@ export function validateVariables(
   }
 }
 
-export function hydrateString(
-  str: string,
-  context: VariableContext,
-  customEnv?: Record<string, string>,
-): string {
+export function hydrateString(str: string, context: VariableContext): string {
   validateVariables(context, VARIABLE_SCHEMA);
   const regex = /\${(.*?)}/g;
-  const hydratedString = str.replace(regex, (match, key) =>
+  return str.replace(regex, (match, key) =>
     context[key as keyof VariableContext] == null
       ? match
       : (context[key as keyof VariableContext] as string),
   );
-  return resolveEnvVarsInString(hydratedString, customEnv);
 }
 
 export function recursivelyHydrateStrings(
   obj: JsonValue,
   values: VariableContext,
-  customEnv?: Record<string, string>,
 ): JsonValue {
   if (typeof obj === 'string') {
-    return hydrateString(obj, values, customEnv);
+    return hydrateString(obj, values);
   }
   if (Array.isArray(obj)) {
-    return obj.map((item) =>
-      recursivelyHydrateStrings(item, values, customEnv),
-    );
+    return obj.map((item) => recursivelyHydrateStrings(item, values));
   }
   if (typeof obj === 'object' && obj !== null) {
     const newObj: JsonObject = {};
     for (const key in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        newObj[key] = recursivelyHydrateStrings(obj[key], values, customEnv);
+        newObj[key] = recursivelyHydrateStrings(obj[key], values);
       }
     }
     return newObj;
