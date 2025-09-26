@@ -114,6 +114,13 @@ runs:
         registry-url: 'https://npm.pkg.github.com'
         scope: '@google'
 
+    - name: 'Override .npmrc for GitHub Packages'
+      if: "inputs.registry == 'github'"
+      working-directory: '${{ inputs.working-directory }}'
+      shell: 'bash'
+      run: |
+        echo "@google:registry=https://npm.pkg.github.com" > .npmrc
+
     - name: '📦 Publish @google/gemini-cli-core'
       working-directory: '${{ inputs.working-directory }}'
       env:
@@ -123,8 +130,7 @@ runs:
         npm publish \
           --dry-run="${{ inputs.dry-run }}" \
           --workspace="@google/gemini-cli-core" \
-          --no-tag \
-          --registry="${{ inputs.registry == 'npm' && 'https://wombat-dressing-room.appspot.com' || 'https://npm.pkg.github.com' }}" 
+          --no-tag
 
     - name: '🔗 Install latest core package'
       working-directory: '${{ inputs.working-directory }}'
@@ -144,8 +150,7 @@ runs:
         npm publish \
           --dry-run="${{ inputs.dry-run }}" \
           --workspace="@google/gemini-cli" \
-          --no-tag \
-          --registry="${{ inputs.registry == 'npm' && 'https://wombat-dressing-room.appspot.com' || 'https://npm.pkg.github.com' }}"
+          --no-tag
 
     - name: '🔬 Verify NPM release by version'
       uses: './.github/actions/verify-release'
