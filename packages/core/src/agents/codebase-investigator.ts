@@ -7,7 +7,7 @@
 import type { AgentDefinition } from './types.js';
 import { LSTool } from '../tools/ls.js';
 import { ReadFileTool } from '../tools/read-file.js';
-import { GlobTool } from '../tools/glob.js';
+import { GLOB_TOOL_NAME } from '../tools/tool-names.js';
 import { GrepTool } from '../tools/grep.js';
 import { DEFAULT_GEMINI_MODEL } from '../config/models.js';
 
@@ -55,7 +55,7 @@ export const CodebaseInvestigatorAgent: AgentDefinition = {
 
   toolConfig: {
     // Grant access only to read-only tools.
-    tools: [LSTool.Name, ReadFileTool.Name, GlobTool.Name, GrepTool.Name],
+    tools: [LSTool.Name, ReadFileTool.Name, GLOB_TOOL_NAME, GrepTool.Name],
   },
 
   promptConfig: {
@@ -66,7 +66,7 @@ Your focus for this investigation is: \${investigation_focus}
 
 # Methodology
 1. **Discovery:** Start by looking at high-level configuration files (e.g., package.json, README.md, Cargo.toml, requirements.txt, build.gradle) to understand the project's dependencies and structure.
-2. **Structure Analysis:** Use '${GlobTool.Name}' and '${LSTool.Name}' to understand the directory layout and identify relevant files/modules related to your focus.
+2. **Structure Analysis:** Use '${GLOB_TOOL_NAME}' and '${LSTool.Name}' to understand the directory layout and identify relevant files/modules related to your focus.
 3. **Deep Dive:** Use '${ReadFileTool.Name}' and available search tools (Grep/RipGrep) to analyze the contents of relevant files, looking for implementation details, patterns, and conventions.
 4. **Synthesis:** Synthesize all findings into a coherent markdown report.
 
