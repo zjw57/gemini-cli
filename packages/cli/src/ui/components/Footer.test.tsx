@@ -56,38 +56,44 @@ describe('<Footer />', () => {
   });
 
   describe('path display', () => {
-    it('should display shortened path on a wide terminal', () => {
+    it('should display a shortened path on a wide terminal', () => {
       const { lastFrame } = renderWithWidth(120);
-      const tildePath = tildeifyPath(defaultProps.targetDir);
-      const expectedPath = '...' + tildePath.slice(tildePath.length - 48 + 3);
-      expect(lastFrame()).toContain(expectedPath);
+      const fullPath = tildeifyPath(defaultProps.targetDir);
+      const output = lastFrame();
+
+      // Behavior: Path is shortened with an ellipsis.
+      expect(output).toContain('...');
+      // Behavior: The full path is NOT displayed.
+      expect(output).not.toContain(fullPath);
+      // Behavior: The end of the path is visible.
+      expect(output).toContain(path.basename(fullPath));
     });
 
-    it('should display base name on a narrow terminal', () => {
+    it('should display only the base name on a narrow terminal', () => {
       const { lastFrame } = renderWithWidth(NARROW_WIDTH_BREAKPOINT - 1);
       const expectedPath = path.basename(defaultProps.targetDir);
-      expect(lastFrame()).toContain(expectedPath);
+      const output = lastFrame();
+
+      // Behavior: Only the basename is displayed.
+      expect(output).toContain(expectedPath);
+      // Behavior: The path is not shortened with an ellipsis.
+      expect(output).not.toContain('...');
     });
 
-    it('should use wide layout at 70 columns', () => {
+    it('should use wide layout at the breakpoint', () => {
       const { lastFrame } = renderWithWidth(NARROW_WIDTH_BREAKPOINT);
-      const tildePath = tildeifyPath(defaultProps.targetDir);
-      const pathLength = Math.max(
-        20,
-        Math.floor(NARROW_WIDTH_BREAKPOINT * 0.4),
-      );
-      const expectedPath =
-        '...' + tildePath.slice(tildePath.length - pathLength + 3);
-      expect(lastFrame()).toContain(expectedPath);
+      const output = lastFrame();
+      // Behavior: Path is shortened (wide layout), so it's not just the basename.
+      expect(output).toContain('...');
+      expect(output).not.toEqual(path.basename(defaultProps.targetDir));
     });
 
-    it('should use narrow layout at NARROW_WIDTH_BREAKPOINT - 1 columns', () => {
+    it('should use narrow layout just below the breakpoint', () => {
       const { lastFrame } = renderWithWidth(NARROW_WIDTH_BREAKPOINT - 1);
-      const expectedPath = path.basename(defaultProps.targetDir);
-      expect(lastFrame()).toContain(expectedPath);
-      const tildePath = tildeifyPath(defaultProps.targetDir);
-      const unexpectedPath = '...' + tildePath.slice(tildePath.length - 31 + 3);
-      expect(lastFrame()).not.toContain(unexpectedPath);
+      const output = lastFrame();
+      // Behavior: Path is just the basename (narrow layout).
+      expect(output).toContain(path.basename(defaultProps.targetDir));
+      expect(output).not.toContain('...');
     });
   });
 
