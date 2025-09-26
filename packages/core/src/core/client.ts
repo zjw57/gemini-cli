@@ -672,9 +672,7 @@ export class GeminiClient {
     // Check if the model needs to be a fallback
     model = getEffectiveModel(this.config.isInFallbackMode(), model);
 
-    const curatedHistory = this.getChat()
-      .getHistory(true)
-      .slice(INITIAL_CONTEXT_LENGTH);
+    const curatedHistory = this.getChat().getHistory(true);
 
     // Regardless of `force`, don't do anything if the history is empty.
     if (
@@ -725,7 +723,7 @@ export class GeminiClient {
       1 - COMPRESSION_PRESERVE_THRESHOLD,
     );
 
-    if (splitPoint === 0) {
+    if (splitPoint <= INITIAL_CONTEXT_LENGTH) {
       return {
         originalTokenCount: 0,
         newTokenCount: 0,

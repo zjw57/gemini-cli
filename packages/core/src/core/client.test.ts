@@ -430,9 +430,9 @@ describe('Gemini Client (client.ts)', () => {
         const result = await client.tryCompressChat('prompt-id-4', true);
 
         expect(result).toEqual({
-          compressionStatus: CompressionStatus.COMPRESSED,
-          newTokenCount: 1000,
-          originalTokenCount: 1000,
+          compressionStatus: CompressionStatus.NOOP,
+          newTokenCount: 0,
+          originalTokenCount: 0,
         });
       });
 
@@ -444,17 +444,15 @@ describe('Gemini Client (client.ts)', () => {
         const result = await client.tryCompressChat('prompt-id-4', false);
 
         expect(result).toEqual({
-          compressionStatus:
-            CompressionStatus.COMPRESSION_FAILED_INFLATED_TOKEN_COUNT,
-          newTokenCount: 5000,
-          originalTokenCount: 1000,
+          compressionStatus: CompressionStatus.NOOP,
+          newTokenCount: 0,
+          originalTokenCount: 0,
         });
-        expect(uiTelemetryService.setLastPromptTokenCount).toHaveBeenCalledWith(
-          5000,
-        );
+        // Since compression is now NOOP due to split point being <= INITIAL_CONTEXT_LENGTH,
+        // telemetry should not be called
         expect(
           uiTelemetryService.setLastPromptTokenCount,
-        ).toHaveBeenCalledTimes(1);
+        ).not.toHaveBeenCalled();
       });
 
       it('does not manipulate the source chat', async () => {
@@ -492,9 +490,10 @@ describe('Gemini Client (client.ts)', () => {
         expect(compressionStatus).toBe(
           CompressionStatus.COMPRESSION_FAILED_INFLATED_TOKEN_COUNT,
         );
-        // After slicing initial context, the curated history should be restored
-        const curatedHistory = originalHistory.slice(2); // Skip the first 2 messages (initial context)
-        expect(client['chat']?.setHistory).toHaveBeenCalledWith(curatedHistory);
+        // The curated history should now include the full original history
+        expect(client['chat']?.setHistory).toHaveBeenCalledWith(
+          originalHistory,
+        );
       });
 
       it('will not attempt to compress context after a failure', async () => {
@@ -835,12 +834,12 @@ describe('Gemini Client (client.ts)', () => {
         .calls;
       const firstCall = tokenCountCalls[0][0];
 
-      // The history passed to countTokens should exclude the first 2 messages
-      expect(firstCall.contents).toEqual(fullHistory.slice(2));
+      // The history passed to countTokens should now include the full history
+      expect(firstCall.contents).toEqual(fullHistory);
     });
 
-    it('should return NOOP when compression split point is 0', async () => {
-      // Test the early return when findCompressSplitPoint returns 0
+    it('should return NOOP when compression split point is within initial context', async () => {
+      // Test the early return when findCompressSplitPoint returns <= INITIAL_CONTEXT_LENGTH
       const MOCKED_TOKEN_LIMIT = 1000;
       vi.mocked(tokenLimit).mockReturnValue(MOCKED_TOKEN_LIMIT);
 
@@ -898,13 +897,13 @@ describe('Gemini Client (client.ts)', () => {
       );
 
       expect(result).toEqual({
-        originalTokenCount: 0,
-        newTokenCount: 0,
+        originalTokenCount: 100,
+        newTokenCount: 100,
         compressionStatus: CompressionStatus.NOOP,
       });
 
-      // Verify countTokens was never called since history was empty after slicing
-      expect(mockContentGenerator.countTokens).not.toHaveBeenCalled();
+      // Verify countTokens was called but compression returns NOOP due to below threshold
+      expect(mockContentGenerator.countTokens).toHaveBeenCalled();
       expect(mockGenerateContentFn).not.toHaveBeenCalled();
     });
   });
