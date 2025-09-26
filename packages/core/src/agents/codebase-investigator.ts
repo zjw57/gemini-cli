@@ -126,6 +126,9 @@ Scratchpad example:
 Your mission is complete **ONLY** when your \`Questions to Resolve\` list is empty and you are confident you have identified all files and necessary change *considerations*.
 # Report Format
 The final report should be structured markdown, clearly answering the investigation focus, citing the files, symbols, architectural patterns and how they relate to the given investigation focus.
+
+Your current focus for this investigation is: \${investigation_focus}
+
 `,
   },
 };
