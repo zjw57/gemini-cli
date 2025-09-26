@@ -12,7 +12,6 @@ import { EditTool } from '../tools/edit.js';
 import { GlobTool } from '../tools/glob.js';
 import { GrepTool } from '../tools/grep.js';
 import { ReadFileTool } from '../tools/read-file.js';
-import { ReadManyFilesTool } from '../tools/read-many-files.js';
 import { ShellTool } from '../tools/shell.js';
 import { WriteFileTool } from '../tools/write-file.js';
 import process from 'node:process';
@@ -115,7 +114,7 @@ You are an interactive CLI agent specializing in software engineering tasks. You
 
 ## Software Engineering Tasks
 When requested to perform tasks like fixing bugs, adding features, refactoring, or explaining code, follow this sequence:
-1. **Understand:** Think about the user's request and the relevant codebase context. Use '${GrepTool.Name}' and '${GlobTool.Name}' search tools extensively (in parallel if independent) to understand file structures, existing code patterns, and conventions. Use '${ReadFileTool.Name}' and '${ReadManyFilesTool.Name}' to understand context and validate any assumptions you may have.
+1. **Understand:** Think about the user's request and the relevant codebase context. Use '${GrepTool.Name}' and '${GlobTool.Name}' search tools extensively (in parallel if independent) to understand file structures, existing code patterns, and conventions. Use '${ReadFileTool.Name}' (in parallel for multiple files) to understand context and validate any assumptions you may have.
 2. **Plan:** Build a coherent and grounded (based on the understanding in step 1) plan for how you intend to resolve the user's task. Share an extremely concise yet clear plan with the user if it would help the user understand your thought process. As part of the plan, you should use an iterative development process that includes writing unit tests to verify your changes. Use output logs or debug statements as part of this process to arrive at a solution.
 3. **Implement:** Use the available tools (e.g., '${EditTool.Name}', '${WriteFileTool.Name}' '${ShellTool.Name}' ...) to act on the plan, strictly adhering to the project's established conventions (detailed under 'Core Mandates').
 4. **Verify (Tests):** If applicable and feasible, verify the changes using the project's testing procedures. Identify the correct test commands and frameworks by examining 'README' files, build/package configuration (e.g., 'package.json'), or existing test execution patterns. NEVER assume standard test commands.
@@ -281,7 +280,10 @@ model:
 Okay, I can write those tests. First, I'll read \`someFile.ts\` to understand its functionality.
 [tool_call: ${ReadFileTool.Name} for absolute_path '/path/to/someFile.ts' or use ${GlobTool.Name} to find \`someFile.ts\` if its location is unknown]
 Now I'll look for existing or related test files to understand current testing conventions and dependencies.
-[tool_call: ${ReadManyFilesTool.Name} for paths ['**/*.test.ts', 'src/**/*.spec.ts'] assuming someFile.ts is in the src directory]
+[tool_call: ${GlobTool.Name} for paths ['**/*.test.ts', 'src/**/*.spec.ts'] assuming someFile.ts is in the src directory]
+(After getting the list of test files)
+[tool_call: ${ReadFileTool.Name} for absolute_path '/path/to/src/existing.test.ts']
+[tool_call: ${ReadFileTool.Name} for absolute_path '/path/to/src/another.spec.ts']
 (After reviewing existing tests and the file content)
 [tool_call: ${WriteFileTool.Name} to create /path/to/someFile.test.ts with the test code]
 I've written the tests. Now I'll run the project's test command to verify them.
@@ -312,7 +314,7 @@ To help you check their settings, I can read their contents. Which one would you
 </example>
 
 # Final Reminder
-Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use '${ReadFileTool.Name}' or '${ReadManyFilesTool.Name}' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved.
+Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use '${ReadFileTool.Name}' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved.
 `.trim();
 
   // if GEMINI_WRITE_SYSTEM_MD is set (and not 0|false), write base system prompt to file
