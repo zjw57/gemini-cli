@@ -242,7 +242,7 @@ describe('SmartEditTool', () => {
     });
   });
 
-  describe('correctRelativePath', () => {
+  describe('correctPath', () => {
     it('should correct a relative path if it is unambiguous', () => {
       const testFile = 'unique.txt';
       fs.writeFileSync(path.join(rootDir, testFile), 'content');
@@ -254,7 +254,7 @@ describe('SmartEditTool', () => {
         new_string: 'new',
       };
 
-      const validationResult = (tool as any).correctRelativePath(params);
+      const validationResult = (tool as any).correctPath(params);
 
       expect(validationResult).toBeNull();
       expect(params.file_path).toBe(path.join(rootDir, testFile));
@@ -275,7 +275,7 @@ describe('SmartEditTool', () => {
         new_string: 'new',
       };
 
-      const validationResult = (tool as any).correctRelativePath(params);
+      const validationResult = (tool as any).correctPath(params);
 
       expect(validationResult).toBeNull();
       expect(params.file_path).toBe(fullPath);
@@ -288,11 +288,11 @@ describe('SmartEditTool', () => {
         old_string: 'old',
         new_string: 'new',
       };
-      const result = (tool as any).correctRelativePath(params);
+      const result = (tool as any).correctPath(params);
       expect(result).toMatch(/File not found for 'test.txt'/);
     });
 
-    it('should return an error for an ambiguous path that heuristic cannot resolve', () => {
+    it('should return an error for an ambiguous path', () => {
       const subDir1 = path.join(rootDir, 'module1');
       const subDir2 = path.join(rootDir, 'module2');
       fs.mkdirSync(subDir1, { recursive: true });
@@ -309,7 +309,7 @@ describe('SmartEditTool', () => {
         new_string: 'new',
       };
 
-      const validationResult = (tool as any).correctRelativePath(params);
+      const validationResult = (tool as any).correctPath(params);
       expect(validationResult).toMatch(/ambiguous and matches multiple files/);
     });
   });

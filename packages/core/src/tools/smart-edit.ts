@@ -778,36 +778,12 @@ A good instruction should concisely answer:
   }
 
   /**
-   * Attempts to resolve ambiguity when multiple files match a partial path.
-   * This heuristic prefers a file where the end of its full path is a more
-   * direct structural match to the user's input. For example, if the input is
-   * 'services/auth.ts' and matches are found in '/proj/services/auth.ts' and
-   * '/proj/api/services/auth.ts', it will prefer the former.
-   * @param filePath The user-provided file path.
-   * @param foundFiles A list of absolute paths that matched the file path.
-   */
-  private resolveAmbiguousPath(
-    filePath: string,
-    foundFiles: string[],
-  ): string | null {
-    const normalizedInput = path.normalize(filePath);
-    const directMatches = foundFiles.filter(
-      (file) =>
-        file.endsWith(normalizedInput) &&
-        (file.length === normalizedInput.length ||
-          file[file.length - normalizedInput.length - 1] === path.sep),
-    );
-
-    return directMatches.length === 1 ? directMatches[0] : null;
-  }
-
-  /**
    * Attempts to correct a relative file path to an absolute path.
    * This function modifies `params.file_path` in place if successful.
    * @param params The tool parameters containing the file_path to correct.
    * @returns An error message string if correction fails, otherwise null.
    */
-  private correctRelativePath(params: EditToolParams): string | null {
+  private correctPath(params: EditToolParams): string | null {
     const directPath = this.findDirectPath(params.file_path);
     if (directPath) {
       params.file_path = directPath;
@@ -840,7 +816,7 @@ A good instruction should concisely answer:
 
     if (!path.isAbsolute(params.file_path)) {
       // Attempt to auto-correct to an absolute path
-      const error = this.correctRelativePath(params);
+      const error = this.correctPath(params);
       if (error) return error;
     }
 
