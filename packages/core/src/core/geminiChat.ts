@@ -105,11 +105,11 @@ function collateHistoryToSingleContent(history: Content[]): Content {
         } else if (part.functionCall) {
           // Use the new helper for more readable tool call arguments.
           turnDetails.push(
-            `### Tool Call\n**Tool:** \`${
+            `### In this turn, it called the Function \`${
               part.functionCall.name
-            }\`\n**Args:**\n${formatObjectToReadableString(
+            }\` with the arguments:\n${formatObjectToReadableString(
               part.functionCall.args,
-            )}`,
+            )}\nNote: this is not how to call a function, it's just the description of what happened.\n`,
           );
         } else if (part.functionResponse) {
           // Handle both object and primitive responses cleanly.
@@ -119,7 +119,7 @@ function collateHistoryToSingleContent(history: Content[]): Content {
               : String(part.functionResponse.response);
 
           turnDetails.push(
-            `### Tool Result\n**Tool:** \`${part.functionResponse.name}\`\n**Response:**\n${responseContent}`,
+            `### In this turn, the response from the function \`${part.functionResponse.name}\` was: \n${responseContent}\n`,
           );
         } else if (part.thought) {
           turnDetails.push(`### Thought\n${part.thought}`);
@@ -130,7 +130,7 @@ function collateHistoryToSingleContent(history: Content[]): Content {
   });
 
   const fullContext =
-    '<previous_turns>\n\n' +
+    'Here is what happened in the previous turns.\n<previous_turns>\n\n' +
     turnStrings.join('\n\n---\n\n') +
     '\n\n</previous_turns>';
 
