@@ -11,7 +11,7 @@ Gemini CLI brings the capabilities of Gemini models to your terminal in an inter
 This documentation is organized into the following sections:
 
 ### Get started
-- **[Gemini CLI overview](./get-started/index.md):** Let's get started with Gemini CLI.
+- **[Gemini CLI quickstart](./get-started/index.md):** Let's get started with Gemini CLI.
 - **[Deployment](./get-started/deployment.md):** Install and run Gemini CLI.
 - **[Authentication](./get-started/authentication.md):** Authenticate Gemini CLI.
 - **[Configuration](./get-started/configuration.md):** Information on configuring the CLI.

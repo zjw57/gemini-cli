@@ -1,4 +1,4 @@
-# Authentication Setup
+# Gemini CLI Authentication Setup
 
 Gemini CLI requires authentication using Google's services. Before using Gemini CLI, you'll need to configure **one** of the following authentication methods:
 

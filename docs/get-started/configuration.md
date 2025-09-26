@@ -1,4 +1,4 @@
-# Configure Gemini CLI
+# Gemini CLI Configuration
 
 > **Note on Configuration Format, 9/17/25:** The format of the `settings.json` file has been updated to a new, more organized structure.
 >
