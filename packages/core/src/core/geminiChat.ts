@@ -69,6 +69,78 @@ const INVALID_CONTENT_RETRY_OPTIONS: ContentRetryOptions = {
 };
 
 /**
+ * Formats an object into a readable key-value string, avoiding JSON.
+ * @param obj - The object to format.
+ * @returns A string with key-value pairs formatted as a list.
+ */
+function formatObjectToReadableString(obj: object | undefined | null): string {
+  // Safely handle null, undefined, or empty objects.
+  if (!obj || Object.keys(obj).length === 0) {
+    return '';
+  }
+  // Map each key-value pair to a formatted string line.
+  return Object.entries(obj)
+    .map(([key, value]) => `  - **${key}:** ${String(value)}`)
+    .join('\n');
+}
+
+/**
+ * Collates the entire chat history into a single Content object with a
+ * formatted text part. This is useful for providing the full context to the
+ * model in a structured, readable format.
+ * @param history - The chat history to format.
+ * @returns A single Content object with the role 'user'.
+ */
+function collateHistoryToSingleContent(history: Content[]): Content {
+  const turnStrings: string[] = [];
+
+  history.forEach((turn, index) => {
+    const turnDetails: string[] = [];
+    turnDetails.push(`## Turn ${index + 1} (${turn.role})`);
+
+    if (turn.parts && Array.isArray(turn.parts)) {
+      for (const part of turn.parts) {
+        if (part.text) {
+          turnDetails.push(`### ${turn.role} message:\n${part.text}`);
+        } else if (part.functionCall) {
+          // Use the new helper for more readable tool call arguments.
+          turnDetails.push(
+            `### Tool Call\n**Tool:** \`${
+              part.functionCall.name
+            }\`\n**Args:**\n${formatObjectToReadableString(
+              part.functionCall.args,
+            )}`,
+          );
+        } else if (part.functionResponse) {
+          // Handle both object and primitive responses cleanly.
+          const responseContent =
+            typeof part.functionResponse.response === 'object'
+              ? formatObjectToReadableString(part.functionResponse.response)
+              : String(part.functionResponse.response);
+
+          turnDetails.push(
+            `### Tool Result\n**Tool:** \`${part.functionResponse.name}\`\n**Response:**\n${responseContent}`,
+          );
+        } else if (part.thought) {
+          turnDetails.push(`### Thought\n${part.thought}`);
+        }
+      }
+    }
+    turnStrings.push(turnDetails.join('\n\n'));
+  });
+
+  const fullContext =
+    '<previous_turns>\n\n' +
+    turnStrings.join('\n\n---\n\n') +
+    '\n\n</previous_turns>';
+
+  return {
+    role: 'user',
+    parts: [{ text: fullContext }],
+  };
+}
+
+/**
  * Returns true if the response is valid, false otherwise.
  */
 function isValidResponse(response: GenerateContentResponse): boolean {
@@ -255,7 +327,9 @@ export class GeminiChat {
 
     // Add user content to history ONCE before any attempts.
     this.history.push(userContent);
-    const requestContents = this.getHistory(true);
+    const historyForPrompt = this.getHistory(true);
+    const collatedContent = collateHistoryToSingleContent(historyForPrompt);
+    const requestContents = [collatedContent];
 
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self = this;
