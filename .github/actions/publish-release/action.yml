@@ -36,6 +36,14 @@ inputs:
     description: 'The working directory to run the steps in.'
     required: false
     default: '.'
+  registry:
+    description: 'The registry to publish to.'
+    type: 'choice'
+    options:
+      - 'npm'
+      - 'github'
+    required: false
+    default: 'npm'
   force-skip-tests:
     description: 'Skip tests and validation'
     required: false
@@ -91,16 +99,25 @@ runs:
         npm run prepare:package
 
     - name: 'Configure npm for publishing'
+      if: "inputs.registry == 'npm'"
       uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
       with:
         node-version-file: '${{ inputs.working-directory }}/.nvmrc'
         registry-url: 'https://wombat-dressing-room.appspot.com'
         scope: '@google'
 
+    - name: 'Configure npm for publishing to GitHub Packages'
+      if: "inputs.registry == 'github'"
+      uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
+      with:
+        node-version-file: '${{ inputs.working-directory }}/.nvmrc'
+        registry-url: 'https://npm.pkg.github.com'
+        scope: '@google'
+
     - name: '📦 Publish @google/gemini-cli-core'
       working-directory: '${{ inputs.working-directory }}'
       env:
-        NODE_AUTH_TOKEN: '${{ inputs.wombat-token-core }}'
+        NODE_AUTH_TOKEN: "${{ inputs.registry == 'npm' && inputs.wombat-token-core || inputs.github-token }}"
       shell: 'bash'
       run: |
         npm publish \
@@ -120,7 +137,7 @@ runs:
     - name: '📦 Publish @google/gemini-cli'
       working-directory: '${{ inputs.working-directory }}'
       env:
-        NODE_AUTH_TOKEN: '${{ inputs.wombat-token-cli }}'
+        NODE_AUTH_TOKEN: "${{ inputs.registry == 'npm' && inputs.wombat-token-cli || inputs.github-token }}"
       shell: 'bash'
       run: |
         npm publish \
