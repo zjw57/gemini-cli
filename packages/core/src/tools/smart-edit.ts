@@ -91,53 +91,49 @@ async function calculateExactReplacement(
 async function calculateFlexibleReplacement(
   context: ReplacementContext,
 ): Promise<ReplacementResult | null> {
-  const { currentContent, params } = context;
-  const { old_string, new_string } = params;
+  const {
+    currentContent,
+    params: { old_string, new_string },
+  } = context;
 
-  const normalizedCode = currentContent;
   const normalizedSearch = old_string.replace(/\r\n/g, '\n');
   const normalizedReplace = new_string.replace(/\r\n/g, '\n');
 
-  const sourceLines = normalizedCode.match(/.*(?:\n|$)/g)?.slice(0, -1) ?? [];
-  const searchLinesStripped = normalizedSearch
-    .split('\n')
-    .map((line: string) => line.trim());
-  const replaceLines = normalizedReplace.split('\n');
+  // Tokenize the search string, being flexible with whitespace.
+  const delimiters = ['(', ')', ':', '[', ']', '{', '}', '>', '<', '='];
+  let processedString = normalizedSearch;
+  for (const delim of delimiters) {
+    processedString = processedString.replaceAll(delim, ` ${delim} `);
+  }
+  const tokens = processedString.split(/\s+/).filter(Boolean);
 
-  let flexibleOccurrences = 0;
-  let i = 0;
-  while (i <= sourceLines.length - searchLinesStripped.length) {
-    const window = sourceLines.slice(i, i + searchLinesStripped.length);
-    const windowStripped = window.map((line: string) => line.trim());
-    const isMatch = windowStripped.every(
-      (line: string, index: number) => line === searchLinesStripped[index],
-    );
-
-    if (isMatch) {
-      flexibleOccurrences++;
-      const firstLineInMatch = window[0];
-      const indentationMatch = firstLineInMatch.match(/^(\s*)/);
-      const indentation = indentationMatch ? indentationMatch[1] : '';
-      const newBlockWithIndent = replaceLines.map(
-        (line: string) => `${indentation}${line}`,
-      );
-      sourceLines.splice(
-        i,
-        searchLinesStripped.length,
-        newBlockWithIndent.join('\n'),
-      );
-      i += replaceLines.length;
-    } else {
-      i++;
-    }
+  if (tokens.length === 0) {
+    return null;
   }
 
-  if (flexibleOccurrences > 0) {
-    let modifiedCode = sourceLines.join('');
+  const escapedTokens = tokens.map((token) =>
+    token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+  );
+  const pattern = `^(\\s*)${escapedTokens.join('\\s*')}`;
+  const flexibleRegex = new RegExp(pattern, 'm');
+
+  const match = currentContent.match(flexibleRegex);
+
+  if (match) {
+    const indentation = match[1] || '';
+    const newLines = normalizedReplace.split('\n');
+    const newBlockWithIndent = newLines
+      .map((line) => `${indentation}${line}`)
+      .join('\n');
+    let modifiedCode = currentContent.replace(
+      flexibleRegex,
+      newBlockWithIndent,
+    );
     modifiedCode = restoreTrailingNewline(currentContent, modifiedCode);
+
     return {
       newContent: modifiedCode,
-      occurrences: flexibleOccurrences,
+      occurrences: 1, // Regex replacement will only replace the first one.
       finalOldString: normalizedSearch,
       finalNewString: normalizedReplace,
     };
