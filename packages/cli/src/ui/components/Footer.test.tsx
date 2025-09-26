@@ -75,8 +75,8 @@ describe('<Footer />', () => {
       expect(lastFrame()).toContain(expectedPath);
     });
 
-    it('should use narrow layout at 79 columns', () => {
-      const { lastFrame } = renderWithWidth(79);
+    it('should use narrow layout at 69 columns', () => {
+      const { lastFrame } = renderWithWidth(69);
       const expectedPath = path.basename(defaultProps.targetDir);
       expect(lastFrame()).toContain(expectedPath);
       const tildePath = tildeifyPath(defaultProps.targetDir);
@@ -199,7 +199,7 @@ describe('<Footer />', () => {
     });
 
     it('renders complete footer in narrow terminal (baseline narrow)', () => {
-      const { lastFrame } = renderWithWidth(79, {
+      const { lastFrame } = renderWithWidth(69, {
         ...defaultProps,
         hideCWD: false,
         hideSandboxStatus: false,
