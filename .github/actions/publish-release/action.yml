@@ -112,7 +112,7 @@ runs:
       with:
         node-version-file: '${{ inputs.working-directory }}/.nvmrc'
         registry-url: 'https://npm.pkg.github.com'
-        scope: '@google'
+        scope: '@google-gemini'
 
     - name: 'Override .npmrc for GitHub Packages'
       if: "inputs.registry == 'github'"
@@ -120,6 +120,15 @@ runs:
       shell: 'bash'
       run: |
         echo "@google:registry=https://npm.pkg.github.com" > .npmrc
+
+    - name: 'Override package.json for GitHub Packages'
+      if: "inputs.registry == 'github'"
+      working-directory: '${{ inputs.working-directory }}'
+      shell: 'bash'
+      run: |
+        sed -i 's/"@google\/gemini-cli-core"/"@google-gemini\/gemini-cli-core"/' packages/core/package.json
+        sed -i 's/"@google\/gemini-cli"/"@google-gemini\/gemini-cli"/' packages/cli/package.json
+        sed -i 's/"@google\/gemini-cli-core": "file:..\/core"/"@google-gemini\/gemini-cli-core": "file:..\/core"/' packages/cli/package.json
 
     - name: '📦 Publish @google/gemini-cli-core'
       working-directory: '${{ inputs.working-directory }}'
@@ -129,7 +138,7 @@ runs:
       run: |
         npm publish \
           --dry-run="${{ inputs.dry-run }}" \
-          --workspace="@google/gemini-cli-core" \
+          --workspace="@google-gemini/gemini-cli-core" \
           --no-tag
 
     - name: '🔗 Install latest core package'
@@ -137,8 +146,8 @@ runs:
       if: "${{ inputs.dry-run == 'false' }}"
       shell: 'bash'
       run: |
-        npm install "@google/gemini-cli-core@${{ inputs.release-version }}" \
-        --workspace="@google/gemini-cli" \
+        npm install "@google-gemini/gemini-cli-core@${{ inputs.release-version }}" \
+        --workspace="@google-gemini/gemini-cli" \
         --save-exact
 
     - name: '📦 Publish @google/gemini-cli'
@@ -149,7 +158,7 @@ runs:
       run: |
         npm publish \
           --dry-run="${{ inputs.dry-run }}" \
-          --workspace="@google/gemini-cli" \
+          --workspace="@google-gemini/gemini-cli" \
           --no-tag
 
     - name: '🔬 Verify NPM release by version'
