@@ -92,7 +92,7 @@ Slash commands provide meta-level control over the CLI itself.
 - **`/restore`**
   - **Description:** Restores the project files to the state they were in just before a tool was executed. This is particularly useful for undoing file edits made by a tool. If run without a tool call ID, it will list available checkpoints to restore from.
   - **Usage:** `/restore [tool_call_id]`
-  - **Note:** Only available if the CLI is invoked with the `--checkpointing` option or configured via [settings](./configuration.md). See [Checkpointing documentation](../checkpointing.md) for more details.
+  - **Note:** Only available if the CLI is invoked with the `--checkpointing` option or configured via [settings](../get-started/configuration.md). See [Checkpointing documentation](../checkpointing.md) for more details.
 
 - **`/settings`**
   - **Description:** Open the settings editor to view and modify Gemini CLI settings.

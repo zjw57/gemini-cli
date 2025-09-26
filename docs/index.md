@@ -10,12 +10,12 @@ Gemini CLI brings the capabilities of Gemini models to your terminal in an inter
 
 This documentation is organized into the following sections:
 
-### Getting started
-- **[Gemini CLI overview](./getting-started/index.md):** Let's get started with Gemini CLI.
-- **[Deployment](./getting-started/deployment.md):** Install and run Gemini CLI.
-- **[Authentication](./getting-started/authentication.md):** Authenticate Gemini CLI.
-- **[Configuration](./getting-started/configuration.md):** Information on configuring the CLI.
-- **[Examples](./getting-started/examples.md):** Example usage of Gemini CLI.
+### Get started
+- **[Gemini CLI overview](./get-started/index.md):** Let's get started with Gemini CLI.
+- **[Deployment](./get-started/deployment.md):** Install and run Gemini CLI.
+- **[Authentication](./get-started/authentication.md):** Authenticate Gemini CLI.
+- **[Configuration](./get-started/configuration.md):** Information on configuring the CLI.
+- **[Examples](./get-started/examples.md):** Example usage of Gemini CLI.
 
 ### CLI
 - **[CLI overview](./cli/index.md):** Overview of the command-line interface.
@@ -23,7 +23,7 @@ This documentation is organized into the following sections:
 - **[Enterprise](./cli/enterprise.md):** Gemini CLI for enterprise.
 - **[Themes](./cli/themes.md):** Themes for Gemini CLI.
 - **[Token Caching](./cli/token-caching.md):** Token caching and optimization.
-- **[Tutorials](./cli-started/tutorials.md):** Tutorials for Gemini CLI.
+- **[Tutorials](./cli/tutorials.md):** Tutorials for Gemini CLI.
 
 ### Core
 - **[Gemini CLI core overview](./core/index.md):** Information about Gemini CLI core.
@@ -41,7 +41,7 @@ This documentation is organized into the following sections:
 - **[Memory Tool](./tools/memory.md):** Documentation for the `save_memory` tool.
 
 ### Other topics
-- **[Execution and Deployment](./deployment.md):** Information for running Gemini CLI.
+- **[Execution and Deployment](./get-started/deployment.md):** Information for running Gemini CLI.
 - **[Architecture Overview](./architecture.md):** Understand the high-level design of Gemini CLI, including its components and how they interact.
 - **[Checkpointing](./checkpointing.md):** Documentation for the checkpointing feature.
 - **[Extensions](./extension.md):** How to extend the CLI with new functionality.

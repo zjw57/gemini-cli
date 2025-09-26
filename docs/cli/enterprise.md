@@ -6,7 +6,7 @@ This document outlines configuration patterns and best practices for deploying a
 
 ## Centralized Configuration: The System Settings File
 
-The most powerful tools for enterprise administration are the system-wide settings files. These files allow you to define a baseline configuration (`system-defaults.json`) and a set of overrides (`settings.json`) that apply to all users on a machine. For a complete overview of configuration options, see the [Configuration documentation](./configuration.md).
+The most powerful tools for enterprise administration are the system-wide settings files. These files allow you to define a baseline configuration (`system-defaults.json`) and a set of overrides (`settings.json`) that apply to all users on a machine. For a complete overview of configuration options, see the [Configuration documentation](../get-started/configuration.md).
 
 Settings are merged from four files. The precedence order for single-value settings (like `theme`) is:
 
@@ -276,7 +276,7 @@ To mitigate the risk of potentially harmful operations, you can enforce the use 
 }
 ```
 
-You can also specify a custom, hardened Docker image for the sandbox using the `--sandbox-image` command-line argument or by building a custom `sandbox.Dockerfile` as described in the [Sandboxing documentation](./configuration.md#sandboxing).
+You can also specify a custom, hardened Docker image for the sandbox using the `--sandbox-image` command-line argument or by building a custom `sandbox.Dockerfile` as described in the [Sandboxing documentation](../get-started/configuration.md#sandboxing).
 
 ## Controlling Network Access via Proxy
 

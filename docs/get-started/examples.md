@@ -4,7 +4,7 @@ Not sure where to get started with Gemini CLI? This document covers examples on 
 
 **Note:** Results are examples intended to showcase potential use cases. Your results may vary.
 
-## Rename your photographs based on contents
+## Rename your photographs based on content
 
 Scenario: You have a folder containing the following files:
 
@@ -20,7 +20,7 @@ Give Gemini the following prompt:
 Rename the photos in my "photos" directory based on their contents.
 ```
 
-Result: Gemini will ask you to allow the execution of `mv`. 
+Result: Gemini will ask for permission to rename your files. 
 
 Select **Yes, allow once.** and your files will be renamed:
 
@@ -30,31 +30,32 @@ photos/antique_dresser.png
 photos/green_android_robot.png
 ```
 
-## Explain an open source repo
+## Explain a repository by reading its code
 
-Scenario: You have opened an open source repo that is new to you. You would like to have this repo explained.
+Scenario: You want to understand how a popular open-source utility works by inspecting its code, not just its README.
 
 Give Gemini CLI the following prompt:
 
 ```cli
-Explain this repo to me: https://github.com/kubernetes/kubernetes.
+Clone the 'chalk' repository from https://github.com/chalk/chalk, read its key source files, and explain how it works.
 ```
 
-Result: Gemini CLI will ask you to allow the execution of `web_fetch` to pull the URL. 
+Result: Gemini will perform a sequence of actions to answer your request.
 
-Gemini CLI will return an explanation of the repo.
+1.  First, it will ask for permission to run `git clone` to download the repository.
+2.  Next, it will find the important source files and ask for permission to read them.
+3.  Finally, after analyzing the code, it will provide a summary.
+
+Gemini CLI will return an explanation based on the actual source code:
 
 ```markdown
-Kubernetes (K8s) is an open-source system for automating the deployment, scaling, and management of containerized applications. It's a Cloud Native 
-  Computing Foundation (CNCF) project that originated from Google's experience with large-scale production workloads.
+The `chalk` library is a popular npm package for styling terminal output with colors. After analyzing the source code, here's how it works:
 
-  Here are some key takeaways from the repository:
+ * **Core Functionality:** The main file sets up a chainable API. Each color or modifier (like `bold` or `italic`) is a getter that appends the corresponding ANSI escape code to an internal stack.
 
-   * Purpose: Kubernetes provides a platform for orchestrating containerized applications, focusing on high availability and resource efficiency.
-   * Getting Started: You can find comprehensive documentation at kubernetes.io and a free course on Scalable Microservices with Kubernetes.
-   * Contributing: The community repository provides guidance on how to build Kubernetes from source and contribute to the project.
-   * Support: Troubleshooting guides and community meetings are available for support.
-   * Technology: The codebase is primarily written in Go.
+ * **Chainable API:** When you call `chalk.red.bold('Hello')`, you are accessing getters. The `red` getter adds the red color code, and the `bold` getter adds the bold code.
+
+ * **Output Generation:** When the chain is treated as a string (e.g., in `console.log`), a final `toString()` method is called. This method joins all the stored ANSI codes, wraps them around the input string ('Hello'), and adds a reset code at the end. This produces the final, styled string that the terminal can render.
 ```
 
 ## Combine two spreadsheets into one spreadsheet
@@ -84,7 +85,7 @@ Give Gemini CLI the following prompt:
 Combine the two .csv files into a single .csv file, with each year a different column.
 ```
 
-Result: Gemini CLI will read each file and then ask for permission to use WriteFile. Provide your permission and Gemini CLI will provide the following .csv:
+Result: Gemini CLI will read each file and then ask for permission to write a new file. Provide your permission and Gemini CLI will provide the following .csv:
 
 ```csv
 Month,2023,2024
@@ -111,7 +112,7 @@ Give Gemini CLI the following prompt:
 Write unit tests for Login.js.
 ```
 
-Result: Gemini CLI will ask for permission to use WriteFile and create a test for your login page
+Result: Gemini CLI will ask for permission to write a new file and create a test for your login page
 
 ```javascript
 import React from 'react';

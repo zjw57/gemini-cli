@@ -1,6 +1,6 @@
 # Authentication Setup
 
-The Gemini CLI requires you to authenticate with Google's AI services. Before using Gemini CLI, you'll need to configure **one** of the following authentication methods:
+Gemini CLI requires authentication using Google's services. Before using Gemini CLI, you'll need to configure **one** of the following authentication methods:
 
 - Interactive mode:
   - Recommended: Login with Google 
@@ -13,11 +13,11 @@ The Gemini CLI requires you to authenticate with Google's AI services. Before us
 
 ## Quick Check: Running in Google Cloud Shell?
 
-If you are running the Gemini CLI within a Google Cloud Shell environment, authentication is typically automatic using your Cloud Shell credentials. No further steps are usually needed.
+If you are running the Gemini CLI within a Google Cloud Shell environment, authentication is typically automatic using your Cloud Shell credentials.
 
 ## Authenticate in Interactive mode
 
-When you run Gemini CLI through the command-line, you will be prompted with the following options:
+When you run Gemini CLI through the command-line, Gemini CLI will provide the following options:
 
 ```bash
 > 1. Login with Google
@@ -27,20 +27,27 @@ When you run Gemini CLI through the command-line, you will be prompted with the 
 
 ### Recommended: Login with Google
 
+> **Note:** Use this method if you are a **Google AI Pro** or **Google AI Ultra** subscriber.
+
 If you are running Gemini CLI on your local machine, the simplest method is logging in with your Google account.
 
 1. Select **Login with Google**. Gemini CLI will open a login prompt using your web browser.
-3. Follow the on-screen instructions. Your credentials will be cached locally for future sessions.
 
-    **Note:** This method requires a web browser on a machine that can communicate with the terminal running the CLI (e.g., your local machine). The browser will be redirected to a `localhost` URL that the CLI listens on during setup.
+    If you are a **Google AI Pro** or **Google AI Ultra** subscriber, login with the Google account associated with your subscription.
+
+2. Follow the on-screen instructions. Your credentials will be cached locally for future sessions.
+  
+    > **Note:** This method requires a web browser on a machine that can communicate with the terminal running the CLI (e.g., your local machine). The browser will be redirected to a `localhost` URL that the CLI listens on during setup.
 
 #### (Optional) Set your GOOGLE_CLOUD_PROJECT
 
-You may be prompted to select a `GOOGLE_CLOUD_PROJECT`. This can be necesary if you are:
+When you log in using a Google account, you may be prompted to select a `GOOGLE_CLOUD_PROJECT`. 
+
+This can be necessary if you are:
 
 - Using a Google Workspace account.
 - Using a Gemini Code Assist license from the Google Developer Program.
-- Using a license from  a Gemini Code Assist subscription.
+- Using a license from a Gemini Code Assist subscription.
 - Using the product outside the [supported regions](https://developers.google.com/gemini-code-assist/resources/available-locations) for free individual usage.
 - A Google account holder under the age of 18.
 
@@ -61,7 +68,7 @@ To make this setting persistent, see [Persisting Environment Variables](#persist
 
 ### 2. Gemini API Key
 
-If you don't want to authentication using your Google account, you can use an API key from Google AI Studio.
+If you don't want to authenticate using your Google account, you can use an API key from Google AI Studio.
 
 1.  Obtain your API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
 2.  Set the `GEMINI_API_KEY` environment variable:
@@ -73,14 +80,20 @@ If you don't want to authentication using your Google account, you can use an AP
 
 To make this setting persistent, see [Persisting Environment Variables](#persisting-environment-variables).
 
-**Warning:** Be cautious about how and where you store API keys.
+> **Warning:** Be cautious about how and where you store API keys.
 
 ### 3. Vertex AI
 
-This method is for users intending to use Google Cloud's Vertex AI platform.
+If you intend to use Google Cloud's Vertex AI platform, you have several authentication options:
 
-**Required Environment Variables for Vertex AI:**
-Regardless of the sub-method chosen below, you'll generally need to set `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION`:
+- Application Default Credentials (ADC) and `gcloud`.
+- A Service Account JSON key.
+- A Google Cloud API key.
+
+#### First: Set required environment variables
+Regardless of your method of authentication, you'll typically need to set the following variables: `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION`.
+
+To set these variables:
 
 ```bash
 # Replace with your project ID and desired location (e.g., us-central1)
@@ -88,20 +101,19 @@ export GOOGLE_CLOUD_PROJECT="YOUR_PROJECT_ID"
 export GOOGLE_CLOUD_LOCATION="YOUR_PROJECT_LOCATION"
 ```
 
-There are a few ways to authenticate with Vertex AI:
 
 #### A. Vertex AI - Application Default Credentials (ADC) using `gcloud`
 
-Suitable for local development if you have the Google Cloud CLI installed.
+Consider this method of authentication if you have Google Cloud CLI installed.
 
-**Note:** If you have previously set `GOOGLE_API_KEY` or `GEMINI_API_KEY`, you must unset them to use ADC:
+> **Note:** If you have previously set `GOOGLE_API_KEY` or `GEMINI_API_KEY`, you must unset them to use ADC:
 
 ```bash
 unset GOOGLE_API_KEY GEMINI_API_KEY
 ```
 
-1.  Ensure you have a Google Cloud project and the Vertex AI API is enabled.
-2.  Log in to gcloud:
+1.  Ensure you have a Google Cloud project and Vertex AI API is enabled.
+2.  Log in to Google Cloud:
 
     ```bash
     gcloud auth application-default login
@@ -110,17 +122,17 @@ unset GOOGLE_API_KEY GEMINI_API_KEY
     See [Set up Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc) for details.
 3.  Ensure `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` are set.
 
-#### B. Vertex AI - Service Account JSON Key
+#### B. Vertex AI - Service Account JSON key
 
-Useful for non-interactive environments, CI/CD, or if your organization restricts user-based ADC or API key creation.
+Consider this method of authentication in non-interactive environments, CI/CD, or if your organization restricts user-based ADC or API key creation.
 
-**Note:** If you have previously set `GOOGLE_API_KEY` or `GEMINI_API_KEY`, you must unset them:
+> **Note:** If you have previously set `GOOGLE_API_KEY` or `GEMINI_API_KEY`, you must unset them:
 
 ```bash
 unset GOOGLE_API_KEY GEMINI_API_KEY
 ```
 
-1.  [Create a service account and key](https://cloud.google.com/iam/docs/keys-create-delete), downloading the JSON file. Assign the "Vertex AI User" role to the service account.
+1.  [Create a service account and key](https://cloud.google.com/iam/docs/keys-create-delete) and download the provided JSON file. Assign the "Vertex AI User" role to the service account.
 2.  Set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to the JSON file's absolute path:
 
     ```bash
@@ -130,9 +142,9 @@ unset GOOGLE_API_KEY GEMINI_API_KEY
 
 3.  Ensure `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` are set.
 
-:warning: Protect the service account key file as it provides access to your resources.
+> **Warning:** Protect your service account key file as it provides access to your resources.
 
-#### C. Vertex AI - API Key
+#### C. Vertex AI - Google Cloud API key
 
 1.  Obtain a Google Cloud API key: [Get an API Key](https://cloud.google.com/vertex-ai/generative-ai/docs/start/api-keys?usertype=newuser).
 2.  Set the `GOOGLE_API_KEY` environment variable:
@@ -142,7 +154,7 @@ unset GOOGLE_API_KEY GEMINI_API_KEY
     export GOOGLE_API_KEY="YOUR_GOOGLE_API_KEY"
     ```
 
-    **Note:** If you see errors like `"API keys are not supported by this API..."`, your organization might restrict API key usage for this service. Try the [Service Account JSON Key](#b-vertex-ai-service-account-json-key) or [ADC](#a-vertex-ai-application-default-credentials-adc-using-gcloud) methods instead.
+    > **Note:** If you see errors like `"API keys are not supported by this API..."`, your organization might restrict API key usage for this service. Try the [Service Account JSON Key](#b-vertex-ai-service-account-json-key) or [ADC](#a-vertex-ai-application-default-credentials-adc-using-gcloud) methods instead.
 
 To make any of these Vertex AI environment variable settings persistent, see [Persisting Environment Variables](#persisting-environment-variables).
 
@@ -150,7 +162,7 @@ To make any of these Vertex AI environment variable settings persistent, see [Pe
 
 To avoid setting environment variables in every terminal session, you can:
 
-1.  **Add to your shell configuration file:** Append the `export ...` commands to your shell's startup file (e.g., `~/.bashrc`, `~/.zshrc`, or `~/.profile`) and reload your shell (e.g., `source ~/.bashrc`).
+1.  **Add your environment variables to your shell configuration file:** Append the `export ...` commands to your shell's startup file (e.g., `~/.bashrc`, `~/.zshrc`, or `~/.profile`) and reload your shell (e.g., `source ~/.bashrc`).
 
     ```bash
     # Example for .bashrc
@@ -158,11 +170,11 @@ To avoid setting environment variables in every terminal session, you can:
     source ~/.bashrc
     ```
 
-    **Warning:** Be advised that when you export API keys or service account paths in your shell configuration file, any process executed from the shell can potentially read them.
+    > **Warning:** Be advised that when you export API keys or service account paths in your shell configuration file, any process executed from the shell can potentially read them.
 
 2.  **Use a `.env` file:** Create a `.gemini/.env` file in your project directory or home directory. Gemini CLI automatically loads variables from the first `.env` file it finds, searching up from the current directory, then in `~/.gemini/.env` or `~/.env`. `.gemini/.env` is recommended.
 
-    **Example for user-wide settings:**
+    Example for user-wide settings:
     
     ```bash
     mkdir -p ~/.gemini
@@ -181,19 +193,14 @@ When running in scripts or CI/CD pipelines where no user interaction is possible
 1.  **Gemini API Key:** Set `GEMINI_API_KEY`.
 2.  **Vertex AI:**
     *   Set `GOOGLE_GENAI_USE_VERTEXAI=true`.
-    *   **With API Key:** Set `GOOGLE_API_KEY`.
+    *   **With Google Cloud API Key:** Set `GOOGLE_API_KEY`.
     *   **With ADC:** Ensure ADC is configured (e.g., via a service account with `GOOGLE_APPLICATION_CREDENTIALS`) and set `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION`.
 
 The CLI will exit with an error in non-interactive mode if no suitable environment variables are found.
 
-## Quotas, pricing, Terms of Service, and Privacy Notices
+## What's next?
 
-Your authentication method effects your quotas, pricing, Terms of Service, and privacy notices. Review the following pages to learn more:
+Your authentication method affects your quotas, pricing, Terms of Service, and privacy notices. Review the following pages to learn more:
 
 - [Gemini CLI: Quotas and Pricing](../quota-and-pricing.md).
 - [Gemini CLI: Terms of Service and Privacy Notice](../tos-privacy.md).
-
-## What's next?
-
-- Find out more about [Gemini CLI's tools](../tools/index.md).
-- Review [Gemini CLI's commands](../cli/commands.md).
