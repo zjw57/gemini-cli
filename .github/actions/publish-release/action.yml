@@ -98,6 +98,7 @@ runs:
         scope: '@google'
 
     - name: '📦 Publish @google/gemini-cli-core'
+      if: false
       working-directory: '${{ inputs.working-directory }}'
       env:
         NODE_AUTH_TOKEN: '${{ inputs.wombat-token-core }}'
@@ -109,6 +110,7 @@ runs:
           --no-tag
 
     - name: '🔗 Install latest core package'
+      if: false
       working-directory: '${{ inputs.working-directory }}'
       if: "${{ inputs.dry-run == 'false' }}"
       shell: 'bash'
@@ -118,6 +120,7 @@ runs:
         --save-exact
 
     - name: '📦 Publish @google/gemini-cli'
+      if: false
       working-directory: '${{ inputs.working-directory }}'
       env:
         NODE_AUTH_TOKEN: '${{ inputs.wombat-token-cli }}'
@@ -129,6 +132,7 @@ runs:
           --no-tag
 
     - name: '🔬 Verify NPM release by version'
+      if: false
       uses: './.github/actions/verify-release'
       if: "${{ inputs.dry-run == 'false' && inputs.force-skip-tests == 'false' }}"
       with:
@@ -137,6 +141,7 @@ runs:
         ref: '${{ steps.release_branch.outputs.BRANCH_NAME }}'
 
     - name: '🏷️ Tag release'
+      if: false
       uses: './.github/actions/tag-npm-release'
       if: "${{ inputs.dry-run == 'false' }}"
       with:
@@ -153,6 +158,7 @@ runs:
         npm run bundle
 
     - name: '🎉 Create GitHub Release'
+      if: false
       working-directory: '${{ inputs.working-directory }}'
       if: "${{ inputs.dry-run == 'false' && inputs.skip-github-release == 'false' && inputs.npm-tag != 'dev' }}"
       env:
@@ -167,6 +173,7 @@ runs:
           --generate-notes
 
     - name: '🧹 Clean up release branch'
+      if: false
       working-directory: '${{ inputs.working-directory }}'
       if: "${{ inputs.dry-run == 'false' }}"
       continue-on-error: true

@@ -90,7 +90,7 @@ jobs:
           echo "PREVIOUS_TAG=${PREVIOUS_TAG}" >> "${GITHUB_OUTPUT}"
 
       - name: 'Publish Release'
-        if: false
+        if: true
         uses: './.github/actions/publish-release'
         with:
           release-version: '${{ steps.nightly_version.outputs.RELEASE_VERSION }}'
