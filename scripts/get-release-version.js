@@ -8,7 +8,12 @@
 
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 import semver from 'semver';
+
+function readJson(filePath) {
+  return JSON.parse(readFileSync(filePath, 'utf-8'));
+}
 
 function getArgs() {
   const args = {};
@@ -252,7 +257,7 @@ function getAndVerifyTags(npmDistTag, gitTagPattern) {
   };
 }
 
-function getNightlyVersion() {
+function promoteNightlyVersion() {
   const { latestVersion, latestTag, rollbackInfo } = getAndVerifyTags(
     'nightly',
     'v*-nightly*',
@@ -269,6 +274,22 @@ function getNightlyVersion() {
     npmTag: 'nightly',
     previousReleaseTag: latestTag,
     rollbackInfo,
+  };
+}
+
+function getNightlyVersion() {
+  const packageJson = readJson('package.json');
+  const baseVersion = packageJson.version.split('-')[0];
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const gitShortHash = execSync('git rev-parse --short HEAD').toString().trim();
+  const releaseVersion = `${baseVersion}-nightly.${date}.${gitShortHash}`;
+  const previousReleaseTag = getLatestTag('v*-nightly*');
+
+  return {
+    releaseVersion,
+    npmTag: 'nightly',
+    previousReleaseTag,
+    rollbackInfo: { isRollback: false }, // No rollback logic needed for CI builds
   };
 }
 
@@ -402,6 +423,9 @@ export function getVersion(options = {}) {
   switch (type) {
     case 'nightly':
       versionData = getNightlyVersion();
+      break;
+    case 'promote-nightly':
+      versionData = promoteNightlyVersion();
       break;
     case 'stable':
       versionData = getStableVersion(args);
