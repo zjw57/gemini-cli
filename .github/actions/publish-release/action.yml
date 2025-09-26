@@ -114,6 +114,11 @@ runs:
         registry-url: 'https://npm.pkg.github.com'
         scope: '@google'
 
+    - name: 'Debug npm config'
+      working-directory: '${{ inputs.working-directory }}'
+      shell: 'bash'
+      run: 'npm config list'
+
     - name: '📦 Publish @google/gemini-cli-core'
       working-directory: '${{ inputs.working-directory }}'
       env:
