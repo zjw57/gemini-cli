@@ -66,14 +66,31 @@ jobs:
       - name: 'Get Nightly Version'
         id: 'nightly_version'
         working-directory: './release'
-        env:
-          GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
         run: |
-          VERSION_JSON=$(node scripts/get-release-version.js --type=nightly)
-          echo "RELEASE_TAG=$(echo "${VERSION_JSON}" | jq -r .releaseTag)" >> "${GITHUB_OUTPUT}"
-          echo "RELEASE_VERSION=$(echo "${VERSION_JSON}" | jq -r .releaseVersion)" >> "${GITHUB_OUTPUT}"
-          echo "NPM_TAG=$(echo "${VERSION_JSON}" | jq -r .npmTag)" >> "${GITHUB_OUTPUT}"
-          echo "PREVIOUS_TAG=$(echo "${VERSION_JSON}" | jq -r .previousReleaseTag)" >> "${GITHUB_OUTPUT}"
+          # Get the base version from the package.json that was set during promotion
+          # e.g., "0.8.0-nightly.20250926.abcdef" -> "0.8.0"
+          BASE_VERSION=$(jq -r .version package.json | cut -d'-' -f1)
+
+          # Get the current date and git hash
+          DATE=$(date -u +'%Y%m%d')
+          GIT_SHORT_HASH=$(git rev-parse --short HEAD)
+
+          # Construct the new version
+          RELEASE_VERSION="${BASE_VERSION}-nightly.${DATE}.${GIT_SHORT_HASH}"
+
+          # Get the previous tag for changelog generation
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 --match="*nightly*")
+
+          # Print calculated values for logging
+          echo "Calculated Base Version: ${BASE_VERSION}"
+          echo "Calculated Release Version: ${RELEASE_VERSION}"
+          echo "Calculated Previous Tag: ${PREVIOUS_TAG}"
+
+          # Set outputs for subsequent steps
+          echo "RELEASE_TAG=v${RELEASE_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "NPM_TAG=nightly" >> "${GITHUB_OUTPUT}"
+          echo "PREVIOUS_TAG=${PREVIOUS_TAG}" >> "${GITHUB_OUTPUT}"
 
       - name: 'Publish Release'
         if: false
