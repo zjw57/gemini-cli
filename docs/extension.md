@@ -141,7 +141,7 @@ To define settings, add a `settings` array to your `gemini-extension.json` file.
 
 When a user installs this extension, they will be prompted to enter their API key. The value will be saved to a `.env` file in the extension's directory (e.g., `<home>/.gemini/extensions/my-api-extension/.env`).
 
-Extension authors can then use a library like `dotenv` to load these environment variables in their MCP server or other scripts.
+These will be available to scripts within your extension and also in the gemini-extension.json file. They are not available to e.g., custom commands or GEMINI.md files.
 
 ### Custom commands
 

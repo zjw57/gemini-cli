@@ -230,12 +230,27 @@ export function loadExtension(context: LoadExtensionContext): Extension | null {
   }
 
   try {
+    const customEnv: Record<string, string> = {};
+    const envPath = path.join(effectiveExtensionPath, '.env');
+    if (fs.existsSync(envPath)) {
+      const envFile = fs.readFileSync(envPath, 'utf-8');
+      for (const line of envFile.split('\n')) {
+        const trimmedLine = line.trim();
+        if (trimmedLine && !trimmedLine.startsWith('#')) {
+          const [key, ...valueParts] = trimmedLine.split('=');
+          if (key) {
+            customEnv[key.trim()] = valueParts.join('=').trim();
+          }
+        }
+      }
+    }
+
     let config = loadExtensionConfig({
       extensionDir: effectiveExtensionPath,
       workspaceDir,
     });
 
-    config = resolveEnvVarsInObject(config);
+    config = resolveEnvVarsInObject(config, customEnv);
 
     if (config.mcpServers) {
       config.mcpServers = Object.fromEntries(

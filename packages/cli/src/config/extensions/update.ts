@@ -86,11 +86,6 @@ export async function updateExtension(
         updatedExtensionDir,
         EXTENSION_SETTINGS_FILENAME,
       );
-      if (fs.existsSync(updatedSettingsPath)) {
-        throw new Error(
-          `Extension settings already exist at ${updatedSettingsPath}. Please remove it and try again.`,
-        );
-      }
       await fs.promises.copyFile(tempSettingsPath, updatedSettingsPath);
     }
 
