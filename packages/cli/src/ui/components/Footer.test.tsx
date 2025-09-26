@@ -7,6 +7,7 @@
 import { render } from 'ink-testing-library';
 import { describe, it, expect, vi } from 'vitest';
 import { Footer } from './Footer.js';
+import { NARROW_WIDTH_BREAKPOINT } from '../utils/isNarrowWidth.js';
 import * as useTerminalSize from '../hooks/useTerminalSize.js';
 import { tildeifyPath } from '@google/gemini-cli-core';
 import path from 'node:path';
@@ -62,23 +63,26 @@ describe('<Footer />', () => {
       expect(lastFrame()).toContain(expectedPath);
     });
 
-    it('should display only the base directory name on a narrow terminal', () => {
-      const { lastFrame } = renderWithWidth(69);
+    it('should display base name on a narrow terminal', () => {
+      const { lastFrame } = renderWithWidth(NARROW_WIDTH_BREAKPOINT - 1);
       const expectedPath = path.basename(defaultProps.targetDir);
       expect(lastFrame()).toContain(expectedPath);
     });
 
     it('should use wide layout at 70 columns', () => {
-      const { lastFrame } = renderWithWidth(70);
+      const { lastFrame } = renderWithWidth(NARROW_WIDTH_BREAKPOINT);
       const tildePath = tildeifyPath(defaultProps.targetDir);
-      const pathLength = Math.max(20, Math.floor(70 * 0.4));
+      const pathLength = Math.max(
+        20,
+        Math.floor(NARROW_WIDTH_BREAKPOINT * 0.4),
+      );
       const expectedPath =
         '...' + tildePath.slice(tildePath.length - pathLength + 3);
       expect(lastFrame()).toContain(expectedPath);
     });
 
-    it('should use narrow layout at 69 columns', () => {
-      const { lastFrame } = renderWithWidth(69);
+    it('should use narrow layout at NARROW_WIDTH_BREAKPOINT - 1 columns', () => {
+      const { lastFrame } = renderWithWidth(NARROW_WIDTH_BREAKPOINT - 1);
       const expectedPath = path.basename(defaultProps.targetDir);
       expect(lastFrame()).toContain(expectedPath);
       const tildePath = tildeifyPath(defaultProps.targetDir);
@@ -201,7 +205,7 @@ describe('<Footer />', () => {
     });
 
     it('renders complete footer in narrow terminal (baseline narrow)', () => {
-      const { lastFrame } = renderWithWidth(69, {
+      const { lastFrame } = renderWithWidth(NARROW_WIDTH_BREAKPOINT - 1, {
         ...defaultProps,
         hideCWD: false,
         hideSandboxStatus: false,

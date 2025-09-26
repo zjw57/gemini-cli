@@ -9,6 +9,7 @@ import { render } from 'ink-testing-library';
 import { describe, it, expect, vi } from 'vitest';
 import { ContextSummaryDisplay } from './ContextSummaryDisplay.js';
 import * as useTerminalSize from '../hooks/useTerminalSize.js';
+import { NARROW_WIDTH_BREAKPOINT } from '../utils/isNarrowWidth.js';
 
 vi.mock('../hooks/useTerminalSize.js', () => ({
   useTerminalSize: vi.fn(),
@@ -62,11 +63,17 @@ describe('<ContextSummaryDisplay />', () => {
 
   it('should switch layout at the 70-column breakpoint', () => {
     // At 70 columns, should be on one line
-    const { lastFrame: wideFrame } = renderWithWidth(70, baseProps);
+    const { lastFrame: wideFrame } = renderWithWidth(
+      NARROW_WIDTH_BREAKPOINT,
+      baseProps,
+    );
     expect(wideFrame().includes('\n')).toBe(false);
 
     // At 69 columns, should be on multiple lines
-    const { lastFrame: narrowFrame } = renderWithWidth(69, baseProps);
+    const { lastFrame: narrowFrame } = renderWithWidth(
+      NARROW_WIDTH_BREAKPOINT - 1,
+      baseProps,
+    );
     expect(narrowFrame().includes('\n')).toBe(true);
     expect(narrowFrame().split('\n').length).toBe(4);
   });

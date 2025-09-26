@@ -11,6 +11,7 @@ import { LoadingIndicator } from './LoadingIndicator.js';
 import { StreamingContext } from '../contexts/StreamingContext.js';
 import { StreamingState } from '../types.js';
 import { vi } from 'vitest';
+import { NARROW_WIDTH_BREAKPOINT } from '../utils/isNarrowWidth.js';
 import * as useTerminalSize from '../hooks/useTerminalSize.js';
 
 // Mock GeminiRespondingSpinner
@@ -242,7 +243,7 @@ describe('<LoadingIndicator />', () => {
         }
       />,
       StreamingState.Responding,
-      70,
+      NARROW_WIDTH_BREAKPOINT,
     );
 
     expect(lastFrame()).toMatchSnapshot();
@@ -273,7 +274,7 @@ describe('<LoadingIndicator />', () => {
           rightContent={<Text>Right</Text>}
         />,
         StreamingState.Responding,
-        69,
+        NARROW_WIDTH_BREAKPOINT - 1,
       );
       const output = lastFrame();
       const lines = output?.split('\n');
@@ -294,7 +295,7 @@ describe('<LoadingIndicator />', () => {
       const { lastFrame } = renderWithContext(
         <LoadingIndicator {...defaultProps} />,
         StreamingState.Responding,
-        70,
+        NARROW_WIDTH_BREAKPOINT,
       );
       expect(lastFrame()?.includes('\n')).toBe(false);
     });
@@ -303,7 +304,7 @@ describe('<LoadingIndicator />', () => {
       const { lastFrame } = renderWithContext(
         <LoadingIndicator {...defaultProps} />,
         StreamingState.Responding,
-        69,
+        NARROW_WIDTH_BREAKPOINT - 1,
       );
       expect(lastFrame()?.includes('\n')).toBe(true);
     });
