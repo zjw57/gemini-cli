@@ -112,7 +112,6 @@ runs:
     - name: '🔗 Install latest core package'
       if: false
       working-directory: '${{ inputs.working-directory }}'
-      if: "${{ inputs.dry-run == 'false' }}"
       shell: 'bash'
       run: |
         npm install "@google/gemini-cli-core@${{ inputs.release-version }}" \
@@ -134,7 +133,6 @@ runs:
     - name: '🔬 Verify NPM release by version'
       if: false
       uses: './.github/actions/verify-release'
-      if: "${{ inputs.dry-run == 'false' && inputs.force-skip-tests == 'false' }}"
       with:
         npm-package: '@google/gemini-cli@${{ inputs.release-version }}'
         expected-version: '${{ inputs.release-version }}'
@@ -143,7 +141,6 @@ runs:
     - name: '🏷️ Tag release'
       if: false
       uses: './.github/actions/tag-npm-release'
-      if: "${{ inputs.dry-run == 'false' }}"
       with:
         channel: '${{ inputs.npm-tag }}'
         version: '${{ inputs.release-version }}'
@@ -160,7 +157,6 @@ runs:
     - name: '🎉 Create GitHub Release'
       if: false
       working-directory: '${{ inputs.working-directory }}'
-      if: "${{ inputs.dry-run == 'false' && inputs.skip-github-release == 'false' && inputs.npm-tag != 'dev' }}"
       env:
         GITHUB_TOKEN: '${{ inputs.github-token }}'
       shell: 'bash'
@@ -175,7 +171,6 @@ runs:
     - name: '🧹 Clean up release branch'
       if: false
       working-directory: '${{ inputs.working-directory }}'
-      if: "${{ inputs.dry-run == 'false' }}"
       continue-on-error: true
       shell: 'bash'
       run: |

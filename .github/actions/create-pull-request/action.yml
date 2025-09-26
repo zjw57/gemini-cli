@@ -38,6 +38,10 @@ runs:
       working-directory: '${{ inputs.working-directory }}'
       run: |
         set -e
+        if ! git ls-remote --exit-code --heads origin "${{ inputs.branch-name }}"; then
+          echo "::error::Branch '${{ inputs.branch-name }}' does not exist on the remote repository."
+          exit 1
+        fi
         PR_URL=$(gh pr create \
           --title "${{ inputs.pr-title }}" \
           --body "${{ inputs.pr-body }}" \
