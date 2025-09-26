@@ -792,10 +792,15 @@ A good instruction should concisely answer:
       return `File not found for '${params.file_path}' and path is not absolute.`;
     }
 
-    return (
-      `The file path '${params.file_path}' is too ambiguous and matches multiple files. ` +
-      `Please provide a more specific path. Matches: ${foundFiles.join(', ')}`
-    );
+    if (foundFiles.length > 1) {
+      return (
+        `The file path '${params.file_path}' is too ambiguous and matches multiple files. ` +
+        `Please provide a more specific path. Matches: ${foundFiles.join(', ')}`
+      );
+    }
+
+    params.file_path = foundFiles[0];
+    return null;
   }
 
   /**
