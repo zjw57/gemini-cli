@@ -52,6 +52,10 @@ jobs:
         working-directory: './release'
         run: 'npm ci'
 
+      - name: 'Print Inputs'
+        run: |
+          echo "${{ toJSON(github.event.inputs) }}"
+
       - name: 'Run Tests'
         if: "${{github.event.inputs.force_skip_tests != 'true'}}"
         uses: './.github/actions/run-tests'
