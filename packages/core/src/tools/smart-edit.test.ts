@@ -292,30 +292,6 @@ describe('SmartEditTool', () => {
       expect(result).toMatch(/File not found for 'test.txt'/);
     });
 
-    it('should use heuristic to resolve ambiguous path', () => {
-      const subDir1 = path.join(rootDir, 'api', 'services');
-      const subDir2 = path.join(rootDir, 'services');
-      fs.mkdirSync(subDir1, { recursive: true });
-      fs.mkdirSync(subDir2, { recursive: true });
-
-      const ambiguousFile = 'auth.ts';
-      const correctPath = path.join(subDir2, ambiguousFile);
-      fs.writeFileSync(path.join(subDir1, ambiguousFile), 'api auth');
-      fs.writeFileSync(correctPath, 'service auth');
-
-      const params: EditToolParams = {
-        file_path: path.join('services', ambiguousFile),
-        instruction: 'An instruction',
-        old_string: 'old',
-        new_string: 'new',
-      };
-
-      const validationResult = (tool as any).correctRelativePath(params);
-
-      expect(validationResult).toBeNull();
-      expect(params.file_path).toBe(correctPath);
-    });
-
     it('should return an error for an ambiguous path that heuristic cannot resolve', () => {
       const subDir1 = path.join(rootDir, 'module1');
       const subDir2 = path.join(rootDir, 'module2');

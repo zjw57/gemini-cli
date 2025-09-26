@@ -820,20 +820,6 @@ A good instruction should concisely answer:
       return `File not found for '${params.file_path}' and path is not absolute.`;
     }
 
-    if (foundFiles.length === 1) {
-      params.file_path = foundFiles[0];
-      return null;
-    }
-
-    const resolvedPath = this.resolveAmbiguousPath(
-      params.file_path,
-      foundFiles,
-    );
-    if (resolvedPath) {
-      params.file_path = resolvedPath;
-      return null;
-    }
-
     return (
       `The file path '${params.file_path}' is too ambiguous and matches multiple files. ` +
       `Please provide a more specific path. Matches: ${foundFiles.join(', ')}`
