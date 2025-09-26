@@ -4,9 +4,6 @@ Within Gemini CLI, `packages/cli` is the frontend for users to send and receive 
 
 ## Navigating this section
 
-- **[Get started: Authentication](../get-started/authentication.md):** A guide to setting up authentication with Google's AI services.
-- **[Get started: Configuration](../get-started/configuration.md):** A guide to tailoring Gemini CLI behavior using configuration files.
-
 - **[Commands](./commands.md):** A reference for Gemini CLI commands (e.g., `/help`, `/tools`, `/theme`).
 - **[Enterprise](./enterprise.md):** A guide to enterprise configuration.
 - **[Headless Mode](../headless.md):** A comprehensive guide to using Gemini CLI programmatically for scripting and automation.

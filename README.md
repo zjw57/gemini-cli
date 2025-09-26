@@ -227,9 +227,9 @@ gemini
 
 ### Getting Started
 
-- [**Quickstart Guide**](./docs/cli/index.md) - Get up and running quickly
-- [**Authentication Setup**](./docs/cli/authentication.md) - Detailed auth configuration
-- [**Configuration Guide**](./docs/cli/configuration.md) - Settings and customization
+- [**Quickstart Guide**](./docs/get-started/index.md) - Get up and running quickly
+- [**Authentication Setup**](./docs/get-started/authentication.md) - Detailed auth configuration
+- [**Configuration Guide**](./docs/get-started/configuration.md) - Settings and customization
 - [**Keyboard Shortcuts**](./docs/keyboard-shortcuts.md) - Productivity tips
 
 ### Core Features
@@ -254,16 +254,16 @@ gemini
 - [**Architecture Overview**](./docs/architecture.md) - How Gemini CLI works
 - [**IDE Integration**](./docs/ide-integration.md) - VS Code companion
 - [**Sandboxing & Security**](./docs/sandbox.md) - Safe execution environments
-- [**Enterprise Deployment**](./docs/deployment.md) - Docker, system-wide config
+- [**Enterprise Deployment**](./docs/get-started/deployment.md) - Docker, system-wide config
 - [**Telemetry & Monitoring**](./docs/telemetry.md) - Usage tracking
 - [**Tools API Development**](./docs/core/tools-api.md) - Create custom tools
 
 ### Configuration & Customization
 
-- [**Settings Reference**](./docs/cli/configuration.md) - All configuration options
+- [**Settings Reference**](./docs/get-started/configuration.md) - All configuration options
 - [**Theme Customization**](./docs/cli/themes.md) - Visual customization
 - [**.gemini Directory**](./docs/gemini-ignore.md) - Project-specific settings
-- [**Environment Variables**](./docs/cli/configuration.md#environment-variables)
+- [**Environment Variables**](./docs/get-started/configuration.md#environment-variables)
 
 ### Troubleshooting & Support
 
@@ -294,7 +294,7 @@ We welcome contributions! Gemini CLI is fully open source (Apache 2.0), and we e
 
 See our [Contributing Guide](./CONTRIBUTING.md) for development setup, coding standards, and how to submit pull requests.
 
-Check our [Official Roadmap](https://github.com/orgs/google-gemini/projects/11/) for planned features and priorities.
+Check our [Official Roadmap](https://github.com/orgs/google-gemini/projects/11) for planned features and priorities.
 
 ## 📖 Resources
 
