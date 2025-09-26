@@ -76,6 +76,7 @@ jobs:
           echo "PREVIOUS_TAG=$(echo "${VERSION_JSON}" | jq -r .previousReleaseTag)" >> "${GITHUB_OUTPUT}"
 
       - name: 'Publish Release'
+        if: false
         uses: './.github/actions/publish-release'
         with:
           release-version: '${{ steps.nightly_version.outputs.RELEASE_VERSION }}'
