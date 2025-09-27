@@ -53,7 +53,8 @@ export class StandardFileSystemService implements FileSystemService {
   findFiles(fileName: string, searchPaths: readonly string[]): string[] {
     const foundFiles: string[] = [];
     for (const searchPath of searchPaths) {
-      const pattern = path.resolve(searchPath, '**', fileName);
+      let pattern = path.resolve(searchPath, '**', fileName);
+      pattern = pattern.replace(/\\/g, '/');
       const matches = globSync(pattern, {
         nodir: true,
         absolute: true,
