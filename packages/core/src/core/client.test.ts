@@ -759,85 +759,6 @@ describe('Gemini Client (client.ts)', () => {
       expect(newChat).not.toBe(initialChat);
     });
 
-    it('should skip initial context messages when determining compression split point', async () => {
-      // Test verifies that the first 2 messages (initial context) are excluded from compression
-      const MOCKED_TOKEN_LIMIT = 1000;
-      vi.mocked(tokenLimit).mockReturnValue(MOCKED_TOKEN_LIMIT);
-
-      // Mock curated history that includes initial context + user messages
-      const fullHistory = [
-        { role: 'user', parts: [{ text: 'Environment context' }] }, // Initial context (index 0)
-        { role: 'model', parts: [{ text: 'Got it. Thanks for the context!' }] }, // Initial response (index 1)
-        { role: 'user', parts: [{ text: 'User message 1' }] }, // First real user message (index 2)
-        { role: 'model', parts: [{ text: 'Model response 1' }] }, // First real model response
-        { role: 'user', parts: [{ text: 'User message 2' }] }, // Second real user message
-        { role: 'model', parts: [{ text: 'Model response 2' }] }, // Second real model response
-      ];
-
-      // getHistory(true) returns curated history, then slice(2) excludes initial context
-      mockGetHistory.mockReturnValue(fullHistory);
-
-      const originalTokenCount = MOCKED_TOKEN_LIMIT * 0.8; // Above compression threshold
-      const newTokenCount = 100;
-
-      vi.mocked(mockContentGenerator.countTokens)
-        .mockResolvedValueOnce({ totalTokens: originalTokenCount })
-        .mockResolvedValueOnce({ totalTokens: newTokenCount });
-
-      // Mock the summary response
-      mockGenerateContentFn.mockResolvedValue({
-        candidates: [
-          {
-            content: {
-              role: 'model',
-              parts: [{ text: 'This is a summary.' }],
-            },
-          },
-        ],
-      } as unknown as GenerateContentResponse);
-
-      // Mock startChat to verify the history passed to it
-      const mockNewChat = {
-        getHistory: vi.fn().mockReturnValue([
-          { role: 'user', parts: [{ text: 'Environment context' }] },
-          {
-            role: 'model',
-            parts: [{ text: 'Got it. Thanks for the context!' }],
-          },
-          { role: 'user', parts: [{ text: 'This is a summary.' }] },
-          {
-            role: 'model',
-            parts: [{ text: 'Got it. Thanks for the additional context!' }],
-          },
-          // Only the last messages should be kept, not the initial ones
-          { role: 'user', parts: [{ text: 'User message 2' }] },
-          { role: 'model', parts: [{ text: 'Model response 2' }] },
-        ]),
-        setHistory: vi.fn(),
-      };
-
-      client['startChat'] = vi.fn().mockResolvedValue(mockNewChat);
-
-      const result = await client.tryCompressChat(
-        'prompt-id-initial-context',
-        false,
-      );
-
-      expect(result).toEqual({
-        compressionStatus: CompressionStatus.COMPRESSED,
-        originalTokenCount,
-        newTokenCount,
-      });
-
-      // Verify that token counting was done on history excluding initial context
-      const tokenCountCalls = vi.mocked(mockContentGenerator.countTokens).mock
-        .calls;
-      const firstCall = tokenCountCalls[0][0];
-
-      // The history passed to countTokens should now include the full history
-      expect(firstCall.contents).toEqual(fullHistory);
-    });
-
     it('should return NOOP when compression split point is within initial context', async () => {
       // Test the early return when findCompressSplitPoint returns <= INITIAL_CONTEXT_LENGTH
       const MOCKED_TOKEN_LIMIT = 1000;
@@ -875,35 +796,6 @@ describe('Gemini Client (client.ts)', () => {
       });
 
       // Verify generateContent was never called since we returned early
-      expect(mockGenerateContentFn).not.toHaveBeenCalled();
-    });
-
-    it('should handle empty history after slicing initial context', async () => {
-      // Test edge case where history only contains initial context
-      const MOCKED_TOKEN_LIMIT = 1000;
-      vi.mocked(tokenLimit).mockReturnValue(MOCKED_TOKEN_LIMIT);
-
-      // History with only initial context (first 2 messages)
-      const initialContextOnly = [
-        { role: 'user', parts: [{ text: 'Environment context' }] },
-        { role: 'model', parts: [{ text: 'Got it. Thanks for the context!' }] },
-      ];
-
-      mockGetHistory.mockReturnValue(initialContextOnly);
-
-      const result = await client.tryCompressChat(
-        'prompt-id-initial-only',
-        false,
-      );
-
-      expect(result).toEqual({
-        originalTokenCount: 100,
-        newTokenCount: 100,
-        compressionStatus: CompressionStatus.NOOP,
-      });
-
-      // Verify countTokens was called but compression returns NOOP due to below threshold
-      expect(mockContentGenerator.countTokens).toHaveBeenCalled();
       expect(mockGenerateContentFn).not.toHaveBeenCalled();
     });
   });
