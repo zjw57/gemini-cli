@@ -7,7 +7,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { PartListUnion, PartUnion } from '@google/genai';
-import type { AnyToolInvocation, Config } from '@google/gemini-cli-core';
+import type { Config } from '@google/gemini-cli-core';
 import {
   getErrorMessage,
   isNodeError,
@@ -113,7 +113,7 @@ function parseAllAtCommands(query: string): AtCommandPart[] {
 /**
  * Processes user input potentially containing one or more '@<path>' commands.
  * If found, it attempts to read the specified files/directories using the
- * 'read_many_files' tool. The user query is modified to include resolved paths,
+ * 'glob' and 'read_file' tools. The user query is modified to include resolved paths,
  * and the content of the files is appended in a structured block.
  *
  * @returns An object indicating whether the main hook should proceed with an
@@ -151,16 +151,8 @@ export async function handleAtCommand({
   };
 
   const toolRegistry = config.getToolRegistry();
-  const readManyFilesTool = toolRegistry.getTool('read_many_files');
   const globTool = toolRegistry.getTool('glob');
-
-  if (!readManyFilesTool) {
-    addItem(
-      { type: 'error', text: 'Error: read_many_files tool not found.' },
-      userMessageTimestamp,
-    );
-    return { processedQuery: null, shouldProceed: false };
-  }
+  const readFileTool = toolRegistry.getTool('read_file');
 
   for (const atPathPart of atPathCommandParts) {
     const originalAtPath = atPathPart.content; // e.g., "@file.txt" or "@"
@@ -395,86 +387,140 @@ export async function handleAtCommand({
 
   const processedQueryParts: PartUnion[] = [{ text: initialQueryText }];
 
-  const toolArgs = {
-    paths: pathSpecsToRead,
-    file_filtering_options: {
-      respect_git_ignore: respectFileIgnore.respectGitIgnore,
-      respect_gemini_ignore: respectFileIgnore.respectGeminiIgnore,
-    },
-    // Use configuration setting
-  };
-  let toolCallDisplay: IndividualToolCallDisplay;
+  const llmContentToProcess: PartListUnion = [];
 
-  let invocation: AnyToolInvocation | undefined = undefined;
-  try {
-    invocation = readManyFilesTool.build(toolArgs);
-    const result = await invocation.execute(signal);
-    toolCallDisplay = {
-      callId: `client-read-${userMessageTimestamp}`,
-      name: readManyFilesTool.displayName,
-      description: invocation.getDescription(),
-      status: ToolCallStatus.Success,
-      resultDisplay:
-        result.returnDisplay ||
-        `Successfully read: ${contentLabelsForDisplay.join(', ')}`,
-      confirmationDetails: undefined,
-    };
-
-    if (Array.isArray(result.llmContent)) {
-      const fileContentRegex = /^--- (.*?) ---\n\n([\s\S]*?)\n\n$/;
-      processedQueryParts.push({
-        text: '\n--- Content from referenced files ---',
-      });
-      for (const part of result.llmContent) {
-        if (typeof part === 'string') {
-          const match = fileContentRegex.exec(part);
-          if (match) {
-            const filePathSpecInContent = match[1]; // This is a resolved pathSpec
-            const fileActualContent = match[2].trim();
-            processedQueryParts.push({
-              text: `\nContent from @${filePathSpecInContent}:\n`,
-            });
-            processedQueryParts.push({ text: fileActualContent });
-          } else {
-            processedQueryParts.push({ text: part });
-          }
-        } else {
-          // part is a Part object.
-          processedQueryParts.push(part);
-        }
-      }
-    } else {
-      onDebugMessage(
-        'read_many_files tool returned no content or empty content.',
-      );
-    }
-
+  // Use glob and read_file tools
+  if (!globTool || !readFileTool) {
     addItem(
-      { type: 'tool_group', tools: [toolCallDisplay] } as Omit<
-        HistoryItem,
-        'id'
-      >,
-      userMessageTimestamp,
-    );
-    return { processedQuery: processedQueryParts, shouldProceed: true };
-  } catch (error: unknown) {
-    toolCallDisplay = {
-      callId: `client-read-${userMessageTimestamp}`,
-      name: readManyFilesTool.displayName,
-      description:
-        invocation?.getDescription() ??
-        'Error attempting to execute tool to read files',
-      status: ToolCallStatus.Error,
-      resultDisplay: `Error reading files (${contentLabelsForDisplay.join(', ')}): ${getErrorMessage(error)}`,
-      confirmationDetails: undefined,
-    };
-    addItem(
-      { type: 'tool_group', tools: [toolCallDisplay] } as Omit<
-        HistoryItem,
-        'id'
-      >,
+      {
+        type: 'error',
+        text: 'Error: Required tools (glob and read_file) not found.',
+      },
       userMessageTimestamp,
     );
     return { processedQuery: null, shouldProceed: false };
   }
+
+  const allFilePathsToRead = new Set<string>();
+  const workspaceDirs = config.getWorkspaceContext().getDirectories();
+  const errors: string[] = [];
+
+  for (const pathSpec of pathSpecsToRead) {
+    for (const dir of workspaceDirs) {
+      try {
+        const globInvocation = globTool.build({
+          pattern: pathSpec,
+          path: dir,
+          respect_git_ignore: respectFileIgnore.respectGitIgnore,
+          respect_gemini_ignore: respectFileIgnore.respectGeminiIgnore,
+        });
+        const globResult = await globInvocation.execute(signal);
+        if (
+          typeof globResult.llmContent === 'string' &&
+          !globResult.llmContent.startsWith('No files found') &&
+          !globResult.llmContent.startsWith('Error:')
+        ) {
+          const lines = globResult.llmContent.split('\n');
+          // Skip the first line (header) and iterate over the rest
+          for (let i = 1; i < lines.length; i++) {
+            const filePath = lines[i].trim();
+            if (filePath) {
+              allFilePathsToRead.add(filePath);
+            }
+          }
+        }
+      } catch (e) {
+        const msg = `Glob error for ${pathSpec} in ${dir}: ${getErrorMessage(e)}`;
+        onDebugMessage(msg);
+        errors.push(msg);
+      }
+    }
+  }
+
+  const sortedFiles = Array.from(allFilePathsToRead).sort();
+  const successfullyReadFiles: string[] = [];
+
+  for (const filePath of sortedFiles) {
+    try {
+      const readInvocation = readFileTool.build({
+        absolute_path: filePath,
+      });
+      const readResult = await readInvocation.execute(signal);
+
+      if (typeof readResult.llmContent === 'string') {
+        llmContentToProcess.push(
+          `--- ${filePath} ---\n\n${readResult.llmContent}\n\n`,
+        );
+        successfullyReadFiles.push(path.basename(filePath));
+      } else if (readResult.llmContent) {
+        // Handle binary/image content (Part object or array of Parts)
+        if (Array.isArray(readResult.llmContent)) {
+          llmContentToProcess.push(...readResult.llmContent);
+        } else {
+          llmContentToProcess.push(readResult.llmContent);
+        }
+        successfullyReadFiles.push(path.basename(filePath));
+      }
+    } catch (e) {
+      const msg = `Error reading file ${filePath}: ${getErrorMessage(e)}`;
+      onDebugMessage(msg);
+      llmContentToProcess.push(
+        `--- ${filePath} ---\n\nError reading file: ${getErrorMessage(e)}\n\n`,
+      );
+      errors.push(msg);
+    }
+  }
+
+  if (llmContentToProcess.length > 0) {
+    llmContentToProcess.push('\n--- End of content ---');
+  } else {
+    llmContentToProcess.push(
+      'No files matching the criteria were found or all were skipped.',
+    );
+  }
+
+  const toolCallDisplay: IndividualToolCallDisplay = {
+    callId: `client-read-${userMessageTimestamp}`,
+    name: 'read_files',
+    description: `Read ${successfullyReadFiles.length} files.`,
+    status: errors.length > 0 ? ToolCallStatus.Error : ToolCallStatus.Success,
+    resultDisplay:
+      errors.length > 0
+        ? `Errors occurred:\n${errors.join('\n')}\n\nSuccessfully read: ${successfullyReadFiles.join(', ')}`
+        : `Successfully read: ${successfullyReadFiles.join(', ')}`,
+    confirmationDetails: undefined,
+  };
+
+  if (Array.isArray(llmContentToProcess)) {
+    const fileContentRegex = /^--- (.*?) ---\n\n([\s\S]*?)\n\n$/;
+    processedQueryParts.push({
+      text: '\n--- Content from referenced files ---',
+    });
+    for (const part of llmContentToProcess) {
+      if (typeof part === 'string') {
+        const match = fileContentRegex.exec(part);
+        if (match) {
+          const filePathSpecInContent = match[1]; // This is a resolved pathSpec
+          const fileActualContent = match[2].trim();
+          processedQueryParts.push({
+            text: `\nContent from @${filePathSpecInContent}:\n`,
+          });
+          processedQueryParts.push({ text: fileActualContent });
+        } else {
+          processedQueryParts.push({ text: part });
+        }
+      } else {
+        // part is a Part object.
+        processedQueryParts.push(part);
+      }
+    }
+  } else {
+    onDebugMessage('File reading returned no content or empty content.');
+  }
+
+  addItem(
+    { type: 'tool_group', tools: [toolCallDisplay] } as Omit<HistoryItem, 'id'>,
+    userMessageTimestamp,
+  );
+  return { processedQuery: processedQueryParts, shouldProceed: true };
 }

@@ -427,7 +427,6 @@ describe('createPolicyEngineConfig', () => {
       'search_file_content',
       'list_directory',
       'read_file',
-      'read_many_files',
     ];
     for (const tool of readOnlyTools) {
       const rule = config.rules?.find(

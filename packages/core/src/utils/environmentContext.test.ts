@@ -19,12 +19,13 @@ import {
 } from './environmentContext.js';
 import type { Config } from '../config/config.js';
 import { getFolderStructure } from './getFolderStructure.js';
+import { GlobTool } from '../tools/glob.js';
+import { ReadFileTool } from '../tools/read-file.js';
 
 vi.mock('../config/config.js');
 vi.mock('./getFolderStructure.js', () => ({
   getFolderStructure: vi.fn(),
 }));
-vi.mock('../tools/read-many-files.js');
 
 describe('getDirectoryContextString', () => {
   let mockConfig: Partial<Config>;
@@ -144,63 +145,150 @@ describe('getEnvironmentContext', () => {
 
   it('should include full file context when getFullContext is true', async () => {
     mockConfig.getFullContext = vi.fn().mockReturnValue(true);
-    const mockReadManyFilesTool = {
+
+    const mockGlobTool = {
       build: vi.fn().mockReturnValue({
-        execute: vi
-          .fn()
-          .mockResolvedValue({ llmContent: 'Full file content here' }),
+        execute: vi.fn().mockResolvedValue({
+          llmContent: 'Found 2 files:\n/path/to/file1.txt\n/path/to/file2.txt',
+        }),
       }),
     };
-    mockToolRegistry.getTool.mockReturnValue(mockReadManyFilesTool);
+
+    const mockReadFileTool = {
+      build: vi.fn().mockImplementation((args) => ({
+        execute: vi.fn().mockResolvedValue({
+          llmContent: `Content of ${args.absolute_path}`,
+        }),
+      })),
+    };
+
+    mockToolRegistry.getTool.mockImplementation((toolName) => {
+      if (toolName === GlobTool.Name) return mockGlobTool;
+      if (toolName === ReadFileTool.Name) return mockReadFileTool;
+      return null;
+    });
 
     const parts = await getEnvironmentContext(mockConfig as Config);
 
     expect(parts.length).toBe(2);
-    expect(parts[1].text).toBe(
-      '\n--- Full File Context ---\nFull file content here',
-    );
-    expect(mockToolRegistry.getTool).toHaveBeenCalledWith('read_many_files');
-    expect(mockReadManyFilesTool.build).toHaveBeenCalledWith({
-      paths: ['**/*'],
-      useDefaultExcludes: true,
+    const expectedContent = `
+--- Full File Context ---
+--- /path/to/file1.txt ---
+Content of /path/to/file1.txt
+
+--- /path/to/file2.txt ---
+Content of /path/to/file2.txt
+
+--- End of content ---`;
+    expect(parts[1].text).toBe(expectedContent);
+
+    expect(mockToolRegistry.getTool).toHaveBeenCalledWith(GlobTool.Name);
+    expect(mockToolRegistry.getTool).toHaveBeenCalledWith(ReadFileTool.Name);
+    expect(mockGlobTool.build).toHaveBeenCalledWith({
+      pattern: '**/*',
+    });
+    expect(mockReadFileTool.build).toHaveBeenCalledWith({
+      absolute_path: '/path/to/file1.txt',
+    });
+    expect(mockReadFileTool.build).toHaveBeenCalledWith({
+      absolute_path: '/path/to/file2.txt',
     });
   });
 
-  it('should handle read_many_files returning no content', async () => {
+  it('should handle glob returning no content', async () => {
     mockConfig.getFullContext = vi.fn().mockReturnValue(true);
-    const mockReadManyFilesTool = {
+    const mockGlobTool = {
       build: vi.fn().mockReturnValue({
         execute: vi.fn().mockResolvedValue({ llmContent: '' }),
       }),
     };
-    mockToolRegistry.getTool.mockReturnValue(mockReadManyFilesTool);
+    const mockReadFileTool = {}; // Not used
+
+    mockToolRegistry.getTool.mockImplementation((toolName) => {
+      if (toolName === GlobTool.Name) return mockGlobTool;
+      if (toolName === ReadFileTool.Name) return mockReadFileTool;
+      return null;
+    });
 
     const parts = await getEnvironmentContext(mockConfig as Config);
 
     expect(parts.length).toBe(1); // No extra part added
   });
 
-  it('should handle read_many_files tool not being found', async () => {
+  it('should handle required tools not being found', async () => {
     mockConfig.getFullContext = vi.fn().mockReturnValue(true);
     mockToolRegistry.getTool.mockReturnValue(null);
 
     const parts = await getEnvironmentContext(mockConfig as Config);
 
     expect(parts.length).toBe(1); // No extra part added
+    expect(mockToolRegistry.getTool).toHaveBeenCalledWith(GlobTool.Name);
   });
 
-  it('should handle errors when reading full file context', async () => {
+  it('should handle errors when reading full file context (glob error)', async () => {
     mockConfig.getFullContext = vi.fn().mockReturnValue(true);
-    const mockReadManyFilesTool = {
+    const mockGlobTool = {
       build: vi.fn().mockReturnValue({
-        execute: vi.fn().mockRejectedValue(new Error('Read error')),
+        execute: vi.fn().mockRejectedValue(new Error('Glob error')),
       }),
     };
-    mockToolRegistry.getTool.mockReturnValue(mockReadManyFilesTool);
+    const mockReadFileTool = {};
+
+    mockToolRegistry.getTool.mockImplementation((toolName) => {
+      if (toolName === GlobTool.Name) return mockGlobTool;
+      if (toolName === ReadFileTool.Name) return mockReadFileTool;
+      return null;
+    });
 
     const parts = await getEnvironmentContext(mockConfig as Config);
 
     expect(parts.length).toBe(2);
     expect(parts[1].text).toBe('\n--- Error reading full file context ---');
+  });
+
+  it('should handle errors when reading individual files', async () => {
+    mockConfig.getFullContext = vi.fn().mockReturnValue(true);
+
+    const mockGlobTool = {
+      build: vi.fn().mockReturnValue({
+        execute: vi.fn().mockResolvedValue({
+          llmContent: 'Found 2 files:\n/path/to/file1.txt\n/path/to/file2.txt',
+        }),
+      }),
+    };
+
+    const mockReadFileTool = {
+      build: vi.fn().mockImplementation((args) => ({
+        execute: vi.fn().mockImplementation(() => {
+          if (args.absolute_path === '/path/to/file1.txt') {
+            return Promise.resolve({
+              llmContent: `Content of ${args.absolute_path}`,
+            });
+          } else {
+            return Promise.reject(new Error('Read error'));
+          }
+        }),
+      })),
+    };
+
+    mockToolRegistry.getTool.mockImplementation((toolName) => {
+      if (toolName === GlobTool.Name) return mockGlobTool;
+      if (toolName === ReadFileTool.Name) return mockReadFileTool;
+      return null;
+    });
+
+    const parts = await getEnvironmentContext(mockConfig as Config);
+
+    expect(parts.length).toBe(2);
+    const expectedContent = `
+--- Full File Context ---
+--- /path/to/file1.txt ---
+Content of /path/to/file1.txt
+
+--- /path/to/file2.txt ---
+Error reading file.
+
+--- End of content ---`;
+    expect(parts[1].text).toBe(expectedContent);
   });
 });

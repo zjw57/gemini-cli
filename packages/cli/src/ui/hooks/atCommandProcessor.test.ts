@@ -11,7 +11,7 @@ import type { Config } from '@google/gemini-cli-core';
 import {
   FileDiscoveryService,
   GlobTool,
-  ReadManyFilesTool,
+  ReadFileTool,
   StandardFileSystemService,
   ToolRegistry,
   COMMON_IGNORE_PATTERNS,
@@ -77,13 +77,15 @@ describe('handleAtCommand', () => {
         getDefaultExcludePatterns: () => [],
         getGlobExcludes: () => [],
         buildExcludePatterns: () => [],
-        getReadManyFilesExcludes: () => [],
       }),
       getUsageStatisticsEnabled: () => false,
+      storage: {
+        getProjectTempDir: () => path.join(testRootDir, '.gemini', 'temp'),
+      },
     } as unknown as Config;
 
     const registry = new ToolRegistry(mockConfig);
-    registry.registerTool(new ReadManyFilesTool(mockConfig));
+    registry.registerTool(new ReadFileTool(mockConfig));
     registry.registerTool(new GlobTool(mockConfig));
     getToolRegistry.mockReturnValue(registry);
   });

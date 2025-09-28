@@ -14,7 +14,6 @@ import {
   GrepTool,
   LSTool,
   ReadFileTool,
-  ReadManyFilesTool,
   RipGrepTool,
   // Write tools
   EditTool,
@@ -34,7 +33,6 @@ const READ_ONLY_TOOLS = new Set([
   RipGrepTool.Name,
   LSTool.Name,
   ReadFileTool.Name,
-  ReadManyFilesTool.Name,
   WebSearchTool.Name,
 ]);
 

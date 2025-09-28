@@ -7,6 +7,9 @@
 import type { Part } from '@google/genai';
 import type { Config } from '../config/config.js';
 import { getFolderStructure } from './getFolderStructure.js';
+import { GlobTool } from '../tools/glob.js';
+import { ReadFileTool } from '../tools/read-file.js';
+import { partToString } from './partUtils.js';
 
 /**
  * Generates a string describing the current workspace directories and their structures.
@@ -73,27 +76,72 @@ ${directoryContext}
   // Add full file context if the flag is set
   if (config.getFullContext()) {
     try {
-      const readManyFilesTool = toolRegistry.getTool('read_many_files');
-      if (readManyFilesTool) {
-        const invocation = readManyFilesTool.build({
-          paths: ['**/*'], // Read everything recursively
-          useDefaultExcludes: true, // Use default excludes
+      const globTool = toolRegistry.getTool(GlobTool.Name);
+      const readFileTool = toolRegistry.getTool(ReadFileTool.Name);
+
+      if (globTool && readFileTool) {
+        // 1. Use GlobTool to find all files
+        const globInvocation = globTool.build({
+          pattern: '**/*', // Read everything recursively
+          // GlobTool respects default excludes by default (via .gitignore/.geminiignore)
         });
 
-        // Read all files in the target directory
-        const result = await invocation.execute(AbortSignal.timeout(30000));
-        if (result.llmContent) {
-          initialParts.push({
-            text: `\n--- Full File Context ---\n${result.llmContent}`,
-          });
+        const globResult = await globInvocation.execute(
+          AbortSignal.timeout(30000),
+        );
+
+        const globContent = partToString(globResult.llmContent);
+
+        if (!globContent) {
+          console.warn('Full context requested, but glob returned no content.');
         } else {
-          console.warn(
-            'Full context requested, but read_many_files returned no content.',
-          );
+          // Parse the glob output (header line followed by paths)
+          const lines = globContent.split('\n');
+          // Skip the header line if present (it usually starts with "Found X files...")
+          const filePaths = lines
+            .slice(1)
+            .filter((line: string) => line.trim() !== '');
+
+          if (filePaths.length === 0) {
+            console.warn('Full context requested, but no files found by glob.');
+          } else {
+            // 2. Read each file using ReadFileTool in parallel
+            const readPromises = filePaths.map(async (filePath: string) => {
+              try {
+                const readInvocation = readFileTool.build({
+                  absolute_path: filePath,
+                });
+                const readResult = await readInvocation.execute(
+                  AbortSignal.timeout(5000), // Shorter timeout per file
+                );
+                const readContent = partToString(readResult.llmContent);
+                if (readContent) {
+                  return `--- ${filePath} ---\n${readContent}\n\n`;
+                }
+                return '';
+              } catch (readError) {
+                console.warn(
+                  `Failed to read file ${filePath} for full context:`,
+                  readError,
+                );
+                return `--- ${filePath} ---\nError reading file.\n\n`;
+              }
+            });
+
+            const fileContents = await Promise.all(readPromises);
+            let fullContent = fileContents.join('');
+
+            if (fullContent) {
+              fullContent += '--- End of content ---';
+              initialParts.push({
+                text: `\n--- Full File Context ---\n${fullContent}`,
+              });
+            }
+          }
         }
       } else {
         console.warn(
-          'Full context requested, but read_many_files tool not found.',
+          `Full context requested, but required tools (${GlobTool.Name}, ${ReadFileTool.Name}) not found.`,
         );
       }
     } catch (error) {
