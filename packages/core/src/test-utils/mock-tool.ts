@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { vi } from 'vitest';
 import type {
   ModifiableDeclarativeTool,
   ModifyContext,
@@ -179,7 +178,10 @@ export class MockModifiableTool
   extends BaseDeclarativeTool<Record<string, unknown>, ToolResult>
   implements ModifiableDeclarativeTool<Record<string, unknown>>
 {
-  executeFn = vi.fn();
+  // Should be overrided in test file. Functionality will be updated in follow
+  // up PR which has MockModifiableTool expect MockTool
+  executeFn: (params: Record<string, unknown>) => ToolResult | undefined = () =>
+    undefined;
   shouldConfirm = true;
 
   constructor(name = 'mockModifiableTool') {

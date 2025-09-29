@@ -267,6 +267,7 @@ describe('CoreToolScheduler', () => {
 describe('CoreToolScheduler with payload', () => {
   it('should update args and diff and execute tool when payload is provided', async () => {
     const mockTool = new MockModifiableTool();
+    mockTool.executeFn = vi.fn();
     const declarativeTool = mockTool;
     const mockToolRegistry = {
       getTool: () => declarativeTool,
