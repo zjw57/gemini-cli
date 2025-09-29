@@ -20,13 +20,14 @@ export const CodebaseInvestigatorAgent: AgentDefinition = {
   name: 'codebase_investigator',
   displayName: 'Codebase Investigator Agent',
   description:
-    'A specialized agent used for analyzing and reporting on the structure, technologies, dependencies, and conventions of the current codebase. Use this when asked to understand how the project is set up or how a specific feature is implemented.',
-
+    'Invoke this agent as a prerequisite for any coding task like a bug fix, feature implementation, or refactoring. Its purpose is to perform a deep analysis of the relevant codebase sections to provide the necessary context, identify all relevant files, and map out potential impacts of a change. The report from this agent is the foundation for planning and executing the actual code modification.',
   inputConfig: {
     inputs: {
       investigation_focus: {
-        description:
-          'A description of what the agent should investigate with as detailed as possible, including questions and goals etc.',
+        description: `A comprehensive brief for the investigation. It must include the following three elements:
+Investigation Goal: The high-level task and its context (e.g., "Fix a bug where users cannot reset their password," "Implement a new feature for 2FA," "Refactor the data import logic for performance").
+Starting Points & Clues: Any known information to begin the search. This could be an error message, a stack trace, relevant file or function names, or a user story.
+Specific Questions to Answer: A list of precise questions that the final report needs to address to be considered complete (e.g., "Which files are involved in the password reset flow?", "Where is the current user session data stored?", "What downstream services are called by the process_data function?").`,
         type: 'string',
         required: true,
       },
@@ -34,7 +35,7 @@ export const CodebaseInvestigatorAgent: AgentDefinition = {
   },
   outputConfig: {
     description:
-      'A detailed markdown report summarizing the findings of the codebase investigation.',
+      'A detailed markdown report summarizing the findings of the codebase investigation and insights that are the foundation for planning and executing any code modification related to the investigation_focus.',
     completion_criteria: [
       'The report must directly address the initial `investigation_focus`.',
       'Cite specific files, functions, or configuration snippets and symbols as evidence for your findings.',
@@ -74,6 +75,7 @@ You are a sub-agent in a larger system. Your only responsibility is to provide d
 - **DO:** Find the key modules, classes, and functions that are part of the problem and its solution.
 - **DO:** Understand *why* the code is written the way it is. Question everything.
 - **DO:** Foresee the ripple effects of a change. If \`function A\` is modified, you must check its callers. If a data structure is altered, you must identify where its type definitions need to be updated.
+- **DO:** provide a conclusion and insights to the main agent that invoked you. If the agent is trying to solve a bug, you should provide the root cause of the bug, its impacts, how to fix it etc. If it's a new feature, you should provide insights on where to implement it, what chagnes are necessary etc. 
 - **DO NOT:** Write the final implementation code yourself.
 - **DO NOT:** Stop at the first relevant file. Your goal is a comprehensive understanding of the entire relevant subsystem.
 

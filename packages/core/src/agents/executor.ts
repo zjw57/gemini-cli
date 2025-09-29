@@ -18,7 +18,7 @@ import { executeToolCall } from '../core/nonInteractiveToolExecutor.js';
 import { ToolRegistry } from '../tools/tool-registry.js';
 import type { ToolCallRequestInfo } from '../core/turn.js';
 // TODO: Evaluate if subagents need environment context (date, OS, etc.).
-// import {getEnvironmentContext} from '../utils/environmentContext.js';
+import { getEnvironmentContext } from '../utils/environmentContext.js';
 import { GlobTool } from '../tools/glob.js';
 import { GrepTool } from '../tools/grep.js';
 import { RipGrepTool } from '../tools/ripGrep.js';
@@ -307,11 +307,12 @@ export class AgentExecutor {
 
     // TODO: Evaluate if subagents need environment context (date, OS, folder structure)
     // Currently commented out to reduce token usage - subagents should focus on specific tasks
-    // const envParts = await getEnvironmentContext(this.runtimeContext);
-    // const envHistory: Content[] = [
-    //   { role: 'user', parts: envParts },
-    //   { role: 'model', parts: [{ text: 'Got it. Thanks for the context!' }] },
-    // ];
+    const envParts = await getEnvironmentContext(this.runtimeContext);
+    const envHistory: Content[] = [
+      { role: 'user', parts: envParts },
+      { role: 'model', parts: [{ text: 'Got it. Thanks for the context!' }] },
+    ];
+    startHistory.push(...envHistory);
 
     // Build system instruction from the templated prompt string.
     const systemInstruction = promptConfig.systemPrompt
