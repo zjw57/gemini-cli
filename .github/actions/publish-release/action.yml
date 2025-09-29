@@ -178,7 +178,7 @@ runs:
 
     - name: '🏷️ Tag release'
       uses: './.github/actions/tag-npm-release'
-      if: "${{ inputs.dry-run == 'false' }}"
+      if: "${{ inputs.dry-run == 'false' && inputs.registry != 'github' }}"
       with:
         channel: '${{ inputs.npm-tag }}'
         version: '${{ inputs.release-version }}'
