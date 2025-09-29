@@ -8,6 +8,10 @@ inputs:
   npm-tag:
     description: 'The npm tag to publish with (e.g., latest, preview, nightly).'
     required: true
+  npm-registry:
+    description: 'The npm registry to publish to.'
+    required: false
+    default: 'public'
   wombat-token-core:
     description: 'The npm token for the @google/gemini-cli-core package.'
     required: true
@@ -83,6 +87,13 @@ runs:
           echo "Dry run enabled. Skipping push."
         fi
 
+    - name: 'Rename Packages for GitHub Registry'
+      if: "inputs.npm-registry == 'github'"
+      working-directory: '${{ inputs.working-directory }}'
+      shell: 'bash'
+      run: |
+        ${{ github.action_path }}/rename-packages.sh
+
     - name: '🛠️ Build and Prepare Packages'
       working-directory: '${{ inputs.working-directory }}'
       shell: 'bash'
@@ -90,14 +101,24 @@ runs:
         npm run build:packages
         npm run prepare:package
 
-    - name: 'Configure npm for publishing'
+    - name: 'Configure npm for public publishing'
+      if: "inputs.npm-registry == 'public'"
       uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
       with:
         node-version-file: '${{ inputs.working-directory }}/.nvmrc'
         registry-url: 'https://wombat-dressing-room.appspot.com'
         scope: '@google'
 
+    - name: 'Configure npm for github publishing'
+      if: "inputs.npm-registry == 'github'"
+      uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
+      with:
+        node-version-file: '${{ inputs.working-directory }}/.nvmrc'
+        registry-url: 'https://npm.pkg.github.com'
+        scope: '@google-gemini'
+
     - name: '📦 Publish @google/gemini-cli-core'
+      if: "inputs.npm-registry == 'public'"
       working-directory: '${{ inputs.working-directory }}'
       env:
         NODE_AUTH_TOKEN: '${{ inputs.wombat-token-core }}'
@@ -108,16 +129,40 @@ runs:
           --workspace="@google/gemini-cli-core" \
           --no-tag
 
-    - name: '🔗 Install latest core package'
+    - name: '📦 Publish @google-gemini/gemini-cli-core to GitHub'
+      if: "inputs.npm-registry == 'github'"
       working-directory: '${{ inputs.working-directory }}'
-      if: "${{ inputs.dry-run == 'false' }}"
+      env:
+        NODE_AUTH_TOKEN: '${{ inputs.github-token }}'
+      shell: 'bash'
+      run: |
+        npm publish \
+          --dry-run="${{ inputs.dry-run }}" \
+          --workspace="@google-gemini/gemini-cli-core" \
+          --no-tag
+
+    - name: '🔗 Install latest core package'
+      if: "${{ inputs.dry-run == 'false' && inputs.npm-registry == 'public' }}"
+      working-directory: '${{ inputs.working-directory }}'
       shell: 'bash'
       run: |
         npm install "@google/gemini-cli-core@${{ inputs.release-version }}" \
         --workspace="@google/gemini-cli" \
         --save-exact
 
+    - name: '🔗 Install latest core package from GitHub'
+      if: "${{ inputs.dry-run == 'false' && inputs.npm-registry == 'github' }}"
+      working-directory: '${{ inputs.working-directory }}'
+      env:
+        NODE_AUTH_TOKEN: '${{ inputs.github-token }}'
+      shell: 'bash'
+      run: |
+        npm install "@google-gemini/gemini-cli-core@${{ inputs.release-version }}" \
+        --workspace="@google-gemini/gemini-cli" \
+        --save-exact
+
     - name: '📦 Publish @google/gemini-cli'
+      if: "inputs.npm-registry == 'public'"
       working-directory: '${{ inputs.working-directory }}'
       env:
         NODE_AUTH_TOKEN: '${{ inputs.wombat-token-cli }}'
@@ -128,23 +173,55 @@ runs:
           --workspace="@google/gemini-cli" \
           --no-tag
 
+    - name: '📦 Publish @google-gemini/gemini-cli to GitHub'
+      if: "inputs.npm-registry == 'github'"
+      working-directory: '${{ inputs.working-directory }}'
+      env:
+        NODE_AUTH_TOKEN: '${{ inputs.github-token }}'
+      shell: 'bash'
+      run: |
+        npm publish \
+          --dry-run="${{ inputs.dry-run }}" \
+          --workspace="@google-gemini/gemini-cli" \
+          --no-tag
+
     - name: '🔬 Verify NPM release by version'
       uses: './.github/actions/verify-release'
-      if: "${{ inputs.dry-run == 'false' && inputs.force-skip-tests == 'false' }}"
+      if: "${{ inputs.dry-run == 'false' && inputs.force-skip-tests == 'false' && inputs.npm-registry == 'public' }}"
       with:
         npm-package: '@google/gemini-cli@${{ inputs.release-version }}'
         expected-version: '${{ inputs.release-version }}'
         ref: '${{ steps.release_branch.outputs.BRANCH_NAME }}'
 
+    - name: '🔬 Verify NPM release by version from GitHub'
+      uses: './.github/actions/verify-release'
+      if: "${{ inputs.dry-run == 'false' && inputs.force-skip-tests == 'false' && inputs.npm-registry == 'github' }}"
+      with:
+        npm-package: '@google-gemini/gemini-cli@${{ inputs.release-version }}'
+        expected-version: '${{ inputs.release-version }}'
+        ref: '${{ steps.release_branch.outputs.BRANCH_NAME }}'
+        npm-registry: 'https://npm.pkg.github.com'
+
     - name: '🏷️ Tag release'
       uses: './.github/actions/tag-npm-release'
-      if: "${{ inputs.dry-run == 'false' }}"
+      if: "${{ inputs.dry-run == 'false' && inputs.npm-registry == 'public' }}"
       with:
         channel: '${{ inputs.npm-tag }}'
         version: '${{ inputs.release-version }}'
         dry-run: '${{ inputs.dry-run }}'
         wombat-token-core: '${{ inputs.wombat-token-core }}'
         wombat-token-cli: '${{ inputs.wombat-token-cli }}'
+        npm-registry: '${{ inputs.npm-registry }}'
+
+    - name: '🏷️ Tag release on GitHub'
+      uses: './.github/actions/tag-npm-release'
+      if: "${{ inputs.dry-run == 'false' && inputs.npm-registry == 'github' }}"
+      with:
+        channel: '${{ inputs.npm-tag }}'
+        version: '${{ inputs.release-version }}'
+        dry-run: '${{ inputs.dry-run }}'
+        github-token: '${{ inputs.github-token }}'
+        npm-registry: '${{ inputs.npm-registry }}'
 
     - name: '🎁 Bundle'
       working-directory: '${{ inputs.working-directory }}'

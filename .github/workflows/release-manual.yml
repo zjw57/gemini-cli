@@ -21,6 +21,14 @@ on:
           - 'latest'
           - 'dev'
         default: 'dev'
+      npm_registry:
+        description: 'The npm registry to publish to.'
+        required: true
+        type: 'choice'
+        options:
+          - 'public'
+          - 'github'
+        default: 'public'
       dry_run:
         description: 'Run a dry-run of the release process; no branches, npm packages or GitHub releases will be created.'
         required: true
@@ -92,6 +100,7 @@ jobs:
           release-version: '${{ steps.release_info.outputs.RELEASE_VERSION }}'
           release-tag: '${{ github.event.inputs.version }}'
           npm-tag: '${{ github.event.inputs.npm_channel }}'
+          npm-registry: '${{ github.event.inputs.npm_registry }}'
           wombat-token-core: '${{ secrets.WOMBAT_TOKEN_CORE }}'
           wombat-token-cli: '${{ secrets.WOMBAT_TOKEN_CLI }}'
           github-token: '${{ secrets.GITHUB_TOKEN }}'

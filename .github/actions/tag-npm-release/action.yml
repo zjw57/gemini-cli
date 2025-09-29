@@ -13,23 +13,39 @@ inputs:
     required: true
   wombat-token-core:
     description: 'The npm token for the wombat @google/gemini-cli-core'
-    required: true
+    required: false
   wombat-token-cli:
     description: 'The npm token for wombat @google/gemini-cli'
+    required: false
+  github-token:
+    description: 'The GitHub token for creating the release.'
+    required: false
+  npm-registry:
+    description: 'The npm registry to publish to.'
+    required: false
+    default: 'public'
 
 runs:
   using: 'composite'
   steps:
-    - name: 'Setup Node.js'
+    - name: 'Setup Node.js for public registry'
+      if: "inputs.npm-registry == 'public'"
       uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
       with:
         node-version-file: '.nvmrc'
         registry-url: 'https://wombat-dressing-room.appspot.com'
         scope: '@google'
 
+    - name: 'Setup Node.js for GitHub registry'
+      if: "inputs.npm-registry == 'github'"
+      uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
+      with:
+        node-version-file: '.nvmrc'
+        registry-url: 'https://npm.pkg.github.com'
+        scope: '@google-gemini'
+
     - name: 'Change tag for @google/gemini-cli-core'
-      if: |-
-        ${{ inputs.dry-run == 'false' }}
+      if: "inputs.dry-run == 'false' && inputs.npm-registry == 'public'"
       env:
         NODE_AUTH_TOKEN: '${{ inputs.wombat-token-core }}'
       shell: 'bash'
@@ -37,13 +53,28 @@ runs:
         npm dist-tag add @google/gemini-cli-core@${{ inputs.version }} ${{ inputs.channel }}
 
     - name: 'Change tag for @google/gemini-cli'
-      if: |-
-        ${{ inputs.dry-run == 'false' }}
+      if: "inputs.dry-run == 'false' && inputs.npm-registry == 'public'"
       env:
         NODE_AUTH_TOKEN: '${{ inputs.wombat-token-cli }}'
       shell: 'bash'
       run: |
         npm dist-tag add @google/gemini-cli@${{ inputs.version }} ${{ inputs.channel }}
+
+    - name: 'Change tag for @google-gemini/gemini-cli-core on GitHub'
+      if: "inputs.dry-run == 'false' && inputs.npm-registry == 'github'"
+      env:
+        NODE_AUTH_TOKEN: '${{ inputs.github-token }}'
+      shell: 'bash'
+      run: |
+        npm dist-tag add @google-gemini/gemini-cli-core@${{ inputs.version }} ${{ inputs.channel }}
+
+    - name: 'Change tag for @google-gemini/gemini-cli on GitHub'
+      if: "inputs.dry-run == 'false' && inputs.npm-registry == 'github'"
+      env:
+        NODE_AUTH_TOKEN: '${{ inputs.github-token }}'
+      shell: 'bash'
+      run: |
+        npm dist-tag add @google-gemini/gemini-cli@${{ inputs.version }} ${{ inputs.channel }}
 
     - name: 'Log dry run'
       if: |-

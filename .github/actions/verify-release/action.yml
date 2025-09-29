@@ -14,6 +14,10 @@ inputs:
     required: false
     type: 'string'
     default: 'main'
+  npm-registry:
+    description: 'The npm registry to install from.'
+    required: false
+    default: 'https://registry.npmjs.org'
 
 runs:
   using: 'composite'
@@ -35,7 +39,7 @@ runs:
         timeout_seconds: 900
         retry_wait_seconds: 30
         max_attempts: 10
-        command: 'cd ./verify && pkg="${{ inputs.npm-package }}" && npm install --prefer-online --no-cache -g "$pkg"'
+        command: 'cd ./verify && pkg="${{ inputs.npm-package }}" && npm install --prefer-online --no-cache -g "$pkg" --registry=${{ inputs.npm-registry }}'
 
     # This provides a very basic smoke test for Gemini CLI
     - name: 'Run Gemini CLI'
