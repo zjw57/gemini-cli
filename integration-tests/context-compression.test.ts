@@ -61,33 +61,4 @@ describe('Context Compression', () => {
     ); // Wait for a short time
     expect(foundEvent).toBe(false);
   });
-
-  // it('should handle compression failure on token inflation', async () => {
-  //   // This test is tricky as it relies on model behavior.
-  //   // We use a very short prompt hoping the XML overhead causes inflation.
-  //   vi.setTimeout(30000); // Increase timeout for this test
-  //   await rig.setup('compression failure on token inflation', {
-  //     settings: {
-  //       model: {
-  //         // High threshold to prevent automatic compression
-  //         chatCompression: {
-  //           contextPercentageThreshold: 0.99,
-  //         },
-  //       },
-  //     },
-  //   });
-
-  //   await rig.run('hi');
-  //   const result = await rig.run('/compress');
-
-  //   const foundEvent = await rig.waitForTelemetryEvent('chat_compression');
-  //   expect(foundEvent).toBe(true);
-
-  //   // Check the telemetry log for the specific failure status
-  //   const logFilePath = join(rig.testDir!, 'telemetry.log');
-  //   const logContent = readFileSync(logFilePath, 'utf-8');
-
-  //   // A simple check for the failure message in the output
-  //   expect(result).toContain('Compression was not beneficial');
-  // });
 });
