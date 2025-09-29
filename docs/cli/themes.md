@@ -146,7 +146,7 @@ The theme file must be a valid JSON file that follows the same structure as a cu
 
 - Select your custom theme using the `/theme` command in Gemini CLI. Your custom theme will appear in the theme selection dialog.
 - Or, set it as the default by adding `"theme": "MyCustomTheme"` to the `ui` object in your `settings.json`.
-- Custom themes can be set at the user, project, or system level, and follow the same [configuration precedence](./configuration.md) as other settings.
+- Custom themes can be set at the user, project, or system level, and follow the same [configuration precedence](../get-started/configuration.md) as other settings.
 
 ---
 
