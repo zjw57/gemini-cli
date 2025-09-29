@@ -108,6 +108,7 @@ runs:
       shell: 'bash'
       run: |
         npm run bundle
+        npm run prepare:package
 
     - name: 'Configure npm for public publishing'
       if: "inputs.npm-registry == 'public'"
