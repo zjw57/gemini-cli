@@ -130,6 +130,13 @@ runs:
         sed -i 's/"@google\/gemini-cli"/"@google-gemini\/gemini-cli"/' packages/cli/package.json
         sed -i 's/"@google\/gemini-cli-core": "file:..\/core"/"@google-gemini\/gemini-cli-core": "file:..\/core"/' packages/cli/package.json
 
+    - name: 'Override import paths for GitHub Packages'
+      if: "inputs.registry == 'github'"
+      working-directory: '${{ inputs.working-directory }}'
+      shell: 'bash'
+      run: |
+        find packages/cli -type f -name "*.ts" -o -name "*.tsx" | xargs sed -i 's/@google\/gemini-cli-core/@google-gemini\/gemini-cli-core/g'
+
     - name: '📦 Publish @google/gemini-cli-core'
       working-directory: '${{ inputs.working-directory }}'
       env:
