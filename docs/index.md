@@ -43,12 +43,12 @@ This documentation is organized into the following sections:
 ### Other topics
 - **[Execution and Deployment](./get-started/deployment.md):** Information for running Gemini CLI.
 - **[Architecture Overview](./architecture.md):** Understand the high-level design of Gemini CLI, including its components and how they interact.
-- **[Checkpointing](./checkpointing.md):** Documentation for the checkpointing feature.
-- **[Extensions](./extension.md):** How to extend the CLI with new functionality.
-- **[IDE Integration](./ide-integration.md):** Connect the CLI to your editor.
-- **[IDE Companion Extension Spec](./ide-companion-spec.md):** Spec for building IDE companion extensions.
-- **[Telemetry](./telemetry.md):** Overview of telemetry in the CLI.
-- **[Trusted Folders](./trusted-folders.md):** An overview of the Trusted Folders security feature.
+- **[Checkpointing](./cli/checkpointing.md):** Documentation for the checkpointing feature.
+- **[Extensions](./extensions/index.md):** How to extend the CLI with new functionality.
+- **[IDE Integration](./ide-integration/index.md):** Connect the CLI to your editor.
+- **[IDE Companion Extension Spec](./ide-integration/ide-companion-spec.md):** Spec for building IDE companion extensions.
+- **[Telemetry](./cli/telemetry.md):** Overview of telemetry in the CLI.
+- **[Trusted Folders](./cli/trusted-folders.md):** An overview of the Trusted Folders security feature.
 - **[Contributing & Development Guide](../CONTRIBUTING.md):** Information for contributors and developers, including setup, building, testing, and coding conventions.
 - **[NPM](./npm.md):** Details on how the project's packages are structured
 - **[Troubleshooting Guide](./troubleshooting.md):** Find solutions to common problems and FAQs.
