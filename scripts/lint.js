@@ -169,6 +169,37 @@ export function runPrettier() {
   }
 }
 
+export function runSensitiveKeywordsLint() {
+  console.log('\nRunning sensitive keywords lint...');
+  const baseRef = process.env.GITHUB_BASE_REF || 'main';
+  const command = `
+    git diff --unified=0 "origin/${baseRef}"..HEAD | awk '
+      /^\\+\\+\\+ b\\/(.*)/ {
+        current_file = substr($2, 3)
+      }
+      /^ @@ -[0-9,]+ \\+([0-9,]+) @@/ {
+        line_info = $3
+        split(line_info, parts, ",")
+        current_line = substr(parts[1], 2)
+        current_line--
+      }
+      /^\\+/ {
+        current_line++
+        if (match($0, /gemini-[0-9]/) && \\
+            !($0 ~ /gemini-2\\.5-/) && \\
+            !($0 ~ /gemini-2\\.0-/) && \\
+            !($0 ~ /gemini-1\\.5-/) && \\
+            !($0 ~ /gemini-1\\.0-/) \\
+        ) {
+          keyword = substr($0, RSTART, RLENGTH)
+          print "::warning file=" current_file ",line=" current_line "::Found sensitive keyword: " "\\x27" keyword "\\x27" ". Please double check this code is appropriate to submit."
+        }
+      }
+    '
+  `;
+  runCommand(command);
+}
+
 function main() {
   const args = process.argv.slice(2);
 
@@ -190,6 +221,9 @@ function main() {
   if (args.includes('--prettier')) {
     runPrettier();
   }
+  if (args.includes('--sensitive-keywords')) {
+    runSensitiveKeywordsLint();
+  }
 
   if (args.length === 0) {
     setupLinters();
@@ -198,6 +232,7 @@ function main() {
     runShellcheck();
     runYamllint();
     runPrettier();
+    runSensitiveKeywordsLint();
     console.log('\nAll linting checks passed!');
   }
 }
