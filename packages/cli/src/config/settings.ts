@@ -539,16 +539,6 @@ export function loadEnvironment(settings: Settings): void {
 export function loadSettings(
   workspaceDir: string = process.cwd(),
 ): LoadedSettings {
-  console.log(
-    `[DEBUG] Loading settings. CWD: ${process.cwd()}, effective workspaceDir: ${workspaceDir}`,
-  );
-  const workspaceSettingsPathForDebug = new Storage(
-    workspaceDir,
-  ).getWorkspaceSettingsPath();
-  console.log(`[DEBUG] User settings path: ${USER_SETTINGS_PATH}`);
-  console.log(
-    `[DEBUG] Workspace settings path: ${workspaceSettingsPathForDebug}`,
-  );
   let systemSettings: Settings = {};
   let systemDefaultSettings: Settings = {};
   let userSettings: Settings = {};

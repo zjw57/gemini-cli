@@ -698,10 +698,6 @@ export class GeminiClient {
     const contextPercentageThreshold =
       this.config.getChatCompression()?.contextPercentageThreshold;
 
-    console.log(
-      `[DEBUG] Compression Threshold from config: ${contextPercentageThreshold}`,
-    );
-
     // Don't compress if not forced and we are under the limit.
     if (!force) {
       const threshold =
