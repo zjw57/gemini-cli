@@ -404,8 +404,10 @@ describe('CoreToolScheduler', () => {
 
 describe('CoreToolScheduler with payload', () => {
   it('should update args and diff and execute tool when payload is provided', async () => {
-    const mockTool = new MockModifiableTool();
-    mockTool.executeFn = vi.fn();
+    const executeFn = vi
+      .fn()
+      .mockResolvedValue({ llmContent: '', returnDisplay: '' });
+    const mockTool = new MockModifiableTool({ execute: executeFn });
     const declarativeTool = mockTool;
     const mockToolRegistry = {
       getTool: () => declarativeTool,
@@ -491,9 +493,11 @@ describe('CoreToolScheduler with payload', () => {
     const completedCalls = onAllToolCallsComplete.mock
       .calls[0][0] as ToolCall[];
     expect(completedCalls[0].status).toBe('success');
-    expect(mockTool.executeFn).toHaveBeenCalledWith({
-      newContent: 'final version',
-    });
+    expect(executeFn).toHaveBeenCalledWith(
+      { newContent: 'final version' },
+      expect.anything(),
+      undefined,
+    );
   });
 });
 
