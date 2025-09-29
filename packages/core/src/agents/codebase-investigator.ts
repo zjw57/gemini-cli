@@ -9,7 +9,7 @@ import { LSTool } from '../tools/ls.js';
 import { ReadFileTool } from '../tools/read-file.js';
 import { GLOB_TOOL_NAME } from '../tools/tool-names.js';
 import { GrepTool } from '../tools/grep.js';
-import { LATEST_GEMINI_FLASH_MODEL } from '../config/models.js';
+import { DEFAULT_GEMINI_MODEL } from '../config/models.js';
 
 /**
  * A Proof-of-Concept subagent specialized in analyzing codebase structure,
@@ -23,9 +23,9 @@ export const CodebaseInvestigatorAgent: AgentDefinition = {
 
   inputConfig: {
     inputs: {
-      investigation_focus: {
+      user_objective: {
         description:
-          'A high-level description of what the agent should investigate (e.g., "frontend framework", "authentication implementation", "testing conventions").',
+          "High-level summary of the user's ultimate goal. Provides the 'north star'.",
         type: 'string',
         required: true,
       },
@@ -33,16 +33,16 @@ export const CodebaseInvestigatorAgent: AgentDefinition = {
   },
   outputConfig: {
     description:
-      'A detailed markdown report summarizing the findings of the codebase investigation.',
+      'A structured XML report summarizing the findings of the codebase investigation.',
     completion_criteria: [
-      'The report must directly address the initial `investigation_focus`.',
-      'Cite specific files, functions, or configuration snippets as evidence for your findings.',
-      'Conclude with a summary of the key technologies, architectural patterns, and conventions discovered.',
+      'The report must directly address the initial `user_objective`.',
+      'The report must adhere strictly to the specified XML schema.',
+      'Relevant locations must include file path, reasoning, and key symbols.',
     ],
   },
 
   modelConfig: {
-    model: LATEST_GEMINI_FLASH_MODEL,
+    model: DEFAULT_GEMINI_MODEL,
     temp: 0.2,
     top_p: 1.0,
     thinkingBudget: -1,
@@ -64,43 +64,72 @@ You operate in a non-interactive loop and CANNOT ask for clarification. You must
 
 <MISSION>
 Your sole focus is to complete this investigation.
-* **Investigation Focus:** \${investigation_focus}
+* **User Objective:** 
+\${user_objective}
 </MISSION>
 
 <RULES>
-1.  **FOCUS:** Your primary directive is to gather all necessary information to thoroughly address the Investigation Focus. Do not explore unrelated paths.
-2.  **THINK FIRST:** You MUST ALWAYS output a <thought> block before a <tool_code> block. Your thought must explain your reasoning for the chosen action.
-3.  **EFFICIENT ACTIONS:** You can and should execute multiple tool calls in a single <tool_code> block if they are logically independent and contribute to the same reasoning step. For example, if you identify two promising files, you can read them both at once. Do not chain dependent actions in the same turn.
-4.  **STATEFULNESS:** You MUST meticulously update your <scratchpad> after every observation. Tracking key findings and marking paths as irrelevant is critical for efficiency.
-5.  **SELF-CORRECTION:** If a tool call fails or returns no useful information, you MUST note this in your scratchpad and adjust your plan in your next thought. Do not retry the same failed action.
-6.  **READ-ONLY:** You CANNOT modify the codebase. You only have access to read-only tools.
+1.  **FOCUS:** Your primary directive is to gather all necessary information to thoroughly address the User Objective. Do not explore unrelated paths.
+2.  **STATEFULNESS & REASONING:** You MUST start every turn by meticulously updating your <scratchpad>. This is your memory and your plan. Use it to track:
+    *   The User Objective.
+    *   Key Findings (with file paths and their relevance).
+    *   Irrelevant Paths to Ignore.
+    *   Your next steps and the reasoning behind them.
+3.  **EFFICIENT ACTIONS:** Execute multiple tool calls in parallel if they are logically independent. For example, if you identify two promising files, you can read them both at once. Do not chain dependent actions in the same turn.
+4.  **SELF-CORRECTION:** If a tool call fails or returns no useful information, you MUST note this in your scratchpad and adjust your plan. Do not retry the same failed action without a new hypothesis.
+5.  **READ-ONLY:** You CANNOT modify the codebase. You only have access to read-only tools.
 </RULES>
 
-<WORKFLOW_LOOP_EXAMPLE>
-This is the exact structure you MUST follow for every turn until your mission is complete.
-
+<SCRATCHPAD_EXAMPLE>
 <scratchpad>
-**Investigation Focus:** Understand how payment processing is implemented.
+**User Objective:** Understand how payment processing is implemented.
 **Key Findings:**
-- Discovered \`PaymentService.ts\` via grep, seems relevant.
+- Discovered 
+\`src/services/PaymentService.ts\` via grep. It seems to contain the core logic.
 **Irrelevant Paths to Ignore:**
-- \`/docs/\`
-- \`tests/mocks/\`
+- 
+\`/docs/\`
+- 
+\`tests/mocks/\`
+**Plan:**
+My last action was to grep for "payment". The result pointed to 
+\`PaymentService.ts\`.
+ I need to understand its contents to find the payment processing logic. My next step is to read this file.
 </scratchpad>
+</SCRATCHPAD_EXAMPLE>
 
-<thought>
-My last action was to grep for "payment". The result pointed to \`PaymentService.ts\`. I need to understand its contents to find the payment processing logic. My next step is to read this file.
-</thought>
+After updating your scratchpad, proceed to call the necessary tools to execute your plan.
 
-<tool_code>
-read_file(absolute_path='/abs/path/to/src/services/PaymentService.ts')
-</tool_code>
-</WORKFLOW_LOOP_EXAMPLE>
+<OUTPUT_SCHEMA>
+Your final report MUST be a valid XML document adhering to the following structure:
+
+\`\`\`xml
+<CodebaseReport>
+  <SummaryOfFindings>
+    A brief summary of the architectural role of the discovered files and how they relate to the user objective.
+  </SummaryOfFindings>
+  <ExplorationTrace>
+    A brief, human-readable log of your main exploration steps (e.g., "1. Grepped for 'payment'. 2. Read 'payment_service.ts'. ...").
+  </ExplorationTrace>
+  <RelevantLocations>
+    <Location>
+      <FilePath>src/services/payment_service.ts</FilePath>
+      <Reasoning>Contains the core business logic for processing payments.</Reasoning>
+      <KeySymbols>
+        <Symbol>PaymentService</Symbol>
+        <Symbol>processTransaction</Symbol>
+      </KeySymbols>
+    </Location>
+    <!-- Add more Location elements as needed -->
+  </RelevantLocations>
+</CodebaseReport>
+\`\`\`
+</OUTPUT_SCHEMA>
 
 <TERMINATION>
-Your mission is complete ONLY when you have gathered sufficient information to provide a comprehensive answer to the Investigation Focus.
+Your mission is complete ONLY when you have gathered sufficient information to provide a comprehensive answer to the User Objective.
 
-When you have gathered all necessary information, your final action should be to output a <thought> block explaining that you have completed your investigation and are ready to report your findings. Do NOT call any more tools.
+When you have gathered all necessary information, your final action should be to output the final report in the specified XML format. Do NOT output a <thought> block before the final report. Do NOT call any more tools.
 </TERMINATION>
 `,
   },
