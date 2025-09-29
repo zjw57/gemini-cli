@@ -172,14 +172,13 @@ runs:
 
     - name: '📦 Publish @google-gemini/gemini-cli to GitHub'
       if: "inputs.npm-registry == 'github'"
-      working-directory: '${{ inputs.working-directory }}'
+      working-directory: '${{ inputs.working-directory }}/package'
       env:
         NODE_AUTH_TOKEN: '${{ inputs.github-token }}'
       shell: 'bash'
       run: |
         npm publish \
           --dry-run="${{ inputs.dry-run }}" \
-          --workspace="@google-gemini/gemini-cli" \
           --no-tag
 
     - name: '🔬 Verify NPM release by version'
