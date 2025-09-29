@@ -51,5 +51,5 @@ jobs:
         working-directory: '/app'
         run: |
           poetry run exp_run --experiment-mode=on-demand --branch-or-commit=${{ inputs.branch-or-commit }} --model-name=gemini-2.5-pro --dataset=swebench_verified --concurrency=15
-          poetry run python evaluation_localization solution-dir solution/gcli_temp_exp
+          poetry run python agent_prototypes/scripts/evaluate_localization.py --solution-dir solution/eval
           poetry run python agent_prototypes/scripts/parse_gcli_logs_experiment.py --experiment_dir=experiments/adhoc/gcli_temp_exp --gcs-bucket="${EVAL_GCS_BUCKET}" --gcs-path=gh_action_artifacts
