@@ -91,22 +91,6 @@ runs:
           echo "Dry run enabled. Skipping push."
         fi
 
-    - name: 'Configure npm for publishing'
-      if: "inputs.registry == 'npm'"
-      uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
-      with:
-        node-version-file: '${{ inputs.working-directory }}/.nvmrc'
-        registry-url: 'https://wombat-dressing-room.appspot.com'
-        scope: '@google'
-
-    - name: 'Configure npm for publishing to GitHub Packages'
-      if: "inputs.registry == 'github'"
-      uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
-      with:
-        node-version-file: '${{ inputs.working-directory }}/.nvmrc'
-        registry-url: 'https://npm.pkg.github.com'
-        scope: '@google-gemini'
-
     - name: 'Override .npmrc for GitHub Packages'
       if: "inputs.registry == 'github'"
       working-directory: '${{ inputs.working-directory }}'
@@ -130,6 +114,22 @@ runs:
       run: |
         find packages/cli -type f -name "*.ts" -o -name "*.tsx" | xargs sed -i 's/@google\/gemini-cli-core/@google-gemini\/gemini-cli-core/g'
 
+    - name: 'Configure npm for publishing'
+      if: "inputs.registry == 'npm'"
+      uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
+      with:
+        node-version-file: '${{ inputs.working-directory }}/.nvmrc'
+        registry-url: 'https://wombat-dressing-room.appspot.com'
+        scope: '@google'
+
+    - name: 'Configure npm for publishing to GitHub Packages'
+      if: "inputs.registry == 'github'"
+      uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
+      with:
+        node-version-file: '${{ inputs.working-directory }}/.nvmrc'
+        registry-url: 'https://npm.pkg.github.com'
+        scope: '@google-gemini'
+  
     - name: '🛠️ Build and Prepare Packages'
       working-directory: '${{ inputs.working-directory }}'
       shell: 'bash'
