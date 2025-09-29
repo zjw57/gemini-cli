@@ -277,7 +277,7 @@ To mitigate the risk of potentially harmful operations, you can enforce the use 
 }
 ```
 
-You can also specify a custom, hardened Docker image for the sandbox using the `--sandbox-image` command-line argument or by building a custom `sandbox.Dockerfile` as described in the [Sandboxing documentation](../get-started/configuration.md#sandboxing).
+You can also specify a custom, hardened Docker image for the sandbox using the `--sandbox-image` command-line argument or by building a custom `sandbox.Dockerfile` as described in the [Sandboxing documentation](./sandbox.md).
 
 ## Controlling Network Access via Proxy
 
