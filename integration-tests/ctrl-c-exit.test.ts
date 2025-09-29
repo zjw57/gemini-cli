@@ -19,7 +19,19 @@ describe('Ctrl+C exit', () => {
       output += data;
     });
 
-    // Wait for the app to be ready by looking for the initial prompt indicator
+    // 1. Wait for the auth dialog to appear
+    const authDialogAppeared = await rig.poll(
+      () => output.includes('How would you like to authenticate'),
+      5000,
+      100,
+    );
+    expect(authDialogAppeared, 'Auth dialog did not appear').toBe(true);
+
+    // 2. Press "Enter" to select the default auth option if auth dialog came up
+    if (authDialogAppeared) {
+      ptyProcess.write('\r');
+    }
+
     await rig.poll(() => output.includes('▶'), 5000, 100);
 
     // Send first Ctrl+C
