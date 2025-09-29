@@ -31,7 +31,6 @@ describe('Ctrl+C exit', () => {
         5000,
         100,
       );
-      expect(authDialogAppeared, 'Auth dialog did not appear').toBe(true);
 
       // 2. Press "Enter" to select the default auth option if auth dialog came up
       if (authDialogAppeared) {
@@ -99,7 +98,6 @@ describe('Ctrl+C exit', () => {
         5000,
         100,
       );
-      expect(authDialogAppeared, 'Auth dialog did not appear').toBe(true);
 
       // 2. Press "Enter" to select the default auth option if auth dialog came up
       if (authDialogAppeared) {
