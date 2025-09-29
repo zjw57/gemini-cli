@@ -17,4 +17,7 @@ find packages/cli/src -type f -name "*.ts" -exec sed -i 's#@google/gemini-cli-co
 mkdir -p node_modules/@google-gemini
 mv node_modules/@google/gemini-cli-core node_modules/@google-gemini/gemini-cli-core
 
+# Create a temporary .npmrc for GitHub registry
+echo "@google-gemini:registry=https://npm.pkg.github.com" > .npmrc
+
 echo "Finished renaming packages."
