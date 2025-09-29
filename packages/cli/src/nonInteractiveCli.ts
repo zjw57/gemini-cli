@@ -94,6 +94,13 @@ export async function runNonInteractive(
         query = processedQuery as Part[];
       }
 
+      // TEMPORARY: Force the use of the codebase_investigator for evaluation purposes.
+      if (query) {
+        query.push({
+          text: '\nPlease start this task by first calling the codebase_investigator agent.',
+        });
+      }
+
       let currentMessages: Content[] = [{ role: 'user', parts: query }];
 
       let turnCount = 0;
