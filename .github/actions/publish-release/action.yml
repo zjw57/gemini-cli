@@ -90,6 +90,14 @@ runs:
         npm run build:packages
         npm run prepare:package
 
+    - name: 'Trigger Evaluation'
+      if: "inputs.dry-run == 'false'"
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      shell: 'bash'
+      run: |
+        gh workflow run eval.yml --ref ${{ steps.release_branch.outputs.BRANCH_NAME }} -f branch-or-commit=${{ steps.release_branch.outputs.BRANCH_NAME }}
+
     - name: 'Configure npm for publishing'
       uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
       with:
