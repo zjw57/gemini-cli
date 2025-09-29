@@ -91,13 +91,6 @@ runs:
           echo "Dry run enabled. Skipping push."
         fi
 
-    - name: '🛠️ Build and Prepare Packages'
-      working-directory: '${{ inputs.working-directory }}'
-      shell: 'bash'
-      run: |
-        npm run build:packages
-        npm run prepare:package
-
     - name: 'Configure npm for publishing'
       if: "inputs.registry == 'npm'"
       uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
@@ -136,6 +129,13 @@ runs:
       shell: 'bash'
       run: |
         find packages/cli -type f -name "*.ts" -o -name "*.tsx" | xargs sed -i 's/@google\/gemini-cli-core/@google-gemini\/gemini-cli-core/g'
+
+    - name: '🛠️ Build and Prepare Packages'
+      working-directory: '${{ inputs.working-directory }}'
+      shell: 'bash'
+      run: |
+        npm run build:packages
+        npm run prepare:package
 
     - name: '📦 Publish @google/gemini-cli-core'
       working-directory: '${{ inputs.working-directory }}'
