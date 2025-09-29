@@ -21,10 +21,8 @@ describe('Context Compression', () => {
   it('should automatically compress on long conversation', async () => {
     await rig.setup('automatic compression with low threshold', {
       settings: {
-        model: {
-          chatCompression: {
-            contextPercentageThreshold: 0.0001,
-          },
+        chatCompression: {
+          contextPercentageThreshold: 0.0001,
         },
       },
     });
@@ -44,10 +42,8 @@ describe('Context Compression', () => {
   it('should not automatically compress on short conversation', async () => {
     await rig.setup('no automatic compression on short conversation', {
       settings: {
-        model: {
-          chatCompression: {
-            contextPercentageThreshold: 0.5, // 50% threshold
-          },
+        chatCompression: {
+          contextPercentageThreshold: 0.5, // 50% threshold
         },
       },
     });
