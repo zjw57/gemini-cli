@@ -28,14 +28,7 @@ export const MOCK_TOOL_SHOULD_CONFIRM_EXECUTE = () =>
     onConfirm: async () => {},
   });
 
-export const MODIFIABLE_MOCK_TOOL_SHOULD_CONFIRM_EXECUTE_PARAMS: MockModifiableToolShouldConfirmExecuteParams =
-  {
-    filePath: 'test.txt',
-    currentContent: 'old content',
-    proposedContent: 'new content',
-  };
-
-interface MockToolOptions {
+export interface MockToolOptions {
   name: string;
   displayName?: string;
   description?: string;
@@ -53,15 +46,18 @@ interface MockToolOptions {
   params?: object;
 }
 
-interface MockModifiableToolShouldConfirmExecuteParams {
+export interface MockModifiableToolShouldConfirmExecuteParams {
   filePath: string;
   currentContent: string;
   proposedContent: string;
 }
 
-interface MockModifiableToolOptions extends Partial<MockToolOptions> {
-  shouldConfirmExecuteParams?: MockModifiableToolShouldConfirmExecuteParams;
-  createUpdatedParams?: (
+// disallow shouldConfirmExecute in favor of passing shouldConfirmExecuteParams
+// to populate fields in return of getModifyContext
+interface MockModifiableToolOptions
+  extends Partial<Omit<MockToolOptions, 'shouldConfirmExecute'>> {
+  shouldConfirmExecuteParams: MockModifiableToolShouldConfirmExecuteParams;
+  createUpdatedParamsFn: (
     oldContent: string,
     modifiedProposedContent: string,
     originalParams: Record<string, unknown>,
@@ -167,7 +163,7 @@ export class MockModifiableTool
     originalParams: Record<string, unknown>,
   ) => Record<string, unknown>;
 
-  constructor(options: MockModifiableToolOptions = {}) {
+  constructor(options: MockModifiableToolOptions) {
     super({
       name: 'mockModifiableTool',
       description: 'A mock modifiable tool for testing.',
@@ -177,33 +173,22 @@ export class MockModifiableTool
       },
       ...options,
     });
+    this.shouldConfirmExecuteParams = options.shouldConfirmExecuteParams;
+    this.createUpdatedParamsFn = options.createUpdatedParamsFn;
 
-    this.shouldConfirmExecuteParams =
-      options.shouldConfirmExecuteParams ??
-      MODIFIABLE_MOCK_TOOL_SHOULD_CONFIRM_EXECUTE_PARAMS;
-
-    this.createUpdatedParamsFn =
-      options.createUpdatedParams ??
-      ((_oldContent, modifiedProposedContent, _originalParams) => ({
-        newContent: modifiedProposedContent,
-      }));
-
-    if (!options.shouldConfirmExecute) {
-      this.shouldConfirmExecute = async function (
-        this: MockModifiableTool,
-      ): Promise<ToolCallConfirmationDetails | false> {
-        return {
-          type: 'edit' as const,
-          title: 'Confirm Mock Tool',
-          fileName: this.shouldConfirmExecuteParams.filePath,
-          filePath: this.shouldConfirmExecuteParams.filePath,
-          fileDiff: 'diff',
-          originalContent: this.shouldConfirmExecuteParams.currentContent,
-          newContent: this.shouldConfirmExecuteParams.proposedContent,
-          onConfirm: async () => {},
-        };
-      }.bind(this);
-    }
+    this.shouldConfirmExecute = async (
+      _params: { [key: string]: unknown },
+      _signal: AbortSignal,
+    ): Promise<ToolCallConfirmationDetails | false> => ({
+      type: 'edit' as const,
+      title: 'Confirm Mock Tool',
+      fileName: this.shouldConfirmExecuteParams.filePath,
+      filePath: this.shouldConfirmExecuteParams.filePath,
+      fileDiff: 'diff',
+      originalContent: this.shouldConfirmExecuteParams.currentContent,
+      newContent: this.shouldConfirmExecuteParams.proposedContent,
+      onConfirm: async () => {},
+    });
   }
 
   getModifyContext(
