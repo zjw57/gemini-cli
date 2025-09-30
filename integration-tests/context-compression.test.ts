@@ -33,26 +33,8 @@ describe('Context Compression', () => {
     );
 
     // This second prompt will trigger the compression check.
+    rig.sync();
     await rig.run('Return another long paragragh.');
-
-    // --- START DEBUGGING ---
-    // Let's wait for telemetry to be written so we can inspect it.
-    await rig.waitForTelemetryReady();
-
-    // Read the metric for chat history token count.
-    const tokenCountMetric = rig.readMetric('chat_history_token_count');
-    console.log(
-      'DEBUG: Chat history token count metric:',
-      JSON.stringify(tokenCountMetric, null, 2),
-    );
-
-    // Read the last API request to see what was sent.
-    const lastRequest = rig.readLastApiRequest();
-    console.log(
-      'DEBUG: Last API request:',
-      JSON.stringify(lastRequest, null, 2),
-    );
-    // --- END DEBUGGING ---
 
     const foundEvent = await rig.waitForTelemetryEvent('chat_compression');
     expect(foundEvent).toBe(true);
