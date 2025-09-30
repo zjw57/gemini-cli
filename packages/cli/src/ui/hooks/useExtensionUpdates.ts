@@ -7,7 +7,7 @@
 import type { GeminiCLIExtension } from '@google/gemini-cli-core';
 import { getErrorMessage } from '../../utils/errors.js';
 import { ExtensionUpdateState } from '../state/extensions.js';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { MessageType, type ConfirmationRequest } from '../types.js';
 import {
@@ -24,7 +24,6 @@ export const useExtensionUpdates = (
   const [extensionsUpdateState, setExtensionsUpdateState] = useState(
     new Map<string, ExtensionUpdateState>(),
   );
-  const [isChecking, setIsChecking] = useState(false);
   const [confirmUpdateExtensionRequests, setConfirmUpdateExtensionRequests] =
     useState<
       Array<{
@@ -49,10 +48,34 @@ export const useExtensionUpdates = (
     [setConfirmUpdateExtensionRequests],
   );
 
-  (async () => {
-    if (isChecking) return;
-    setIsChecking(true);
-    try {
+  const latestState = useRef({
+    extensions,
+    addItem,
+    cwd,
+    extensionsUpdateState,
+    addConfirmUpdateExtensionRequest,
+  });
+  latestState.current = {
+    extensions,
+    addItem,
+    cwd,
+    extensionsUpdateState,
+    addConfirmUpdateExtensionRequest,
+  };
+
+  // Intentionally only check for updates once, on mount.
+  // If we care about checking when cwd or extensions change, we will need to
+  // modify this logic and add checks to ensure we don't end up with multiple
+  // concurrent checks.
+  useEffect(() => {
+    const checkForUpdates = async () => {
+      const {
+        extensions,
+        addItem,
+        cwd,
+        extensionsUpdateState,
+        addConfirmUpdateExtensionRequest,
+      } = latestState.current;
       const updateState = await checkForAllExtensionUpdates(
         extensions,
         extensionsUpdateState,
@@ -119,10 +142,10 @@ export const useExtensionUpdates = (
           Date.now(),
         );
       }
-    } finally {
-      setIsChecking(false);
-    }
-  })();
+    };
+
+    void checkForUpdates();
+  }, []);
 
   return {
     extensionsUpdateState,
