@@ -371,7 +371,15 @@ describe('git extension helpers', () => {
     it('should extract a .tar.gz file', () => {
       const archivePath = path.join(tempDir, 'test.tar.gz');
       // Create tar.gz archive
-      spawnSync('tar', ['-czf', archivePath, '-C', sourceDir, '.']);
+      const result = spawnSync('tar', [
+        '-czf',
+        archivePath,
+        '-C',
+        sourceDir,
+        '.',
+      ]);
+      expect(result.status).toBe(0);
+      expect(result.error).toBeUndefined();
 
       extractFile(archivePath, destDir);
 
@@ -390,10 +398,15 @@ describe('git extension helpers', () => {
 
     it('should extract a .zip file', () => {
       const archivePath = path.join(tempDir, 'test.zip');
-      // Create zip archive
-      spawnSync('zip', ['-r', archivePath, '.'], {
-        cwd: sourceDir,
-      });
+      // On windows, use tar to create zip files.
+      const result =
+        os.platform() === 'win32'
+          ? spawnSync('tar', ['-czf', archivePath, '-C', sourceDir, '.'])
+          : spawnSync('zip', ['-r', archivePath, '.'], {
+              cwd: sourceDir,
+            });
+      expect(result.status).toBe(0);
+      expect(result.error).toBeUndefined();
 
       extractFile(archivePath, destDir);
 
