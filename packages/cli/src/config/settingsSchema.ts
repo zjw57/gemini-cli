@@ -276,6 +276,15 @@ const SETTINGS_SCHEMA = {
         description: 'Hide the application banner',
         showInDialog: true,
       },
+      minimal: {
+        type: 'boolean',
+        label: 'Minimal Mode',
+        category: 'UI',
+        requiresRestart: false,
+        default: false,
+        description: 'Hide the banner and tips for a minimal UI.',
+        showInDialog: true,
+      },
       hideContextSummary: {
         type: 'boolean',
         label: 'Hide Context Summary',
