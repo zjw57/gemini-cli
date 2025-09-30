@@ -845,6 +845,8 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
   return (
     <>
       <Box
+        borderLeft={false}
+        borderRight={false}
         borderStyle="round"
         borderColor={
           isShellFocused && !isEmbeddedShellFocused

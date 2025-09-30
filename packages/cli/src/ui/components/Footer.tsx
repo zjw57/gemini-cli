@@ -7,7 +7,7 @@
 import type React from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
-import { shortenPath, tildeifyPath } from '@google/gemini-cli-core';
+import { shortenPath, tildeifyPath , ApprovalMode } from '@google/gemini-cli-core';
 import { ConsoleSummaryDisplay } from './ConsoleSummaryDisplay.js';
 import process from 'node:process';
 import Gradient from 'ink-gradient';
@@ -20,6 +20,8 @@ import { useUIState } from '../contexts/UIStateContext.js';
 import { useConfig } from '../contexts/ConfigContext.js';
 import { useSettings } from '../contexts/SettingsContext.js';
 import { useVimMode } from '../contexts/VimModeContext.js';
+import { AutoAcceptIndicator } from './AutoAcceptIndicator.js';
+import { ShellModeIndicator } from './ShellModeIndicator.js';
 
 export const Footer: React.FC = () => {
   const uiState = useUIState();
@@ -39,6 +41,8 @@ export const Footer: React.FC = () => {
     promptTokenCount,
     nightly,
     isTrustedFolder,
+    showAutoAcceptIndicator,
+    shellModeActive,
   } = {
     model: config.getModel(),
     targetDir: config.getTargetDir(),
@@ -51,13 +55,18 @@ export const Footer: React.FC = () => {
     promptTokenCount: uiState.sessionStats.lastPromptTokenCount,
     nightly: uiState.nightly,
     isTrustedFolder: uiState.isTrustedFolder,
+    showAutoAcceptIndicator: uiState.showAutoAcceptIndicator,
+    shellModeActive: uiState.shellModeActive,
   };
 
   const showMemoryUsage =
     config.getDebugMode() || settings.merged.ui?.showMemoryUsage || false;
-  const hideCWD = settings.merged.ui?.footer?.hideCWD || false;
+  const hideCWD =
+    settings.merged.ui?.footer?.hideCWD || settings.merged.ui?.minimal || false;
   const hideSandboxStatus =
-    settings.merged.ui?.footer?.hideSandboxStatus || false;
+    settings.merged.ui?.footer?.hideSandboxStatus ||
+    settings.merged.ui?.minimal ||
+    false;
   const hideModelInfo = settings.merged.ui?.footer?.hideModelInfo || false;
 
   const { columns: terminalWidth } = useTerminalSize();
@@ -139,39 +148,56 @@ export const Footer: React.FC = () => {
       )}
 
       {/* Right Section: Gemini Label and Console Summary */}
-      {!hideModelInfo && (
-        <Box alignItems="center" justifyContent="flex-end">
-          <Box alignItems="center">
-            <Text color={theme.text.accent}>
-              {model}{' '}
-              <ContextUsageDisplay
-                promptTokenCount={promptTokenCount}
-                model={model}
-                terminalWidth={terminalWidth}
-              />
-            </Text>
-            {showMemoryUsage && <MemoryUsageDisplay />}
+      <Box
+        alignItems="center"
+        justifyContent={
+          settings.merged.ui?.minimal ? 'space-between' : 'flex-end'
+        }
+        flexGrow={1}
+      >
+        {settings.merged.ui?.minimal && (
+          <Box>
+            {showAutoAcceptIndicator !== ApprovalMode.DEFAULT &&
+              !shellModeActive && (
+                <AutoAcceptIndicator approvalMode={showAutoAcceptIndicator} />
+              )}
+            {shellModeActive && <ShellModeIndicator />}
           </Box>
-          <Box alignItems="center" paddingLeft={2}>
-            {corgiMode && (
-              <Text>
-                <Text color={theme.ui.symbol}>| </Text>
-                <Text color={theme.status.error}>▼</Text>
-                <Text color={theme.text.primary}>(´</Text>
-                <Text color={theme.status.error}>ᴥ</Text>
-                <Text color={theme.text.primary}>`)</Text>
-                <Text color={theme.status.error}>▼ </Text>
+        )}
+        {!hideModelInfo && (
+          <Box alignItems="center" justifyContent="flex-end">
+            <Box alignItems="center">
+              <Text color={theme.text.accent}>
+                {model}{' '}
+                <ContextUsageDisplay
+                  promptTokenCount={promptTokenCount}
+                  model={model}
+                  terminalWidth={terminalWidth}
+                />
               </Text>
-            )}
-            {!showErrorDetails && errorCount > 0 && (
-              <Box>
-                <Text color={theme.ui.symbol}>| </Text>
-                <ConsoleSummaryDisplay errorCount={errorCount} />
-              </Box>
-            )}
+              {showMemoryUsage && <MemoryUsageDisplay />}
+            </Box>
+            <Box alignItems="center" paddingLeft={2}>
+              {corgiMode && (
+                <Text>
+                  <Text color={theme.ui.symbol}>| </Text>
+                  <Text color={theme.status.error}>▼</Text>
+                  <Text color={theme.text.primary}>(´</Text>
+                  <Text color={theme.status.error}>ᴥ</Text>
+                  <Text color={theme.text.primary}>`)</Text>
+                  <Text color={theme.status.error}>▼ </Text>
+                </Text>
+              )}
+              {!showErrorDetails && errorCount > 0 && (
+                <Box>
+                  <Text color={theme.ui.symbol}>| </Text>
+                  <ConsoleSummaryDisplay errorCount={errorCount} />
+                </Box>
+              )}
+            </Box>
           </Box>
-        </Box>
-      )}
+        )}
+      </Box>
     </Box>
   );
 };

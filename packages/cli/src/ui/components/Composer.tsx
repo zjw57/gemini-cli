@@ -109,11 +109,14 @@ export const Composer = () => {
           )}
         </Box>
         <Box paddingTop={isNarrow ? 1 : 0}>
-          {showAutoAcceptIndicator !== ApprovalMode.DEFAULT &&
+          {!settings.merged.ui?.minimal &&
+            showAutoAcceptIndicator !== ApprovalMode.DEFAULT &&
             !uiState.shellModeActive && (
               <AutoAcceptIndicator approvalMode={showAutoAcceptIndicator} />
             )}
-          {uiState.shellModeActive && <ShellModeIndicator />}
+          {!settings.merged.ui?.minimal && uiState.shellModeActive && (
+            <ShellModeIndicator />
+          )}
         </Box>
       </Box>
 
