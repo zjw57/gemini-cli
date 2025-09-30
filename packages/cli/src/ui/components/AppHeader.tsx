@@ -39,7 +39,7 @@ export const AppHeader = ({
 
   if (settings.merged.ui?.minimal) {
     return (
-      <Box flexDirection="column">
+      <Box flexDirection="column" marginBottom={1}>
         <Box flexDirection="column">
           <Text>
             <Text bold color={theme.text.accent}>

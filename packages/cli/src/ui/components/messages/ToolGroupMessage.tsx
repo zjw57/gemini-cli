@@ -91,7 +91,11 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
   return (
     <Box
       flexDirection="column"
-      borderStyle="round"
+      borderTop={true}
+      borderBottom={true}
+      borderLeft={minimal ? false : true}
+      borderRight={minimal ? false : true}
+      borderStyle={'round'}
       /*
         This width constraint is highly important and protects us from an Ink rendering bug.
         Since the ToolGroup can typically change rendering states frequently, it can cause
@@ -128,8 +132,7 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
                 minimal={minimal}
               />
             </Box>
-            {!minimal &&
-              tool.status === ToolCallStatus.Confirming &&
+            {tool.status === ToolCallStatus.Confirming &&
               isConfirming &&
               tool.confirmationDetails && (
                 <ToolConfirmationMessage
@@ -142,8 +145,8 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
                   terminalWidth={innerWidth}
                 />
               )}
-            {!minimal && tool.outputFile && (
-              <Box marginX={1}>
+            {tool.outputFile && (
+              <Box marginX={minimal ? 0 : 1}>
                 <Text color={theme.text.primary}>
                   Output too long and was saved to: {tool.outputFile}
                 </Text>
