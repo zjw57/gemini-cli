@@ -40,6 +40,7 @@ export interface ToolMessageProps extends IndividualToolCallDisplay {
   activeShellPtyId?: number | null;
   embeddedShellFocused?: boolean;
   config?: Config;
+  minimal?: boolean;
 }
 
 export const ToolMessage: React.FC<ToolMessageProps> = ({
@@ -55,6 +56,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
   embeddedShellFocused,
   ptyId,
   config,
+  minimal,
 }) => {
   const isThisShellFocused =
     (name === SHELL_COMMAND_NAME || name === 'Shell') &&
@@ -98,6 +100,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
           status={status}
           description={description}
           emphasis={emphasis}
+          minimal={minimal}
         />
         {isThisShellFocusable && (
           <Box marginLeft={1} flexShrink={0}>
@@ -108,7 +111,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
         )}
         {emphasis === 'high' && <TrailingIndicator />}
       </Box>
-      {resultDisplay && (
+      {!minimal && resultDisplay && (
         <Box paddingLeft={STATUS_INDICATOR_WIDTH} width="100%" marginTop={1}>
           <Box flexDirection="column">
             {typeof resultDisplay === 'string' && renderOutputAsMarkdown ? (
@@ -145,7 +148,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
           </Box>
         </Box>
       )}
-      {isThisShellFocused && config && (
+      {!minimal && isThisShellFocused && config && (
         <Box paddingLeft={STATUS_INDICATOR_WIDTH} marginTop={1}>
           <ShellInputPrompt
             activeShellPtyId={activeShellPtyId ?? null}
@@ -209,12 +212,14 @@ type ToolInfo = {
   description: string;
   status: ToolCallStatus;
   emphasis: TextEmphasis;
+  minimal?: boolean;
 };
 const ToolInfo: React.FC<ToolInfo> = ({
   name,
   description,
   status,
   emphasis,
+  minimal,
 }) => {
   const nameColor = React.useMemo<string>(() => {
     switch (emphasis) {
@@ -239,7 +244,7 @@ const ToolInfo: React.FC<ToolInfo> = ({
         <Text color={nameColor} bold>
           {name}
         </Text>{' '}
-        <Text color={theme.text.secondary}>{description}</Text>
+        {!minimal && <Text color={theme.text.secondary}>{description}</Text>}
       </Text>
     </Box>
   );

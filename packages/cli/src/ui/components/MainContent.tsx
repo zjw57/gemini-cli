@@ -11,6 +11,7 @@ import { OverflowProvider } from '../contexts/OverflowContext.js';
 import { useUIState } from '../contexts/UIStateContext.js';
 import { useAppContext } from '../contexts/AppContext.js';
 import { useConfig } from '../contexts/ConfigContext.js';
+import { useSettings } from '../contexts/SettingsContext.js';
 import { AppHeader } from './AppHeader.js';
 
 // Limit Gemini messages to a very high number of lines to mitigate performance
@@ -33,6 +34,7 @@ export const MainContent = () => {
     showToolDescriptions,
   } = uiState;
   const config = useConfig();
+  const settings = useSettings();
 
   return (
     <>
@@ -58,6 +60,7 @@ export const MainContent = () => {
               item={h}
               isPending={false}
               commands={uiState.slashCommands}
+              minimal={settings.merged.ui?.minimal}
             />
           )),
         ]}
@@ -78,6 +81,7 @@ export const MainContent = () => {
               isFocused={!uiState.isEditorDialogOpen}
               activeShellPtyId={uiState.activePtyId}
               embeddedShellFocused={uiState.embeddedShellFocused}
+              minimal={settings.merged.ui?.minimal}
             />
           ))}
           <ShowMoreLines constrainHeight={uiState.constrainHeight} />

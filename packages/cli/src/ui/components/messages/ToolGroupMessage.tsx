@@ -24,6 +24,7 @@ interface ToolGroupMessageProps {
   activeShellPtyId?: number | null;
   embeddedShellFocused?: boolean;
   onShellInputSubmit?: (input: string) => void;
+  minimal?: boolean;
 }
 
 // Main component renders the border and maps the tools using ToolMessage
@@ -34,6 +35,7 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
   isFocused = true,
   activeShellPtyId,
   embeddedShellFocused,
+  minimal,
 }) => {
   const isEmbeddedShellFocused =
     embeddedShellFocused &&
@@ -123,9 +125,11 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
                 activeShellPtyId={activeShellPtyId}
                 embeddedShellFocused={embeddedShellFocused}
                 config={config}
+                minimal={minimal}
               />
             </Box>
-            {tool.status === ToolCallStatus.Confirming &&
+            {!minimal &&
+              tool.status === ToolCallStatus.Confirming &&
               isConfirming &&
               tool.confirmationDetails && (
                 <ToolConfirmationMessage
@@ -138,7 +142,7 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
                   terminalWidth={innerWidth}
                 />
               )}
-            {tool.outputFile && (
+            {!minimal && tool.outputFile && (
               <Box marginX={1}>
                 <Text color={theme.text.primary}>
                   Output too long and was saved to: {tool.outputFile}
