@@ -74,6 +74,8 @@ export interface PromptConfig {
    * An array of user/model content pairs for few-shot prompting.
    */
   initialMessages?: Content[];
+
+  firstMessage?: string;
 }
 
 /**

@@ -20,26 +20,75 @@ export const CodebaseInvestigatorAgent: AgentDefinition = {
   name: 'codebase_investigator',
   displayName: 'Codebase Investigator Agent',
   description:
-    'Invoke this agent as a prerequisite for any coding task like a bug fix, feature implementation, or refactoring. Its purpose is to perform a deep analysis of the relevant codebase sections to provide the necessary context, identify all relevant files, and map out potential impacts of a change. The report from this agent is the foundation for planning and executing the actual code modification.',
+    'Invoke this agent to delegates complex codebase exploration to an autonomous subagent. Use for vague user requests that require searching multiple files to understand a feature or find context. Returns a structured xml report with key file paths, symbols, architectural map and insights to solve a task.',
   inputConfig: {
     inputs: {
-      investigation_focus: {
-        description: `A comprehensive brief for the investigation. It must include the following three elements:
-Investigation Goal: The high-level task and its context (e.g., "Fix a bug where users cannot reset their password," "Implement a new feature for 2FA," "Refactor the data import logic for performance").
-Starting Points & Clues: Any known information to begin the search. This could be an error message, a stack trace, relevant file or function names, or a user story.
-Specific Questions to Answer: A list of precise questions that the final report needs to address to be considered complete (e.g., "Which files are involved in the password reset flow?", "Where is the current user session data stored?", "What downstream services are called by the process_data function?").`,
+      user_objective: {
+        description: `A comprehensive and detailed description of the user's ultimate goal. You must include original user's objective as well as questions and any extra context you have.`,
         type: 'string',
         required: true,
       },
     },
   },
   outputConfig: {
-    description:
-      'A detailed markdown report summarizing the findings of the codebase investigation and insights that are the foundation for planning and executing any code modification related to the investigation_focus.',
+    description: `A detailed markdown report summarizing the findings of the codebase investigation and insights that are the foundation for planning and executing any code modification related to the user_objective.
+      # Report Format
+The final report should be structured markdown, clearly answering the investigation focus, citing the files, symbols, architectural patterns and how they relate to the given investigation focus.
+
+The report should strictly follow a format like this example: 
+
+<CodebaseReport>
+  <SummaryOfFindings>
+    The user's objective is to remove an optional \`config\` property from the command context. The investigation identified that the \`CommandContext\` interface, defined in \`packages/cli/src/ui/commands/types.ts\`, contains a nullable \`config: Config | null\` property. A \`TODO\` comment confirms the intent to make this property non-nullable.
+
+    The primary challenge is that numerous tests throughout the codebase rely on this property being optional, often setting it to \`null\` during the creation of mock \`CommandContext\` objects. The key to resolving this is to update the mock creation utility, \`createMockCommandContext\`, to provide a default mock \`Config\` object instead of \`null\`.
+
+    The \`Config\` class, defined in \`packages/core/src/config/config.ts\`, is the type of the \`config\` property. To facilitate the required changes, a mock \`Config\` object can be created based on the \`ConfigParameters\` interface from the same file.
+
+    The plan involves three main steps:
+    1.  Update the \`CommandContext\` interface to make the \`config\` property non-nullable.
+    2.  Modify \`createMockCommandContext\` to use a default mock \`Config\` object.
+    3.  Update all test files that currently rely on a null \`config\` to use the updated mock creation utility.
+  </SummaryOfFindings>
+  <ExplorationTrace>
+    1.  Searched for "CommandContext" to locate its definition.
+    2.  Read \`packages/cli/src/ui/commands/types.ts\` and identified the \`config: Config | null\` property.
+    3.  Searched for \`config: null\` to find all instances where the config is explicitly set to null.
+    4.  Read \`packages/cli/src/test-utils/mockCommandContext.ts\` to understand how mock contexts are created.
+    5.  Searched for \`createMockCommandContext\` to find all its usages.
+    6.  Searched for the definition of the \`Config\` interface to understand how to create a mock object.
+    7.  Read \`packages/core/src/config/config.ts\` to understand the \`Config\` class and \`ConfigParameters\` interface.
+  </ExplorationTrace>
+  <RelevantLocations>
+    <Location>
+      <FilePath>packages/cli/src/ui/commands/types.ts</FilePath>
+      <Reasoning>This file contains the definition of the \`CommandContext\` interface, which is the central piece of this investigation. The property \`config: Config | null\` needs to be changed to \`config: Config\` here.</Reasoning>
+      <KeySymbols>
+        <Symbol>CommandContext</Symbol>
+      </KeySymbols>
+    </Location>
+    <Location>
+      <FilePath>packages/cli/src/test-utils/mockCommandContext.ts</FilePath>
+      <Reasoning>This file contains the \`createMockCommandContext\` function, which is used in many tests to create mock \`CommandContext\` objects. This function needs to be updated to provide a default mock \`Config\` object instead of \`null\`.</Reasoning>
+      <KeySymbols>
+        <Symbol>createMockCommandContext</Symbol>
+      </KeySymbols>
+    </Location>
+    <Location>
+      <FilePath>packages/core/src/config/config.ts</FilePath>
+      <Reasoning>This file defines the \`Config\` class and the \`ConfigParameters\` interface. This information is needed to create a proper mock \`Config\` object to be used in the updated \`createMockCommandContext\` function.</Reasoning>
+      <KeySymbols>
+        <Symbol>Config</Symbol>
+        <Symbol>ConfigParameters</Symbol>
+      </KeySymbols>
+    </Location>
+  </RelevantLocations>
+</CodebaseReport>
+      `,
     completion_criteria: [
-      'The report must directly address the initial `investigation_focus`.',
+      'The report must directly address the initial `user_objective`.',
       'Cite specific files, functions, or configuration snippets and symbols as evidence for your findings.',
-      'Conclude with a summary of the key files, symbols, technologies, architectural patterns, and conventions discovered.',
+      'Conclude with a xml markdown summary of the key files, symbols, technologies, architectural patterns, and conventions discovered.',
     ],
   },
 
@@ -67,6 +116,10 @@ Specific Questions to Answer: A list of precise questions that the final report 
   },
 
   promptConfig: {
+    firstMessage: `Your task is to do a deep investigation of the codebase to find all relevant files, code locations, architectural mental map and insights to solve  for the following user objective:
+<USER_OBJECTIVE>
+\${user_objective}
+</USER_OBJECTIVE>`,
     systemPrompt: `You are **Codebase Investigator**, a hyper-specialized AI agent and an expert in reverse-engineering complex software projects. You are a sub-agent within a larger development system.
 
 Your **SOLE PURPOSE** is to build a complete mental model of the code relevant to a given investigation. You must identify all relevant files, understand their roles, and foresee the direct architectural consequences of potential changes.
@@ -129,8 +182,55 @@ Your mission is complete **ONLY** when your \`Questions to Resolve\` list is emp
 # Report Format
 The final report should be structured markdown, clearly answering the investigation focus, citing the files, symbols, architectural patterns and how they relate to the given investigation focus.
 
-Your current focus for this investigation is: \${investigation_focus}
+The report should strictly follow a format like this example: 
 
+<CodebaseReport>
+  <SummaryOfFindings>
+    The user's objective is to remove an optional \`config\` property from the command context. The investigation identified that the \`CommandContext\` interface, defined in \`packages/cli/src/ui/commands/types.ts\`, contains a nullable \`config: Config | null\` property. A \`TODO\` comment confirms the intent to make this property non-nullable.
+
+    The primary challenge is that numerous tests throughout the codebase rely on this property being optional, often setting it to \`null\` during the creation of mock \`CommandContext\` objects. The key to resolving this is to update the mock creation utility, \`createMockCommandContext\`, to provide a default mock \`Config\` object instead of \`null\`.
+
+    The \`Config\` class, defined in \`packages/core/src/config/config.ts\`, is the type of the \`config\` property. To facilitate the required changes, a mock \`Config\` object can be created based on the \`ConfigParameters\` interface from the same file.
+
+    The plan involves three main steps:
+    1.  Update the \`CommandContext\` interface to make the \`config\` property non-nullable.
+    2.  Modify \`createMockCommandContext\` to use a default mock \`Config\` object.
+    3.  Update all test files that currently rely on a null \`config\` to use the updated mock creation utility.
+  </SummaryOfFindings>
+  <ExplorationTrace>
+    1.  Searched for "CommandContext" to locate its definition.
+    2.  Read \`packages/cli/src/ui/commands/types.ts\` and identified the \`config: Config | null\` property.
+    3.  Searched for \`config: null\` to find all instances where the config is explicitly set to null.
+    4.  Read \`packages/cli/src/test-utils/mockCommandContext.ts\` to understand how mock contexts are created.
+    5.  Searched for \`createMockCommandContext\` to find all its usages.
+    6.  Searched for the definition of the \`Config\` interface to understand how to create a mock object.
+    7.  Read \`packages/core/src/config/config.ts\` to understand the \`Config\` class and \`ConfigParameters\` interface.
+  </ExplorationTrace>
+  <RelevantLocations>
+    <Location>
+      <FilePath>packages/cli/src/ui/commands/types.ts</FilePath>
+      <Reasoning>This file contains the definition of the \`CommandContext\` interface, which is the central piece of this investigation. The property \`config: Config | null\` needs to be changed to \`config: Config\` here.</Reasoning>
+      <KeySymbols>
+        <Symbol>CommandContext</Symbol>
+      </KeySymbols>
+    </Location>
+    <Location>
+      <FilePath>packages/cli/src/test-utils/mockCommandContext.ts</FilePath>
+      <Reasoning>This file contains the \`createMockCommandContext\` function, which is used in many tests to create mock \`CommandContext\` objects. This function needs to be updated to provide a default mock \`Config\` object instead of \`null\`.</Reasoning>
+      <KeySymbols>
+        <Symbol>createMockCommandContext</Symbol>
+      </KeySymbols>
+    </Location>
+    <Location>
+      <FilePath>packages/core/src/config/config.ts</FilePath>
+      <Reasoning>This file defines the \`Config\` class and the \`ConfigParameters\` interface. This information is needed to create a proper mock \`Config\` object to be used in the updated \`createMockCommandContext\` function.</Reasoning>
+      <KeySymbols>
+        <Symbol>Config</Symbol>
+        <Symbol>ConfigParameters</Symbol>
+      </KeySymbols>
+    </Location>
+  </RelevantLocations>
+</CodebaseReport>
 `,
   },
 };

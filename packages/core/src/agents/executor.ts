@@ -149,8 +149,12 @@ export class AgentExecutor {
 
       // Phase 1: Work Phase
       // The agent works in a loop until it stops calling tools.
+      const promptConfig = this.definition.promptConfig;
+      const firstMessage = promptConfig.firstMessage
+        ? templateString(promptConfig.firstMessage, inputs)
+        : 'Get Started!';
       let currentMessages: Content[] = [
-        { role: 'user', parts: [{ text: 'Get Started!' }] },
+        { role: 'user', parts: [{ text: firstMessage }] },
       ];
 
       while (true) {
