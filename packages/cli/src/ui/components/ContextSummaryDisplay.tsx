@@ -18,6 +18,7 @@ interface ContextSummaryDisplayProps {
   blockedMcpServers?: Array<{ name: string; extensionName: string }>;
   showToolDescriptions?: boolean;
   ideContext?: IdeContext;
+  minimal?: boolean;
 }
 
 export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
@@ -27,6 +28,7 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
   blockedMcpServers,
   showToolDescriptions,
   ideContext,
+  minimal,
 }) => {
   const { columns: terminalWidth } = useTerminalSize();
   const isNarrow = isNarrowWidth(terminalWidth);
@@ -47,9 +49,9 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     if (openFileCount === 0) {
       return '';
     }
-    return `${openFileCount} open file${
-      openFileCount > 1 ? 's' : ''
-    } (ctrl+g to view)`;
+    return `${openFileCount} open file${openFileCount > 1 ? 's' : ''}${
+      minimal ? '' : ' (ctrl+g to view)'
+    }`;
   })();
 
   const geminiMdText = (() => {
@@ -84,7 +86,7 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     }
     let text = parts.join(', ');
     // Add ctrl+t hint when MCP servers are available
-    if (mcpServers && Object.keys(mcpServers).length > 0) {
+    if (mcpServers && Object.keys(mcpServers).length > 0 && !minimal) {
       if (showToolDescriptions) {
         text += ' (ctrl+t to toggle)';
       } else {
@@ -96,7 +98,7 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
 
   const summaryParts = [openFilesText, geminiMdText, mcpText].filter(Boolean);
 
-  if (isNarrow) {
+  if (isNarrow && !minimal) {
     return (
       <Box flexDirection="column">
         <Text color={theme.text.secondary}>Using:</Text>
@@ -105,6 +107,16 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
             {'  '}- {part}
           </Text>
         ))}
+      </Box>
+    );
+  }
+
+  if (minimal) {
+    return (
+      <Box>
+        <Text color={theme.text.secondary}>
+          <Text bold>Context:</Text> {summaryParts.join(', ')}
+        </Text>
       </Box>
     );
   }

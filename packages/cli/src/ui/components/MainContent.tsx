@@ -10,6 +10,7 @@ import { ShowMoreLines } from './ShowMoreLines.js';
 import { OverflowProvider } from '../contexts/OverflowContext.js';
 import { useUIState } from '../contexts/UIStateContext.js';
 import { useAppContext } from '../contexts/AppContext.js';
+import { useConfig } from '../contexts/ConfigContext.js';
 import { AppHeader } from './AppHeader.js';
 
 // Limit Gemini messages to a very high number of lines to mitigate performance
@@ -26,14 +27,28 @@ export const MainContent = () => {
     mainAreaWidth,
     staticAreaMaxItemHeight,
     availableTerminalHeight,
+    ideContextState,
+    geminiMdFileCount,
+    contextFileNames,
+    showToolDescriptions,
   } = uiState;
+  const config = useConfig();
 
   return (
     <>
       <Static
         key={uiState.historyRemountKey}
         items={[
-          <AppHeader key="app-header" version={version} />,
+          <AppHeader
+            key="app-header"
+            version={version}
+            ideContextState={ideContextState}
+            geminiMdFileCount={geminiMdFileCount}
+            contextFileNames={contextFileNames}
+            mcpServers={config.getMcpServers()}
+            blockedMcpServers={config.getBlockedMcpServers()}
+            showToolDescriptions={showToolDescriptions}
+          />,
           ...uiState.history.map((h) => (
             <HistoryItemDisplay
               terminalWidth={mainAreaWidth}

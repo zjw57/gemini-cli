@@ -95,7 +95,8 @@ export const Composer = () => {
           ) : uiState.showEscapePrompt ? (
             <Text color={theme.text.secondary}>Press Esc again to clear.</Text>
           ) : (
-            !settings.merged.ui?.hideContextSummary && (
+            !settings.merged.ui?.hideContextSummary &&
+            !settings.merged.ui?.minimal && (
               <ContextSummaryDisplay
                 ideContext={uiState.ideContextState}
                 geminiMdFileCount={uiState.geminiMdFileCount}
