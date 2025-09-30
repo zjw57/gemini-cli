@@ -32,13 +32,9 @@ export const CodebaseInvestigatorAgent: AgentDefinition = {
     },
   },
   outputConfig: {
+    outputName: 'report',
     description:
       'A structured XML report summarizing the findings of the codebase investigation.',
-    completion_criteria: [
-      'The report must directly address the initial `user_objective`.',
-      'The report must adhere strictly to the specified XML schema.',
-      'Relevant locations must include file path, reasoning, and key symbols.',
-    ],
   },
 
   modelConfig: {
@@ -126,11 +122,11 @@ Your final report MUST be a valid XML document adhering to the following structu
 \`\`\`
 </OUTPUT_SCHEMA>
 
-<TERMINATION>
-Your mission is complete ONLY when you have gathered sufficient information to provide a comprehensive answer to the User Objective.
-
-When you have gathered all necessary information, your final action should be to output the final report in the specified XML format. Do NOT output a <thought> block before the final report. Do NOT call any more tools.
-</TERMINATION>
+<COMPLETION_CRITERIA>
+* The report must directly address the initial User Objective.
+* The report must adhere strictly to the specified XML schema.
+* Relevant locations must include file path, reasoning, and key symbols.
+</COMPLETION_CRITERIA>
 `,
   },
 };
