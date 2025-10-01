@@ -58,11 +58,11 @@ const cliConfig = {
 
 const a2aServerConfig = {
   ...baseConfig,
+  entryPoints: ['packages/a2a-server/src/http/server.ts'],
+  outfile: 'bundle/a2a-server.mjs',
   define: {
     'process.env.CLI_VERSION': JSON.stringify(pkg.version),
   },
-  entryPoints: ['packages/a2a-server/src/http/server.ts'],
-  outfile: 'bundle/a2a-server.mjs',
 };
 
 Promise.allSettled([
