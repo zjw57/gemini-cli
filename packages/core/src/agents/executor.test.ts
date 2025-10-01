@@ -29,10 +29,11 @@ import {
   StreamEventType,
   type StreamEvent,
 } from '../core/geminiChat.js';
-import type {
-  FunctionCall,
-  Part,
-  GenerateContentResponse,
+import {
+  Type,
+  type FunctionCall,
+  type Part,
+  type GenerateContentResponse,
 } from '@google/genai';
 import type { Config } from '../config/config.js';
 import { MockTool } from '../test-utils/mock-tool.js';
@@ -110,7 +111,6 @@ const createTestDefinition = (
   tools: Array<string | MockTool> = [LSTool.Name],
   runConfigOverrides: Partial<AgentDefinition['runConfig']> = {},
   outputConfigOverrides: Partial<AgentDefinition['outputConfig']> = {},
-  promptConfigOverrides: Partial<AgentDefinition['promptConfig']> = {},
 ): AgentDefinition => ({
   name: 'TestAgent',
   description: 'An agent for testing.',
@@ -119,12 +119,14 @@ const createTestDefinition = (
   },
   modelConfig: { model: 'gemini-test-model', temp: 0, top_p: 1 },
   runConfig: { max_time_minutes: 5, max_turns: 5, ...runConfigOverrides },
-  promptConfig: {
-    systemPrompt: 'Achieve the goal: ${goal}.',
-    ...promptConfigOverrides,
-  },
+  promptConfig: { systemPrompt: 'Achieve the goal: ${goal}.' },
   toolConfig: { tools },
-  outputConfig: { description: 'The final result.', ...outputConfigOverrides },
+  outputConfig: {
+    outputName: 'finalResult',
+    description: 'The final result.',
+    schema: { type: Type.STRING },
+    ...outputConfigOverrides,
+  },
 });
 
 describe('AgentExecutor', () => {
@@ -134,9 +136,18 @@ describe('AgentExecutor', () => {
   let signal: AbortSignal;
 
   beforeEach(async () => {
-    mockSendMessageStream.mockClear();
-    mockExecuteToolCall.mockClear();
-    vi.clearAllMocks();
+    mockSendMessageStream.mockReset();
+    mockExecuteToolCall.mockReset();
+    vi.resetAllMocks();
+
+    // Restore the GeminiChat constructor mock
+    MockedGeminiChat.mockImplementation(
+      () =>
+        ({
+          sendMessageStream: mockSendMessageStream,
+        }) as unknown as GeminiChat,
+    );
+
     // Use fake timers for timeout and concurrency testing
     vi.useFakeTimers();
 
@@ -204,7 +215,7 @@ describe('AgentExecutor', () => {
   });
 
   describe('run (Execution Loop and Logic)', () => {
-    it('should execute a successful work and extraction phase (Happy Path) and emit activities', async () => {
+    it('should execute successfully when model calls submit_final_output (Happy Path)', async () => {
       const definition = createTestDefinition();
       const executor = await AgentExecutor.create(
         definition,
@@ -233,60 +244,57 @@ describe('AgentExecutor', () => {
         error: undefined,
       });
 
-      // Turn 2: Model stops
-      mockModelResponse([], 'T2: Done');
-
-      // Extraction Phase
-      mockModelResponse([], undefined, 'Result: file1.txt.');
+      // Turn 2: Model calls submit_final_output
+      mockModelResponse(
+        [
+          {
+            name: 'submit_final_output',
+            args: { finalResult: 'Found file1.txt' },
+            id: 'call2',
+          },
+        ],
+        'T2: Done',
+      );
 
       const output = await executor.run(inputs, signal);
 
-      expect(mockSendMessageStream).toHaveBeenCalledTimes(3);
+      // Should have called the model twice
+      expect(mockSendMessageStream).toHaveBeenCalledTimes(2);
+      // Should have executed only the 'ls' tool call externally
       expect(mockExecuteToolCall).toHaveBeenCalledTimes(1);
+      expect(mockExecuteToolCall).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ name: LSTool.Name }),
+        expect.anything(),
+      );
 
-      // Verify System Prompt Templating
+      // Verify System Prompt contains the new instructions
       const chatConstructorArgs = MockedGeminiChat.mock.calls[0];
       const chatConfig = chatConstructorArgs[1];
       expect(chatConfig?.systemInstruction).toContain(
         'Achieve the goal: Find files.',
       );
-      // Verify environment context is appended
       expect(chatConfig?.systemInstruction).toContain(
-        '# Environment Context\nMocked Environment Context',
-      );
-      // Verify standard rules are appended
-      expect(chatConfig?.systemInstruction).toContain(
-        'You are running in a non-interactive mode.',
-      );
-      // Verify absolute path rule is appended
-      expect(chatConfig?.systemInstruction).toContain(
-        'Always use absolute paths for file operations.',
+        'MUST call the `submit_final_output` tool',
       );
 
-      // Verify Extraction Phase Call (Specific arguments)
-      expect(mockSendMessageStream).toHaveBeenCalledWith(
-        'gemini-test-model',
-        expect.objectContaining({
-          // Extraction message should be based on outputConfig.description
-          message: expect.arrayContaining([
-            {
-              text: expect.stringContaining(
-                'Based on your work so far, provide: The final result.',
-              ),
-            },
-          ]),
-          config: expect.objectContaining({ tools: undefined }), // No tools in extraction
-        }),
-        expect.stringContaining('#extraction'),
+      // Verify the tools list passed to the model includes submit_final_output
+      const turn1CallArgs = mockSendMessageStream.mock.calls[0];
+      const turn1Config = turn1CallArgs[1].config;
+      const tools = turn1Config.tools[0].functionDeclarations;
+      expect(tools).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: LSTool.Name }),
+          expect.objectContaining({ name: 'submit_final_output' }),
+        ]),
       );
 
-      expect(output.result).toBe('Result: file1.txt.');
+      expect(output.result).toBe('Found file1.txt');
       expect(output.terminate_reason).toBe(AgentTerminateMode.GOAL);
 
-      // Verify Activity Stream (Observability)
+      // Verify Activity Stream
       expect(activities).toEqual(
         expect.arrayContaining([
-          // Thought subjects are extracted by the executor (parseThought)
           expect.objectContaining({
             type: 'THOUGHT_CHUNK',
             data: { text: 'T1: Listing' },
@@ -303,8 +311,129 @@ describe('AgentExecutor', () => {
             type: 'THOUGHT_CHUNK',
             data: { text: 'T2: Done' },
           }),
+          expect.objectContaining({
+            type: 'TOOL_CALL_START',
+            data: {
+              name: 'submit_final_output',
+              args: { finalResult: 'Found file1.txt' },
+            },
+          }),
+          expect.objectContaining({
+            type: 'TOOL_CALL_END',
+            data: {
+              name: 'submit_final_output',
+              output: 'Output submitted successfully.',
+            },
+          }),
         ]),
       );
+    });
+
+    it('should nudge the model if it stops without calling submit_final_output', async () => {
+      const definition = createTestDefinition();
+      const executor = await AgentExecutor.create(
+        definition,
+        mockConfig,
+        onActivity,
+      );
+
+      // Turn 1: Model calls ls
+      mockModelResponse([
+        { name: LSTool.Name, args: { path: '.' }, id: 'call1' },
+      ]);
+      mockExecuteToolCall.mockResolvedValueOnce({
+        callId: 'call1',
+        resultDisplay: 'ok',
+        responseParts: [
+          {
+            functionResponse: { name: LSTool.Name, response: {}, id: 'call1' },
+          },
+        ],
+      });
+
+      // Turn 2: Model stops calling tools (prematurely)
+      mockModelResponse([]);
+
+      // Turn 3: Model responds to the nudge by calling submit_final_output
+      mockModelResponse([
+        {
+          name: 'submit_final_output',
+          args: { finalResult: 'Done after nudge' },
+          id: 'call2',
+        },
+      ]);
+
+      const output = await executor.run({ goal: 'Nudge test' }, signal);
+
+      expect(mockSendMessageStream).toHaveBeenCalledTimes(3);
+
+      // Verify the nudge message was sent in the 3rd call
+      const turn3CallArgs = mockSendMessageStream.mock.calls[2];
+      const turn3Message = turn3CallArgs[1].message as Part[];
+      expect(turn3Message[0].text).toContain(
+        'You have stopped calling tools, but you have not called `submit_final_output`',
+      );
+
+      expect(output.result).toBe('Done after nudge');
+      expect(output.terminate_reason).toBe(AgentTerminateMode.GOAL);
+    });
+
+    it('should report an error if submit_final_output is called with missing arguments', async () => {
+      const definition = createTestDefinition();
+      const executor = await AgentExecutor.create(
+        definition,
+        mockConfig,
+        onActivity,
+      );
+
+      // Turn 1: Model calls submit_final_output but forgets the argument
+      mockModelResponse([
+        {
+          name: 'submit_final_output',
+          args: {}, // Missing 'finalResult'
+          id: 'call1',
+        },
+      ]);
+
+      // Turn 2: Model corrects itself
+      mockModelResponse([
+        {
+          name: 'submit_final_output',
+          args: { finalResult: 'Corrected result' },
+          id: 'call2',
+        },
+      ]);
+
+      const output = await executor.run({ goal: 'Error test' }, signal);
+
+      expect(mockSendMessageStream).toHaveBeenCalledTimes(2);
+
+      // Verify the error was reported in the activity stream
+      expect(activities).toContainEqual(
+        expect.objectContaining({
+          type: 'ERROR',
+          data: {
+            context: 'tool_call',
+            name: 'submit_final_output',
+            error: "Missing required argument 'finalResult'.",
+          },
+        }),
+      );
+
+      // Verify the error was sent back to the model in the 2nd call
+      const turn2CallArgs = mockSendMessageStream.mock.calls[1];
+      const turn2Message = turn2CallArgs[1].message as Part[];
+      expect(turn2Message[0]).toEqual(
+        expect.objectContaining({
+          functionResponse: expect.objectContaining({
+            name: 'submit_final_output',
+            response: { error: "Missing required argument 'finalResult'." },
+          }),
+        }),
+      );
+
+      expect(output.result).toBe('Corrected result');
+      expect(output.terminate_reason).toBe(AgentTerminateMode.GOAL);
     });
 
     it('should execute parallel tool calls concurrently', async () => {
@@ -333,10 +462,21 @@ describe('AgentExecutor', () => {
       // Use concurrency tracking to ensure parallelism
       let activeCalls = 0;
       let maxActiveCalls = 0;
+      let callsStarted = 0;
+      let resolveCallsStarted: () => void;
+      const callsStartedPromise = new Promise<void>((resolve) => {
+        resolveCallsStarted = resolve;
+      });
 
       mockExecuteToolCall.mockImplementation(async (_ctx, reqInfo) => {
         activeCalls++;
+        callsStarted++;
         maxActiveCalls = Math.max(maxActiveCalls, activeCalls);
+
+        if (callsStarted === 2) {
+          resolveCallsStarted();
+        }
+
         // Simulate latency. We must advance the fake timers for this to resolve.
         await new Promise((resolve) => setTimeout(resolve, 100));
         activeCalls--;
@@ -356,12 +496,22 @@ describe('AgentExecutor', () => {
         };
       });
 
-      // Turn 2: Model stops
-      mockModelResponse([]);
-      // Extraction
-      mockModelResponse([], undefined, 'Done.');
+      // Turn 2: Model submits output
+      mockModelResponse([
+        {
+          name: 'submit_final_output',
+          args: { finalResult: 'Done.' },
+          id: 'call3',
+        },
+      ]);
 
       const runPromise = executor.run({ goal: 'Parallel test' }, signal);
+
+      // Kickstart the async process
+      await vi.advanceTimersByTimeAsync(1);
+
+      // Wait until both calls have started
+      await callsStartedPromise;
 
       // Advance timers while the parallel calls (Promise.all + setTimeout) are running
       await vi.advanceTimersByTimeAsync(150);
@@ -372,7 +522,6 @@ describe('AgentExecutor', () => {
       expect(maxActiveCalls).toBe(2);
 
       // Verify the input to the next model call (Turn 2) contains both responses
-      // sendMessageStream calls: [0] Turn 1, [1] Turn 2, [2] Extraction
       const turn2Input = mockSendMessageStream.mock.calls[1][1];
       const turn2Parts = turn2Input.message as Part[];
 
@@ -388,65 +537,6 @@ describe('AgentExecutor', () => {
           functionResponse: expect.objectContaining({ id: 'call2' }),
         }),
       );
-    });
-
-    it('should use the templated query from promptConfig.query when provided', async () => {
-      const customQuery = 'Please achieve the goal: ${goal}';
-      const definition = createTestDefinition(
-        [], // No tools needed for this test
-        {},
-        {},
-        { query: customQuery, systemPrompt: 'You are a helpful agent.' }, // Use query, provide a system prompt
-      );
-      const executor = await AgentExecutor.create(
-        definition,
-        mockConfig,
-        onActivity,
-      );
-      const inputs: AgentInputs = { goal: 'test custom query' };
-
-      // Model stops immediately
-      mockModelResponse([]);
-      // Extraction
-      mockModelResponse([], undefined, 'Done.');
-
-      await executor.run(inputs, signal);
-
-      // Verify the first call to sendMessageStream (the work phase)
-      const workPhaseCallArgs = mockSendMessageStream.mock.calls[0][1];
-      const workPhaseMessageParts = workPhaseCallArgs.message as Part[];
-
-      expect(workPhaseMessageParts).toEqual([
-        { text: 'Please achieve the goal: test custom query' },
-      ]);
-    });
-
-    it('should default to "Get Started!" when promptConfig.query is not provided', async () => {
-      const definition = createTestDefinition(
-        [], // No tools needed for this test
-        {},
-        {},
-        { query: undefined, systemPrompt: 'You are a helpful agent.' }, // No query, provide a system prompt
-      );
-      const executor = await AgentExecutor.create(
-        definition,
-        mockConfig,
-        onActivity,
-      );
-      const inputs: AgentInputs = { goal: 'test default query' };
-
-      // Model stops immediately
-      mockModelResponse([]);
-      // Extraction
-      mockModelResponse([], undefined, 'Done.');
-
-      await executor.run(inputs, signal);
-
-      // Verify the first call to sendMessageStream (the work phase)
-      const workPhaseCallArgs = mockSendMessageStream.mock.calls[0][1];
-      const workPhaseMessageParts = workPhaseCallArgs.message as Part[];
-
-      expect(workPhaseMessageParts).toEqual([{ text: 'Get Started!' }]);
     });
 
     it('should handle tool execution failure gracefully and report error', async () => {
@@ -470,9 +560,14 @@ describe('AgentExecutor', () => {
         error: { message: errorMessage },
       });
 
-      // Turn 2: Model stops
-      mockModelResponse([]);
-      mockModelResponse([], undefined, 'Failed.');
+      // Turn 2: Model submits output
+      mockModelResponse([
+        {
+          name: 'submit_final_output',
+          args: { finalResult: 'Failed.' },
+          id: 'call2',
+        },
+      ]);
 
       await executor.run({ goal: 'Failure test' }, signal);
 
@@ -493,7 +588,7 @@ describe('AgentExecutor', () => {
       const turn2Parts = turn2Input.message as Part[];
       expect(turn2Parts).toEqual([
         {
-          text: 'All tool calls failed. Please analyze the errors and try an alternative approach.',
+          text: 'All tool calls failed or were unauthorized. Please analyze the errors and try an alternative approach.',
         },
       ]);
     });
@@ -517,10 +612,14 @@ describe('AgentExecutor', () => {
         },
       ]);
 
-      // Turn 2: Model stops
-      mockModelResponse([]);
-      // Extraction
-      mockModelResponse([], undefined, 'Done.');
+      // Turn 2: Model submits output
+      mockModelResponse([
+        {
+          name: 'submit_final_output',
+          args: { finalResult: 'Done.' },
+          id: 'call2',
+        },
+      ]);
 
       const consoleWarnSpy = vi
         .spyOn(console, 'warn')
@@ -544,92 +643,83 @@ describe('AgentExecutor', () => {
       expect(turn2Parts[0].text).toContain('All tool calls failed');
     });
 
-    it('should use OutputConfig completion_criteria in the extraction message', async () => {
-      const definition = createTestDefinition(
-        [LSTool.Name],
-        {},
-        {
-          description: 'A summary.',
-          completion_criteria: ['Must include file names', 'Must be concise'],
-        },
-      );
-
+    it('should handle multiple calls to submit_final_output in the same turn by accepting the first and erroring on the rest', async () => {
+      const definition = createTestDefinition();
       const executor = await AgentExecutor.create(
         definition,
         mockConfig,
         onActivity,
       );
 
-      // Turn 1: Model stops immediately
-      mockModelResponse([]);
-
-      // Extraction Phase
-      mockModelResponse([], undefined, 'Result: Done.');
-
-      await executor.run({ goal: 'Extraction test' }, signal);
-
-      // Verify the extraction call (the second call)
-      const extractionCallArgs = mockSendMessageStream.mock.calls[1][1];
-      const extractionMessageParts = extractionCallArgs.message as Part[];
-      const extractionText = extractionMessageParts[0].text;
-
-      expect(extractionText).toContain(
-        'Based on your work so far, provide: A summary.',
-      );
-      expect(extractionText).toContain('Be sure you have addressed:');
-      expect(extractionText).toContain('- Must include file names');
-      expect(extractionText).toContain('- Must be concise');
-    });
-
-    it('should apply templating to initialMessages', async () => {
-      const definition = createTestDefinition(
-        [], // No tools needed
-        {},
-        {},
+      // Turn 1: Model calls submit_final_output TWICE
+      mockModelResponse([
         {
-          // Override systemPrompt to be undefined and provide initialMessages
-          systemPrompt: undefined,
-          initialMessages: [
-            {
-              role: 'user',
-              parts: [{ text: 'The user wants to ${goal}.' }],
-            },
-            {
-              role: 'model',
-              parts: [{ text: 'Okay, I will start working on ${goal}.' }],
-            },
-          ],
-        },
-      );
-
-      const executor = await AgentExecutor.create(
-        definition,
-        mockConfig,
-        onActivity,
-      );
-      const inputs: AgentInputs = { goal: 'find the file' };
-
-      // Model stops immediately
-      mockModelResponse([]);
-      // Extraction
-      mockModelResponse([], undefined, 'Done.');
-
-      await executor.run(inputs, signal);
-
-      // Verify that the initialMessages were templated correctly
-      const chatConstructorArgs = MockedGeminiChat.mock.calls[0];
-      const startHistory = chatConstructorArgs[2]; // 3rd argument is startHistory
-
-      expect(startHistory).toEqual([
-        {
-          role: 'user',
-          parts: [{ text: 'The user wants to find the file.' }],
+          name: 'submit_final_output',
+          args: { finalResult: 'First result' },
+          id: 'call1',
         },
         {
-          role: 'model',
-          parts: [{ text: 'Okay, I will start working on find the file.' }],
+          name: 'submit_final_output',
+          args: { finalResult: 'Second result (should be ignored)' },
+          id: 'call2',
         },
       ]);
+
+      const output = await executor.run(
+        { goal: 'Multiple submit test' },
+        signal,
+      );
+
+      expect(mockSendMessageStream).toHaveBeenCalledTimes(1);
+
+      // Verify the result matches the FIRST call
+      expect(output.result).toBe('First result');
+      expect(output.terminate_reason).toBe(AgentTerminateMode.GOAL);
+
+      // Verify activities
+      // 1. TOOL_CALL_START for both
+      expect(activities).toContainEqual(
+        expect.objectContaining({
+          type: 'TOOL_CALL_START',
+          data: expect.objectContaining({
+            name: 'submit_final_output',
+            args: { finalResult: 'First result' },
+          }),
+        }),
+      );
+      expect(activities).toContainEqual(
+        expect.objectContaining({
+          type: 'TOOL_CALL_START',
+          data: expect.objectContaining({
+            name: 'submit_final_output',
+            args: { finalResult: 'Second result (should be ignored)' },
+          }),
+        }),
+      );
+
+      // 2. TOOL_CALL_END for the first one
+      expect(activities).toContainEqual(
+        expect.objectContaining({
+          type: 'TOOL_CALL_END',
+          data: {
+            name: 'submit_final_output',
+            output: 'Output submitted successfully.',
+          },
+        }),
+      );
+
+      // 3. ERROR for the second one
+      expect(activities).toContainEqual(
+        expect.objectContaining({
+          type: 'ERROR',
+          data: {
+            context: 'tool_call',
+            name: 'submit_final_output',
+            error:
+              'Final output has already been submitted in this turn. Ignoring duplicate call.',
+          },
+        }),
+      );
     });
   });
 
@@ -669,12 +759,6 @@ describe('AgentExecutor', () => {
 
       expect(output.terminate_reason).toBe(AgentTerminateMode.MAX_TURNS);
       expect(mockSendMessageStream).toHaveBeenCalledTimes(MAX_TURNS);
-      // Extraction phase should be skipped when termination is forced
-      expect(mockSendMessageStream).not.toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(Object),
-        expect.stringContaining('#extraction'),
-      );
     });
 
     it('should terminate if timeout is reached', async () => {

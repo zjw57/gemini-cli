@@ -7,6 +7,7 @@
 import type { Config } from '../config/config.js';
 import { reportError } from '../utils/errorReporting.js';
 import { GeminiChat, StreamEventType } from '../core/geminiChat.js';
+import { Type } from '@google/genai';
 import type {
   Content,
   Part,
@@ -39,14 +40,13 @@ import { parseThought } from '../utils/thoughtUtils.js';
 /** A callback function to report on agent activity. */
 export type ActivityCallback = (activity: SubagentActivityEvent) => void;
 
+const SUBMIT_OUTPUT_TOOL_NAME = 'submit_final_output';
+
 /**
  * Executes an agent loop based on an {@link AgentDefinition}.
  *
- * This executor uses a simplified two-phase approach:
- * 1.  **Work Phase:** The agent runs in a loop, calling tools until it has
- * gathered all necessary information to fulfill its goal.
- * 2.  **Extraction Phase:** A final prompt is sent to the model to summarize
- * the work and extract the final result in the desired format.
+ * This executor runs the agent in a loop, calling tools until it calls the
+ * mandatory `submit_final_output` tool to deliver its result.
  */
 export class AgentExecutor {
   readonly definition: AgentDefinition;
@@ -144,16 +144,13 @@ export class AgentExecutor {
     try {
       const chat = await this.createChatObject(inputs);
       const tools = this.prepareToolsList();
-      let terminateReason = AgentTerminateMode.GOAL;
+      let terminateReason = AgentTerminateMode.ERROR;
+      let finalResult: string | null = null;
 
-      // Phase 1: Work Phase
-      // The agent works in a loop until it stops calling tools.
       const query = this.definition.promptConfig.query
         ? templateString(this.definition.promptConfig.query, inputs)
         : 'Get Started!';
-      let currentMessages: Content[] = [
-        { role: 'user', parts: [{ text: query }] },
-      ];
+      let currentMessage: Content = { role: 'user', parts: [{ text: query }] };
 
       while (true) {
         // Check for termination conditions like max turns or timeout.
@@ -171,7 +168,7 @@ export class AgentExecutor {
         const promptId = `${this.runtimeContext.getSessionId()}#${this.agentId}#${turnCounter++}`;
         const { functionCalls } = await this.callModel(
           chat,
-          currentMessages,
+          currentMessage,
           tools,
           signal,
           promptId,
@@ -182,46 +179,42 @@ export class AgentExecutor {
           break;
         }
 
-        // If the model stops calling tools, the work phase is complete.
+        // If the model stops calling tools, check if it has submitted output.
         if (functionCalls.length === 0) {
+          if (this.definition.outputConfig) {
+            // Nudge the model to call the submit tool.
+            const nudgeMessage = `You have stopped calling tools, but you have not called \`${SUBMIT_OUTPUT_TOOL_NAME}\` to deliver your final result. If you are finished, you MUST call \`${SUBMIT_OUTPUT_TOOL_NAME}\` now. If you need to do more work, please continue using other tools.`;
+            currentMessage = { role: 'user', parts: [{ text: nudgeMessage }] };
+            continue;
+          } else {
+            // If no output is expected, we are done.
+            terminateReason = AgentTerminateMode.GOAL;
+            break;
+          }
+        }
+
+        const { nextMessage, submittedOutput } =
+          await this.processFunctionCalls(functionCalls, signal, promptId);
+
+        if (submittedOutput !== null) {
+          finalResult = submittedOutput;
+          terminateReason = AgentTerminateMode.GOAL;
           break;
         }
 
-        currentMessages = await this.processFunctionCalls(
-          functionCalls,
-          signal,
-          promptId,
-        );
+        currentMessage = nextMessage;
       }
 
-      // If the work phase was terminated early, skip extraction and return.
-      if (terminateReason !== AgentTerminateMode.GOAL) {
+      if (terminateReason === AgentTerminateMode.GOAL) {
         return {
-          result: 'Agent execution was terminated before completion.',
+          result: finalResult || 'Task completed.',
           terminate_reason: terminateReason,
         };
       }
 
-      // Phase 2: Extraction Phase
-      // A final message is sent to summarize findings and produce the output.
-      const extractionMessage = this.buildExtractionMessage();
-      const extractionMessages: Content[] = [
-        { role: 'user', parts: [{ text: extractionMessage }] },
-      ];
-
-      const extractionPromptId = `${this.runtimeContext.getSessionId()}#${this.agentId}#extraction`;
-
-      // TODO: Consider if we should keep tools to avoid cache reset.
-      const { textResponse } = await this.callModel(
-        chat,
-        extractionMessages,
-        [], // No tools are available in the extraction phase.
-        signal,
-        extractionPromptId,
-      );
-
       return {
-        result: textResponse || 'No response generated',
+        result:
+          finalResult || 'Agent execution was terminated before completion.',
         terminate_reason: terminateReason,
       };
     } catch (error) {
@@ -237,13 +230,13 @@ export class AgentExecutor {
    */
   private async callModel(
     chat: GeminiChat,
-    messages: Content[],
+    message: Content,
     tools: FunctionDeclaration[],
     signal: AbortSignal,
     promptId: string,
   ): Promise<{ functionCalls: FunctionCall[]; textResponse: string }> {
     const messageParams = {
-      message: messages[0]?.parts || [],
+      message: message.parts || [],
       config: {
         abortSignal: signal,
         tools: tools.length > 0 ? [{ functionDeclarations: tools }] : undefined,
@@ -349,45 +342,107 @@ export class AgentExecutor {
   /**
    * Executes function calls requested by the model and returns the results.
    *
-   * @returns A new `Content` object to be added to the chat history.
+   * @returns A new `Content` object to be added to the chat history, and any
+   * submitted final output.
    */
   private async processFunctionCalls(
     functionCalls: FunctionCall[],
     signal: AbortSignal,
     promptId: string,
-  ): Promise<Content[]> {
+  ): Promise<{ nextMessage: Content; submittedOutput: string | null }> {
     const allowedToolNames = new Set(this.toolRegistry.getAllToolNames());
+    if (this.definition.outputConfig) {
+      allowedToolNames.add(SUBMIT_OUTPUT_TOOL_NAME);
+    }
 
-    // Filter out any tool calls that are not in the agent's allowed list.
-    const validatedFunctionCalls = functionCalls.filter((call) => {
-      if (!allowedToolNames.has(call.name as string)) {
+    let submittedOutput: string | null = null;
+
+    // We'll collect promises for the tool executions
+    const toolExecutionPromises: Array<Promise<Part[] | void>> = [];
+    // And we'll need a place to store the synchronous results (like submit_final_output or blocked calls)
+    const syncResponseParts: Part[] = [];
+
+    for (const functionCall of functionCalls) {
+      const callId = functionCall.id ?? `${functionCall.name}-${Date.now()}`;
+      const args = (functionCall.args ?? {}) as Record<string, unknown>;
+
+      this.emitActivity('TOOL_CALL_START', {
+        name: functionCall.name,
+        args,
+      });
+
+      // Handle the special submit_final_output tool
+      if (functionCall.name === SUBMIT_OUTPUT_TOOL_NAME) {
+        if (submittedOutput !== null) {
+          // We already have a submission from this turn. Ignore subsequent ones.
+          const error =
+            'Final output has already been submitted in this turn. Ignoring duplicate call.';
+          syncResponseParts.push({
+            functionResponse: {
+              name: SUBMIT_OUTPUT_TOOL_NAME,
+              response: { error },
+              id: callId,
+            },
+          });
+          this.emitActivity('ERROR', {
+            context: 'tool_call',
+            name: functionCall.name,
+            error,
+          });
+          continue;
+        }
+
+        const outputName = this.definition.outputConfig!.outputName;
+        if (args[outputName] !== undefined) {
+          submittedOutput = String(args[outputName]);
+          syncResponseParts.push({
+            functionResponse: {
+              name: SUBMIT_OUTPUT_TOOL_NAME,
+              response: { result: 'Output submitted successfully.' },
+              id: callId,
+            },
+          });
+          this.emitActivity('TOOL_CALL_END', {
+            name: functionCall.name,
+            output: 'Output submitted successfully.',
+          });
+        } else {
+          const error = `Missing required argument '${outputName}'.`;
+          syncResponseParts.push({
+            functionResponse: {
+              name: SUBMIT_OUTPUT_TOOL_NAME,
+              response: { error },
+              id: callId,
+            },
+          });
+          this.emitActivity('ERROR', {
+            context: 'tool_call',
+            name: functionCall.name,
+            error,
+          });
+        }
+        continue;
+      }
+
+      // Handle standard tools
+      if (!allowedToolNames.has(functionCall.name as string)) {
         console.warn(
           `[AgentExecutor] Agent '${this.definition.name}' attempted to call ` +
-            `unauthorized tool '${call.name}'. This call has been blocked.`,
+            `unauthorized tool '${functionCall.name}'. This call has been blocked.`,
         );
-        return false;
+        continue;
       }
-      return true;
-    });
 
-    const toolPromises = validatedFunctionCalls.map(
-      async (functionCall, index) => {
-        const callId = functionCall.id ?? `${promptId}-${index}`;
-        const args = functionCall.args ?? {};
+      const requestInfo: ToolCallRequestInfo = {
+        callId,
+        name: functionCall.name as string,
+        args,
+        isClientInitiated: true,
+        prompt_id: promptId,
+      };
 
-        this.emitActivity('TOOL_CALL_START', {
-          name: functionCall.name,
-          args,
-        });
-
-        const requestInfo: ToolCallRequestInfo = {
-          callId,
-          name: functionCall.name as string,
-          args: args as Record<string, unknown>,
-          isClientInitiated: true,
-          prompt_id: promptId,
-        };
-
+      // Create a promise for the tool execution
+      const executionPromise = (async () => {
         const toolResponse = await executeToolCall(
           this.runtimeContext,
           requestInfo,
@@ -407,24 +462,35 @@ export class AgentExecutor {
           });
         }
 
-        return toolResponse;
-      },
-    );
+        return toolResponse.responseParts;
+      })();
 
-    const toolResponses = await Promise.all(toolPromises);
-    const toolResponseParts: Part[] = toolResponses
-      .flatMap((response) => response.responseParts)
-      .filter((part): part is Part => part !== undefined);
+      toolExecutionPromises.push(executionPromise);
+    }
+
+    // Wait for all tool executions to complete
+    const asyncResults = await Promise.all(toolExecutionPromises);
+
+    // Combine all response parts
+    const toolResponseParts: Part[] = [...syncResponseParts];
+    for (const result of asyncResults) {
+      if (result) {
+        toolResponseParts.push(...result);
+      }
+    }
 
     // If all authorized tool calls failed, provide a generic error message
     // to the model so it can try a different approach.
     if (functionCalls.length > 0 && toolResponseParts.length === 0) {
       toolResponseParts.push({
-        text: 'All tool calls failed. Please analyze the errors and try an alternative approach.',
+        text: 'All tool calls failed or were unauthorized. Please analyze the errors and try an alternative approach.',
       });
     }
 
-    return [{ role: 'user', parts: toolResponseParts }];
+    return {
+      nextMessage: { role: 'user', parts: toolResponseParts },
+      submittedOutput,
+    };
   }
 
   /**
@@ -432,7 +498,7 @@ export class AgentExecutor {
    */
   private prepareToolsList(): FunctionDeclaration[] {
     const toolsList: FunctionDeclaration[] = [];
-    const { toolConfig } = this.definition;
+    const { toolConfig, outputConfig } = this.definition;
 
     if (toolConfig) {
       const toolNamesToLoad: string[] = [];
@@ -453,6 +519,26 @@ export class AgentExecutor {
       );
     }
 
+    // Inject the submit_final_output tool if an output is expected.
+    if (outputConfig) {
+      const submitTool: FunctionDeclaration = {
+        name: SUBMIT_OUTPUT_TOOL_NAME,
+        description:
+          'Call this tool when you have completed your task to submit your final answer. This is the ONLY way to complete your mission.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            [outputConfig.outputName]: {
+              description: outputConfig.description,
+              ...(outputConfig.schema ?? { type: Type.STRING }),
+            },
+          },
+          required: [outputConfig.outputName],
+        },
+      };
+      toolsList.push(submitTool);
+    }
+
     return toolsList;
   }
 
@@ -470,43 +556,22 @@ export class AgentExecutor {
     const dirContext = await getDirectoryContextString(this.runtimeContext);
     finalPrompt += `\n\n# Environment Context\n${dirContext}`;
 
-    // Append completion criteria to guide the model's output.
-    if (outputConfig?.completion_criteria) {
-      finalPrompt += '\n\nEnsure you complete the following:\n';
-      for (const criteria of outputConfig.completion_criteria) {
-        finalPrompt += `- ${criteria}\n`;
-      }
-    }
-
     // Append standard rules for non-interactive execution.
     finalPrompt += `
 Important Rules:
 * You are running in a non-interactive mode. You CANNOT ask the user for input or clarification.
 * Work systematically using available tools to complete your task.
-* Always use absolute paths for file operations. Construct them using the provided "Environment Context".
-* When you have completed your analysis and are ready to produce the final answer, stop calling tools.`;
+* Always use absolute paths for file operations. Construct them using the provided "Environment Context".`;
 
-    return finalPrompt;
-  }
-
-  /** Builds the final message for the extraction phase. */
-  private buildExtractionMessage(): string {
-    const { outputConfig } = this.definition;
-
-    if (outputConfig?.description) {
-      let message = `Based on your work so far, provide: ${outputConfig.description}`;
-
-      if (outputConfig.completion_criteria?.length) {
-        message += `\n\nBe sure you have addressed:\n`;
-        for (const criteria of outputConfig.completion_criteria) {
-          message += `- ${criteria}\n`;
-        }
-      }
-      return message;
+    if (outputConfig) {
+      finalPrompt += `
+* When you have completed your task, you MUST call the \`${SUBMIT_OUTPUT_TOOL_NAME}\` tool to deliver your final answer. This must be your FINAL action. Do not call any other tools in the same turn as \`${SUBMIT_OUTPUT_TOOL_NAME}\`. This is the ONLY way to complete your mission.`;
+    } else {
+      finalPrompt += `
+* When you have completed your task, stop calling tools.`;
     }
 
-    // Fallback to a generic extraction message if no description is provided.
-    return 'Based on your work so far, provide a comprehensive summary of your analysis and findings. Do not perform any more function calls.';
+    return finalPrompt;
   }
 
   /**
