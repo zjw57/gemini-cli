@@ -405,8 +405,8 @@ describe('git extension helpers', () => {
           : spawnSync('zip', ['-r', archivePath, '.'], {
               cwd: sourceDir,
             });
-      expect(result.status).toBe(0);
       expect(result.error).toBeUndefined();
+      expect(result.status).toBe(0);
 
       extractFile(archivePath, destDir);
 
