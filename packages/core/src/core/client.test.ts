@@ -408,7 +408,7 @@ describe('Gemini Client (client.ts)', () => {
       summaryText = 'This is a summary.',
     } = {}) {
       const mockOriginalChat: Partial<GeminiChat> = {
-        getHistory: vi.fn((_curated?: boolean) => chatHistory),
+        getHistory: vi.fn((_curated?: boolean) => Promise.resolve(chatHistory)),
         setHistory: vi.fn(),
       };
       client['chat'] = mockOriginalChat as GeminiChat;
@@ -790,7 +790,7 @@ describe('Gemini Client (client.ts)', () => {
         ...historyToKeep,
       ];
       const mockNewChat: Partial<GeminiChat> = {
-        getHistory: vi.fn().mockReturnValue(newCompressedHistory),
+        getHistory: vi.fn().mockResolvedValue(newCompressedHistory),
       };
       client['startChat'] = vi
         .fn()

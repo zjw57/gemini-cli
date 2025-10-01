@@ -326,6 +326,7 @@ export class AgentExecutor {
       return new GeminiChat(
         this.runtimeContext,
         generationConfig,
+        this.toolRegistry,
         startHistory,
       );
     } catch (error) {
