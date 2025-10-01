@@ -56,12 +56,16 @@ runs:
         RELEASE_TAG: '${{ inputs.release-tag }}'
       run: |-
         git add package.json package-lock.json packages/*/package.json
-        git commit -m "chore(release): ${RELEASE_TAG}"
-        if [[ "${DRY_RUN}" == "false" ]]; then
-          echo "Pushing release branch to remote..."
-          git push --set-upstream origin "${BRANCH_NAME}" --follow-tags
+        if [[ -n $(git status --porcelain) ]]; then
+          git commit -m "chore(release): ${RELEASE_TAG}"
+          if [[ "${DRY_RUN}" == "false" ]]; then
+            echo "Pushing release branch to remote..."
+            git push --set-upstream origin "${BRANCH_NAME}" --follow-tags
+          else
+            echo "Dry run enabled. Skipping push."
+          fi
         else
-          echo "Dry run enabled. Skipping push."
+          echo "No changes to commit."
         fi
 
     - name: '🛠️ Build and Prepare Packages'

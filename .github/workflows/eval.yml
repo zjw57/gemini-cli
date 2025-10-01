@@ -12,7 +12,16 @@ on:
         required: false
         type: 'boolean'
         default: true
-
+      resolution-rate-threshold:
+        description: 'The threshold for the resolution rate.'
+        required: false
+        type: 'number'
+        default: 90
+      tool-success-rate-threshold:
+        description: 'The threshold for the tool success rate.'
+        required: false
+        type: 'number'
+        default: 80
 
 defaults:
   run:
@@ -72,13 +81,15 @@ jobs:
 
       - name: 'Check evaluation threshold'
         if: >-
-          ${{(steps.calculate-rates.outputs.resolution-rate <= 90 ||
-          steps.calculate-rates.outputs.tool-success-rate <= 80) }}
+          ${{(steps.calculate-rates.outputs.resolution-rate < inputs.resolution-rate-threshold ||
+          steps.calculate-rates.outputs.tool-success-rate < inputs.tool-success-rate-threshold) }}
         uses: 'actions/github-script@v7' # ratchet:exclude
         with:
           script: |
             const resolutionRate = ${{ steps.calculate-rates.outputs.resolution-rate }};
             const toolSuccessRate = ${{ steps.calculate-rates.outputs.tool-success-rate }};
+            const resolutionRateThreshold = ${{ inputs.resolution-rate-threshold }};
+            const toolSuccessRateThreshold = ${{ inputs.tool-success-rate-threshold }};
             const branchOrCommit = '${{ inputs.branch-or-commit }}';
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const dryRun = ${{ inputs.dry-run }};
@@ -87,8 +98,8 @@ jobs:
             const body = `
             Evaluation for \`${branchOrCommit}\` failed to meet the required thresholds.
 
-            - **Resolution Rate**: ${resolutionRate}% (Threshold: 90%)
-            - **Tool Success Rate**: ${toolSuccessRate}% (Threshold: 80%)
+            - **Resolution Rate**: ${resolutionRate}% (Threshold: ${resolutionRateThreshold}%)
+            - **Tool Success Rate**: ${toolSuccessRate}% (Threshold: ${toolSuccessRateThreshold}%)
 
             [View Workflow Run](${runUrl})
             `;
