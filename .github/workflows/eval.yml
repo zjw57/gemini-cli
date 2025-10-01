@@ -80,9 +80,7 @@ jobs:
           poetry run bash $GITHUB_WORKSPACE/scripts/calculate_eval_success_rates.sh /app/experiments/adhoc/gcli_temp_exp/artifacts/summary_stats.md
 
       - name: 'Check evaluation threshold'
-        if: >-
-          ${{(steps.calculate-rates.outputs.resolution-rate < inputs.resolution-rate-threshold ||
-          steps.calculate-rates.outputs.tool-success-rate < inputs.tool-success-rate-threshold) }}
+        if: "${{ steps.calculate-rates.outputs.resolution-rate <= inputs.resolution-rate-threshold || steps.calculate-rates.outputs.tool-success-rate <= inputs.tool-success-rate-threshold }}"
         uses: 'actions/github-script@v7' # ratchet:exclude
         with:
           script: |

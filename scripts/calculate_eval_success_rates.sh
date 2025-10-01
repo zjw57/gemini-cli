@@ -32,9 +32,9 @@ in_results_section && /Resolution Rate/ {
     print "### Evaluation Resolution Rate: " rate_str
     
     # Extract numeric value for GitHub output
-    match(rate_str, /[0-9.]+/) 
-    resolution_rate = substr(rate_str, RSTART, RLENGTH)
-    
+    match(rate_str, /[0-9.]+/)
+    resolution_rate = int(substr(rate_str, RSTART, RLENGTH))
+
     in_results_section = 0
 }
 
@@ -42,10 +42,10 @@ in_results_section && /Resolution Rate/ {
 /Overall Calls/ {
     line = $0;
     sub(/.*Overall Calls\*\*: /, "", line);
-    
+
     total_calls_str = line;
     sub(/ .*/, "", total_calls_str);
-    
+
     successful_calls_str = line;
     sub(/.*Successful: /, "", successful_calls_str);
     sub(/,.*/, "", successful_calls_str);
@@ -57,10 +57,10 @@ in_results_section && /Resolution Rate/ {
     if (total_calls > 0) {
         rate = (successful_calls / total_calls) * 100;
         printf("### Overall Tool Success Rate: %.2f%% (%d/%d)\n", rate, successful_calls, total_calls);
-        tool_success_rate = sprintf("%.2f", rate)
+        tool_success_rate = sprintf("%d", rate)
     } else {
         print "### Overall Tool Success Rate: N/A (0 calls)";
-        tool_success_rate = "0.00"
+        tool_success_rate = "0"
     }
     
     print ""
