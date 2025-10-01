@@ -450,7 +450,7 @@ export async function loadCliConfig(
 
   const fileService = new FileDiscoveryService(cwd);
 
-  const fileFiltering = {
+  const fileFiltering: FileFilteringOptions = {
     ...DEFAULT_MEMORY_FILE_FILTERING_OPTIONS,
     ...settings.context?.fileFiltering,
   };
