@@ -117,6 +117,7 @@ jobs:
           skip-github-release: '${{ github.event.inputs.skip_github_release }}'
           working-directory: './release'
           branch-name: '${{ steps.build.outputs.branch-name }}'
+          gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
 
       - name: 'Create Issue on Failure'
         if: '${{ failure() && github.event.inputs.dry_run == false }}'

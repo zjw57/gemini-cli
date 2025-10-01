@@ -67,8 +67,6 @@ import type {
 } from './types.js';
 import {
   recordApiErrorMetrics,
-  recordTokenUsageMetrics,
-  recordApiResponseMetrics,
   recordToolCallMetrics,
   recordChatCompressionMetrics,
   recordFileOperationMetric,
@@ -77,6 +75,9 @@ import {
   recordContentRetryFailure,
   recordModelRoutingMetrics,
   recordModelSlashCommand,
+  getConventionAttributes,
+  recordTokenUsageMetrics,
+  recordApiResponseMetrics,
 } from './metrics.js';
 import { isTelemetrySdkInitialized } from './sdk.js';
 import type { UiEvent } from './uiTelemetry.js';
@@ -191,14 +192,12 @@ export function logToolCall(config: Config, event: ToolCallEvent): void {
     attributes,
   };
   logger.emit(logRecord);
-  recordToolCallMetrics(
-    config,
-    event.function_name,
-    event.duration_ms,
-    event.success,
-    event.decision,
-    event.tool_type,
-  );
+  recordToolCallMetrics(config, event.duration_ms, {
+    function_name: event.function_name,
+    success: event.success,
+    decision: event.decision,
+    tool_type: event.tool_type,
+  });
 }
 
 export function logToolOutputTruncated(
@@ -258,14 +257,13 @@ export function logFileOperation(
   };
   logger.emit(logRecord);
 
-  recordFileOperationMetric(
-    config,
-    event.operation,
-    event.lines,
-    event.mimetype,
-    event.extension,
-    event.programming_language,
-  );
+  recordFileOperationMetric(config, {
+    operation: event.operation,
+    lines: event.lines,
+    mimetype: event.mimetype,
+    extension: event.extension,
+    programming_language: event.programming_language,
+  });
 }
 
 export function logApiRequest(config: Config, event: ApiRequestEvent): void {
@@ -364,13 +362,22 @@ export function logApiError(config: Config, event: ApiErrorEvent): void {
     attributes,
   };
   logger.emit(logRecord);
-  recordApiErrorMetrics(
-    config,
-    event.model,
-    event.duration_ms,
-    event.status_code,
-    event.error_type,
-  );
+  recordApiErrorMetrics(config, event.duration_ms, {
+    model: event.model,
+    status_code: event.status_code,
+    error_type: event.error_type,
+  });
+
+  // Record GenAI operation duration for errors
+  const conventionAttributes = getConventionAttributes(event);
+  recordApiResponseMetrics(config, event.duration_ms, {
+    model: event.model,
+    status_code: event.status_code,
+    genAiAttributes: {
+      ...conventionAttributes,
+      'error.type': event.error_type || 'unknown',
+    },
+  });
 }
 
 export function logApiResponse(config: Config, event: ApiResponseEvent): void {
@@ -403,37 +410,30 @@ export function logApiResponse(config: Config, event: ApiResponseEvent): void {
     attributes,
   };
   logger.emit(logRecord);
-  recordApiResponseMetrics(
-    config,
-    event.model,
-    event.duration_ms,
-    event.status_code,
-  );
-  recordTokenUsageMetrics(
-    config,
-    event.model,
-    event.input_token_count,
-    'input',
-  );
-  recordTokenUsageMetrics(
-    config,
-    event.model,
-    event.output_token_count,
-    'output',
-  );
-  recordTokenUsageMetrics(
-    config,
-    event.model,
-    event.cached_content_token_count,
-    'cache',
-  );
-  recordTokenUsageMetrics(
-    config,
-    event.model,
-    event.thoughts_token_count,
-    'thought',
-  );
-  recordTokenUsageMetrics(config, event.model, event.tool_token_count, 'tool');
+
+  const conventionAttributes = getConventionAttributes(event);
+
+  recordApiResponseMetrics(config, event.duration_ms, {
+    model: event.model,
+    status_code: event.status_code,
+    genAiAttributes: conventionAttributes,
+  });
+
+  const tokenUsageData = [
+    { count: event.input_token_count, type: 'input' as const },
+    { count: event.output_token_count, type: 'output' as const },
+    { count: event.cached_content_token_count, type: 'cache' as const },
+    { count: event.thoughts_token_count, type: 'thought' as const },
+    { count: event.tool_token_count, type: 'tool' as const },
+  ];
+
+  for (const { count, type } of tokenUsageData) {
+    recordTokenUsageMetrics(config, count, {
+      model: event.model,
+      type,
+      genAiAttributes: conventionAttributes,
+    });
+  }
 }
 
 export function logLoopDetected(
