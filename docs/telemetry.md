@@ -221,11 +221,14 @@ for Gemini CLI:
     - `approval_mode` (string)
     - `api_key_enabled` (boolean)
     - `vertex_ai_enabled` (boolean)
-    - `code_assist_enabled` (boolean)
-    - `log_prompts_enabled` (boolean)
+    - `debug_enabled` (boolean)
+    - `telemetry_enabled` (boolean)
+    - `telemetry_log_user_prompts_enabled` (boolean)
     - `file_filtering_respect_git_ignore` (boolean)
-    - `debug_mode` (boolean)
     - `mcp_servers` (string)
+    - `mcp_servers_count` (int)
+    - `mcp_tools` (string)
+    - `mcp_tools_count` (int)
     - `output_format` (string: "text" or "json")
 
 - `gemini_cli.user_prompt`: This event occurs when a user submits a prompt.
@@ -246,7 +249,10 @@ for Gemini CLI:
       applicable)
     - `error` (if applicable)
     - `error_type` (if applicable)
+    - `prompt_id` (string)
+    - `tool_type` (string: "native" or "mcp")
     - `content_length` (int, if applicable)
+    - `mcp_server_name` (string, if applicable)
     - `metadata` (if applicable, dictionary of string -> any)
 
 - `gemini_cli.file_operation`: This event occurs for each file operation.
@@ -257,15 +263,11 @@ for Gemini CLI:
     - `mimetype` (string, if applicable)
     - `extension` (string, if applicable)
     - `programming_language` (string, if applicable)
-    - `diff_stat` (json string, if applicable): A JSON string with the following members:
-      - `ai_added_lines` (int)
-      - `ai_removed_lines` (int)
-      - `user_added_lines` (int)
-      - `user_removed_lines` (int)
 
 - `gemini_cli.api_request`: This event occurs when making a request to Gemini API.
   - **Attributes**:
     - `model`
+    - `prompt_id` (string)
     - `request_text` (if applicable)
 
 - `gemini_cli.api_error`: This event occurs if the API request fails.
@@ -275,6 +277,7 @@ for Gemini CLI:
     - `error_type`
     - `status_code`
     - `duration_ms`
+    - `prompt_id` (string)
     - `auth_type`
 
 - `gemini_cli.api_response`: This event occurs upon receiving a response from Gemini API.
@@ -288,7 +291,9 @@ for Gemini CLI:
     - `cached_content_token_count`
     - `thoughts_token_count`
     - `tool_token_count`
+    - `total_token_count`
     - `response_text` (if applicable)
+    - `prompt_id`
     - `auth_type`
 
 - `gemini_cli.tool_output_truncated`: This event occurs when the output of a tool call is too large and gets truncated.
@@ -308,19 +313,94 @@ for Gemini CLI:
   - **Attributes**:
     - `auth_type`
 
+- `gemini_cli.ripgrep_fallback`: This event occurs when Gemini CLI switches to grep as fallback.
+  - **Attributes**:
+    - `error` (string, if applicable)
+
+- `gemini_cli.next_speaker_check`: This event occurs when the CLI checks who the next speaker should be.
+  - **Attributes**:
+    - `next_speaker` (string)
+
+- `gemini_cli.ide_connection`: This event occurs when the CLI connects to an IDE.
+  - **Attributes**:
+    - `connection_type` (string)
+
+- `gemini_cli.conversation_finished`: This event occurs when a conversation is finished.
+  - **Attributes**:
+    - `reason` (string)
+
+- `gemini_cli.chat_compression`: This event occurs when the chat history is compressed.
+  - **Attributes**:
+    - `tokens_before` (int)
+    - `tokens_after` (int)
+
+- `gemini_cli.invalid_chunk`: This event occurs when an invalid chunk is received from the stream.
+  - **Attributes**:
+    - `error_message` (string)
+
+- `gemini_cli.chat.content_retry`: This event occurs when there is a content retry.
+  - **Attributes**:
+    - `attempt_number` (int)
+    - `error_type` (string)
+
+- `gemini_cli.chat.content_retry_failure`: This event occurs when all content retries fail.
+  - **Attributes**:
+    - `total_attempts` (int)
+
+- `gemini_cli.slash_command.model`: This event occurs when a model slash command is executed.
+  - **Attributes**:
+    - `model_name` (string)
+
+- `gemini_cli.model_routing`: This event occurs when a model routing decision is made.
+  - **Attributes**:
+    - `decision_model` (string)
+    - `decision_source` (string)
+
 - `gemini_cli.slash_command`: This event occurs when a user executes a slash command.
   - **Attributes**:
     - `command` (string)
     - `subcommand` (string, if applicable)
 
-- `gemini_cli.extension_enable`: This event occurs when an extension is enabled
 - `gemini_cli.extension_install`: This event occurs when an extension is installed
   - **Attributes**:
     - `extension_name` (string)
     - `extension_version` (string)
     - `extension_source` (string)
     - `status` (string)
+
 - `gemini_cli.extension_uninstall`: This event occurs when an extension is uninstalled
+  - **Attributes**:
+    - `extension_name` (string)
+
+- `gemini_cli.extension_enable`: This event occurs when an extension is enabled
+  - **Attributes**:
+    - `extension_name` (string)
+
+- `gemini_cli.extension_disable`: This event occurs when an extension is disabled
+  - **Attributes**:
+    - `extension_name` (string)
+
+- `gemini_cli.startup.performance`: This event occurs during CLI startup to track performance metrics
+  - **Attributes**:
+    - `startup_duration_ms` (int)
+    - `memory_usage_mb` (int)
+
+- `gemini_cli.memory.usage`: This event occurs to track memory usage patterns
+  - **Attributes**:
+    - `memory_used_mb` (int)
+    - `memory_peak_mb` (int)
+
+- `gemini_cli.performance.baseline`: This event occurs when establishing performance baselines
+  - **Attributes**:
+    - `baseline_type` (string)
+    - `baseline_value` (number)
+
+- `gemini_cli.performance.regression`: This event occurs when performance regressions are detected
+  - **Attributes**:
+    - `regression_type` (string)
+    - `regression_percentage` (number)
+    - `current_value` (number)
+    - `baseline_value` (number)
 
 ### Metrics
 
@@ -340,7 +420,6 @@ Metrics are numerical measurements of behavior over time.
 - `gemini_cli.tool.call.latency` (Histogram, ms): Measures tool call latency.
   - **Attributes**:
     - `function_name`
-    - `decision` (string: "accept", "reject", or "modify", if applicable)
 
 - `gemini_cli.api.request.count` (Counter, Int): Counts all API requests.
   - **Attributes**:
@@ -368,16 +447,32 @@ Metrics are numerical measurements of behavior over time.
     - `lines` (Int, if applicable): Number of lines in the file.
     - `mimetype` (string, if applicable): Mimetype of the file.
     - `extension` (string, if applicable): File extension of the file.
-    - `model_added_lines` (Int, if applicable): Number of lines added/changed by the model.
-    - `model_removed_lines` (Int, if applicable): Number of lines removed/changed by the model.
-    - `user_added_lines` (Int, if applicable): Number of lines added/changed by user in AI proposed changes.
-    - `user_removed_lines` (Int, if applicable): Number of lines removed/changed by user in AI proposed changes.
     - `programming_language` (string, if applicable): The programming language of the file.
 
 - `gemini_cli.chat_compression` (Counter, Int): Counts chat compression operations
   - **Attributes**:
     - `tokens_before`: (Int): Number of tokens in context prior to compression
     - `tokens_after`: (Int): Number of tokens in context after compression
+
+- `gemini_cli.chat.invalid_chunk.count` (Counter, Int): Counts invalid chunks received from a stream.
+
+- `gemini_cli.chat.content_retry.count` (Counter, Int): Counts retries due to content errors.
+
+- `gemini_cli.chat.content_retry_failure.count` (Counter, Int): Counts occurrences of all content retries failing.
+
+- `gemini_cli.model_routing.latency` (Histogram, ms): Latency of model routing decisions.
+  - **Attributes**:
+    - `routing.decision_model` (string)
+    - `routing.decision_source` (string)
+
+- `gemini_cli.model_routing.failure.count` (Counter, Int): Counts model routing failures.
+  - **Attributes**:
+    - `routing.decision_source` (string)
+    - `routing.error_message` (string)
+
+- `gemini_cli.slash_command.model.call_count` (Counter, Int): Counts model slash command calls.
+  - **Attributes**:
+    - `slash_command.model.model_name` (string)
 
 #### GenAI Semantic Convention
 
