@@ -14,6 +14,11 @@ import {
   type Mock,
 } from 'vitest';
 
+import {
+  DEFAULT_GEMINI_FLASH_LITE_MODEL,
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_GEMINI_MODEL_AUTO,
+} from '../config/models.js';
 import type { Content, GenerateContentResponse, Part } from '@google/genai';
 import {
   findCompressSplitPoint,
@@ -902,6 +907,188 @@ describe('Gemini Client (client.ts)', () => {
   });
 
   describe('sendMessageStream', () => {
+    describe('Early chat Flash API mitigation', () => {
+      let mockRouterService: { route: Mock };
+
+      beforeEach(() => {
+        // Common setup for these tests
+        mockRouterService = {
+          route: vi
+            .fn()
+            .mockResolvedValue({ model: DEFAULT_GEMINI_FLASH_MODEL }), // Route to Flash by default
+        };
+        vi.mocked(mockConfig.getModelRouterService).mockReturnValue(
+          mockRouterService as unknown as ModelRouterService,
+        );
+
+        mockTurnRunFn.mockReturnValue(
+          (async function* () {
+            yield { type: 'content', value: 'Hello' };
+          })(),
+        );
+
+        // Default config mocks that can be overridden in specific tests
+        vi.mocked(mockConfig.isInFallbackMode).mockReturnValue(false);
+        vi.mocked(mockConfig.getModel).mockReturnValue(
+          DEFAULT_GEMINI_MODEL_AUTO,
+        );
+
+        // Prevent compression from happening in these tests
+        vi.spyOn(client, 'tryCompressChat').mockResolvedValue({
+          originalTokenCount: 0,
+          newTokenCount: 0,
+          compressionStatus: CompressionStatus.NOOP,
+        });
+      });
+
+      // Helper to create valid, non-empty mock history
+      const createMockHistory = (length: number): Content[] =>
+        Array.from({ length }, () => ({
+          role: 'user',
+          parts: [{ text: 'mock history content' }],
+        }));
+
+      it('should switch to Flash Lite when history is short, model is Flash, and in fallback mode', async () => {
+        // Arrange
+        vi.mocked(mockConfig.isInFallbackMode).mockReturnValue(true);
+        vi.mocked(mockConfig.getModel).mockReturnValue('some-other-model');
+
+        const mockChat = client.getChat();
+        vi.spyOn(mockChat, 'getHistory').mockReturnValue(createMockHistory(2));
+
+        // Act
+        const stream = client.sendMessageStream(
+          [{ text: 'Hi' }],
+          new AbortController().signal,
+          'prompt-1',
+        );
+        await fromAsync(stream);
+
+        // Assert
+        expect(mockTurnRunFn).toHaveBeenCalledWith(
+          DEFAULT_GEMINI_FLASH_LITE_MODEL, // The important check
+          expect.any(Array),
+          expect.any(Object),
+        );
+      });
+
+      it('should switch to Pro when history is short, model is Flash, and model config is "auto"', async () => {
+        // Arrange
+        vi.mocked(mockConfig.isInFallbackMode).mockReturnValue(false); // Not in fallback
+        vi.mocked(mockConfig.getModel).mockReturnValue(
+          DEFAULT_GEMINI_MODEL_AUTO,
+        );
+        const mockChat = client.getChat();
+        vi.spyOn(mockChat, 'getHistory').mockReturnValue(createMockHistory(2));
+
+        // Act
+        const stream = client.sendMessageStream(
+          [{ text: 'Hi' }],
+          new AbortController().signal,
+          'prompt-1',
+        );
+        await fromAsync(stream);
+
+        // Assert
+        expect(mockTurnRunFn).toHaveBeenCalledWith(
+          DEFAULT_GEMINI_MODEL, // The important check
+          expect.any(Array),
+          expect.any(Object),
+        );
+      });
+
+      it('should switch to Flash Lite when in fallback and "auto" mode with short history, as fallback takes precedence', async () => {
+        // Arrange
+        vi.mocked(mockConfig.isInFallbackMode).mockReturnValue(true);
+        vi.mocked(mockConfig.getModel).mockReturnValue(
+          DEFAULT_GEMINI_MODEL_AUTO,
+        );
+        const mockChat = client.getChat();
+        vi.spyOn(mockChat, 'getHistory').mockReturnValue(createMockHistory(2));
+
+        // Act
+        const stream = client.sendMessageStream(
+          [{ text: 'Hi' }],
+          new AbortController().signal,
+          'prompt-1',
+        );
+        await fromAsync(stream);
+
+        // Assert
+        expect(mockTurnRunFn).toHaveBeenCalledWith(
+          DEFAULT_GEMINI_FLASH_LITE_MODEL, // Fallback takes precedence over "auto"
+          expect.any(Array),
+          expect.any(Object),
+        );
+      });
+
+      it('should NOT switch model when history is short but model is explicitly Flash (not "auto")', async () => {
+        // Arrange
+        vi.mocked(mockConfig.getModel).mockReturnValue(
+          DEFAULT_GEMINI_FLASH_MODEL,
+        ); // Explicitly set, not auto
+        const mockChat = client.getChat();
+        vi.spyOn(mockChat, 'getHistory').mockReturnValue(createMockHistory(2));
+
+        // Act
+        const stream = client.sendMessageStream(
+          [{ text: 'Hi' }],
+          new AbortController().signal,
+          'prompt-1',
+        );
+        await fromAsync(stream);
+
+        // Assert
+        expect(mockTurnRunFn).toHaveBeenCalledWith(
+          DEFAULT_GEMINI_FLASH_MODEL, // Should stick with the original
+          expect.any(Array),
+          expect.any(Object),
+        );
+      });
+
+      it('should NOT switch model when history is long enough (>= 3)', async () => {
+        // Arrange
+        const mockChat = client.getChat();
+        vi.spyOn(mockChat, 'getHistory').mockReturnValue(createMockHistory(3));
+
+        // Act
+        const stream = client.sendMessageStream(
+          [{ text: 'Hi' }],
+          new AbortController().signal,
+          'prompt-1',
+        );
+        await fromAsync(stream);
+
+        // Assert
+        expect(mockTurnRunFn).toHaveBeenCalledWith(
+          DEFAULT_GEMINI_FLASH_MODEL, // Should stick with the original
+          expect.any(Array),
+          expect.any(Object),
+        );
+      });
+
+      it('should NOT apply mitigation when the routed model is not Flash', async () => {
+        // Arrange
+        mockRouterService.route.mockResolvedValue({ model: 'not-flash-model' });
+        const mockChat = client.getChat();
+        vi.spyOn(mockChat, 'getHistory').mockReturnValue(createMockHistory(2));
+
+        // Act
+        const stream = client.sendMessageStream(
+          [{ text: 'Hi' }],
+          new AbortController().signal,
+          'prompt-1',
+        );
+        await fromAsync(stream);
+
+        // Assert
+        expect(mockTurnRunFn).toHaveBeenCalledWith(
+          'not-flash-model', // Should stick with the original routed model
+          expect.any(Array),
+          expect.any(Object),
+        );
+      });
+    });
     it('emits a compression event when the context was automatically compressed', async () => {
       // Arrange
       mockTurnRunFn.mockReturnValue(

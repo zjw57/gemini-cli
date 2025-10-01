@@ -30,6 +30,7 @@ import { tokenLimit } from './tokenLimits.js';
 import type { ChatRecordingService } from '../services/chatRecordingService.js';
 import type { ContentGenerator } from './contentGenerator.js';
 import {
+  DEFAULT_GEMINI_FLASH_LITE_MODEL,
   DEFAULT_GEMINI_FLASH_MODEL,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_MODEL_AUTO,
@@ -526,6 +527,26 @@ export class GeminiClient {
       modelToUse = decision.model;
       // Lock the model for the rest of the sequence
       this.currentSequenceModel = modelToUse;
+    }
+
+    // Due to a current API issue, when 2.5 Flash is used with a function call
+    // during first parts of the chat history, it causes a model empty response
+    // error. We must use a different model to avoid model empty response error.
+    // This error could only be reproduced when the history is shorter than 3.
+    if (
+      this.getChat().getHistory().length < 3 &&
+      this.currentSequenceModel === DEFAULT_GEMINI_FLASH_MODEL
+    ) {
+      // If a user is in fallback, we should use Flash lite to avoid the error.
+      // Fallback mode takes precedence.
+      if (this.config.isInFallbackMode()) {
+        modelToUse = DEFAULT_GEMINI_FLASH_LITE_MODEL;
+      }
+      // Otherwise, utilize Pro for an "auto" classified request for the initial
+      // request to provide a better experience.
+      else if (this.config.getModel() === DEFAULT_GEMINI_MODEL_AUTO) {
+        modelToUse = DEFAULT_GEMINI_MODEL;
+      }
     }
 
     const resultStream = turn.run(modelToUse, request, linkedSignal);
