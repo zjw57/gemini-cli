@@ -36,9 +36,6 @@ const baseConfig = {
   platform: 'node',
   format: 'esm',
   external,
-  define: {
-    'process.env.CLI_VERSION': JSON.stringify(pkg.version),
-  },
   banner: {
     js: `import { createRequire } from 'module'; const require = createRequire(import.meta.url); globalThis.__filename = require('url').fileURLToPath(import.meta.url); globalThis.__dirname = require('path').dirname(globalThis.__filename);`,
   },
@@ -50,6 +47,9 @@ const cliConfig = {
   ...baseConfig,
   entryPoints: ['packages/cli/index.ts'],
   outfile: 'bundle/gemini.js',
+  define: {
+    'process.env.CLI_VERSION': JSON.stringify(pkg.version),
+  },
   alias: {
     'is-in-ci': path.resolve(__dirname, 'packages/cli/src/patches/is-in-ci.ts'),
   },
@@ -58,15 +58,28 @@ const cliConfig = {
 
 const a2aServerConfig = {
   ...baseConfig,
+  define: {
+    'process.env.CLI_VERSION': JSON.stringify(pkg.version),
+  },
   entryPoints: ['packages/a2a-server/src/http/server.ts'],
   outfile: 'bundle/a2a-server.mjs',
 };
 
-Promise.all([
+Promise.allSettled([
   esbuild.build(cliConfig).then(({ metafile }) => {
     if (process.env.DEV === 'true') {
       writeFileSync('./bundle/esbuild.json', JSON.stringify(metafile, null, 2));
     }
   }),
   esbuild.build(a2aServerConfig),
-]).catch(() => process.exit(1));
+]).then((results) => {
+  const [cliResult, a2aResult] = results;
+  if (cliResult.status === 'rejected') {
+    console.error('gemini.js build failed:', cliResult.reason);
+    process.exit(1);
+  }
+  // error in a2a-server bundling will not stop gemini.js bundling process
+  if (a2aResult.status === 'rejected') {
+    console.warn('a2a-server build failed:', a2aResult.reason);
+  }
+});
