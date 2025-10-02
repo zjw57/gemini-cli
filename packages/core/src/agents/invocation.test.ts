@@ -39,7 +39,8 @@ const testDefinition: AgentDefinition = {
 };
 
 describe('SubagentInvocation', () => {
-  let mockExecutorInstance: Mocked<AgentExecutor>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExecutorInstance: Mocked<AgentExecutor<any>>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -48,7 +49,8 @@ describe('SubagentInvocation', () => {
     mockExecutorInstance = {
       run: vi.fn(),
       definition: testDefinition,
-    } as unknown as Mocked<AgentExecutor>;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as unknown as Mocked<AgentExecutor<any>>;
 
     MockAgentExecutor.create.mockResolvedValue(mockExecutorInstance);
   });
