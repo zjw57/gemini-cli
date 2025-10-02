@@ -397,7 +397,12 @@ export class AgentExecutor {
         if (outputConfig) {
           const outputName = outputConfig.outputName;
           if (args[outputName] !== undefined) {
-            submittedOutput = String(args[outputName]);
+            const outputValue = args[outputName];
+
+            submittedOutput =
+              typeof outputValue === 'string'
+                ? outputValue
+                : JSON.stringify(outputValue, null, 2);
             syncResponseParts.push({
               functionResponse: {
                 name: TASK_COMPLETE_TOOL_NAME,
