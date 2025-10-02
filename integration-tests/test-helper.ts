@@ -825,8 +825,9 @@ export class TestRig {
     });
 
     ptyProcess.onData((data) => {
+      console.log('got line', data);
       this._interactiveOutput += data;
-      if (env.KEEP_OUTPUT === 'true' || env.VERBOSE === 'true') {
+      if (env['KEEP_OUTPUT'] === 'true' || env['VERBOSE'] === 'true') {
         process.stdout.write(data);
       }
     });
