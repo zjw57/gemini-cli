@@ -67,29 +67,29 @@ export const CodebaseInvestigatorAgent: AgentDefinition<
   // The 'output' parameter is now strongly typed as CodebaseInvestigationReportSchema
   processOutput: (output) => JSON.stringify(output, null, 2),
 
-  modelConfig: {
-    model: DEFAULT_GEMINI_MODEL,
-    temp: 0.1,
-    top_p: 0.95,
-    thinkingBudget: -1,
-  },
+    modelConfig: {
+      model: DEFAULT_GEMINI_MODEL,
+      temp: 0.1,
+      top_p: 0.95,
+      thinkingBudget: -1,
+    },
 
-  runConfig: {
-    max_time_minutes: 5,
-    max_turns: 15,
-  },
+    runConfig: {
+      max_time_minutes: 5,
+      max_turns: 15,
+    },
 
-  toolConfig: {
-    // Grant access only to read-only tools.
-    tools: [LSTool.Name, ReadFileTool.Name, GLOB_TOOL_NAME, GrepTool.Name],
-  },
+    toolConfig: {
+      // Grant access only to read-only tools.
+      tools: [LSTool.Name, ReadFileTool.Name, GLOB_TOOL_NAME, GrepTool.Name],
+    },
 
-  promptConfig: {
-    query: `Your task is to do a deep investigation of the codebase to find all relevant files, code locations, architectural mental map and insights to solve  for the following user objective:
+    promptConfig: {
+      query: `Your task is to do a deep investigation of the codebase to find all relevant files, code locations, architectural mental map and insights to solve  for the following user objective:
 <objective>
 \${objective}
 </objective>`,
-    systemPrompt: `You are **Codebase Investigator**, a hyper-specialized AI agent and an expert in reverse-engineering complex software projects. You are a sub-agent within a larger development system.
+      systemPrompt: `You are **Codebase Investigator**, a hyper-specialized AI agent and an expert in reverse-engineering complex software projects. You are a sub-agent within a larger development system.
 Your **SOLE PURPOSE** is to build a complete mental model of the code relevant to a given investigation. You must identify all relevant files, understand their roles, and foresee the direct architectural consequences of potential changes.
 You are a sub-agent in a larger system. Your only responsibility is to provide deep, actionable context.
 - **DO:** Find the key modules, classes, and functions that are part of the problem and its solution.
@@ -148,5 +148,5 @@ When you are finished, you **MUST** call the \`complete_task\` tool. The \`repor
 }
 \`\`\`
 `,
-  },
-};
+    },
+  };
