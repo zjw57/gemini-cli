@@ -40,8 +40,14 @@ describe('commentJson', () => {
 
       fs.writeFileSync(testFilePath, originalContent, 'utf-8');
 
+      // updateSettingsFilePreservingFormat expects the complete settings object
+      // because it's designed to be called from saveSettings which always passes
+      // the complete originalSettings
       updateSettingsFilePreservingFormat(testFilePath, {
         model: 'gemini-2.5-flash',
+        ui: {
+          theme: 'dark',
+        },
       });
 
       const updatedContent = fs.readFileSync(testFilePath, 'utf-8');
@@ -177,6 +183,90 @@ describe('commentJson', () => {
       expect(unchangedContent).toBe(corruptedContent);
 
       consoleSpy.mockRestore();
+    });
+
+    it('should handle property deletions in nested objects', () => {
+      const originalContent = `{
+        "mcpServers": {
+          // Server to keep
+          "keep-server": {
+            "command": "echo",
+            "args": ["world"]
+          },
+          // Server to remove
+          "test-server": {
+            "command": "echo",
+            "args": ["hello"]
+          }
+        }
+      }`;
+
+      fs.writeFileSync(testFilePath, originalContent, 'utf-8');
+
+      updateSettingsFilePreservingFormat(testFilePath, {
+        mcpServers: {
+          'keep-server': {
+            command: 'echo',
+            args: ['world'],
+          },
+        },
+      });
+
+      const updatedContent = fs.readFileSync(testFilePath, 'utf-8');
+
+      expect(updatedContent).toContain('// Server to keep');
+      expect(updatedContent).toContain('"keep-server"');
+      expect(updatedContent).not.toContain('test-server');
+      expect(updatedContent).not.toContain('// Server to remove');
+    });
+
+    it('should handle complete property deletions at top level', () => {
+      const originalContent = `{
+        "model": "gemini-2.5-pro",
+        "mcpServers": {
+          "test": {
+            "command": "test"
+          }
+        }
+      }`;
+
+      fs.writeFileSync(testFilePath, originalContent, 'utf-8');
+
+      updateSettingsFilePreservingFormat(testFilePath, {
+        model: 'gemini-2.5-flash',
+      });
+
+      const updatedContent = fs.readFileSync(testFilePath, 'utf-8');
+
+      expect(updatedContent).toContain('"model": "gemini-2.5-flash"');
+      expect(updatedContent).not.toContain('mcpServers');
+      expect(updatedContent).not.toContain('test');
+    });
+
+    it('should handle deletion of deeply nested properties', () => {
+      const originalContent = `{
+        "ui": {
+          "theme": "dark",
+          "showLineNumbers": true,
+          "deprecated": "value"
+        }
+      }`;
+
+      fs.writeFileSync(testFilePath, originalContent, 'utf-8');
+
+      updateSettingsFilePreservingFormat(testFilePath, {
+        ui: {
+          theme: 'light',
+          showLineNumbers: false,
+        },
+      });
+
+      const updatedContent = fs.readFileSync(testFilePath, 'utf-8');
+      const parsed = JSON.parse(updatedContent);
+
+      expect(parsed.ui.theme).toBe('light');
+      expect(parsed.ui.showLineNumbers).toBe(false);
+      expect(parsed.ui.deprecated).toBeUndefined();
     });
   });
 });

@@ -44,6 +44,7 @@ function applyUpdates(
 ): Record<string, unknown> {
   const result = current;
 
+  // First, update/add properties from updates
   for (const key of Object.getOwnPropertyNames(updates)) {
     const value = updates[key];
     if (
@@ -60,6 +61,14 @@ function applyUpdates(
       );
     } else {
       result[key] = value;
+    }
+  }
+
+  // Second, remove properties from current that are not in updates
+  // This handles deletions while preserving properties that weren't being updated
+  for (const key of Object.getOwnPropertyNames(current)) {
+    if (!(key in updates)) {
+      delete result[key];
     }
   }
 
