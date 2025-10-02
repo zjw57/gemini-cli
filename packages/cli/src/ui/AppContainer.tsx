@@ -42,6 +42,8 @@ import {
   AuthType,
   clearCachedCredentialFile,
   ShellExecutionService,
+  MessageBusType,
+  type ToolConfirmationRequest,
 } from '@google/gemini-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import { loadHierarchicalGeminiMemory } from '../config/config.js';
@@ -486,6 +488,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     commandContext,
     shellConfirmationRequest,
     confirmationRequest,
+    setConfirmationRequest,
   } = useSlashCommandProcessor(
     config,
     settings,
@@ -500,6 +503,40 @@ Logging in with Google... Please restart Gemini CLI to continue.
     extensionsUpdateStateInternal,
     isConfigInitialized,
   );
+
+  // Handle MessageBus confirmations
+  useEffect(() => {
+    const messageBus = config.getMessageBus();
+    if (!messageBus) {
+      return;
+    }
+
+    const confirmationRequestHandler = (request: ToolConfirmationRequest) => {
+      setConfirmationRequest({
+        prompt: `Allow the following tool to be executed?:\n\nTool: ${request.toolCall.name}\nArgs: ${JSON.stringify(request.toolCall.args, null, 2)}`,
+        onConfirm: (confirmed: boolean) => {
+          messageBus.publish({
+            type: MessageBusType.TOOL_CONFIRMATION_RESPONSE,
+            correlationId: request.correlationId,
+            confirmed,
+          });
+          setConfirmationRequest(null);
+        },
+      });
+    };
+
+    messageBus.subscribe(
+      MessageBusType.TOOL_CONFIRMATION_REQUEST,
+      confirmationRequestHandler,
+    );
+
+    return () => {
+      messageBus.unsubscribe(
+        MessageBusType.TOOL_CONFIRMATION_REQUEST,
+        confirmationRequestHandler,
+      );
+    };
+  }, [config, setConfirmationRequest]);
 
   const performMemoryRefresh = useCallback(async () => {
     historyManager.addItem(

@@ -46,6 +46,7 @@ import {
   logContentRetryFailure,
 } from '../telemetry/loggers.js';
 import { ChatRecordingService } from '../services/chatRecordingService.js';
+import { MessageBusPlugin } from '../confirmation-bus/message-bus-plugin.js';
 import {
   ContentRetryEvent,
   ContentRetryFailureEvent,
@@ -249,9 +250,13 @@ export class GeminiChat {
         generateContentConfig: adkGenerationConfig as any,
       });
 
+      const messageBusPlugin = new MessageBusPlugin(
+        this.config.getMessageBus(),
+      );
       this.runner = new InMemoryRunner({
         agent: this.agent,
         appName: this.appName,
+        plugins: [messageBusPlugin],
       });
     }
 

@@ -34,6 +34,10 @@ export * from './code_assist/types.js';
 // Export utilities
 export * from './utils/paths.js';
 export * from './utils/schemaValidator.js';
+export {
+  MessageBusType,
+  type ToolConfirmationRequest,
+} from './confirmation-bus/types.js';
 export * from './utils/errors.js';
 export * from './utils/getFolderStructure.js';
 export * from './utils/memoryDiscovery.js';

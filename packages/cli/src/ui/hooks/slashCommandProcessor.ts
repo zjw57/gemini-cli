@@ -557,5 +557,6 @@ export const useSlashCommandProcessor = (
     commandContext,
     shellConfirmationRequest,
     confirmationRequest,
+    setConfirmationRequest,
   };
 };

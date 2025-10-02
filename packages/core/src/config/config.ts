@@ -1006,12 +1006,12 @@ export class Config {
     return this.fileExclusions;
   }
 
-  getMessageBus(): MessageBus {
-    return this.messageBus;
-  }
-
   getPolicyEngine(): PolicyEngine {
     return this.policyEngine;
+  }
+
+  getMessageBus(): MessageBus {
+    return this.messageBus;
   }
 
   getEnableMessageBusIntegration(): boolean {
