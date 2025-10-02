@@ -40,13 +40,13 @@ import { parseThought } from '../utils/thoughtUtils.js';
 /** A callback function to report on agent activity. */
 export type ActivityCallback = (activity: SubagentActivityEvent) => void;
 
-const SUBMIT_OUTPUT_TOOL_NAME = 'submit_final_output';
+const TASK_COMPLETE_TOOL_NAME = 'complete_task';
 
 /**
  * Executes an agent loop based on an {@link AgentDefinition}.
  *
  * This executor runs the agent in a loop, calling tools until it calls the
- * mandatory `submit_final_output` tool to deliver its result.
+ * mandatory `complete_task` tool to signal completion.
  */
 export class AgentExecutor {
   readonly definition: AgentDefinition;
@@ -179,25 +179,22 @@ export class AgentExecutor {
           break;
         }
 
-        // If the model stops calling tools, check if it has submitted output.
+        // If the model stops calling tools without calling complete_task, it's an error.
         if (functionCalls.length === 0) {
-          if (this.definition.outputConfig) {
-            // Nudge the model to call the submit tool.
-            const nudgeMessage = `You have stopped calling tools, but you have not called \`${SUBMIT_OUTPUT_TOOL_NAME}\` to deliver your final result. If you are finished, you MUST call \`${SUBMIT_OUTPUT_TOOL_NAME}\` now. If you need to do more work, please continue using other tools.`;
-            currentMessage = { role: 'user', parts: [{ text: nudgeMessage }] };
-            continue;
-          } else {
-            // If no output is expected, we are done.
-            terminateReason = AgentTerminateMode.GOAL;
-            break;
-          }
+          terminateReason = AgentTerminateMode.ERROR;
+          finalResult = `Agent stopped calling tools but did not call '${TASK_COMPLETE_TOOL_NAME}' to finalize the session.`;
+          this.emitActivity('ERROR', {
+            error: finalResult,
+            context: 'protocol_violation',
+          });
+          break;
         }
 
-        const { nextMessage, submittedOutput } =
+        const { nextMessage, submittedOutput, taskCompleted } =
           await this.processFunctionCalls(functionCalls, signal, promptId);
 
-        if (submittedOutput !== null) {
-          finalResult = submittedOutput;
+        if (taskCompleted) {
+          finalResult = submittedOutput ?? 'Task completed successfully.';
           terminateReason = AgentTerminateMode.GOAL;
           break;
         }
@@ -342,28 +339,31 @@ export class AgentExecutor {
   /**
    * Executes function calls requested by the model and returns the results.
    *
-   * @returns A new `Content` object to be added to the chat history, and any
-   * submitted final output.
+   * @returns A new `Content` object for history, any submitted output, and completion status.
    */
   private async processFunctionCalls(
     functionCalls: FunctionCall[],
     signal: AbortSignal,
     promptId: string,
-  ): Promise<{ nextMessage: Content; submittedOutput: string | null }> {
+  ): Promise<{
+    nextMessage: Content;
+    submittedOutput: string | null;
+    taskCompleted: boolean;
+  }> {
     const allowedToolNames = new Set(this.toolRegistry.getAllToolNames());
-    if (this.definition.outputConfig) {
-      allowedToolNames.add(SUBMIT_OUTPUT_TOOL_NAME);
-    }
+    // Always allow the completion tool
+    allowedToolNames.add(TASK_COMPLETE_TOOL_NAME);
 
     let submittedOutput: string | null = null;
+    let taskCompleted = false;
 
     // We'll collect promises for the tool executions
     const toolExecutionPromises: Array<Promise<Part[] | void>> = [];
-    // And we'll need a place to store the synchronous results (like submit_final_output or blocked calls)
+    // And we'll need a place to store the synchronous results (like complete_task or blocked calls)
     const syncResponseParts: Part[] = [];
 
-    for (const functionCall of functionCalls) {
-      const callId = functionCall.id ?? `${functionCall.name}-${Date.now()}`;
+    for (const [index, functionCall] of functionCalls.entries()) {
+      const callId = functionCall.id ?? `${promptId}-${index}`;
       const args = (functionCall.args ?? {}) as Record<string, unknown>;
 
       this.emitActivity('TOOL_CALL_START', {
@@ -371,15 +371,14 @@ export class AgentExecutor {
         args,
       });
 
-      // Handle the special submit_final_output tool
-      if (functionCall.name === SUBMIT_OUTPUT_TOOL_NAME) {
-        if (submittedOutput !== null) {
-          // We already have a submission from this turn. Ignore subsequent ones.
+      if (functionCall.name === TASK_COMPLETE_TOOL_NAME) {
+        if (taskCompleted) {
+          // We already have a completion from this turn. Ignore subsequent ones.
           const error =
-            'Final output has already been submitted in this turn. Ignoring duplicate call.';
+            'Task already marked complete in this turn. Ignoring duplicate call.';
           syncResponseParts.push({
             functionResponse: {
-              name: SUBMIT_OUTPUT_TOOL_NAME,
+              name: TASK_COMPLETE_TOOL_NAME,
               response: { error },
               id: callId,
             },
@@ -392,33 +391,54 @@ export class AgentExecutor {
           continue;
         }
 
-        const outputName = this.definition.outputConfig!.outputName;
-        if (args[outputName] !== undefined) {
-          submittedOutput = String(args[outputName]);
+        const { outputConfig } = this.definition;
+        taskCompleted = true; // Signal completion regardless of output presence
+
+        if (outputConfig) {
+          const outputName = outputConfig.outputName;
+          if (args[outputName] !== undefined) {
+            submittedOutput = String(args[outputName]);
+            syncResponseParts.push({
+              functionResponse: {
+                name: TASK_COMPLETE_TOOL_NAME,
+                response: { result: 'Output submitted and task completed.' },
+                id: callId,
+              },
+            });
+            this.emitActivity('TOOL_CALL_END', {
+              name: functionCall.name,
+              output: 'Output submitted and task completed.',
+            });
+          } else {
+            // Failed to provide required output.
+            taskCompleted = false; // Revoke completion status
+            const error = `Missing required argument '${outputName}' for completion.`;
+            syncResponseParts.push({
+              functionResponse: {
+                name: TASK_COMPLETE_TOOL_NAME,
+                response: { error },
+                id: callId,
+              },
+            });
+            this.emitActivity('ERROR', {
+              context: 'tool_call',
+              name: functionCall.name,
+              error,
+            });
+          }
+        } else {
+          // No output expected. Just signal completion.
+          submittedOutput = 'Task completed successfully.';
           syncResponseParts.push({
             functionResponse: {
-              name: SUBMIT_OUTPUT_TOOL_NAME,
-              response: { result: 'Output submitted successfully.' },
+              name: TASK_COMPLETE_TOOL_NAME,
+              response: { status: 'Task marked complete.' },
               id: callId,
             },
           });
           this.emitActivity('TOOL_CALL_END', {
             name: functionCall.name,
-            output: 'Output submitted successfully.',
-          });
-        } else {
-          const error = `Missing required argument '${outputName}'.`;
-          syncResponseParts.push({
-            functionResponse: {
-              name: SUBMIT_OUTPUT_TOOL_NAME,
-              response: { error },
-              id: callId,
-            },
-          });
-          this.emitActivity('ERROR', {
-            context: 'tool_call',
-            name: functionCall.name,
-            error,
+            output: 'Task marked complete.',
           });
         }
         continue;
@@ -426,10 +446,25 @@ export class AgentExecutor {
 
       // Handle standard tools
       if (!allowedToolNames.has(functionCall.name as string)) {
-        console.warn(
-          `[AgentExecutor] Agent '${this.definition.name}' attempted to call ` +
-            `unauthorized tool '${functionCall.name}'. This call has been blocked.`,
-        );
+        const error = `Unauthorized tool call: '${functionCall.name}' is not available to this agent.`;
+
+        console.warn(`[AgentExecutor] Blocked call: ${error}`);
+
+        syncResponseParts.push({
+          functionResponse: {
+            name: functionCall.name as string,
+            id: callId,
+            response: { error },
+          },
+        });
+
+        this.emitActivity('ERROR', {
+          context: 'tool_call_unauthorized',
+          name: functionCall.name,
+          callId,
+          error,
+        });
+
         continue;
       }
 
@@ -479,9 +514,12 @@ export class AgentExecutor {
       }
     }
 
-    // If all authorized tool calls failed, provide a generic error message
-    // to the model so it can try a different approach.
-    if (functionCalls.length > 0 && toolResponseParts.length === 0) {
+    // If all authorized tool calls failed (and task isn't complete), provide a generic error.
+    if (
+      functionCalls.length > 0 &&
+      toolResponseParts.length === 0 &&
+      !taskCompleted
+    ) {
       toolResponseParts.push({
         text: 'All tool calls failed or were unauthorized. Please analyze the errors and try an alternative approach.',
       });
@@ -490,6 +528,7 @@ export class AgentExecutor {
     return {
       nextMessage: { role: 'user', parts: toolResponseParts },
       submittedOutput,
+      taskCompleted,
     };
   }
 
@@ -519,32 +558,36 @@ export class AgentExecutor {
       );
     }
 
-    // Inject the submit_final_output tool if an output is expected.
+    // Always inject complete_task.
+    // Configure its schema based on whether output is expected.
+    const completeTool: FunctionDeclaration = {
+      name: TASK_COMPLETE_TOOL_NAME,
+      description: outputConfig
+        ? 'Call this tool to submit your final answer and complete the task. This is the ONLY way to finish.'
+        : 'Call this tool to signal that you have completed your task. This is the ONLY way to finish.',
+      parameters: {
+        type: Type.OBJECT,
+        properties: {},
+        required: [],
+      },
+    };
+
     if (outputConfig) {
-      const submitTool: FunctionDeclaration = {
-        name: SUBMIT_OUTPUT_TOOL_NAME,
-        description:
-          'Call this tool when you have completed your task to submit your final answer. This is the ONLY way to complete your mission.',
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            [outputConfig.outputName]: {
-              description: outputConfig.description,
-              ...(outputConfig.schema ?? { type: Type.STRING }),
-            },
-          },
-          required: [outputConfig.outputName],
-        },
+      completeTool.parameters!.properties![outputConfig.outputName] = {
+        description: outputConfig.description,
+        ...(outputConfig.schema ?? { type: Type.STRING }),
       };
-      toolsList.push(submitTool);
+      completeTool.parameters!.required!.push(outputConfig.outputName);
     }
+
+    toolsList.push(completeTool);
 
     return toolsList;
   }
 
   /** Builds the system prompt from the agent definition and inputs. */
   private async buildSystemPrompt(inputs: AgentInputs): Promise<string> {
-    const { promptConfig, outputConfig } = this.definition;
+    const { promptConfig } = this.definition;
     if (!promptConfig.systemPrompt) {
       return '';
     }
@@ -563,13 +606,10 @@ Important Rules:
 * Work systematically using available tools to complete your task.
 * Always use absolute paths for file operations. Construct them using the provided "Environment Context".`;
 
-    if (outputConfig) {
-      finalPrompt += `
-* When you have completed your task, you MUST call the \`${SUBMIT_OUTPUT_TOOL_NAME}\` tool to deliver your final answer. This must be your FINAL action. Do not call any other tools in the same turn as \`${SUBMIT_OUTPUT_TOOL_NAME}\`. This is the ONLY way to complete your mission.`;
-    } else {
-      finalPrompt += `
-* When you have completed your task, stop calling tools.`;
-    }
+    finalPrompt += `
+* When you have completed your task, you MUST call the \`${TASK_COMPLETE_TOOL_NAME}\` tool.
+* Do not call any other tools in the same turn as \`${TASK_COMPLETE_TOOL_NAME}\`.
+* This is the ONLY way to complete your mission. If you stop calling tools without calling this, you have failed.`;
 
     return finalPrompt;
   }
