@@ -12,91 +12,110 @@ import { GrepTool } from '../tools/grep.js';
 import { DEFAULT_GEMINI_MODEL } from '../config/models.js';
 import { Type } from '@google/genai';
 
+// Define a type that matches the outputConfig schema for type safety.
+type CodebaseInvestigationReport = {
+  SummaryOfFindings: string;
+  ExplorationTrace: string[];
+  RelevantLocations: Array<{
+    FilePath: string;
+    Reasoning: string;
+    KeySymbols: string[];
+  }>;
+};
+
 /**
  * A Proof-of-Concept subagent specialized in analyzing codebase structure,
  * dependencies, and technologies.
  */
-export const CodebaseInvestigatorAgent: AgentDefinition = {
-  name: 'codebase_investigator',
-  displayName: 'Codebase Investigator Agent',
-  description: `Invoke this agent to delegates complex codebase exploration to an autonomous subagent. 
+export const CodebaseInvestigatorAgent: AgentDefinition<CodebaseInvestigationReport> =
+  {
+    name: 'codebase_investigator',
+    displayName: 'Codebase Investigator Agent',
+    description: `Invoke this agent to delegates complex codebase exploration to an autonomous subagent. 
     Use for vague user requests that require searching multiple files to understand a feature or find context. 
     Returns a structured JSON report with key file paths, symbols, architectural map and insights to solve a task.`,
-  inputConfig: {
-    inputs: {
-      objective: {
-        description: `A comprehensive and detailed description of the user's ultimate goal. 
+    inputConfig: {
+      inputs: {
+        objective: {
+          description: `A comprehensive and detailed description of the user's ultimate goal. 
           You must include original user's objective as well as questions and any extra context and questions you may have.`,
-        type: 'string',
-        required: true,
+          type: 'string',
+          required: true,
+        },
       },
     },
-  },
-  // CHANGED: The output is now a JSON object, not a markdown string.
-  outputConfig: {
-    outputName: 'report',
-    description: 'The final investigation report as a JSON object.',
-    schema: {
-      type: Type.OBJECT,
-      description: `A detailed JSON object summarizing the findings of the codebase investigation.`,
-      properties: {
-        SummaryOfFindings: {
-          type: Type.STRING,
-          description:
-            "A summary of the investigation's conclusions and insights for the main agent.",
-        },
-        ExplorationTrace: {
-          type: Type.ARRAY,
-          description:
-            'A step-by-step list of actions and tools used during the investigation.',
-          items: { type: Type.STRING },
-        },
-        RelevantLocations: {
-          type: Type.ARRAY,
-          description:
-            'A list of relevant files and the key symbols within them.',
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              FilePath: { type: Type.STRING },
-              Reasoning: { type: Type.STRING },
-              KeySymbols: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
+    // CHANGED: The output is now a JSON object, not a markdown string.
+    outputConfig: {
+      outputName: 'report',
+      description: 'The final investigation report as a JSON object.',
+      schema: {
+        type: Type.OBJECT,
+        description: `A detailed JSON object summarizing the findings of the codebase investigation.`,
+        properties: {
+          SummaryOfFindings: {
+            type: Type.STRING,
+            description:
+              "A summary of the investigation's conclusions and insights for the main agent.",
+          },
+          ExplorationTrace: {
+            type: Type.ARRAY,
+            description:
+              'A step-by-step list of actions and tools used during the investigation.',
+            items: { type: Type.STRING },
+          },
+          RelevantLocations: {
+            type: Type.ARRAY,
+            description:
+              'A list of relevant files and the key symbols within them.',
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                FilePath: { type: Type.STRING },
+                Reasoning: { type: Type.STRING },
+                KeySymbols: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
               },
+              required: ['FilePath', 'Reasoning', 'KeySymbols'],
             },
-            required: ['FilePath', 'Reasoning', 'KeySymbols'],
           },
         },
+        required: [
+          'SummaryOfFindings',
+          'ExplorationTrace',
+          'RelevantLocations',
+        ],
       },
-      required: ['SummaryOfFindings', 'ExplorationTrace', 'RelevantLocations'],
     },
-  },
 
-  modelConfig: {
-    model: DEFAULT_GEMINI_MODEL,
-    temp: 0.1,
-    top_p: 0.95,
-    thinkingBudget: -1,
-  },
+    // The 'output' parameter is now strongly typed as CodebaseInvestigationReport!
+    processOutput: (output) => JSON.stringify(output, null, 2),
 
-  runConfig: {
-    max_time_minutes: 5,
-    max_turns: 15,
-  },
+    modelConfig: {
+      model: DEFAULT_GEMINI_MODEL,
+      temp: 0.1,
+      top_p: 0.95,
+      thinkingBudget: -1,
+    },
 
-  toolConfig: {
-    // Grant access only to read-only tools.
-    tools: [LSTool.Name, ReadFileTool.Name, GLOB_TOOL_NAME, GrepTool.Name],
-  },
+    runConfig: {
+      max_time_minutes: 5,
+      max_turns: 15,
+    },
 
-  promptConfig: {
-    query: `Your task is to do a deep investigation of the codebase to find all relevant files, code locations, architectural mental map and insights to solve  for the following user objective:
+    toolConfig: {
+      // Grant access only to read-only tools.
+      tools: [LSTool.Name, ReadFileTool.Name, GLOB_TOOL_NAME, GrepTool.Name],
+    },
+
+    promptConfig: {
+      query: `Your task is to do a deep investigation of the codebase to find all relevant files, code locations, architectural mental map and insights to solve  for the following user objective:
 <objective>
 \${objective}
 </objective>`,
-    // CHANGED: The system prompt now instructs the model to output a JSON object via the complete_task tool.
-    systemPrompt: `You are **Codebase Investigator**, a hyper-specialized AI agent and an expert in reverse-engineering complex software projects. You are a sub-agent within a larger development system.
+      // CHANGED: The system prompt now instructs the model to output a JSON object via the complete_task tool.
+      systemPrompt: `You are **Codebase Investigator**, a hyper-specialized AI agent and an expert in reverse-engineering complex software projects. You are a sub-agent within a larger development system.
 Your **SOLE PURPOSE** is to build a complete mental model of the code relevant to a given investigation. You must identify all relevant files, understand their roles, and foresee the direct architectural consequences of potential changes.
 You are a sub-agent in a larger system. Your only responsibility is to provide deep, actionable context.
 - **DO:** Find the key modules, classes, and functions that are part of the problem and its solution.
@@ -137,5 +156,5 @@ When you are finished, you **MUST** call the \`complete_task\` tool. The \`repor
 }
 \`\`\`
 `,
-  },
-};
+    },
+  };
