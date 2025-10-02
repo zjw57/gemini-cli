@@ -127,8 +127,10 @@ const COMPRESSION_PRESERVE_THRESHOLD = 0.3;
 export class GeminiClient {
   private chat?: GeminiChat;
   private readonly generateContentConfig: GenerateContentConfig = {
-    temperature: 0,
-    topP: 1,
+    // Use the swebench settings from https://storage.googleapis.com/deepmind-media/gemini/gemini_v2_5_report.pdf
+    temperature: 1,
+    topP: 0.99,
+    topK: 1024,
   };
   private sessionTurnCount = 0;
 
