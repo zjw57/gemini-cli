@@ -138,7 +138,6 @@ describe('IDEServer', () => {
     const expectedContent = JSON.stringify({
       port: parseInt(port, 10),
       workspacePath: expectedWorkspacePaths,
-      ppid: process.ppid,
       authToken: 'test-auth-token',
     });
     expect(fs.mkdir).toHaveBeenCalledWith(path.join('/tmp', 'gemini', 'ide'), {
@@ -172,7 +171,6 @@ describe('IDEServer', () => {
     const expectedContent = JSON.stringify({
       port: parseInt(port, 10),
       workspacePath: '/foo/bar',
-      ppid: process.ppid,
       authToken: 'test-auth-token',
     });
     expect(fs.writeFile).toHaveBeenCalledWith(
@@ -203,7 +201,6 @@ describe('IDEServer', () => {
     const expectedContent = JSON.stringify({
       port: parseInt(port, 10),
       workspacePath: '',
-      ppid: process.ppid,
       authToken: 'test-auth-token',
     });
     expect(fs.writeFile).toHaveBeenCalledWith(
@@ -248,7 +245,6 @@ describe('IDEServer', () => {
     const expectedContent = JSON.stringify({
       port: parseInt(port, 10),
       workspacePath: expectedWorkspacePaths,
-      ppid: process.ppid,
       authToken: 'test-auth-token',
     });
     expect(fs.writeFile).toHaveBeenCalledWith(
@@ -268,7 +264,6 @@ describe('IDEServer', () => {
     const expectedContent2 = JSON.stringify({
       port: parseInt(port, 10),
       workspacePath: '/baz/qux',
-      ppid: process.ppid,
       authToken: 'test-auth-token',
     });
     expect(fs.writeFile).toHaveBeenCalledWith(
@@ -323,7 +318,6 @@ describe('IDEServer', () => {
       const expectedContent = JSON.stringify({
         port: parseInt(port, 10),
         workspacePath: expectedWorkspacePaths,
-        ppid: process.ppid,
         authToken: 'test-auth-token',
       });
       expect(fs.writeFile).toHaveBeenCalledWith(

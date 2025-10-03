@@ -76,7 +76,6 @@ async function writePortAndWorkspace({
   const content = JSON.stringify({
     port,
     workspacePath,
-    ppid: process.ppid,
     authToken,
   });
 
