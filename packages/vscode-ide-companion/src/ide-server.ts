@@ -381,7 +381,7 @@ export class IDEServer {
   }
 
   async syncEnvVars(): Promise<void> {
-    if (this.context && this.server && this.port && this.authToken) {
+    if (this.context && this.server && this.port) {
       await writePortAndWorkspace({
         context: this.context,
         port: this.port,
