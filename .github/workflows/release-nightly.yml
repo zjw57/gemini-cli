@@ -58,6 +58,9 @@ jobs:
 
       - name: 'Run Tests'
         if: "${{github.event.inputs.force_skip_tests == 'false'}}"
+        env:
+          VERBOSE: true
+          KEEP_OUTPUT: true
         uses: './.github/actions/run-tests'
         with:
           gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
