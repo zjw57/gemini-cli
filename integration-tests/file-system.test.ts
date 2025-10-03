@@ -148,7 +148,7 @@ describe('file-system', () => {
     expect(newFileContent).toBe('1.0.1');
   });
 
-  it.skip('should replace multiple instances of a string', async () => {
+  it('should replace multiple instances of a string', async () => {
     const rig = new TestRig();
     await rig.setup('should replace multiple instances of a string');
     const fileName = 'ambiguous.txt';
