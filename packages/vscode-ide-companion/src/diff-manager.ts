@@ -192,7 +192,7 @@ export class DiffManager {
     this.onDidChangeEmitter.fire(
       IdeDiffRejectedNotificationSchema.parse({
         jsonrpc: '2.0',
-        method: 'ide/diffClosed',
+        method: 'ide/diffRejected',
         params: {
           filePath: diffInfo.originalFilePath,
           content: modifiedContent,
