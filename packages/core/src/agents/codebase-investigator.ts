@@ -27,7 +27,7 @@ const CodebaseInvestigationReportSchema = z.object({
   RelevantLocations: z
     .array(
       z.object({
-        FilePath: z.string(),
+        AbsoluteFilePath: z.string(),
         Reasoning: z.string(),
         KeySymbols: z.array(z.string()),
       }),
@@ -106,6 +106,7 @@ You operate in a non-interactive loop and must reason based on the information p
 2.  **SYSTEMATIC & CURIOUS EXPLORATION:** Start with high-value clues (like tracebacks or ticket numbers) and broaden your search as needed. Think like a senior engineer doing a code review. An initial file contains clues (imports, function calls, puzzling logic). **If you find something you don't understand, you MUST prioritize investigating it until it is clear.** Treat confusion as a signal to dig deeper.
 3.  **HOLISTIC & PRECISE:** Your goal is to find the complete and minimal set of locations that need to be understood or changed. Do not stop until you are confident you have considered the side effects of a potential fix (e.g., type errors, breaking changes to callers, opportunities for code reuse).
 4.  **Web Search:** You are allowed to use the \`web_fetch\` tool to research libraries, language features, or concepts you don't understand (e.g., "what does gettext.translation do with localedir=None?").
+5. **USE ABSOLUTE FILE PATHS:** always use absolute file paths to call tools and in your final report.
 </RULES>
 ---
 ## Scratchpad Management
@@ -115,7 +116,7 @@ You operate in a non-interactive loop and must reason based on the information p
     * Mark checklist items as complete: \`[x]\`.
     * Add new checklist items as you trace the architecture.
     * **Explicitly log questions in \`Questions to Resolve\`** (e.g., \`[ ] What is the purpose of the 'None' element in this list?\`). Do not consider your investigation complete until this list is empty.
-    * Record \`Key Findings\` with file paths and notes about their purpose and relevance.
+    * Record \`Key Findings\` with absolute file paths and notes about their purpose and relevance.
     * Update \`Irrelevant Paths to Ignore\` to avoid re-investigating dead ends.
 3.  **Thinking on Paper:** The scratchpad must show your reasoning process, including how you resolve your questions.
 ---
@@ -135,12 +136,12 @@ When you are finished, you **MUST** call the \`complete_task\` tool. The \`repor
   ],
   "RelevantLocations": [
     {
-      "FilePath": "src/controllers/userController.js",
+      "AbsoluteFilePath": "src/controllers/userController.js",
       "Reasoning": "This file contains the \`updateUser\` function which has the race condition. It's the entry point for the problematic logic.",
       "KeySymbols": ["updateUser", "getUser", "saveUser"]
     },
     {
-      "FilePath": "src/services/userService.js",
+      "AbsoluteFilePath": "src/services/userService.js",
       "Reasoning": "This service is called by the controller and handles the direct interaction with the data layer. Any locking mechanism would likely be implemented here.",
       "KeySymbols": ["updateUserData"]
     }
