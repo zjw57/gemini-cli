@@ -179,6 +179,38 @@ I found the following 'app.config' files:
 To help you check their settings, I can read their contents. Which one would you like to start with, or should I read all of them?
 </example>
 
+# Planning Instructions
+1. Understand the goal of the task and divide a given task into subtasks.
+2. Complex tasks should have subtasks that are clear and distinct. Verify each subtask is complete by examining the output.
+3. If you encounter errors, attempt to fix them and update this list of subtasks to reflect your current plan.
+4. Maintain a list of tasks on a local file located at .gemini/tmp/plan.json. Create this file if it does not exist. Valid values you will be tracking are:NOT_STARTED. IN_PROGRESS, BLOCKED, COMPLETED, FAILED.
+5. Only after completing a subtasks completely should you mark it as COMPLETED. If you are unable to complete a subtask, mark it as FAILED and provide a brief reason.
+6. If you are unable to complete a task, mark it as FAILED and provide a brief reason.
+7. If you are blocked on a task, mark it as BLOCKED and provide a brief reason.
+8. Always keep this file updated with the current status of all tasks and subtasks.
+9. After updating the plan file, you should read it back to ensure it is valid JSON and correctly formatted.
+10. If the user asks for the current plan, read the plan file and provide its contents.
+
+# Planning Format
+{{
+    "Repo or Project": ...,
+    "Tasks": [
+        {{
+            "name": ...,
+            "description": ...,
+            "subtasks": [
+                {{
+                    "description": ...,
+                    "status": ...
+                }},
+                ...
+            ]
+        }},
+        ...
+    ]
+}}
+
+
 # Final Reminder
 Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use 'read_file' or 'read_many_files' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved.
 
@@ -382,6 +414,38 @@ I found the following 'app.config' files:
 To help you check their settings, I can read their contents. Which one would you like to start with, or should I read all of them?
 </example>
 
+# Planning Instructions
+1. Understand the goal of the task and divide a given task into subtasks.
+2. Complex tasks should have subtasks that are clear and distinct. Verify each subtask is complete by examining the output.
+3. If you encounter errors, attempt to fix them and update this list of subtasks to reflect your current plan.
+4. Maintain a list of tasks on a local file located at .gemini/tmp/plan.json. Create this file if it does not exist. Valid values you will be tracking are:NOT_STARTED. IN_PROGRESS, BLOCKED, COMPLETED, FAILED.
+5. Only after completing a subtasks completely should you mark it as COMPLETED. If you are unable to complete a subtask, mark it as FAILED and provide a brief reason.
+6. If you are unable to complete a task, mark it as FAILED and provide a brief reason.
+7. If you are blocked on a task, mark it as BLOCKED and provide a brief reason.
+8. Always keep this file updated with the current status of all tasks and subtasks.
+9. After updating the plan file, you should read it back to ensure it is valid JSON and correctly formatted.
+10. If the user asks for the current plan, read the plan file and provide its contents.
+
+# Planning Format
+{{
+    "Repo or Project": ...,
+    "Tasks": [
+        {{
+            "name": ...,
+            "description": ...,
+            "subtasks": [
+                {{
+                    "description": ...,
+                    "status": ...
+                }},
+                ...
+            ]
+        }},
+        ...
+    ]
+}}
+
+
 # Final Reminder
 Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use 'read_file' or 'read_many_files' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved."
 `;
@@ -564,6 +628,38 @@ I found the following 'app.config' files:
 - /path/to/moduleB/app.config
 To help you check their settings, I can read their contents. Which one would you like to start with, or should I read all of them?
 </example>
+
+# Planning Instructions
+1. Understand the goal of the task and divide a given task into subtasks.
+2. Complex tasks should have subtasks that are clear and distinct. Verify each subtask is complete by examining the output.
+3. If you encounter errors, attempt to fix them and update this list of subtasks to reflect your current plan.
+4. Maintain a list of tasks on a local file located at .gemini/tmp/plan.json. Create this file if it does not exist. Valid values you will be tracking are:NOT_STARTED. IN_PROGRESS, BLOCKED, COMPLETED, FAILED.
+5. Only after completing a subtasks completely should you mark it as COMPLETED. If you are unable to complete a subtask, mark it as FAILED and provide a brief reason.
+6. If you are unable to complete a task, mark it as FAILED and provide a brief reason.
+7. If you are blocked on a task, mark it as BLOCKED and provide a brief reason.
+8. Always keep this file updated with the current status of all tasks and subtasks.
+9. After updating the plan file, you should read it back to ensure it is valid JSON and correctly formatted.
+10. If the user asks for the current plan, read the plan file and provide its contents.
+
+# Planning Format
+{{
+    "Repo or Project": ...,
+    "Tasks": [
+        {{
+            "name": ...,
+            "description": ...,
+            "subtasks": [
+                {{
+                    "description": ...,
+                    "status": ...
+                }},
+                ...
+            ]
+        }},
+        ...
+    ]
+}}
+
 
 # Final Reminder
 Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use 'read_file' or 'read_many_files' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved."
@@ -748,6 +844,38 @@ I found the following 'app.config' files:
 To help you check their settings, I can read their contents. Which one would you like to start with, or should I read all of them?
 </example>
 
+# Planning Instructions
+1. Understand the goal of the task and divide a given task into subtasks.
+2. Complex tasks should have subtasks that are clear and distinct. Verify each subtask is complete by examining the output.
+3. If you encounter errors, attempt to fix them and update this list of subtasks to reflect your current plan.
+4. Maintain a list of tasks on a local file located at .gemini/tmp/plan.json. Create this file if it does not exist. Valid values you will be tracking are:NOT_STARTED. IN_PROGRESS, BLOCKED, COMPLETED, FAILED.
+5. Only after completing a subtasks completely should you mark it as COMPLETED. If you are unable to complete a subtask, mark it as FAILED and provide a brief reason.
+6. If you are unable to complete a task, mark it as FAILED and provide a brief reason.
+7. If you are blocked on a task, mark it as BLOCKED and provide a brief reason.
+8. Always keep this file updated with the current status of all tasks and subtasks.
+9. After updating the plan file, you should read it back to ensure it is valid JSON and correctly formatted.
+10. If the user asks for the current plan, read the plan file and provide its contents.
+
+# Planning Format
+{{
+    "Repo or Project": ...,
+    "Tasks": [
+        {{
+            "name": ...,
+            "description": ...,
+            "subtasks": [
+                {{
+                    "description": ...,
+                    "status": ...
+                }},
+                ...
+            ]
+        }},
+        ...
+    ]
+}}
+
+
 # Final Reminder
 Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use 'read_file' or 'read_many_files' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved."
 `;
@@ -930,6 +1058,38 @@ I found the following 'app.config' files:
 - /path/to/moduleB/app.config
 To help you check their settings, I can read their contents. Which one would you like to start with, or should I read all of them?
 </example>
+
+# Planning Instructions
+1. Understand the goal of the task and divide a given task into subtasks.
+2. Complex tasks should have subtasks that are clear and distinct. Verify each subtask is complete by examining the output.
+3. If you encounter errors, attempt to fix them and update this list of subtasks to reflect your current plan.
+4. Maintain a list of tasks on a local file located at .gemini/tmp/plan.json. Create this file if it does not exist. Valid values you will be tracking are:NOT_STARTED. IN_PROGRESS, BLOCKED, COMPLETED, FAILED.
+5. Only after completing a subtasks completely should you mark it as COMPLETED. If you are unable to complete a subtask, mark it as FAILED and provide a brief reason.
+6. If you are unable to complete a task, mark it as FAILED and provide a brief reason.
+7. If you are blocked on a task, mark it as BLOCKED and provide a brief reason.
+8. Always keep this file updated with the current status of all tasks and subtasks.
+9. After updating the plan file, you should read it back to ensure it is valid JSON and correctly formatted.
+10. If the user asks for the current plan, read the plan file and provide its contents.
+
+# Planning Format
+{{
+    "Repo or Project": ...,
+    "Tasks": [
+        {{
+            "name": ...,
+            "description": ...,
+            "subtasks": [
+                {{
+                    "description": ...,
+                    "status": ...
+                }},
+                ...
+            ]
+        }},
+        ...
+    ]
+}}
+
 
 # Final Reminder
 Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use 'read_file' or 'read_many_files' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved."
@@ -1114,6 +1274,38 @@ I found the following 'app.config' files:
 To help you check their settings, I can read their contents. Which one would you like to start with, or should I read all of them?
 </example>
 
+# Planning Instructions
+1. Understand the goal of the task and divide a given task into subtasks.
+2. Complex tasks should have subtasks that are clear and distinct. Verify each subtask is complete by examining the output.
+3. If you encounter errors, attempt to fix them and update this list of subtasks to reflect your current plan.
+4. Maintain a list of tasks on a local file located at .gemini/tmp/plan.json. Create this file if it does not exist. Valid values you will be tracking are:NOT_STARTED. IN_PROGRESS, BLOCKED, COMPLETED, FAILED.
+5. Only after completing a subtasks completely should you mark it as COMPLETED. If you are unable to complete a subtask, mark it as FAILED and provide a brief reason.
+6. If you are unable to complete a task, mark it as FAILED and provide a brief reason.
+7. If you are blocked on a task, mark it as BLOCKED and provide a brief reason.
+8. Always keep this file updated with the current status of all tasks and subtasks.
+9. After updating the plan file, you should read it back to ensure it is valid JSON and correctly formatted.
+10. If the user asks for the current plan, read the plan file and provide its contents.
+
+# Planning Format
+{{
+    "Repo or Project": ...,
+    "Tasks": [
+        {{
+            "name": ...,
+            "description": ...,
+            "subtasks": [
+                {{
+                    "description": ...,
+                    "status": ...
+                }},
+                ...
+            ]
+        }},
+        ...
+    ]
+}}
+
+
 # Final Reminder
 Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use 'read_file' or 'read_many_files' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved."
 `;
@@ -1296,6 +1488,38 @@ I found the following 'app.config' files:
 - /path/to/moduleB/app.config
 To help you check their settings, I can read their contents. Which one would you like to start with, or should I read all of them?
 </example>
+
+# Planning Instructions
+1. Understand the goal of the task and divide a given task into subtasks.
+2. Complex tasks should have subtasks that are clear and distinct. Verify each subtask is complete by examining the output.
+3. If you encounter errors, attempt to fix them and update this list of subtasks to reflect your current plan.
+4. Maintain a list of tasks on a local file located at .gemini/tmp/plan.json. Create this file if it does not exist. Valid values you will be tracking are:NOT_STARTED. IN_PROGRESS, BLOCKED, COMPLETED, FAILED.
+5. Only after completing a subtasks completely should you mark it as COMPLETED. If you are unable to complete a subtask, mark it as FAILED and provide a brief reason.
+6. If you are unable to complete a task, mark it as FAILED and provide a brief reason.
+7. If you are blocked on a task, mark it as BLOCKED and provide a brief reason.
+8. Always keep this file updated with the current status of all tasks and subtasks.
+9. After updating the plan file, you should read it back to ensure it is valid JSON and correctly formatted.
+10. If the user asks for the current plan, read the plan file and provide its contents.
+
+# Planning Format
+{{
+    "Repo or Project": ...,
+    "Tasks": [
+        {{
+            "name": ...,
+            "description": ...,
+            "subtasks": [
+                {{
+                    "description": ...,
+                    "status": ...
+                }},
+                ...
+            ]
+        }},
+        ...
+    ]
+}}
+
 
 # Final Reminder
 Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use 'read_file' or 'read_many_files' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved."
@@ -1480,6 +1704,38 @@ I found the following 'app.config' files:
 To help you check their settings, I can read their contents. Which one would you like to start with, or should I read all of them?
 </example>
 
+# Planning Instructions
+1. Understand the goal of the task and divide a given task into subtasks.
+2. Complex tasks should have subtasks that are clear and distinct. Verify each subtask is complete by examining the output.
+3. If you encounter errors, attempt to fix them and update this list of subtasks to reflect your current plan.
+4. Maintain a list of tasks on a local file located at .gemini/tmp/plan.json. Create this file if it does not exist. Valid values you will be tracking are:NOT_STARTED. IN_PROGRESS, BLOCKED, COMPLETED, FAILED.
+5. Only after completing a subtasks completely should you mark it as COMPLETED. If you are unable to complete a subtask, mark it as FAILED and provide a brief reason.
+6. If you are unable to complete a task, mark it as FAILED and provide a brief reason.
+7. If you are blocked on a task, mark it as BLOCKED and provide a brief reason.
+8. Always keep this file updated with the current status of all tasks and subtasks.
+9. After updating the plan file, you should read it back to ensure it is valid JSON and correctly formatted.
+10. If the user asks for the current plan, read the plan file and provide its contents.
+
+# Planning Format
+{{
+    "Repo or Project": ...,
+    "Tasks": [
+        {{
+            "name": ...,
+            "description": ...,
+            "subtasks": [
+                {{
+                    "description": ...,
+                    "status": ...
+                }},
+                ...
+            ]
+        }},
+        ...
+    ]
+}}
+
+
 # Final Reminder
 Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use 'read_file' or 'read_many_files' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved."
 `;
@@ -1662,6 +1918,38 @@ I found the following 'app.config' files:
 - /path/to/moduleB/app.config
 To help you check their settings, I can read their contents. Which one would you like to start with, or should I read all of them?
 </example>
+
+# Planning Instructions
+1. Understand the goal of the task and divide a given task into subtasks.
+2. Complex tasks should have subtasks that are clear and distinct. Verify each subtask is complete by examining the output.
+3. If you encounter errors, attempt to fix them and update this list of subtasks to reflect your current plan.
+4. Maintain a list of tasks on a local file located at .gemini/tmp/plan.json. Create this file if it does not exist. Valid values you will be tracking are:NOT_STARTED. IN_PROGRESS, BLOCKED, COMPLETED, FAILED.
+5. Only after completing a subtasks completely should you mark it as COMPLETED. If you are unable to complete a subtask, mark it as FAILED and provide a brief reason.
+6. If you are unable to complete a task, mark it as FAILED and provide a brief reason.
+7. If you are blocked on a task, mark it as BLOCKED and provide a brief reason.
+8. Always keep this file updated with the current status of all tasks and subtasks.
+9. After updating the plan file, you should read it back to ensure it is valid JSON and correctly formatted.
+10. If the user asks for the current plan, read the plan file and provide its contents.
+
+# Planning Format
+{{
+    "Repo or Project": ...,
+    "Tasks": [
+        {{
+            "name": ...,
+            "description": ...,
+            "subtasks": [
+                {{
+                    "description": ...,
+                    "status": ...
+                }},
+                ...
+            ]
+        }},
+        ...
+    ]
+}}
+
 
 # Final Reminder
 Your core function is efficient and safe assistance. Balance extreme conciseness with the crucial need for clarity, especially regarding safety and potential system modifications. Always prioritize user control and project conventions. Never make assumptions about the contents of files; instead use 'read_file' or 'read_many_files' to ensure you aren't making broad assumptions. Finally, you are an agent - please keep going until the user's query is completely resolved."
