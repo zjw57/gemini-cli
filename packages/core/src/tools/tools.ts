@@ -275,7 +275,7 @@ export abstract class DeclarativeTool<
 > implements ToolBuilder<TParams, TResult>
 {
   constructor(
-    readonly name: string,
+    readonly _name: string,
     readonly displayName: string,
     readonly description: string,
     readonly kind: Kind,
@@ -284,6 +284,10 @@ export abstract class DeclarativeTool<
     readonly canUpdateOutput: boolean = false,
     readonly messageBus?: MessageBus,
   ) {}
+
+  get name(): string {
+    return `core-mcp-server__${this._name}`;
+  }
 
   get schema(): FunctionDeclaration {
     return {

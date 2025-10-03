@@ -474,6 +474,6 @@ export class ToolRegistry {
    * Get the definition of a specific tool.
    */
   getTool(name: string): AnyDeclarativeTool | undefined {
-    return this.tools.get(name);
+    return this.tools.get(name) ?? this.tools.get(`core-mcp-server__${name}`);
   }
 }
