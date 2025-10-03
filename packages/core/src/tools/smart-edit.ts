@@ -392,7 +392,7 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
         isNewFile: false,
         error: {
           display: `No changes required. The file already meets the specified conditions.`,
-          raw: `A secondary check by an LLM determined that no changes were necessary to fulfill the instruction.`,
+          raw: `A secondary check by an LLM determined that no changes were necessary to fulfill the instruction. Original error with the parameters given: ${initialError.raw}`,
           type: ToolErrorType.EDIT_NO_CHANGE_LLM_JUDGEMENT,
         },
         originalLineEnding,
