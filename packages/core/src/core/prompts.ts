@@ -103,6 +103,9 @@ export function getCoreSystemPrompt(
     .getAllToolNames()
     .includes(CodebaseInvestigatorAgent.name);
 
+  if (enableCodebaseInvestigator) {
+    return "You are a helpful assistant. Your goal is to use the Codebase Investigator tool to analyze the user's request.";
+  }
   const basePrompt = systemMdEnabled
     ? fs.readFileSync(systemMdPath, 'utf8')
     : `You are an interactive CLI agent specializing in software engineering tasks. Your primary goal is to help users safely and efficiently, adhering strictly to the following instructions and utilizing your available tools.
