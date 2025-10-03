@@ -291,7 +291,7 @@ export function getErrorReplaceResult(
   if (occurrences === 0) {
     error = {
       display: `Failed to edit, could not find the string to replace.`,
-      raw: `Failed to edit, 0 occurrences found for old_string (${finalOldString}). Original old_string was (${params.old_string}) in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
+      raw: `Failed to edit, 0 occurrences found for old_string in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
       type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
     };
   } else if (occurrences !== expectedReplacements) {
@@ -392,7 +392,7 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
         isNewFile: false,
         error: {
           display: `No changes required. The file already meets the specified conditions.`,
-          raw: `A secondary check by an LLM determined that no changes were necessary to fulfill the instruction. Explanation: ${fixedEdit.explanation}. Original error with the parameters given: ${initialError.raw}`,
+          raw: `A secondary check by an LLM determined that no changes were necessary to fulfill the instruction.`,
           type: ToolErrorType.EDIT_NO_CHANGE_LLM_JUDGEMENT,
         },
         originalLineEnding,
