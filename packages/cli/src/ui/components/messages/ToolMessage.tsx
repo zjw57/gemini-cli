@@ -24,7 +24,7 @@ import type { AnsiOutput, Config } from '@google/gemini-cli-core';
 
 const STATIC_HEIGHT = 1;
 const RESERVED_LINE_COUNT = 5; // for tool name, status, padding etc.
-const STATUS_INDICATOR_WIDTH = 3;
+const STATUS_INDICATOR_WIDTH = 2;
 const MIN_LINES_SHOWN = 2; // show at least this many lines
 
 // Large threshold to ensure we don't cause performance issues for very large
@@ -219,7 +219,6 @@ const ToolInfo: React.FC<ToolInfo> = ({
   description,
   status,
   emphasis,
-  minimal,
 }) => {
   const nameColor = React.useMemo<string>(() => {
     switch (emphasis) {
@@ -237,14 +236,13 @@ const ToolInfo: React.FC<ToolInfo> = ({
   }, [emphasis]);
   return (
     <Box>
-      <Text
-        wrap="truncate-end"
-        strikethrough={status === ToolCallStatus.Canceled}
-      >
-        <Text color={nameColor} bold>
+      <Text wrap="truncate" strikethrough={status === ToolCallStatus.Canceled}>
+        <Text wrap="truncate" color={nameColor} bold>
           {name}
         </Text>{' '}
-        {!minimal && <Text color={theme.text.secondary}>{description}</Text>}
+        <Text wrap="truncate" color={theme.text.secondary}>
+          {description}
+        </Text>
       </Text>
     </Box>
   );
