@@ -128,7 +128,7 @@ describe('git extension helpers', () => {
         version: '1.0.0',
         isActive: true,
         installMetadata: {
-          type: 'local',
+          type: 'link',
           source: '',
         },
       };
@@ -292,8 +292,15 @@ describe('git extension helpers', () => {
       expect(repo).toBe('repo');
     });
 
-    it('should parse owner and repo from a full GitHub UR without .git', () => {
+    it('should parse owner and repo from a full GitHub URL without .git', () => {
       const source = 'https://github.com/owner/repo';
+      const { owner, repo } = parseGitHubRepoForReleases(source);
+      expect(owner).toBe('owner');
+      expect(repo).toBe('repo');
+    });
+
+    it('should parse owner and repo from a full GitHub URL with a trailing slash', () => {
+      const source = 'https://github.com/owner/repo/';
       const { owner, repo } = parseGitHubRepoForReleases(source);
       expect(owner).toBe('owner');
       expect(repo).toBe('repo');
@@ -303,6 +310,13 @@ describe('git extension helpers', () => {
       const source = 'git@github.com:owner/repo.git';
       expect(() => parseGitHubRepoForReleases(source)).toThrow(
         'GitHub release-based extensions are not supported for SSH. You must use an HTTPS URI with a personal access token to download releases from private repositories. You can set your personal access token in the GITHUB_TOKEN environment variable and install the extension via SSH.',
+      );
+    });
+
+    it('should fail on a non-GitHub URL', () => {
+      const source = 'https://example.com/owner/repo.git';
+      expect(() => parseGitHubRepoForReleases(source)).toThrow(
+        'Invalid GitHub repository source: https://example.com/owner/repo.git. Expected "owner/repo" or a github repo uri.',
       );
     });
 
