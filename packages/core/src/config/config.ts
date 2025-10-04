@@ -1055,10 +1055,8 @@ export class Config {
     registerCoreTool(ShellTool, this);
     registerCoreTool(MemoryTool);
     registerCoreTool(WebSearchTool, this);
-    if (this.getUseWriteTodos()) {
-      registerCoreTool(WriteTodosTool, this);
-    }
-
+    registerCoreTool(WriteTodosTool, this);
+    
     await registry.discoverAllTools();
     return registry;
   }
