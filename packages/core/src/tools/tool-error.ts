@@ -25,6 +25,7 @@ export enum ToolErrorType {
   NO_SPACE_LEFT = 'no_space_left',
   TARGET_IS_DIRECTORY = 'target_is_directory',
   PATH_NOT_IN_WORKSPACE = 'path_not_in_workspace',
+  PATH_AMBIGUOUS = 'path_ambiguous',
   SEARCH_PATH_NOT_FOUND = 'search_path_not_found',
   SEARCH_PATH_NOT_A_DIRECTORY = 'search_path_not_a_directory',
 

@@ -19,15 +19,17 @@ import { FileOperation } from '../telemetry/metrics.js';
 import { getProgrammingLanguage } from '../telemetry/telemetry-utils.js';
 import { logFileOperation } from '../telemetry/loggers.js';
 import { FileOperationEvent } from '../telemetry/types.js';
+import { resolveToolPath } from '../utils/pathResolution.js';
+import { ToolErrorType } from './tool-error.js';
 
 /**
  * Parameters for the ReadFile tool
  */
 export interface ReadFileToolParams {
   /**
-   * The absolute path to the file to read
+   * The path to the file to read.
    */
-  absolute_path: string;
+  path: string;
 
   /**
    * The line number to start reading from (optional)
@@ -51,21 +53,66 @@ class ReadFileToolInvocation extends BaseToolInvocation<
     super(params);
   }
 
+  // Note: getDescription and toolLocations will use the raw, potentially
+  // relative/ambiguous path from params. This is a limitation of the
+  // prototype approach (Option B).
   getDescription(): string {
-    const relativePath = makeRelative(
-      this.params.absolute_path,
-      this.config.getTargetDir(),
-    );
-    return shortenPath(relativePath);
+    // Best effort relative path for display
+    try {
+      const relativePath = makeRelative(
+        this.params.path,
+        this.config.getTargetDir(),
+      );
+      return shortenPath(relativePath);
+    } catch {
+      return this.params.path;
+    }
   }
 
   override toolLocations(): ToolLocation[] {
-    return [{ path: this.params.absolute_path, line: this.params.offset }];
+    // We don't know the resolved path yet, so we can't provide a location.
+    return [];
   }
 
   async execute(): Promise<ToolResult> {
+    // 1. Resolve the path asynchronously
+    const resolution = await resolveToolPath({
+      inputPath: this.params.path,
+      config: this.config,
+      expectedType: 'file',
+      allowNonExistent: false,
+    });
+
+    if (!resolution.success) {
+      return {
+        llmContent: resolution.error,
+        returnDisplay: `Error: ${resolution.error}`,
+        error: {
+          message: resolution.error,
+          type: resolution.errorType,
+        },
+      };
+    }
+
+    const resolvedPath = resolution.absolutePath;
+
+    // Check .geminiignore (moved from validateToolParamValues)
+    const fileService = this.config.getFileService();
+    if (fileService.shouldGeminiIgnoreFile(resolvedPath)) {
+      const errorMsg = `File path '${makeRelative(resolvedPath, this.config.getTargetDir())}' is ignored by .geminiignore pattern(s).`;
+      return {
+        llmContent: errorMsg,
+        returnDisplay: 'Error: File is ignored.',
+        error: {
+          message: errorMsg,
+          type: ToolErrorType.INVALID_TOOL_PARAMS,
+        },
+      };
+    }
+
+    // 2. Proceed with reading the resolved path
     const result = await processSingleFileContent(
-      this.params.absolute_path,
+      resolvedPath,
       this.config.getTargetDir(),
       this.config.getFileSystemService(),
       this.params.offset,
@@ -105,9 +152,9 @@ ${result.llmContent}`;
       typeof result.llmContent === 'string'
         ? result.llmContent.split('\n').length
         : undefined;
-    const mimetype = getSpecificMimeType(this.params.absolute_path);
+    const mimetype = getSpecificMimeType(resolvedPath);
     const programming_language = getProgrammingLanguage({
-      absolute_path: this.params.absolute_path,
+      absolute_path: resolvedPath,
     });
     logFileOperation(
       this.config,
@@ -116,7 +163,7 @@ ${result.llmContent}`;
         FileOperation.READ,
         lines,
         mimetype,
-        path.extname(this.params.absolute_path),
+        path.extname(resolvedPath),
         programming_language,
       ),
     );
@@ -144,14 +191,15 @@ export class ReadFileTool extends BaseDeclarativeTool<
       `Reads and returns the content of a file. Supports text, images (PNG, JPG, GIF, WEBP, SVG, BMP), and PDFs.
 
 Features:
-1. **Large Files:** Automatically truncates large files. The response guides you on using 'offset' and 'limit' to paginate.
-2. **Parallelism:** To read multiple files efficiently, issue multiple separate calls to this tool in a single turn. Do not read files sequentially if you know the paths ahead of time.`,
+1. **Smart Path Resolution:** Accepts absolute paths, paths relative to the workspace, or simple filenames (if unique in the workspace).
+2. **Large Files:** Automatically truncates large files. The response guides you on using 'offset' and 'limit' to paginate.
+3. **Parallelism:** To read multiple files efficiently, issue multiple separate calls to this tool in a single turn. Do not read files sequentially if you know the paths ahead of time.`,
       Kind.Read,
       {
         properties: {
-          absolute_path: {
+          path: {
             description:
-              "The absolute path to the file to read (e.g., '/home/user/project/file.txt'). Relative paths are not supported. You must provide an absolute path.",
+              "The path to the file to read. Can be absolute (e.g., '/home/user/file.txt'), relative (e.g., 'src/file.txt'), or a unique filename (e.g., 'unique_file.ts').",
             type: 'string',
           },
           offset: {
@@ -165,7 +213,7 @@ Features:
             type: 'number',
           },
         },
-        required: ['absolute_path'],
+        required: ['path'],
         type: 'object',
       },
     );
@@ -174,26 +222,9 @@ Features:
   protected override validateToolParamValues(
     params: ReadFileToolParams,
   ): string | null {
-    const filePath = params.absolute_path;
-    if (params.absolute_path.trim() === '') {
-      return "The 'absolute_path' parameter must be non-empty.";
-    }
-
-    if (!path.isAbsolute(filePath)) {
-      return `File path must be absolute, but was relative: ${filePath}. You must provide an absolute path.`;
-    }
-
-    const workspaceContext = this.config.getWorkspaceContext();
-    const projectTempDir = this.config.storage.getProjectTempDir();
-    const resolvedFilePath = path.resolve(filePath);
-    const resolvedProjectTempDir = path.resolve(projectTempDir);
-    const isWithinTempDir =
-      resolvedFilePath.startsWith(resolvedProjectTempDir + path.sep) ||
-      resolvedFilePath === resolvedProjectTempDir;
-
-    if (!workspaceContext.isPathWithinWorkspace(filePath) && !isWithinTempDir) {
-      const directories = workspaceContext.getDirectories();
-      return `File path must be within one of the workspace directories: ${directories.join(', ')} or within the project temp directory: ${projectTempDir}`;
+    // Only basic type/empty checks here. Path validation is now in execute().
+    if (params.path.trim() === '') {
+      return "The 'path' parameter must be non-empty.";
     }
     if (params.offset !== undefined && params.offset < 0) {
       return 'Offset must be a non-negative number';
@@ -201,12 +232,6 @@ Features:
     if (params.limit !== undefined && params.limit <= 0) {
       return 'Limit must be a positive number';
     }
-
-    const fileService = this.config.getFileService();
-    if (fileService.shouldGeminiIgnoreFile(params.absolute_path)) {
-      return `File path '${filePath}' is ignored by .geminiignore pattern(s).`;
-    }
-
     return null;
   }
 
