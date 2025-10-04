@@ -395,19 +395,18 @@ export class WriteFileTool
     super(
       WriteFileTool.Name,
       'WriteFile',
-      `Writes content to a specified file in the local filesystem.
-
-      The user has the ability to modify \`content\`. If modified, this will be stated in the response.`,
+      `Writes content to a file. Use this primarily for creating *new* files or overwriting an *entire* file with new content. To modify specific parts of an existing file, use the 'replace' tool.`,
       Kind.Edit,
       {
         properties: {
           file_path: {
             description:
-              "The absolute path to the file to write to (e.g., '/home/user/project/file.txt'). Relative paths are not supported.",
+              "The absolute path to the file to write to (e.g., '/home/user/project/file.txt').",
             type: 'string',
           },
           content: {
-            description: 'The content to write to the file.',
+            description:
+              'The full content to write to the file. Passing an empty string will create an empty file.',
             type: 'string',
           },
         },

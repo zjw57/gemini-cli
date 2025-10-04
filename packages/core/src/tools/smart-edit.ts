@@ -795,9 +795,10 @@ export class SmartEditTool
       `Perform a surgical text replacement within a file.
 
 Constraints:
-1. **Minimal Change:** Only replace the exact lines necessary to achieve the goal. Do not "tidy up" surrounding comments or formatting unless explicitly asked.
-2. **Uniqueness:** 'old_string' must contain enough context (surrounding lines) to match exactly ONE location.
-3. **Literal Match:** 'old_string' must be an exact, whitespace-precise match of the current file content. Read the file first.`,
+1. **Sequential Edits:** Do not make multiple concurrent calls to this tool for the *same* file. If you need to make multiple changes to one file, you must do them sequentially (wait for one to finish before asking for the next). Parallel calls for *different* files are allowed.
+2. **Atomicity:** Make small, focused changes. Do not attempt to replace huge blocks of code or entire files in one call. Use 'write_file' for total rewrites.
+3. **Precision:** 'old_string' must contain sufficient context to match exactly ONE location.
+4. **Literal Match:** 'old_string' must be an exact, whitespace-precise match of the current file content. Read the file first.`,
       Kind.Edit,
       {
         properties: {
@@ -817,7 +818,7 @@ Constraints:
           },
           new_string: {
             description:
-              "The replacement text block. Should only differ from 'old_string' by the intended functional change.",
+              "The complete, exact text block to replace 'old_string' with. CRITICAL: Do NOT use placeholders like '// rest of code unchanged' or '...'. You must provide the full, literal replacement content.",
             type: 'string',
           },
         },
