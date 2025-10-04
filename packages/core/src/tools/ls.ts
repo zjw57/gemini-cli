@@ -12,6 +12,7 @@ import { makeRelative, shortenPath } from '../utils/paths.js';
 import type { Config } from '../config/config.js';
 import { DEFAULT_FILE_FILTERING_OPTIONS } from '../config/constants.js';
 import { ToolErrorType } from './tool-error.js';
+import { resolveToolPath } from '../utils/pathResolution.js';
 
 /**
  * Parameters for the LS tool
@@ -103,11 +104,16 @@ class LSToolInvocation extends BaseToolInvocation<LSToolParams, ToolResult> {
    * @returns A string describing the file being read
    */
   getDescription(): string {
-    const relativePath = makeRelative(
-      this.params.path,
-      this.config.getTargetDir(),
-    );
-    return shortenPath(relativePath);
+    // Best effort relative path for display
+    try {
+      const relativePath = makeRelative(
+        this.params.path,
+        this.config.getTargetDir(),
+      );
+      return shortenPath(relativePath);
+    } catch {
+      return this.params.path;
+    }
   }
 
   // Helper for consistent error formatting
@@ -132,30 +138,56 @@ class LSToolInvocation extends BaseToolInvocation<LSToolParams, ToolResult> {
    * @returns Result of the LS operation
    */
   async execute(_signal: AbortSignal): Promise<ToolResult> {
+    // 1. Resolve the path asynchronously
+    const resolution = await resolveToolPath({
+      inputPath: this.params.path,
+      config: this.config,
+      expectedType: 'directory',
+      allowNonExistent: false,
+    });
+
+    if (!resolution.success) {
+      return this.errorResult(
+        resolution.error,
+        resolution.error,
+        resolution.errorType,
+      );
+    }
+
+    const resolvedPath = resolution.absolutePath;
+
     try {
-      const stats = await fs.stat(this.params.path);
-      if (!stats) {
-        // fs.statSync throws on non-existence, so this check might be redundant
-        // but keeping for clarity. Error message adjusted.
+      // 2. Proceed with listing the resolved path
+      // Note: resolveToolPath already checks for existence and directory type.
+      // We keep the fs.stat check here for race conditions and to maintain
+      // the original error message format if it fails now.
+      let stats;
+      try {
+        stats = await fs.stat(resolvedPath);
+      } catch (_) {
+        // Handle race condition where directory is deleted after resolution
+        const errorMsg = `Error: Directory not found or inaccessible: ${resolvedPath}`;
         return this.errorResult(
-          `Error: Directory not found or inaccessible: ${this.params.path}`,
+          errorMsg,
           `Directory not found or inaccessible.`,
           ToolErrorType.FILE_NOT_FOUND,
         );
       }
+
       if (!stats.isDirectory()) {
+        // Handle race condition where directory is replaced by a file
         return this.errorResult(
-          `Error: Path is not a directory: ${this.params.path}`,
+          `Error: Path is not a directory: ${resolvedPath}`,
           `Path is not a directory.`,
           ToolErrorType.PATH_IS_NOT_A_DIRECTORY,
         );
       }
 
-      const files = await fs.readdir(this.params.path);
+      const files = await fs.readdir(resolvedPath);
       if (files.length === 0) {
         // Changed error message to be more neutral for LLM
         return {
-          llmContent: `Directory ${this.params.path} is empty.`,
+          llmContent: `Directory ${resolvedPath} is empty.`,
           returnDisplay: `Directory is empty.`,
         };
       }
@@ -163,7 +195,7 @@ class LSToolInvocation extends BaseToolInvocation<LSToolParams, ToolResult> {
       const relativePaths = files.map((file) =>
         path.relative(
           this.config.getTargetDir(),
-          path.join(this.params.path, file),
+          path.join(resolvedPath, file),
         ),
       );
 
@@ -216,7 +248,7 @@ class LSToolInvocation extends BaseToolInvocation<LSToolParams, ToolResult> {
         .map((entry) => `${entry.isDirectory ? '[DIR] ' : ''}${entry.name}`)
         .join('\n');
 
-      let resultMessage = `Directory listing for ${this.params.path}:\n${directoryContent}`;
+      let resultMessage = `Directory listing for ${resolvedPath}:\n${directoryContent}`;
       const ignoredMessages = [];
       if (gitIgnoredCount > 0) {
         ignoredMessages.push(`${gitIgnoredCount} git-ignored`);
@@ -258,13 +290,13 @@ export class LSTool extends BaseDeclarativeTool<LSToolParams, ToolResult> {
     super(
       LSTool.Name,
       'ReadFolder',
-      'Lists the names of files and subdirectories directly within a specified directory path. Can optionally ignore entries matching provided glob patterns.',
+      'Lists the names of files and subdirectories directly within a specified directory path. Supports absolute paths, paths relative to the workspace, and unambiguous directory names. Can optionally ignore entries matching provided glob patterns.',
       Kind.Search,
       {
         properties: {
           path: {
             description:
-              'The absolute path to the directory to list (must be absolute, not relative)',
+              "The path to the directory to list. Can be absolute (e.g., '/home/user/project/src'), relative (e.g., 'src'), or a unique directory name.",
             type: 'string',
           },
           ignore: {
@@ -306,16 +338,8 @@ export class LSTool extends BaseDeclarativeTool<LSToolParams, ToolResult> {
   protected override validateToolParamValues(
     params: LSToolParams,
   ): string | null {
-    if (!path.isAbsolute(params.path)) {
-      return `Path must be absolute: ${params.path}`;
-    }
-
-    const workspaceContext = this.config.getWorkspaceContext();
-    if (!workspaceContext.isPathWithinWorkspace(params.path)) {
-      const directories = workspaceContext.getDirectories();
-      return `Path must be within one of the workspace directories: ${directories.join(
-        ', ',
-      )}`;
+    if (!params.path || params.path.trim() === '') {
+      return "The 'path' parameter must be non-empty.";
     }
     return null;
   }

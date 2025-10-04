@@ -99,7 +99,11 @@ export async function resolveToolPath(
     const fileSystem = config.getFileSystemService();
 
     // findFiles performs a search within the workspace
-    const matches = await fileSystem.findFiles(inputPath, searchPaths);
+    const matches = await fileSystem.findFiles(
+      inputPath,
+      searchPaths,
+      expectedType,
+    );
 
     if (matches.length === 0) {
       const relativeInput = makeRelative(inputPath, config.getTargetDir());
