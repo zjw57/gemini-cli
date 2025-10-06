@@ -422,11 +422,12 @@ Keep continuing to work on the user's request by calling more tools or gathering
   
 
   const orderedPrompts = [
-    'preamble_v2',
-    'generalworkflow_v2',
-    'coreMandates_v2',
-    'non_interactive_v2',
-    'finalReminder_v2',
+    'preamble',
+    'coreMandates',
+    'primaryWorkflows',
+    'sandbox',
+    'git',
+    'finalReminder',
   ];
 
   // By default, all prompts are enabled. A prompt is disabled if its corresponding
