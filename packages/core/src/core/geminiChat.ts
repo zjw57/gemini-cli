@@ -505,7 +505,7 @@ export class GeminiChat {
       this.agent!.model = modelToUse;
     }
 
-    const eventStream = (await this.runner?.run({
+    const eventStream = (await this.runner?.runAsync({
       userId: this.userId!,
       sessionId: this.sessionId || '',
       newMessage,

@@ -17,7 +17,7 @@ import {
   type ToolConfirmationRequest,
   type ToolConfirmationResponse,
 } from '../confirmation-bus/types.js';
-import { BaseTool as AdkBaseTool, type RunToolRequest } from '@google/adk';
+import { BaseTool as AdkBaseTool, type RunAsyncToolRequest } from '@google/adk';
 
 /**
  * An adapter that wraps a gemini-cli DeclarativeTool to make it compatible
@@ -25,14 +25,14 @@ import { BaseTool as AdkBaseTool, type RunToolRequest } from '@google/adk';
  */
 export class AdkToolAdapter extends AdkBaseTool {
   constructor(private readonly tool: AnyDeclarativeTool) {
-    super(tool.name, tool.description);
+    super(tool);
   }
 
   override _getDeclaration(): FunctionDeclaration | undefined {
     return this.tool.schema;
   }
 
-  async run(request: RunToolRequest): Promise<unknown> {
+  async runAsync(request: RunAsyncToolRequest): Promise<unknown> {
     const invocation = this.tool.build(request.args);
     const abortController = new AbortController();
     const result = await invocation.execute(abortController.signal);
