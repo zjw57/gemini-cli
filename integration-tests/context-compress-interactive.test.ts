@@ -96,8 +96,10 @@ describe('Interactive Mode', () => {
       true,
     );
 
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
     await type(ptyProcess, '/compress');
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     await type(ptyProcess, '\r');
 
     const compressionFailed = await rig.waitForText(
