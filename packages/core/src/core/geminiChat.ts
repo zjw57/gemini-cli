@@ -41,18 +41,6 @@ import { isFunctionResponse } from '../utils/messageInspectors.js';
 import { partListUnionToString } from './geminiRequest.js';
 import { uiTelemetryService } from '../telemetry/uiTelemetry.js';
 
-export enum StreamEventType {
-  /** A regular content chunk from the API. */
-  CHUNK = 'chunk',
-  /** A signal that a retry is about to happen. The UI should discard any partial
-   * content from the attempt that just failed. */
-  RETRY = 'retry',
-}
-
-export type StreamEvent =
-  | { type: StreamEventType.CHUNK; value: GenerateContentResponse }
-  | { type: StreamEventType.RETRY };
-
 /**
  * Options for retrying due to invalid content from the model.
  */
@@ -228,7 +216,7 @@ export class GeminiChat {
     model: string,
     params: SendMessageParameters,
     prompt_id: string,
-  ): Promise<AsyncGenerator<StreamEvent>> {
+  ): Promise<AsyncGenerator<GenerateContentResponse>> {
     await this.sendPromise;
 
     let streamDoneResolver: () => void;
@@ -269,10 +257,6 @@ export class GeminiChat {
           attempt++
         ) {
           try {
-            if (attempt > 0) {
-              yield { type: StreamEventType.RETRY };
-            }
-
             const stream = await self.makeApiCallAndProcessStream(
               model,
               requestContents,
@@ -281,7 +265,7 @@ export class GeminiChat {
             );
 
             for await (const chunk of stream) {
-              yield { type: StreamEventType.CHUNK, value: chunk };
+              yield chunk;
             }
 
             lastError = null;

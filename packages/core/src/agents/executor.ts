@@ -6,7 +6,7 @@
 
 import type { Config } from '../config/config.js';
 import { reportError } from '../utils/errorReporting.js';
-import { GeminiChat, StreamEventType } from '../core/geminiChat.js';
+import { GeminiChat } from '../core/geminiChat.js';
 import { Type } from '@google/genai';
 import type {
   Content,
@@ -252,36 +252,33 @@ export class AgentExecutor<TOutput extends z.ZodTypeAny> {
     const functionCalls: FunctionCall[] = [];
     let textResponse = '';
 
-    for await (const resp of responseStream) {
+    for await (const chunk of responseStream) {
       if (signal.aborted) break;
 
-      if (resp.type === StreamEventType.CHUNK) {
-        const chunk = resp.value;
-        const parts = chunk.candidates?.[0]?.content?.parts;
+      const parts = chunk.candidates?.[0]?.content?.parts;
 
-        // Extract and emit any subject "thought" content from the model.
-        const { subject } = parseThought(
-          parts?.find((p) => p.thought)?.text || '',
-        );
-        if (subject) {
-          this.emitActivity('THOUGHT_CHUNK', { text: subject });
-        }
+      // Extract and emit any subject "thought" content from the model.
+      const { subject } = parseThought(
+        parts?.find((p) => p.thought)?.text || '',
+      );
+      if (subject) {
+        this.emitActivity('THOUGHT_CHUNK', { text: subject });
+      }
 
-        // Collect any function calls requested by the model.
-        if (chunk.functionCalls) {
-          functionCalls.push(...chunk.functionCalls);
-        }
+      // Collect any function calls requested by the model.
+      if (chunk.functionCalls) {
+        functionCalls.push(...chunk.functionCalls);
+      }
 
-        // Handle text response (non-thought text)
-        const text =
-          parts
-            ?.filter((p) => !p.thought && p.text)
-            .map((p) => p.text)
-            .join('') || '';
+      // Handle text response (non-thought text)
+      const text =
+        parts
+          ?.filter((p) => !p.thought && p.text)
+          .map((p) => p.text)
+          .join('') || '';
 
-        if (text) {
-          textResponse += text;
-        }
+      if (text) {
+        textResponse += text;
       }
     }
 

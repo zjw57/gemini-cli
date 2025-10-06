@@ -57,12 +57,7 @@ export enum GeminiEventType {
   Finished = 'finished',
   LoopDetected = 'loop_detected',
   Citation = 'citation',
-  Retry = 'retry',
 }
-
-export type ServerGeminiRetryEvent = {
-  type: GeminiEventType.Retry;
-};
 
 export interface StructuredError {
   message: string;
@@ -191,8 +186,7 @@ export type ServerGeminiStreamEvent =
   | ServerGeminiToolCallConfirmationEvent
   | ServerGeminiToolCallRequestEvent
   | ServerGeminiToolCallResponseEvent
-  | ServerGeminiUserCancelledEvent
-  | ServerGeminiRetryEvent;
+  | ServerGeminiUserCancelledEvent;
 
 // A turn manages the agentic loop turn within the server context.
 export class Turn {
@@ -212,8 +206,6 @@ export class Turn {
     signal: AbortSignal,
   ): AsyncGenerator<ServerGeminiStreamEvent> {
     try {
-      // Note: This assumes `sendMessageStream` yields events like
-      // { type: StreamEventType.RETRY } or { type: StreamEventType.CHUNK, value: GenerateContentResponse }
       const responseStream = await this.chat.sendMessageStream(
         model,
         {
@@ -225,20 +217,12 @@ export class Turn {
         this.prompt_id,
       );
 
-      for await (const streamEvent of responseStream) {
+      for await (const resp of responseStream) {
         if (signal?.aborted) {
           yield { type: GeminiEventType.UserCancelled };
           return;
         }
 
-        // Handle the new RETRY event
-        if (streamEvent.type === 'retry') {
-          yield { type: GeminiEventType.Retry };
-          continue; // Skip to the next event in the stream
-        }
-
-        // Assuming other events are chunks with a `value` property
-        const resp = streamEvent.value as GenerateContentResponse;
         if (!resp) continue; // Skip if there's no response body
 
         this.debugResponses.push(resp);

@@ -24,7 +24,6 @@ import {
   getErrorStatus,
   MCPServerConfig,
   DiscoveredMCPTool,
-  StreamEventType,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_MODEL_AUTO,
   DEFAULT_GEMINI_FLASH_MODEL,
@@ -292,12 +291,8 @@ class Session {
             return { stopReason: 'cancelled' };
           }
 
-          if (
-            resp.type === StreamEventType.CHUNK &&
-            resp.value.candidates &&
-            resp.value.candidates.length > 0
-          ) {
-            const candidate = resp.value.candidates[0];
+          if (resp.candidates && resp.candidates.length > 0) {
+            const candidate = resp.candidates[0];
             for (const part of candidate.content?.parts ?? []) {
               if (!part.text) {
                 continue;
@@ -317,8 +312,8 @@ class Session {
             }
           }
 
-          if (resp.type === StreamEventType.CHUNK && resp.value.functionCalls) {
-            functionCalls.push(...resp.value.functionCalls);
+          if (resp.functionCalls) {
+            functionCalls.push(...resp.functionCalls);
           }
         }
       } catch (error) {

@@ -21,7 +21,7 @@ import type {
 } from './subagent.js';
 import { Config } from '../config/config.js';
 import type { ConfigParameters } from '../config/config.js';
-import { GeminiChat, StreamEventType } from './geminiChat.js';
+import { GeminiChat } from './geminiChat.js';
 import { createContentGenerator } from './contentGenerator.js';
 import { getEnvironmentContext } from '../utils/environmentContext.js';
 import { executeToolCall } from './nonInteractiveToolExecutor.js';
@@ -96,11 +96,8 @@ const createMockStream = (
         };
       }
 
-      // The stream must now yield a StreamEvent object of type CHUNK.
-      yield {
-        type: StreamEventType.CHUNK,
-        value: mockResponseValue as GenerateContentResponse,
-      };
+      // The stream must now yield a GenerateContentResponse object.
+      yield mockResponseValue as GenerateContentResponse;
     })();
   });
 };

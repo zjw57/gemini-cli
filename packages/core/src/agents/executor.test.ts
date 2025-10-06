@@ -17,11 +17,7 @@ import { makeFakeConfig } from '../test-utils/config.js';
 import { ToolRegistry } from '../tools/tool-registry.js';
 import { LSTool } from '../tools/ls.js';
 import { ReadFileTool } from '../tools/read-file.js';
-import {
-  GeminiChat,
-  StreamEventType,
-  type StreamEvent,
-} from '../core/geminiChat.js';
+import { GeminiChat } from '../core/geminiChat.js';
 import {
   type FunctionCall,
   type Part,
@@ -95,10 +91,7 @@ const mockModelResponse = (
 
   mockSendMessageStream.mockImplementationOnce(async () =>
     (async function* () {
-      yield {
-        type: StreamEventType.CHUNK,
-        value: responseChunk,
-      } as StreamEvent;
+      yield responseChunk;
     })(),
   );
 };
@@ -749,12 +742,9 @@ describe('AgentExecutor', () => {
 
       mockSendMessageStream.mockImplementationOnce(async () =>
         (async function* () {
-          yield {
-            type: StreamEventType.CHUNK,
-            value: createMockResponseChunk([
-              { text: 'Thinking...', thought: true },
-            ]),
-          } as StreamEvent;
+          yield createMockResponseChunk([
+            { text: 'Thinking...', thought: true },
+          ]);
           abortController.abort();
         })(),
       );

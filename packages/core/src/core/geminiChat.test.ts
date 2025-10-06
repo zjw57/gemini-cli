@@ -12,12 +12,7 @@ import type {
 } from '@google/genai';
 import { ApiError } from '@google/genai';
 import type { ContentGenerator } from '../core/contentGenerator.js';
-import {
-  GeminiChat,
-  InvalidStreamError,
-  StreamEventType,
-  type StreamEvent,
-} from './geminiChat.js';
+import { GeminiChat, InvalidStreamError } from './geminiChat.js';
 import type { Config } from '../config/config.js';
 import { setSimulate429 } from '../utils/testUtils.js';
 import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
@@ -751,48 +746,6 @@ describe('GeminiChat', () => {
   });
 
   describe('sendMessageStream with retries', () => {
-    it('should yield a RETRY event when an invalid stream is encountered', async () => {
-      // ARRANGE: Mock the stream to fail once, then succeed.
-      vi.mocked(mockContentGenerator.generateContentStream)
-        .mockImplementationOnce(async () =>
-          // First attempt: An invalid stream with an empty text part.
-          (async function* () {
-            yield {
-              candidates: [{ content: { parts: [{ text: '' }] } }],
-            } as unknown as GenerateContentResponse;
-          })(),
-        )
-        .mockImplementationOnce(async () =>
-          // Second attempt (the retry): A minimal valid stream.
-          (async function* () {
-            yield {
-              candidates: [
-                {
-                  content: { parts: [{ text: 'Success' }] },
-                  finishReason: 'STOP',
-                },
-              ],
-            } as unknown as GenerateContentResponse;
-          })(),
-        );
-
-      // ACT: Send a message and collect all events from the stream.
-      const stream = await chat.sendMessageStream(
-        'test-model',
-        { message: 'test' },
-        'prompt-id-yield-retry',
-      );
-      const events: StreamEvent[] = [];
-      for await (const event of stream) {
-        events.push(event);
-      }
-
-      // ASSERT: Check that a RETRY event was present in the stream's output.
-      const retryEvent = events.find((e) => e.type === StreamEventType.RETRY);
-
-      expect(retryEvent).toBeDefined();
-      expect(retryEvent?.type).toBe(StreamEventType.RETRY);
-    });
     it('should retry on invalid content, succeed, and report metrics', async () => {
       // Use mockImplementationOnce to provide a fresh, promise-wrapped generator for each attempt.
       vi.mocked(mockContentGenerator.generateContentStream)
@@ -823,7 +776,7 @@ describe('GeminiChat', () => {
         { message: 'test' },
         'prompt-id-retry-success',
       );
-      const chunks: StreamEvent[] = [];
+      const chunks: GenerateContentResponse[] = [];
       for await (const chunk of stream) {
         chunks.push(chunk);
       }
@@ -835,16 +788,12 @@ describe('GeminiChat', () => {
         2,
       );
 
-      // Check for a retry event
-      expect(chunks.some((c) => c.type === StreamEventType.RETRY)).toBe(true);
-
       // Check for the successful content chunk
       expect(
         chunks.some(
           (c) =>
-            c.type === StreamEventType.CHUNK &&
-            c.value.candidates?.[0]?.content?.parts?.[0]?.text ===
-              'Successful response',
+            c.candidates?.[0]?.content?.parts?.[0]?.text ===
+            'Successful response',
         ),
       ).toBe(true);
 
@@ -986,7 +935,7 @@ describe('GeminiChat', () => {
           'prompt-id-429-retry',
         );
 
-        const events: StreamEvent[] = [];
+        const events: GenerateContentResponse[] = [];
         for await (const event of stream) {
           events.push(event);
         }
@@ -1000,9 +949,8 @@ describe('GeminiChat', () => {
         expect(
           events.some(
             (e) =>
-              e.type === StreamEventType.CHUNK &&
-              e.value.candidates?.[0]?.content?.parts?.[0]?.text ===
-                'Success after retry',
+              e.candidates?.[0]?.content?.parts?.[0]?.text ===
+              'Success after retry',
           ),
         ).toBe(true);
       });
@@ -1034,7 +982,7 @@ describe('GeminiChat', () => {
           'prompt-id-500-retry',
         );
 
-        const events: StreamEvent[] = [];
+        const events: GenerateContentResponse[] = [];
         for await (const event of stream) {
           events.push(event);
         }
@@ -1159,7 +1107,7 @@ describe('GeminiChat', () => {
       { message: 'test empty stream' },
       'prompt-id-empty-stream',
     );
-    const chunks: StreamEvent[] = [];
+    const chunks: GenerateContentResponse[] = [];
     for await (const chunk of stream) {
       chunks.push(chunk);
     }
@@ -1169,9 +1117,8 @@ describe('GeminiChat', () => {
     expect(
       chunks.some(
         (c) =>
-          c.type === StreamEventType.CHUNK &&
-          c.value.candidates?.[0]?.content?.parts?.[0]?.text ===
-            'Successful response after empty',
+          c.candidates?.[0]?.content?.parts?.[0]?.text ===
+          'Successful response after empty',
       ),
     ).toBe(true);
 
@@ -1739,14 +1686,13 @@ describe('GeminiChat', () => {
       { message: 'test' },
       'prompt-id-discard-test',
     );
-    const events: StreamEvent[] = [];
+    const events: GenerateContentResponse[] = [];
     for await (const event of stream) {
       events.push(event);
     }
 
     // Check that a retry happened
     expect(mockContentGenerator.generateContentStream).toHaveBeenCalledTimes(2);
-    expect(events.some((e) => e.type === StreamEventType.RETRY)).toBe(true);
 
     // Check the final recorded history
     const history = chat.getHistory();
