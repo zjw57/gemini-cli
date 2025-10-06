@@ -21,7 +21,15 @@ describe('Interactive Mode', () => {
   it.skipIf(process.platform === 'win32')(
     'should trigger chat compression with /compress command',
     async () => {
-      await rig.setup('interactive-compress-test');
+      await rig.setup('interactive-compress-test', {
+        settings: {
+          security: {
+            auth: {
+              selectedType: 'gemini-api-key',
+            },
+          },
+        },
+      });
 
       const { ptyProcess } = rig.runInteractive();
 
@@ -71,7 +79,15 @@ describe('Interactive Mode', () => {
   it.skipIf(process.platform === 'win32')(
     'should handle compression failure on token inflation',
     async () => {
-      await rig.setup('interactive-compress-test');
+      await rig.setup('interactive-compress-test', {
+        settings: {
+          security: {
+            auth: {
+              selectedType: 'gemini-api-key',
+            },
+          },
+        },
+      });
 
       const { ptyProcess } = rig.runInteractive();
 

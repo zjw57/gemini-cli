@@ -22,7 +22,15 @@ describe('Interactive file system', () => {
     'should perform a read-then-write sequence',
     async () => {
       const fileName = 'version.txt';
-      await rig.setup('interactive-read-then-write');
+      await rig.setup('interactive-read-then-write', {
+        settings: {
+          security: {
+            auth: {
+              selectedType: 'gemini-api-key',
+            },
+          },
+        },
+      });
       rig.createFile(fileName, '1.0.0');
 
       const { ptyProcess } = rig.runInteractive();
