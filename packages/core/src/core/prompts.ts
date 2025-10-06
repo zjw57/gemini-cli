@@ -427,7 +427,8 @@ Keep continuing to work on the user's request by calling more tools or gathering
     'primaryWorkflows',
     'operationalGuidelines',
     'sandbox',
-    'git'
+    'git',
+    'finalReminder'
   ];
 
   // By default, all prompts are enabled. A prompt is disabled if its corresponding
