@@ -36,10 +36,10 @@ import {
 } from './extensions/github.js';
 import type { LoadExtensionContext } from './extensions/variableSchema.js';
 import { ExtensionEnablementManager } from './extensions/extensionEnablement.js';
-import type { UseHistoryManagerReturn } from '../ui/hooks/useHistoryManager.js';
 import chalk from 'chalk';
 import { resolveEnvVarsInObject } from '../utils/envVarResolver.js';
 import * as dotenv from 'dotenv';
+import type { ConfirmationRequest } from '../ui/types.js';
 
 export const EXTENSIONS_DIRECTORY_NAME = path.join(GEMINI_DIR, 'extensions');
 
@@ -155,6 +155,7 @@ function getTelemetryConfig(cwd: string) {
 }
 
 export function loadExtensions(
+  extensionEnablementManager: ExtensionEnablementManager,
   workspaceDir: string = process.cwd(),
 ): Extension[] {
   const settings = loadSettings(workspaceDir).merged;
@@ -169,14 +170,11 @@ export function loadExtensions(
   }
 
   const uniqueExtensions = new Map<string, Extension>();
-  const manager = new ExtensionEnablementManager(
-    ExtensionStorage.getUserExtensionsDir(),
-  );
 
   for (const extension of allExtensions) {
     if (
       !uniqueExtensions.has(extension.config.name) &&
-      manager.isEnabled(extension.config.name, workspaceDir)
+      extensionEnablementManager.isEnabled(extension.config.name, workspaceDir)
     ) {
       uniqueExtensions.set(extension.config.name, extension);
     }
@@ -276,6 +274,32 @@ export function loadExtension(context: LoadExtensionContext): Extension | null {
   }
 }
 
+export function loadExtensionByName(
+  name: string,
+  workspaceDir: string = process.cwd(),
+): Extension | null {
+  const userExtensionsDir = ExtensionStorage.getUserExtensionsDir();
+  if (!fs.existsSync(userExtensionsDir)) {
+    return null;
+  }
+
+  for (const subdir of fs.readdirSync(userExtensionsDir)) {
+    const extensionDir = path.join(userExtensionsDir, subdir);
+    if (!fs.statSync(extensionDir).isDirectory()) {
+      continue;
+    }
+    const extension = loadExtension({ extensionDir, workspaceDir });
+    if (
+      extension &&
+      extension.config.name.toLowerCase() === name.toLowerCase()
+    ) {
+      return extension;
+    }
+  }
+
+  return null;
+}
+
 function filterMcpConfig(original: MCPServerConfig): MCPServerConfig {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { trust, ...rest } = original;
@@ -313,64 +337,17 @@ function getContextFileNames(config: ExtensionConfig): string[] {
  */
 export function annotateActiveExtensions(
   extensions: Extension[],
-  enabledExtensionNames: string[],
   workspaceDir: string,
+  manager: ExtensionEnablementManager,
 ): GeminiCLIExtension[] {
-  const manager = new ExtensionEnablementManager(
-    ExtensionStorage.getUserExtensionsDir(),
-  );
-  const annotatedExtensions: GeminiCLIExtension[] = [];
-  if (enabledExtensionNames.length === 0) {
-    return extensions.map((extension) => ({
-      name: extension.config.name,
-      version: extension.config.version,
-      isActive: manager.isEnabled(extension.config.name, workspaceDir),
-      path: extension.path,
-      installMetadata: extension.installMetadata,
-    }));
-  }
-
-  const lowerCaseEnabledExtensions = new Set(
-    enabledExtensionNames.map((e) => e.trim().toLowerCase()),
-  );
-
-  if (
-    lowerCaseEnabledExtensions.size === 1 &&
-    lowerCaseEnabledExtensions.has('none')
-  ) {
-    return extensions.map((extension) => ({
-      name: extension.config.name,
-      version: extension.config.version,
-      isActive: false,
-      path: extension.path,
-      installMetadata: extension.installMetadata,
-    }));
-  }
-
-  const notFoundNames = new Set(lowerCaseEnabledExtensions);
-
-  for (const extension of extensions) {
-    const lowerCaseName = extension.config.name.toLowerCase();
-    const isActive = lowerCaseEnabledExtensions.has(lowerCaseName);
-
-    if (isActive) {
-      notFoundNames.delete(lowerCaseName);
-    }
-
-    annotatedExtensions.push({
-      name: extension.config.name,
-      version: extension.config.version,
-      isActive,
-      path: extension.path,
-      installMetadata: extension.installMetadata,
-    });
-  }
-
-  for (const requestedName of notFoundNames) {
-    console.error(`Extension not found: ${requestedName}`);
-  }
-
-  return annotatedExtensions;
+  manager.validateExtensionOverrides(extensions);
+  return extensions.map((extension) => ({
+    name: extension.config.name,
+    version: extension.config.version,
+    isActive: manager.isEnabled(extension.config.name, workspaceDir),
+    path: extension.path,
+    installMetadata: extension.installMetadata,
+  }));
 }
 
 /**
@@ -386,7 +363,7 @@ export async function requestConsentNonInteractive(
   consentDescription: string,
 ): Promise<boolean> {
   console.info(consentDescription);
-  const result = await promptForContinuationNonInteractive(
+  const result = await promptForConsentNonInteractive(
     'Do you want to continue? [Y/n]: ',
   );
   return result;
@@ -398,20 +375,17 @@ export async function requestConsentNonInteractive(
  * This should not be called from non-interactive mode as it will not work.
  *
  * @param consentDescription The description of the thing they will be consenting to.
+ * @param setExtensionUpdateConfirmationRequest A function to actually add a prompt to the UI.
  * @returns boolean, whether they consented or not.
  */
 export async function requestConsentInteractive(
-  _consentDescription: string,
-  addHistoryItem: UseHistoryManagerReturn['addItem'],
+  consentDescription: string,
+  addExtensionUpdateConfirmationRequest: (value: ConfirmationRequest) => void,
 ): Promise<boolean> {
-  addHistoryItem(
-    {
-      type: 'info',
-      text: 'Tried to update an extension but it has some changes that require consent, please use `gemini extensions update`.',
-    },
-    Date.now(),
+  return await promptForConsentInteractive(
+    consentDescription + '\n\nDo you want to continue?',
+    addExtensionUpdateConfirmationRequest,
   );
-  return false;
 }
 
 /**
@@ -422,7 +396,7 @@ export async function requestConsentInteractive(
  * @param prompt A yes/no prompt to ask the user
  * @returns Whether or not the user answers 'y' (yes). Defaults to 'yes' on enter.
  */
-async function promptForContinuationNonInteractive(
+async function promptForConsentNonInteractive(
   prompt: string,
 ): Promise<boolean> {
   const readline = await import('node:readline');
@@ -452,6 +426,29 @@ async function promptForSetting(setting: ExtensionSetting): Promise<string> {
     rl.question('> ', (answer) => {
       rl.close();
       resolve(answer);
+    });
+  });
+}
+
+/**
+ * Asks users an interactive yes/no prompt.
+ *
+ * This should not be called from non-interactive mode as it will break the CLI.
+ *
+ * @param prompt A markdown prompt to ask the user
+ * @param setExtensionUpdateConfirmationRequest Function to update the UI state with the confirmation request.
+ * @returns Whether or not the user answers yes.
+ */
+async function promptForConsentInteractive(
+  prompt: string,
+  addExtensionUpdateConfirmationRequest: (value: ConfirmationRequest) => void,
+): Promise<boolean> {
+  return await new Promise<boolean>((resolve) => {
+    addExtensionUpdateConfirmationRequest({
+      prompt,
+      onConfirm: (resolvedConfirmed) => {
+        resolve(resolvedConfirmed);
+      },
     });
   });
 }
@@ -635,9 +632,9 @@ export async function installExtension(
 function extensionConsentString(extensionConfig: ExtensionConfig): string {
   const output: string[] = [];
   const mcpServerEntries = Object.entries(extensionConfig.mcpServers || {});
-  output.push('Extensions may introduce unexpected behavior.');
+  output.push(`Installing extension "${extensionConfig.name}".`);
   output.push(
-    'Ensure you have investigated the extension source and trust the author.',
+    '**Extensions may introduce unexpected behavior. Ensure you have investigated the extension source and trust the author.**',
   );
 
   if (mcpServerEntries.length) {
@@ -687,7 +684,7 @@ async function maybeRequestConsentOrFail(
     }
   }
   if (!(await requestConsent(extensionConsent))) {
-    throw new Error('Installation cancelled.');
+    throw new Error(`Installation cancelled for "${extensionConfig.name}".`);
   }
 }
 
@@ -749,6 +746,7 @@ export async function uninstallExtension(
   }
   const manager = new ExtensionEnablementManager(
     ExtensionStorage.getUserExtensionsDir(),
+    [extensionName],
   );
   manager.remove(extensionName);
   const storage = new ExtensionStorage(extensionName);
@@ -765,9 +763,18 @@ export async function uninstallExtension(
 
 export function toOutputString(
   extension: Extension,
-  isEnabled: boolean,
+  workspaceDir: string,
 ): string {
-  const status = isEnabled ? chalk.green('✓') : chalk.red('✗');
+  const manager = new ExtensionEnablementManager(
+    ExtensionStorage.getUserExtensionsDir(),
+  );
+  const userEnabled = manager.isEnabled(extension.config.name, os.homedir());
+  const workspaceEnabled = manager.isEnabled(
+    extension.config.name,
+    workspaceDir,
+  );
+
+  const status = workspaceEnabled ? chalk.green('✓') : chalk.red('✗');
   let output = `${status} ${extension.config.name} (${extension.config.version})`;
   output += `\n Path: ${extension.path}`;
   if (extension.installMetadata) {
@@ -779,6 +786,8 @@ export function toOutputString(
       output += `\n Release tag: ${extension.installMetadata.releaseTag}`;
     }
   }
+  output += `\n Enabled (User): ${userEnabled}`;
+  output += `\n Enabled (Workspace): ${workspaceEnabled}`;
   if (extension.contextFiles.length > 0) {
     output += `\n Context files:`;
     extension.contextFiles.forEach((contextFile) => {
@@ -809,9 +818,14 @@ export function disableExtension(
   if (scope === SettingScope.System || scope === SettingScope.SystemDefaults) {
     throw new Error('System and SystemDefaults scopes are not supported.');
   }
+  const extension = loadExtensionByName(name, cwd);
+  if (!extension) {
+    throw new Error(`Extension with name ${name} does not exist.`);
+  }
 
   const manager = new ExtensionEnablementManager(
     ExtensionStorage.getUserExtensionsDir(),
+    [name],
   );
   const scopePath = scope === SettingScope.Workspace ? cwd : os.homedir();
   manager.disable(name, true, scopePath);
@@ -825,6 +839,10 @@ export function enableExtension(
 ) {
   if (scope === SettingScope.System || scope === SettingScope.SystemDefaults) {
     throw new Error('System and SystemDefaults scopes are not supported.');
+  }
+  const extension = loadExtensionByName(name, cwd);
+  if (!extension) {
+    throw new Error(`Extension with name ${name} does not exist.`);
   }
   const manager = new ExtensionEnablementManager(
     ExtensionStorage.getUserExtensionsDir(),
