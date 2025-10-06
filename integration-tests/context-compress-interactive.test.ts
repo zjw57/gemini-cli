@@ -96,9 +96,17 @@ describe('Interactive Mode', () => {
       true,
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await type(ptyProcess, '/co');
 
-    await type(ptyProcess, '/compress');
+    const suggestionsReady = await rig.waitForText(
+      'Compresses the context by replacing it with a summary.',
+      15000,
+    );
+    expect(suggestionsReady, 'Command suggestions did not appear in time').toBe(
+      true,
+    );
+
+    await type(ptyProcess, 'mpress');
     await new Promise((resolve) => setTimeout(resolve, 1000));
     await type(ptyProcess, '\r');
 
