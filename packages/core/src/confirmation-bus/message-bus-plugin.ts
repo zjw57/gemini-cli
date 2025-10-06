@@ -49,7 +49,7 @@ export class MessageBusPlugin extends BasePlugin {
             resolve(undefined); // Proceed with tool call
           } else {
             // This will be caught by the runner and returned as a tool error
-            reject(new Error('Tool execution denied by policy.'));
+            reject(new Error('Tool execution was denied.'));
           }
         }
       };
