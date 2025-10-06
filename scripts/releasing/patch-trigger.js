@@ -14,6 +14,45 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
+/**
+ * Extract base version, original pr, and originalPr info from hotfix branch name.
+ * Formats:
+ *  - New NEW: hotfix/v0.5.3/v0.5.4/preview/cherry-pick-abc/pr-1234 -> v0.5.4, preview, 1234
+ *  - New format: hotfix/v0.5.3/preview/cherry-pick-abc -> v0.5.3 and preview
+ *  - Old format: hotfix/v0.5.3/cherry-pick-abc -> v0.5.3 and stable (default)
+ * We check the formats from newest to oldest. If the channel found is invalid,
+ * an error is thrown.
+ */
+function getBranchInfo({ branchName, context }) {
+  const parts = branchName.split('/');
+  const version = parts[1];
+  let prNum;
+  let channel = 'stable'; // default for old format
+  if (parts.length >= 6 && (parts[3] === 'stable' || parts[3] === 'preview')) {
+    channel = parts[3];
+    const prMatch = parts[5].match(/pr-(\d+)/);
+    prNum = prMatch[1];
+  } else if (
+    parts.length >= 4 &&
+    (parts[2] === 'stable' || parts[2] === 'preview')
+  ) {
+    // New format with explicit channel
+    channel = parts[2];
+  } else if (context.eventName === 'workflow_dispatch') {
+    // Manual dispatch, infer from version name
+    channel = version.includes('preview') ? 'preview' : 'stable';
+  }
+
+  // Validate channel
+  if (channel !== 'stable' && channel !== 'preview') {
+    throw new Error(
+      `Invalid channel: ${channel}. Must be 'stable' or 'preview'.`,
+    );
+  }
+
+  return { channel, prNum, version };
+}
+
 async function main() {
   const argv = await yargs(hideBin(process.argv))
     .option('head-ref', {
@@ -79,31 +118,16 @@ async function main() {
 
   console.log(`Processing patch trigger for branch: ${headRef}`);
 
-  // Extract base version and channel from hotfix branch name
-  // New format: hotfix/v0.5.3/preview/cherry-pick-abc -> v0.5.3 and preview
-  // Old format: hotfix/v0.5.3/cherry-pick-abc -> v0.5.3 and stable (default)
-  const parts = headRef.split('/');
-  const version = parts[1];
-  let channel = 'stable'; // default for old format
+  const { prNum, version, channel } = getBranchInfo({
+    branchName: headRef,
+    context,
+  });
 
-  if (parts.length >= 4 && (parts[2] === 'stable' || parts[2] === 'preview')) {
-    // New format with explicit channel
-    channel = parts[2];
-  } else if (context.eventName === 'workflow_dispatch') {
-    // Manual dispatch, infer from version name
-    channel = version.includes('preview') ? 'preview' : 'stable';
-  }
+  let originalPr = prNum;
+  console.log(`Found originalPr: ${prNum} from hotfix branch`);
 
-  // Validate channel
-  if (channel !== 'stable' && channel !== 'preview') {
-    throw new Error(
-      `Invalid channel: ${channel}. Must be 'stable' or 'preview'.`,
-    );
-  }
-
-  // Try to find the original PR that requested this patch
-  let originalPr = null;
-  if (!testMode) {
+  // Fallback to using PR search (inconsistent) if no pr found in branch name.
+  if (!testMode && !originalPr) {
     try {
       console.log('Looking for original PR using search...');
       const { execFileSync } = await import('node:child_process');
@@ -143,7 +167,8 @@ async function main() {
     } catch (e) {
       console.log('Could not determine original PR:', e.message);
     }
-  } else {
+  }
+  if (!originalPr && testMode) {
     console.log('Skipping original PR lookup (test mode)');
     originalPr = 8655; // Mock for testing
   }
