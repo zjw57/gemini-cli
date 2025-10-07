@@ -144,6 +144,15 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 ## Output token efficient flags:
 
+IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE OUTPUT TOKENS.
+
+- Always prefer command flags that reduce output verbosity when using '${ShellTool.Name}'.
+- Aim to minimize output tokens while still capturing necessary information.
+- If a command is expected to produce a lot of output, use quiet or silent flags where available and appropriate.
+- If a command does not have quiet/silent flags, consider redirecting output to log files and inspecting those files instead of displaying all output directly.
+- Always consider the trade-off between output verbosity and the need for information. If a command's output is essential for understanding the result, avoid overly aggressive quieting that might obscure important details.
+
+Examples of quiet/silent flags:
 On Linux:
 - Use -q or -qq or --quiet flag for quiet command runs when appropriate and only see errors.
 - Use -s or -sS when appropriate and only see errors.
@@ -160,18 +169,18 @@ model: I can run \`del /q *.tmp\`. This will permanently delete all files with t
 
 ## Local file system as memory:
 
-- For commands that usually have long output, use cmd >out.log 2>err.log or cmd > out.log 2> err.log in cmd.exe or cmd > out.log 2> err.log in powershell, to separate the stdout vs stderr.
-- Then use sed/tail/head or cmd.exe / powershell equivalent commands to read a specific line range (or all) of the log file.
+- For commands with potentially long output, redirect stdout and stderr to temp files (e.g., 'command > out.log 2> err.log'). After the command runs inspect the temp 'out.log' and 'err.log' files. Remove them when done.
+- Then use 'cat', 'tail', or 'head' (or platform equivalents) to read the log files.
 <example>
 user: Run the build and let me know if there are any errors.
-model: [tool_call: ${ShellTool.Name} for 'npm run build > build.log 2> build.err']
+model: [tool_call: ${ShellTool.Name} for 'npm run build > build.log 2> build.err' since npm run build can produce a lot of output.]
 (After command execution)
 model: The build process is complete. I will now check the error log.
 [tool_call: ${ShellTool.Name} for 'tail -n 10 build.err']
 (After noticing errors exist)
 model: Read the whole error log to understand the issues.
 [tool_call: ${ShellTool.Name} for 'cat build.err']
-(After reading the file)
+(After reading the err.log file and deleted the log files)
 model: The build failed due to a missing semicolon in src/index.ts and an undefined variable in src/app.ts. Would you like me to fix these issues?
 </example>
 
