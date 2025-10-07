@@ -61,6 +61,7 @@ describe('ShellTool', () => {
         .mockReturnValue(createMockWorkspaceContext('/test/dir')),
       getGeminiClient: vi.fn(),
       getShouldUseNodePtyShell: vi.fn().mockReturnValue(false),
+      isInteractive: vi.fn().mockReturnValue(true),
     } as unknown as Config;
 
     shellTool = new ShellTool(mockConfig);
@@ -418,7 +419,7 @@ describe('ShellTool', () => {
       expect(shellTool.description).toMatchSnapshot();
     });
 
-    it('should return the non-windows description when not on linux', () => {
+    it('should return the non-windows description when not on windows', () => {
       vi.mocked(os.platform).mockReturnValue('linux');
       const shellTool = new ShellTool(mockConfig);
       expect(shellTool.description).toMatchSnapshot();
