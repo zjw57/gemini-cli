@@ -424,8 +424,6 @@ Keep continuing to work on the user's request by calling more tools or gathering
   const orderedPrompts = [
     'preamble',
     'coreMandates',
-    'primaryWorkflows',
-    'operationalGuidelines',
     'sandbox',
     'git',
     'finalReminder'
