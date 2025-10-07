@@ -418,7 +418,7 @@ describe('ShellTool', () => {
       expect(shellTool.description).toMatchSnapshot();
     });
 
-    it('should return the non-windows description when not on windows', () => {
+    it('should return the non-windows description when not on linux', () => {
       vi.mocked(os.platform).mockReturnValue('linux');
       const shellTool = new ShellTool(mockConfig);
       expect(shellTool.description).toMatchSnapshot();
