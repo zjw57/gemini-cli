@@ -40,9 +40,11 @@ import { LoopDetectionService } from '../services/loopDetectionService.js';
 import { ideContextStore } from '../ide/ideContext.js';
 import {
   logChatCompression,
+  logContentRetryFailure,
   logNextSpeakerCheck,
 } from '../telemetry/loggers.js';
 import {
+  ContentRetryFailureEvent,
   makeChatCompressionEvent,
   NextSpeakerCheckEvent,
 } from '../telemetry/types.js';
@@ -544,6 +546,14 @@ export class GeminiClient {
       if (event.type === GeminiEventType.InvalidStream) {
         if (isInvalidStreamRetry) {
           // We already retried once, so stop here.
+          logContentRetryFailure(
+            this.config,
+            new ContentRetryFailureEvent(
+              4, // 2 initial + 2 after injections
+              'FAILED_AFTER_PROMPT_INJECTION',
+              modelToUse,
+            ),
+          );
           return turn;
         }
         const nextRequest = [{ text: 'Please continue.' }];
