@@ -449,6 +449,7 @@ export class GeminiClient {
     signal: AbortSignal,
     prompt_id: string,
     turns: number = MAX_TURNS,
+    isInvalidStreamRetry: boolean = false,
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
     if (this.lastPromptId !== prompt_id) {
       this.loopDetector.reset(prompt_id);
@@ -541,12 +542,17 @@ export class GeminiClient {
       }
       yield event;
       if (event.type === GeminiEventType.InvalidStream) {
+        if (isInvalidStreamRetry) {
+          // We already retried once, so stop here.
+          return turn;
+        }
         const nextRequest = [{ text: 'Please continue.' }];
         yield* this.sendMessageStream(
           nextRequest,
           signal,
           prompt_id,
           boundedTurns - 1,
+          true, // Set isInvalidStreamRetry to true
         );
         return turn;
       }
@@ -587,6 +593,7 @@ export class GeminiClient {
           signal,
           prompt_id,
           boundedTurns - 1,
+          // isInvalidStreamRetry is false here, as this is a next speaker check
         );
       }
     }
