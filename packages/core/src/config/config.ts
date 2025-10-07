@@ -442,7 +442,7 @@ export class Config {
     this.useModelRouter = params.useModelRouter ?? false;
     this.enableMessageBusIntegration =
       params.enableMessageBusIntegration ?? false;
-    this.enableSubagents = params.enableSubagents ?? false;
+    this.enableSubagents = params.enableSubagents ?? true;
     this.extensionManagement = params.extensionManagement ?? true;
     this.storage = new Storage(this.targetDir);
     this.enablePromptCompletion = params.enablePromptCompletion ?? false;

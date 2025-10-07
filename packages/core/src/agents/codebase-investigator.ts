@@ -44,10 +44,13 @@ export const CodebaseInvestigatorAgent: AgentDefinition<
 > = {
   name: 'codebase_investigator',
   displayName: 'Codebase Investigator Agent',
-  description: `Your primary tool for multifile search tasks and codebase exploration. 
-    Invoke this tool to delegate search tasks to an autonomous subagent. 
-    Use this to find features, understand context, or locate specific files, functions, or symbols. 
-    Returns a structured Json report with key file paths, symbols, architectural map and insights to solve a task or answer questions`,
+  description: `Delegate complex, multi-step codebase investigations to this autonomous subagent.
+    Use this tool when:
+    - The scope of the search is broad or ambiguous (e.g., "how does auth work?", "find all places affected by X").
+    - You need to understand relationships between multiple files, classes, or modules.
+    - A simple 'grep' or 'glob' is insufficient to build a complete mental model.
+    DO NOT use for simple, direct lookups (e.g., "read file X", "find definition of symbol Y" if you know where to look).
+    Returns a structured JSON report with a summary, exploration trace, and analyzed relevant locations.`,
   inputConfig: {
     inputs: {
       objective: {
