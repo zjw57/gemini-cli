@@ -65,15 +65,7 @@ describe('Interactive Mode', () => {
   });
 
   it('should handle compression failure on token inflation', async () => {
-    await rig.setup('interactive-compress-test', {
-      settings: {
-        security: {
-          auth: {
-            selectedType: 'gemini-api-key',
-          },
-        },
-      },
-    });
+    await rig.setup('interactive-compress-test');
 
     const { ptyProcess } = rig.runInteractive();
 
