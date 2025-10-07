@@ -540,6 +540,16 @@ export class GeminiClient {
         return turn;
       }
       yield event;
+      if (event.type === GeminiEventType.InvalidStream) {
+        const nextRequest = [{ text: 'Please continue.' }];
+        yield* this.sendMessageStream(
+          nextRequest,
+          signal,
+          prompt_id,
+          boundedTurns - 1,
+        );
+        return turn;
+      }
       if (event.type === GeminiEventType.Error) {
         return turn;
       }

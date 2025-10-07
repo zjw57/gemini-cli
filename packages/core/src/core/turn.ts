@@ -27,6 +27,7 @@ import {
   toFriendlyError,
 } from '../utils/errors.js';
 import type { GeminiChat } from './geminiChat.js';
+import { InvalidStreamError } from './geminiChat.js';
 import { parseThought, type ThoughtSummary } from '../utils/thoughtUtils.js';
 
 // Define a structure for tools passed to the server
@@ -58,10 +59,15 @@ export enum GeminiEventType {
   LoopDetected = 'loop_detected',
   Citation = 'citation',
   Retry = 'retry',
+  InvalidStream = 'invalid_stream',
 }
 
 export type ServerGeminiRetryEvent = {
   type: GeminiEventType.Retry;
+};
+
+export type ServerGeminiInvalidStreamEvent = {
+  type: GeminiEventType.InvalidStream;
 };
 
 export interface StructuredError {
@@ -192,7 +198,8 @@ export type ServerGeminiStreamEvent =
   | ServerGeminiToolCallRequestEvent
   | ServerGeminiToolCallResponseEvent
   | ServerGeminiUserCancelledEvent
-  | ServerGeminiRetryEvent;
+  | ServerGeminiRetryEvent
+  | ServerGeminiInvalidStreamEvent;
 
 // A turn manages the agentic loop turn within the server context.
 export class Turn {
@@ -298,6 +305,11 @@ export class Turn {
       if (signal.aborted) {
         yield { type: GeminiEventType.UserCancelled };
         // Regular cancellation error, fail gracefully.
+        return;
+      }
+
+      if (e instanceof InvalidStreamError) {
+        yield { type: GeminiEventType.InvalidStream };
         return;
       }
 
