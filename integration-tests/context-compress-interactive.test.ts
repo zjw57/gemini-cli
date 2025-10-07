@@ -38,7 +38,6 @@ describe('Interactive Mode', () => {
 
       const authDialogAppeared = await rig.waitForText(
         'How would you like to authenticate',
-        5000,
       );
 
       // select the second option if auth dialog come's up
@@ -47,7 +46,7 @@ describe('Interactive Mode', () => {
       }
 
       // Wait for the app to be ready
-      const isReady = await rig.waitForText('Type your message', 15000);
+      const isReady = await rig.waitForText('Type your message');
       expect(
         isReady,
         'CLI did not start up in interactive mode correctly',
@@ -59,11 +58,11 @@ describe('Interactive Mode', () => {
       await type(ptyProcess, longPrompt);
       await type(ptyProcess, '\r');
 
-      await rig.waitForText('einstein', 25000);
+      await rig.waitForText('einstein');
 
       await type(ptyProcess, '/compress');
       // A small delay to allow React to re-render the command list.
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       await type(ptyProcess, '\r');
 
       const foundEvent = await rig.waitForTelemetryEvent(
@@ -96,7 +95,6 @@ describe('Interactive Mode', () => {
 
       const authDialogAppeared = await rig.waitForText(
         'How would you like to authenticate',
-        5000,
       );
 
       // select the second option if auth dialog come's up
@@ -105,14 +103,14 @@ describe('Interactive Mode', () => {
       }
 
       // Wait for the app to be ready
-      const isReady = await rig.waitForText('Type your message', 25000);
+      const isReady = await rig.waitForText('Type your message');
       expect(
         isReady,
         'CLI did not start up in interactive mode correctly',
       ).toBe(true);
 
       await type(ptyProcess, '/compress');
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       await type(ptyProcess, '\r');
 
       const compressionFailed = await rig.waitForText(
