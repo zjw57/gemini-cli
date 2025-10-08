@@ -163,22 +163,21 @@ ${(function () {
 # Operational Guidelines
 
 ${(function () {
-  if (config.getTokenEfficient()) {
+  if (config.getEnableShellOutputEfficiency()) {
     return `
 ## Output token efficient flags:
 
-IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE OUTPUT TOKENS.
+IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
 - Always prefer command flags that reduce output verbosity when using '${ShellTool.Name}'.
-- Aim to minimize output tokens while still capturing necessary information.
+- Aim to minimize tool output tokens while still capturing necessary information.
 - If a command is expected to produce a lot of output, use quiet or silent flags where available and appropriate.
-- If a command does not have quiet/silent flags, consider redirecting output to log files and inspecting those files instead of displaying all output directly.
-- Always consider the trade-off between output verbosity and the need for information. If a command's output is essential for understanding the result, avoid overly aggressive quieting that might obscure important details.
+- If a command does not have quiet/silent flags, consider redirecting output to log files and inspecting those files only as needed.
+- Always consider the trade-off between output verbosity and the need for information. If a command's full output is essential for understanding the result, avoid overly aggressive quieting that might obscure important details.
 
 Examples of quiet/silent flags:
 On Linux:
-- Use -q or -qq or --quiet flag for quiet command runs when appropriate and only see errors.
-- Use -s or -sS when appropriate and only see errors.
+- Use -q, -qq, --quiet, -s, -sS, or --silent flags for quiet/silent command runs when appropriate and to only see errors.
 <example>
 user: Install the dependencies.
 model: [tool_call: ${ShellTool.Name} for 'npm install --silent']
@@ -192,8 +191,8 @@ model: I can run \`del /q *.tmp\`. This will permanently delete all files with t
 
 ## Local file system as memory:
 
-- For commands with potentially long output, redirect stdout and stderr to temp files (e.g., 'command > out.log 2> err.log'). After the command runs inspect the temp 'out.log' and 'err.log' files. Remove them when done.
-- Then use 'cat', 'tail', or 'head' (or platform equivalents) to read the log files.
+- For commands with potentially long output that may not be useful, redirect stdout and stderr to temp files (e.g., 'command > out.log 2> err.log').
+- After the command runs, inspect the temp files (e.g. 'out.log' and 'err.log') using commands like 'grep', 'tail', 'head', ... (or platform equivalents). Remove the temp files when done.
 <example>
 user: Run the build and let me know if there are any errors.
 model: [tool_call: ${ShellTool.Name} for 'npm run build > build.log 2> build.err' since npm run build can produce a lot of output.]

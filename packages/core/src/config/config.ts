@@ -269,7 +269,7 @@ export interface ConfigParameters {
   useModelRouter?: boolean;
   enableMessageBusIntegration?: boolean;
   enableSubagents?: boolean;
-  tokenEfficient?: boolean;
+  enableShellOutputEfficiency?: boolean;
 }
 
 export class Config {
@@ -363,7 +363,7 @@ export class Config {
   private readonly useModelRouter: boolean;
   private readonly enableMessageBusIntegration: boolean;
   private readonly enableSubagents: boolean;
-  private readonly tokenEfficient: boolean;
+  private readonly enableShellOutputEfficiency: boolean;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -454,7 +454,8 @@ export class Config {
     this.enableMessageBusIntegration =
       params.enableMessageBusIntegration ?? false;
     this.enableSubagents = params.enableSubagents ?? false;
-    this.tokenEfficient = params.tokenEfficient ?? true;
+    this.enableShellOutputEfficiency =
+      params.enableShellOutputEfficiency ?? true;
     this.extensionManagement = params.extensionManagement ?? true;
     this.storage = new Storage(this.targetDir);
     this.enablePromptCompletion = params.enablePromptCompletion ?? false;
@@ -1038,8 +1039,8 @@ export class Config {
     return this.enableSubagents;
   }
 
-  getTokenEfficient(): boolean {
-    return this.tokenEfficient;
+  getEnableShellOutputEfficiency(): boolean {
+    return this.enableShellOutputEfficiency;
   }
 
   async createToolRegistry(): Promise<ToolRegistry> {

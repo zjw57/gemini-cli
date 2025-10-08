@@ -53,7 +53,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 ## Output token efficient flags:
 
-IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE OUTPUT TOKENS.
+IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
 - Always prefer command flags that reduce output verbosity when using 'run_shell_command'.
 - Aim to minimize output tokens while still capturing necessary information.
@@ -285,7 +285,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 ## Output token efficient flags:
 
-IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE OUTPUT TOKENS.
+IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
 - Always prefer command flags that reduce output verbosity when using 'run_shell_command'.
 - Aim to minimize output tokens while still capturing necessary information.
@@ -527,7 +527,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 ## Output token efficient flags:
 
-IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE OUTPUT TOKENS.
+IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
 - Always prefer command flags that reduce output verbosity when using 'run_shell_command'.
 - Aim to minimize output tokens while still capturing necessary information.
@@ -754,7 +754,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 ## Output token efficient flags:
 
-IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE OUTPUT TOKENS.
+IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
 - Always prefer command flags that reduce output verbosity when using 'run_shell_command'.
 - Aim to minimize output tokens while still capturing necessary information.
@@ -981,7 +981,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 ## Output token efficient flags:
 
-IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE OUTPUT TOKENS.
+IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
 - Always prefer command flags that reduce output verbosity when using 'run_shell_command'.
 - Aim to minimize output tokens while still capturing necessary information.
@@ -1208,7 +1208,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 ## Output token efficient flags:
 
-IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE OUTPUT TOKENS.
+IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
 - Always prefer command flags that reduce output verbosity when using 'run_shell_command'.
 - Aim to minimize output tokens while still capturing necessary information.
@@ -1435,7 +1435,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 ## Output token efficient flags:
 
-IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE OUTPUT TOKENS.
+IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
 - Always prefer command flags that reduce output verbosity when using 'run_shell_command'.
 - Aim to minimize output tokens while still capturing necessary information.
@@ -1662,7 +1662,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 ## Output token efficient flags:
 
-IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE OUTPUT TOKENS.
+IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
 - Always prefer command flags that reduce output verbosity when using 'run_shell_command'.
 - Aim to minimize output tokens while still capturing necessary information.
@@ -1889,7 +1889,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 ## Output token efficient flags:
 
-IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE OUTPUT TOKENS.
+IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
 - Always prefer command flags that reduce output verbosity when using 'run_shell_command'.
 - Aim to minimize output tokens while still capturing necessary information.
