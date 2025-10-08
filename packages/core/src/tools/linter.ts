@@ -15,6 +15,13 @@ import { spawn } from 'node:child_process';
  * @param codeString The Python code to lint.
  * @returns A promise that resolves to a Set of unique error strings from Ruff.
  */
+/**
+ * A helper function to run Ruff on a string of code and return a set of error lines.
+ * It uses stdin to pass the code, avoiding the need for temporary files.
+ *
+ * @param codeString The Python code to lint.
+ * @returns A promise that resolves to a Set of unique error strings from Ruff.
+ */
 function runRuffAndGetErrors(codeString: string): Promise<Set<string>> {
   return new Promise((resolve) => {
     const command = 'ruff';
@@ -28,7 +35,7 @@ function runRuffAndGetErrors(codeString: string): Promise<Set<string>> {
       '--output-format',
       'concise',
       '--stdin-filename',
-      'temp_file.py', // A dummy filename for Ruff to use in reports
+      'Error in lines', // FIX 1: Use a neutral, non-confusing filename.
       '-', // Signifies reading from stdin
     ];
 
@@ -40,17 +47,16 @@ function runRuffAndGetErrors(codeString: string): Promise<Set<string>> {
       stdout += data.toString();
     });
 
-    // We resolve on 'close', as Ruff will exit with a non-zero code if it finds
-    // linting errors, which is expected behavior.
     ruffProcess.on('close', () => {
       const errorLines = stdout
         .trim()
         .split('\n')
-        .filter((line) => line.length > 0); // Filter out empty lines
+        // FIX 2: Only include actual error lines, which have a file:line:col format.
+        // This filters out summary lines like "Found 2 errors."
+        .filter((line) => line.split(':').length >= 4);
       resolve(new Set(errorLines));
     });
 
-    // Handle execution errors, such as 'ruff' not being installed.
     ruffProcess.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'ENOENT') {
         console.warn('Warning: Ruff command not found. Skipping lint check.');
@@ -60,10 +66,9 @@ function runRuffAndGetErrors(codeString: string): Promise<Set<string>> {
           err.message,
         );
       }
-      resolve(new Set()); // Return an empty set on error, like the Python version
+      resolve(new Set());
     });
 
-    // Write the code to the process's standard input and then close the stream.
     ruffProcess.stdin.write(codeString);
     ruffProcess.stdin.end();
   });
