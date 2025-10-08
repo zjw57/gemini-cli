@@ -166,7 +166,7 @@ Settings are organized into categories. All settings should be placed within the
   - **Default:** `false`
 
 - **`model.tokenEfficient`** (boolean):
-  - **Description:** Optimizes for token efficiency.
+  - **Description:** Optimizes shell tool commands for token efficiency.
   - **Default:** `true`
 
 #### `context`
