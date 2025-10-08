@@ -155,7 +155,6 @@ describe('gemini.tsx main function', () => {
         initialize: vi.fn(),
         getIdeMode: () => false,
         getExperimentalZedIntegration: () => false,
-        getScreenReader: () => false,
         getGeminiMdFileCount: () => 0,
         getProjectRoot: () => '/',
       } as unknown as Config;
@@ -287,7 +286,6 @@ describe('gemini.tsx main function kitty protocol', () => {
       initialize: vi.fn(),
       getIdeMode: () => false,
       getExperimentalZedIntegration: () => false,
-      getScreenReader: () => false,
       getGeminiMdFileCount: () => 0,
     } as unknown as Config);
     vi.mocked(loadSettings).mockReturnValue({
@@ -378,7 +376,6 @@ describe('startInteractiveUI', () => {
   // Mock dependencies
   const mockConfig = {
     getProjectRoot: () => '/root',
-    getScreenReader: () => false,
   } as Config;
   const mockSettings = {
     merged: {

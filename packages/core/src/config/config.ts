@@ -85,11 +85,6 @@ export enum ApprovalMode {
   YOLO = 'yolo',
 }
 
-export interface AccessibilitySettings {
-  disableLoadingPhrases?: boolean;
-  screenReader?: boolean;
-}
-
 export interface BugCommandSettings {
   urlTemplate: string;
 }
@@ -221,7 +216,7 @@ export interface ConfigParameters {
   approvalMode?: ApprovalMode;
   showMemoryUsage?: boolean;
   contextFileName?: string | string[];
-  accessibility?: AccessibilitySettings;
+  screenReader?: boolean;
   telemetry?: TelemetrySettings;
   usageStatisticsEnabled?: boolean;
   fileFiltering?: {
@@ -298,7 +293,7 @@ export class Config {
   private geminiMdFilePaths: string[];
   private approvalMode: ApprovalMode;
   private readonly showMemoryUsage: boolean;
-  private readonly accessibility: AccessibilitySettings;
+  private readonly screenReader: boolean;
   private readonly telemetrySettings: TelemetrySettings;
   private readonly usageStatisticsEnabled: boolean;
   private geminiClient!: GeminiClient;
@@ -389,7 +384,7 @@ export class Config {
     this.geminiMdFilePaths = params.geminiMdFilePaths ?? [];
     this.approvalMode = params.approvalMode ?? ApprovalMode.DEFAULT;
     this.showMemoryUsage = params.showMemoryUsage ?? false;
-    this.accessibility = params.accessibility ?? {};
+    this.screenReader = params.screenReader ?? false;
     this.telemetrySettings = {
       enabled: params.telemetry?.enabled ?? false,
       target: params.telemetry?.target ?? DEFAULT_TELEMETRY_TARGET,
@@ -735,10 +730,6 @@ export class Config {
     return this.showMemoryUsage;
   }
 
-  getAccessibility(): AccessibilitySettings {
-    return this.accessibility;
-  }
-
   getTelemetryEnabled(): boolean {
     return this.telemetrySettings.enabled ?? false;
   }
@@ -964,8 +955,9 @@ export class Config {
       pager: config.pager ?? this.shellExecutionConfig.pager,
     };
   }
+
   getScreenReader(): boolean {
-    return this.accessibility.screenReader ?? false;
+    return this.screenReader ?? false;
   }
 
   getEnablePromptCompletion(): boolean {

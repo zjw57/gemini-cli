@@ -52,12 +52,12 @@ export const Composer = () => {
         <LoadingIndicator
           thought={
             uiState.streamingState === StreamingState.WaitingForConfirmation ||
-            config.getAccessibility()?.disableLoadingPhrases
+            settings.merged.ui?.accessibility?.disableLoadingPhrases
               ? undefined
               : uiState.thought
           }
           currentLoadingPhrase={
-            config.getAccessibility()?.disableLoadingPhrases
+            settings.merged.ui?.accessibility?.disableLoadingPhrases
               ? undefined
               : uiState.currentLoadingPhrase
           }

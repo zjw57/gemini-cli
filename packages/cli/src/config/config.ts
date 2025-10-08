@@ -704,10 +704,7 @@ export async function loadCliConfig(
     approvalMode,
     showMemoryUsage:
       argv.showMemoryUsage || settings.ui?.showMemoryUsage || false,
-    accessibility: {
-      ...settings.ui?.accessibility,
-      screenReader,
-    },
+    screenReader,
     telemetry: telemetrySettings,
     usageStatisticsEnabled: settings.privacy?.usageStatisticsEnabled ?? true,
     fileFiltering: settings.context?.fileFiltering,

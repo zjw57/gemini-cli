@@ -141,7 +141,6 @@ const createMockConfig = (overrides = {}) => ({
   getModel: vi.fn(() => 'gemini-1.5-pro'),
   getTargetDir: vi.fn(() => '/test/dir'),
   getDebugMode: vi.fn(() => false),
-  getAccessibility: vi.fn(() => ({})),
   getMcpServers: vi.fn(() => ({})),
   getBlockedMcpServers: vi.fn(() => []),
   ...overrides,
@@ -258,11 +257,11 @@ describe('Composer', () => {
         streamingState: StreamingState.Responding,
         thought: { subject: 'Hidden', description: 'Should not show' },
       });
-      const config = createMockConfig({
-        getAccessibility: vi.fn(() => ({ disableLoadingPhrases: true })),
+      const settings = createMockSettings({
+        ui: { accessibility: { disableLoadingPhrases: true } },
       });
 
-      const { lastFrame } = renderComposer(uiState, undefined, config);
+      const { lastFrame } = renderComposer(uiState, settings);
 
       const output = lastFrame();
       expect(output).toContain('LoadingIndicator');
