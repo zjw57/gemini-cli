@@ -41,6 +41,7 @@ import { FileOperationEvent } from '../telemetry/types.js';
 import { FileOperation } from '../telemetry/metrics.js';
 import { getSpecificMimeType } from '../utils/fileUtils.js';
 import { getLanguageFromFilePath } from '../utils/language-detection.js';
+import { validatePatchQuality } from './linter.js';
 
 /**
  * Parameters for the WriteFile tool
@@ -132,6 +133,24 @@ export async function getCorrectedFileContent(
       config.getBaseLlmClient(),
       abortSignal,
     );
+  }
+  if (filePath.endsWith('.py')) {
+    console.log(`it is python file...`);
+    const lintErrors = validatePatchQuality(originalContent, correctedContent, [
+      'F401',
+      'F841',
+      'F522',
+      'F632',
+      'F901',
+      'F821',
+      'F632',
+    ]);
+    console.log(lintErrors);
+    const error = {
+      message: `There were syntax errors in the final edited code and the tool will not allow you to add syntax errors. Check the errors and make the correct edit: ${lintErrors}`,
+      code: ToolErrorType.SYNTAX_ERROR,
+    };
+    return { originalContent, correctedContent, fileExists, error };
   }
   return { originalContent, correctedContent, fileExists };
 }

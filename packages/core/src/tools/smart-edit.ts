@@ -36,6 +36,7 @@ import { SmartEditStrategyEvent } from '../telemetry/types.js';
 import { logSmartEditStrategy } from '../telemetry/loggers.js';
 import { SmartEditCorrectionEvent } from '../telemetry/types.js';
 import { logSmartEditCorrectionEvent } from '../telemetry/loggers.js';
+import { validatePatchQuality } from './linter.js';
 
 interface ReplacementContext {
   params: EditToolParams;
@@ -308,6 +309,23 @@ export function getErrorReplaceResult(
       display: `No changes to apply. The old_string and new_string are identical.`,
       raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}`,
       type: ToolErrorType.EDIT_NO_CHANGE,
+    };
+  } else if (params.file_path.endsWith('.py')) {
+    console.log(`it is python file...`);
+    const lintErrors = validatePatchQuality(finalOldString, finalNewString, [
+      'F401',
+      'F841',
+      'F522',
+      'F632',
+      'F901',
+      'F821',
+      'F632',
+    ]);
+    console.log(lintErrors);
+    error = {
+      display: `There were syntax errors in the final edited code.`,
+      raw: `There were syntax errors in the final edited code and the tool will not allow you to add sytnax errors. Check the errors and make the correct edit: ${lintErrors}`,
+      type: ToolErrorType.EXECUTION_FAILED,
     };
   }
   return error;
