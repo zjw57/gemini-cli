@@ -28,11 +28,7 @@ function getLineCountCommand(): { command: string; tool: string } {
 describe('run_shell_command', () => {
   it('should be able to run a shell command', async () => {
     const rig = new TestRig();
-    await rig.setup('should be able to run a shell command', {
-      settings: {
-        tokenEfficient: false,
-      },
-    });
+    await rig.setup('should be able to run a shell command');
 
     const prompt = `Please run the command "echo hello-world" and show me the output`;
 
@@ -64,11 +60,7 @@ describe('run_shell_command', () => {
 
   it('should be able to run a shell command via stdin', async () => {
     const rig = new TestRig();
-    await rig.setup('should be able to run a shell command via stdin', {
-      settings: {
-        tokenEfficient: false,
-      },
-    });
+    await rig.setup('should be able to run a shell command via stdin');
 
     const prompt = `Please run the command "echo test-stdin" and show me what it outputs`;
 
@@ -96,11 +88,7 @@ describe('run_shell_command', () => {
 
   it('should run allowed sub-command in non-interactive mode', async () => {
     const rig = new TestRig();
-    await rig.setup('should run allowed sub-command in non-interactive mode', {
-      settings: {
-        tokenEfficient: false,
-      },
-    });
+    await rig.setup('should run allowed sub-command in non-interactive mode');
 
     const testFile = rig.createFile('test.txt', 'Lorem\nIpsum\nDolor\n');
     const { tool } = getLineCountCommand();
@@ -128,11 +116,7 @@ describe('run_shell_command', () => {
 
   it('should succeed with no parens in non-interactive mode', async () => {
     const rig = new TestRig();
-    await rig.setup('should succeed with no parens in non-interactive mode', {
-      settings: {
-        tokenEfficient: false,
-      },
-    });
+    await rig.setup('should succeed with no parens in non-interactive mode');
 
     const testFile = rig.createFile('test.txt', 'Lorem\nIpsum\nDolor\n');
     const { tool } = getLineCountCommand();
@@ -159,11 +143,7 @@ describe('run_shell_command', () => {
 
   it('should succeed with --yolo mode', async () => {
     const rig = new TestRig();
-    await rig.setup('should succeed with --yolo mode', {
-      settings: {
-        tokenEfficient: false,
-      },
-    });
+    await rig.setup('should succeed with --yolo mode');
 
     const testFile = rig.createFile('test.txt', 'Lorem\nIpsum\nDolor\n');
     const { tool } = getLineCountCommand();
@@ -192,11 +172,7 @@ describe('run_shell_command', () => {
 
   it('should work with ShellTool alias', async () => {
     const rig = new TestRig();
-    await rig.setup('should work with ShellTool alias', {
-      settings: {
-        tokenEfficient: false,
-      },
-    });
+    await rig.setup('should work with ShellTool alias');
 
     const testFile = rig.createFile('test.txt', 'Lorem\nIpsum\nDolor\n');
     const { tool } = getLineCountCommand();
@@ -223,11 +199,7 @@ describe('run_shell_command', () => {
 
   it('should combine multiple --allowed-tools flags', async () => {
     const rig = new TestRig();
-    await rig.setup('should combine multiple --allowed-tools flags', {
-      settings: {
-        tokenEfficient: false,
-      },
-    });
+    await rig.setup('should combine multiple --allowed-tools flags');
 
     const { tool } = getLineCountCommand();
     const prompt = `use ${tool} and ls`;
@@ -256,11 +228,7 @@ describe('run_shell_command', () => {
 
   it('should allow all with "ShellTool" and other specifics', async () => {
     const rig = new TestRig();
-    await rig.setup('should allow all with "ShellTool" and other specifics', {
-      settings: {
-        tokenEfficient: false,
-      },
-    });
+    await rig.setup('should allow all with "ShellTool" and other specifics');
 
     const { tool } = getLineCountCommand();
     const prompt = `use date`;
@@ -289,11 +257,7 @@ describe('run_shell_command', () => {
 
   it('should propagate environment variables to the child process', async () => {
     const rig = new TestRig();
-    await rig.setup('should propagate environment variables', {
-      settings: {
-        tokenEfficient: false,
-      },
-    });
+    await rig.setup('should propagate environment variables');
 
     const varName = 'GEMINI_CLI_TEST_VAR';
     const varValue = `test-value-${Math.random().toString(36).substring(7)}`;
@@ -325,11 +289,7 @@ describe('run_shell_command', () => {
 
   it('should run a platform-specific file listing command', async () => {
     const rig = new TestRig();
-    await rig.setup('should run platform-specific file listing', {
-      settings: {
-        tokenEfficient: false,
-      },
-    });
+    await rig.setup('should run platform-specific file listing');
     const fileName = `test-file-${Math.random().toString(36).substring(7)}.txt`;
     rig.createFile(fileName, 'test content');
 
