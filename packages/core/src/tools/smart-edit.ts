@@ -286,6 +286,8 @@ export async function getErrorReplaceResult(
   expectedReplacements: number,
   finalOldString: string,
   finalNewString: string,
+  oldContent: string,
+  newContent: string,
 ) {
   let error: { display: string; raw: string; type: ToolErrorType } | undefined =
     undefined;
@@ -312,11 +314,15 @@ export async function getErrorReplaceResult(
     };
   } else if (params.file_path.endsWith('.py')) {
     console.log(`it is python file...`);
-    const lintErrors = await validatePatchQuality(
-      finalOldString,
-      finalNewString,
-      ['F401', 'F841', 'F522', 'F632', 'F901', 'F821', 'F632'],
-    );
+    const lintErrors = await validatePatchQuality(oldContent, newContent, [
+      'F401',
+      'F841',
+      'F522',
+      'F632',
+      'F901',
+      'F821',
+      'F632',
+    ]);
     console.log(lintErrors);
     if (lintErrors[1].length > 0) {
       error = {
@@ -432,6 +438,8 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
       1, // expectedReplacements is always 1 for smart_edit
       secondAttemptResult.finalOldString,
       secondAttemptResult.finalNewString,
+      currentContent,
+      secondAttemptResult.newContent,
     );
 
     if (secondError) {
@@ -562,6 +570,8 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
       expectedReplacements,
       replacementResult.finalOldString,
       replacementResult.finalNewString,
+      currentContent,
+      replacementResult.newContent,
     );
 
     if (!initialError) {
