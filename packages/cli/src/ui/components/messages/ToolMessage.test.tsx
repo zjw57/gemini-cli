@@ -12,6 +12,14 @@ import { StreamingState, ToolCallStatus } from '../../types.js';
 import { Text } from 'ink';
 import { StreamingContext } from '../../contexts/StreamingContext.js';
 import type { AnsiOutput } from '@google/gemini-cli-core';
+import { useUIState } from '../../contexts/UIStateContext.js';
+import type { Mock } from 'vitest';
+
+vi.mock('../../contexts/UIStateContext.js', () => ({
+  useUIState: vi.fn(() => ({
+    constrainHeight: true,
+  })),
+}));
 
 vi.mock('../TerminalOutput.js', () => ({
   TerminalOutput: function MockTerminalOutput({
@@ -227,5 +235,54 @@ describe('<ToolMessage />', () => {
       StreamingState.Idle,
     );
     expect(lastFrame()).toContain('MockAnsiOutput:hello');
+  });
+
+  describe('Subagent rendering', () => {
+    const subagentProps: ToolMessageProps = {
+      ...baseProps,
+      internalName: 'codebase_investigator',
+      name: 'Codebase Investigator Agent',
+      resultDisplay: 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6',
+    };
+
+    it('constrains height when executing and constrainHeight is true', () => {
+      (useUIState as Mock).mockReturnValue({ constrainHeight: true });
+      const { lastFrame } = renderWithContext(
+        <ToolMessage {...subagentProps} status={ToolCallStatus.Executing} />,
+        StreamingState.Responding,
+      );
+      // Should fall back to plain text rendering (MaxSizedBox) because maxHeight is set
+      expect(lastFrame()).not.toContain('MockMarkdown:');
+      expect(lastFrame()).toContain('Line 1');
+    });
+
+    it('does not constrain height when finished, even if constrainHeight is true', () => {
+      (useUIState as Mock).mockReturnValue({ constrainHeight: true });
+      const { lastFrame } = renderWithContext(
+        <ToolMessage {...subagentProps} status={ToolCallStatus.Success} />,
+        StreamingState.Idle,
+      );
+      // Should render as markdown because maxHeight should be undefined
+      expect(lastFrame()).toContain('MockMarkdown:');
+    });
+
+    it('does not constrain height when constrainHeight is false', () => {
+      (useUIState as Mock).mockReturnValue({ constrainHeight: false });
+      const { lastFrame } = renderWithContext(
+        <ToolMessage {...subagentProps} status={ToolCallStatus.Executing} />,
+        StreamingState.Responding,
+      );
+      expect(lastFrame()).toContain('MockMarkdown:');
+    });
+
+    it('does not constrain height for non-subagent tools', () => {
+      (useUIState as Mock).mockReturnValue({ constrainHeight: true });
+      const normalToolProps = { ...subagentProps, internalName: 'other_tool' };
+      const { lastFrame } = renderWithContext(
+        <ToolMessage {...normalToolProps} status={ToolCallStatus.Executing} />,
+        StreamingState.Responding,
+      );
+      expect(lastFrame()).toContain('MockMarkdown:');
+    });
   });
 });

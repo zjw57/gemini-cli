@@ -19,6 +19,12 @@ import { type z } from 'zod';
 
 const INPUT_PREVIEW_MAX_LENGTH = 50;
 const DESCRIPTION_MAX_LENGTH = 200;
+const TOOL_CALL_DISPLAY_MAX_LENGTH = 80;
+
+interface ToolCallInfo {
+  name: string;
+  args: string;
+}
 
 /**
  * Represents a validated, executable instance of a subagent tool.
@@ -81,6 +87,27 @@ export class SubagentInvocation<
         updateOutput('Subagent starting...\n');
       }
 
+      let latestThought = '';
+      const toolCalls: ToolCallInfo[] = [];
+
+      const formatOutput = () => {
+        const lines: string[] = [];
+        if (latestThought) {
+          lines.push(`🤖💭 ${latestThought}`);
+          lines.push(''); // Blank line separator
+        }
+        toolCalls.forEach((tc, index) => {
+          const prefix = index === 0 ? '🔧 ' : '   ';
+          const callStr = `${tc.name}(${tc.args})`;
+          const displayStr =
+            callStr.length > TOOL_CALL_DISPLAY_MAX_LENGTH
+              ? callStr.slice(0, TOOL_CALL_DISPLAY_MAX_LENGTH - 3) + '...'
+              : callStr;
+          lines.push(prefix + displayStr);
+        });
+        return lines.join('\n');
+      };
+
       // Create an activity callback to bridge the executor's events to the
       // tool's streaming output.
       const onActivity = (activity: SubagentActivityEvent): void => {
@@ -90,7 +117,18 @@ export class SubagentInvocation<
           activity.type === 'THOUGHT_CHUNK' &&
           typeof activity.data['text'] === 'string'
         ) {
-          updateOutput(`🤖💭 ${activity.data['text']}`);
+          latestThought = activity.data['text'];
+          updateOutput(formatOutput());
+        } else if (
+          activity.type === 'TOOL_CALL_START' &&
+          typeof activity.data['name'] === 'string'
+        ) {
+          const toolName = activity.data['name'];
+          const args = activity.data['args']
+            ? JSON.stringify(activity.data['args'])
+            : '';
+          toolCalls.unshift({ name: toolName, args });
+          updateOutput(formatOutput());
         }
       };
 

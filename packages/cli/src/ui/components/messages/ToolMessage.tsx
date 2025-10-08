@@ -21,16 +21,20 @@ import {
 } from '../../constants.js';
 import { theme } from '../../semantic-colors.js';
 import type { AnsiOutput, Config } from '@google/gemini-cli-core';
+import { useUIState } from '../../contexts/UIStateContext.js';
 
 const STATIC_HEIGHT = 1;
 const RESERVED_LINE_COUNT = 5; // for tool name, status, padding etc.
 const STATUS_INDICATOR_WIDTH = 3;
 const MIN_LINES_SHOWN = 2; // show at least this many lines
+const SUBAGENT_MAX_HEIGHT = 5;
 
 // Large threshold to ensure we don't cause performance issues for very large
 // outputs that will get truncated further MaxSizedBox anyway.
 const MAXIMUM_RESULT_DISPLAY_CHARACTERS = 1000000;
 export type TextEmphasis = 'high' | 'medium' | 'low';
+
+const SUBAGENT_NAMES = ['codebase_investigator'];
 
 export interface ToolMessageProps extends IndividualToolCallDisplay {
   availableTerminalHeight?: number;
@@ -44,6 +48,7 @@ export interface ToolMessageProps extends IndividualToolCallDisplay {
 
 export const ToolMessage: React.FC<ToolMessageProps> = ({
   name,
+  internalName,
   description,
   resultDisplay,
   status,
@@ -56,6 +61,8 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
   ptyId,
   config,
 }) => {
+  const { constrainHeight } = useUIState();
+
   const isThisShellFocused =
     (name === SHELL_COMMAND_NAME || name === 'Shell') &&
     status === ToolCallStatus.Executing &&
@@ -98,17 +105,26 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
   const shouldShowFocusHint =
     isThisShellFocusable && (showFocusHint || userHasFocused);
 
-  const availableHeight = availableTerminalHeight
+  const isSubagent =
+    internalName && SUBAGENT_NAMES.includes(internalName.trim());
+
+  let maxHeight = availableTerminalHeight
     ? Math.max(
         availableTerminalHeight - STATIC_HEIGHT - RESERVED_LINE_COUNT,
         MIN_LINES_SHOWN + 1, // enforce minimum lines shown
       )
     : undefined;
 
+  if (isSubagent && constrainHeight && status === ToolCallStatus.Executing) {
+    maxHeight = maxHeight
+      ? Math.min(maxHeight, SUBAGENT_MAX_HEIGHT)
+      : SUBAGENT_MAX_HEIGHT;
+  }
+
   // Long tool call response in MarkdownDisplay doesn't respect availableTerminalHeight properly,
   // we're forcing it to not render as markdown when the response is too long, it will fallback
   // to render as plain text, which is contained within the terminal using MaxSizedBox
-  if (availableHeight) {
+  if (maxHeight) {
     renderOutputAsMarkdown = false;
   }
 
@@ -147,14 +163,21 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
                 <MarkdownDisplay
                   text={resultDisplay}
                   isPending={false}
-                  availableTerminalHeight={availableHeight}
+                  availableTerminalHeight={maxHeight}
                   terminalWidth={childWidth}
                 />
               </Box>
             ) : typeof resultDisplay === 'string' && !renderOutputAsMarkdown ? (
-              <MaxSizedBox maxHeight={availableHeight} maxWidth={childWidth}>
+              <MaxSizedBox
+                maxHeight={maxHeight}
+                maxWidth={childWidth}
+                overflowDirection={isSubagent ? 'bottom' : 'top'}
+              >
                 <Box>
-                  <Text wrap="wrap" color={theme.text.primary}>
+                  <Text
+                    wrap={isSubagent ? 'truncate' : 'wrap'}
+                    color={theme.text.primary}
+                  >
                     {resultDisplay}
                   </Text>
                 </Box>
@@ -164,13 +187,13 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
               <DiffRenderer
                 diffContent={resultDisplay.fileDiff}
                 filename={resultDisplay.fileName}
-                availableTerminalHeight={availableHeight}
+                availableTerminalHeight={maxHeight}
                 terminalWidth={childWidth}
               />
             ) : (
               <AnsiOutputText
                 data={resultDisplay as AnsiOutput}
-                availableTerminalHeight={availableHeight}
+                availableTerminalHeight={maxHeight}
               />
             )}
           </Box>

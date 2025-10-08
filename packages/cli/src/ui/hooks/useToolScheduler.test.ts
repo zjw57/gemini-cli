@@ -1062,4 +1062,31 @@ describe('mapToDisplay', () => {
     expect(display.tools[1].resultDisplay).toBe('markdown output');
     expect(display.tools[1].renderOutputAsMarkdown).toBe(true);
   });
+
+  it('should map internalName correctly', () => {
+    const toolCall: ToolCall = {
+      request: baseRequest,
+      status: 'success',
+      tool: baseTool,
+      invocation: baseTool.build(baseRequest.args),
+      response: baseResponse,
+    } as ToolCall;
+
+    const display = mapToDisplay(toolCall);
+    expect(display.tools[0].internalName).toBe(baseTool.name);
+  });
+
+  it('should fallback to request name for internalName if tool is undefined', () => {
+    const toolCall: ToolCall = {
+      request: baseRequest,
+      status: 'error',
+      response: {
+        ...baseResponse,
+        error: new Error('Tool not found'),
+      },
+    } as ToolCall;
+
+    const display = mapToDisplay(toolCall);
+    expect(display.tools[0].internalName).toBe(baseRequest.name);
+  });
 });

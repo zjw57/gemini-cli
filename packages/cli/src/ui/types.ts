@@ -62,6 +62,7 @@ export interface ToolCallEvent {
 export interface IndividualToolCallDisplay {
   callId: string;
   name: string;
+  internalName?: string;
   description: string;
   resultDisplay: ToolResultDisplay | undefined;
   status: ToolCallStatus;

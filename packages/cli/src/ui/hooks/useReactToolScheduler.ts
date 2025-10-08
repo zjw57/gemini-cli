@@ -217,6 +217,8 @@ export function mapToDisplay(
       let displayName: string;
       let description: string;
       let renderOutputAsMarkdown = false;
+      // Prefer the tool's name if available, otherwise fall back to the request name.
+      const internalName = trackedCall.tool?.name ?? trackedCall.request.name;
 
       if (trackedCall.status === 'error') {
         displayName =
@@ -236,6 +238,7 @@ export function mapToDisplay(
       > = {
         callId: trackedCall.request.callId,
         name: displayName,
+        internalName,
         description,
         renderOutputAsMarkdown,
       };

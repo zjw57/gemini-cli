@@ -195,12 +195,12 @@ describe('SubagentInvocation', () => {
       await invocation.execute(signal, updateOutput);
 
       expect(updateOutput).toHaveBeenCalledWith('Subagent starting...\n');
-      expect(updateOutput).toHaveBeenCalledWith('🤖💭 Analyzing...');
-      expect(updateOutput).toHaveBeenCalledWith('🤖💭  Still thinking.');
+      expect(updateOutput).toHaveBeenCalledWith('🤖💭 Analyzing...\n');
+      expect(updateOutput).toHaveBeenCalledWith('🤖💭  Still thinking.\n');
       expect(updateOutput).toHaveBeenCalledTimes(3); // Initial message + 2 thoughts
     });
 
-    it('should NOT stream other activities (e.g., TOOL_CALL_START, ERROR)', async () => {
+    it('should stream TOOL_CALL_START activities but ignore others (e.g., ERROR)', async () => {
       mockExecutorInstance.run.mockImplementation(async () => {
         const onActivity = MockAgentExecutor.create.mock.calls[0][2];
 
@@ -209,7 +209,7 @@ describe('SubagentInvocation', () => {
             isSubagentActivityEvent: true,
             agentName: 'MockAgent',
             type: 'TOOL_CALL_START',
-            data: { name: 'ls' },
+            data: { name: 'ls', args: { path: '.' } },
           } as SubagentActivityEvent);
           onActivity({
             isSubagentActivityEvent: true,
@@ -223,9 +223,64 @@ describe('SubagentInvocation', () => {
 
       await invocation.execute(signal, updateOutput);
 
-      // Should only contain the initial "Subagent starting..." message
-      expect(updateOutput).toHaveBeenCalledTimes(1);
       expect(updateOutput).toHaveBeenCalledWith('Subagent starting...\n');
+      // Expect the tool call to be formatted and streamed
+      expect(updateOutput).toHaveBeenCalledWith('🔧 ls({"path":"."})');
+      expect(updateOutput).toHaveBeenCalledTimes(2);
+    });
+
+    it('should format combined THOUGHT_CHUNK and TOOL_CALL_START activities', async () => {
+      mockExecutorInstance.run.mockImplementation(async () => {
+        const onActivity = MockAgentExecutor.create.mock.calls[0][2];
+
+        if (onActivity) {
+          onActivity({
+            isSubagentActivityEvent: true,
+            agentName: 'MockAgent',
+            type: 'THOUGHT_CHUNK',
+            data: { text: 'I need to list files.' },
+          } as SubagentActivityEvent);
+          onActivity({
+            isSubagentActivityEvent: true,
+            agentName: 'MockAgent',
+            type: 'TOOL_CALL_START',
+            data: { name: 'ls', args: { path: '/src' } },
+          } as SubagentActivityEvent);
+          onActivity({
+            isSubagentActivityEvent: true,
+            agentName: 'MockAgent',
+            type: 'THOUGHT_CHUNK',
+            data: { text: 'Now reading a file.' },
+          } as SubagentActivityEvent);
+          onActivity({
+            isSubagentActivityEvent: true,
+            agentName: 'MockAgent',
+            type: 'TOOL_CALL_START',
+            data: { name: 'read_file', args: { path: '/src/index.ts' } },
+          } as SubagentActivityEvent);
+        }
+        return { result: 'Done', terminate_reason: AgentTerminateMode.GOAL };
+      });
+
+      await invocation.execute(signal, updateOutput);
+
+      expect(updateOutput).toHaveBeenCalledWith('Subagent starting...\n');
+
+      expect(updateOutput).toHaveBeenCalledWith('🤖💭 I need to list files.\n');
+
+      expect(updateOutput).toHaveBeenCalledWith(
+        '🤖💭 I need to list files.\n\n🔧 ls({"path":"/src"})',
+      );
+
+      expect(updateOutput).toHaveBeenCalledWith(
+        '🤖💭 Now reading a file.\n\n🔧 ls({"path":"/src"})',
+      );
+
+      expect(updateOutput).toHaveBeenCalledWith(
+        '🤖💭 Now reading a file.\n\n🔧 read_file({"path":"/src/index.ts"})\n   ls({"path":"/src"})',
+      );
+
+      expect(updateOutput).toHaveBeenCalledTimes(5);
     });
 
     it('should run successfully without an updateOutput callback', async () => {
