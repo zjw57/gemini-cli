@@ -162,6 +162,9 @@ ${(function () {
 
 # Operational Guidelines
 
+${(function () {
+  if (config.getTokenEfficient()) {
+    return `
 ## Output token efficient flags:
 
 IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE OUTPUT TOKENS.
@@ -203,6 +206,10 @@ model: Read the whole error log to understand the issues.
 (After reading the err.log file and deleted the log files)
 model: The build failed due to a missing semicolon in src/index.ts and an undefined variable in src/app.ts. Would you like me to fix these issues?
 </example>
+`;
+  }
+  return '';
+})()}
 
 ## Tone and Style (CLI Interaction)
 - **Concise & Direct:** Adopt a professional, direct, and concise tone suitable for a CLI environment.

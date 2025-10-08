@@ -260,6 +260,7 @@ export interface ConfigParameters {
   useModelRouter?: boolean;
   enableMessageBusIntegration?: boolean;
   enableSubagents?: boolean;
+  tokenEfficient?: boolean;
 }
 
 export class Config {
@@ -353,6 +354,7 @@ export class Config {
   private readonly useModelRouter: boolean;
   private readonly enableMessageBusIntegration: boolean;
   private readonly enableSubagents: boolean;
+  private readonly tokenEfficient: boolean;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -443,6 +445,7 @@ export class Config {
     this.enableMessageBusIntegration =
       params.enableMessageBusIntegration ?? false;
     this.enableSubagents = params.enableSubagents ?? false;
+    this.tokenEfficient = params.tokenEfficient ?? true;
     this.extensionManagement = params.extensionManagement ?? true;
     this.storage = new Storage(this.targetDir);
     this.enablePromptCompletion = params.enablePromptCompletion ?? false;
@@ -1024,6 +1027,10 @@ export class Config {
 
   getEnableSubagents(): boolean {
     return this.enableSubagents;
+  }
+
+  getTokenEfficient(): boolean {
+    return this.tokenEfficient;
   }
 
   async createToolRegistry(): Promise<ToolRegistry> {
