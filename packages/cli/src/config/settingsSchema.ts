@@ -85,6 +85,13 @@ export interface SettingsSchema {
 export type MemoryImportFormat = 'tree' | 'flat';
 export type DnsResolutionOrder = 'ipv4first' | 'verbatim';
 
+export interface SubagentConfig {
+  model?: string;
+  temperature?: number;
+  maxTurns?: number;
+  thinkingBudget?: number;
+}
+
 /**
  * The canonical schema for all settings.
  * The structure of this object defines the structure of the `Settings` type.
@@ -1051,13 +1058,14 @@ const SETTINGS_SCHEMA = {
           'Enable model routing to route requests to the best model based on complexity.',
         showInDialog: true,
       },
-      enableSubagents: {
-        type: 'boolean',
-        label: 'Enable Subagents',
+      subagents: {
+        type: 'object',
+        label: 'Subagents',
         category: 'Experimental',
         requiresRestart: true,
-        default: false,
-        description: 'Enable experimental subagents.',
+        default: {} as Record<string, boolean | SubagentConfig>,
+        description:
+          'Enable and configure experimental subagents. Set a subagent to `true` to enable with default settings.',
         showInDialog: false,
       },
     },

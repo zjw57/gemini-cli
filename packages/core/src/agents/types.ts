@@ -57,8 +57,8 @@ export interface AgentDefinition<TOutput extends z.ZodTypeAny = z.ZodUnknown> {
   displayName?: string;
   description: string;
   promptConfig: PromptConfig;
-  modelConfig: ModelConfig;
-  runConfig: RunConfig;
+  modelConfig?: ModelConfig;
+  runConfig?: RunConfig;
   toolConfig?: ToolConfig;
   outputConfig?: OutputConfig<TOutput>;
   inputConfig: InputConfig;
@@ -151,9 +151,9 @@ export interface OutputConfig<T extends z.ZodTypeAny> {
  * Configures the generative model parameters for the agent.
  */
 export interface ModelConfig {
-  model: string;
-  temp: number;
-  top_p: number;
+  model?: string;
+  temp?: number;
+  top_p?: number;
   thinkingBudget?: number;
 }
 
@@ -162,7 +162,7 @@ export interface ModelConfig {
  */
 export interface RunConfig {
   /** The maximum execution time for the agent in minutes. */
-  max_time_minutes: number;
+  max_time_minutes?: number;
   /** The maximum number of conversational turns. */
   max_turns?: number;
 }

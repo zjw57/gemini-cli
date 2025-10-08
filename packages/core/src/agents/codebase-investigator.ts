@@ -9,7 +9,6 @@ import { LSTool } from '../tools/ls.js';
 import { ReadFileTool } from '../tools/read-file.js';
 import { GLOB_TOOL_NAME } from '../tools/tool-names.js';
 import { GrepTool } from '../tools/grep.js';
-import { DEFAULT_GEMINI_MODEL } from '../config/models.js';
 import { z } from 'zod';
 
 // Define a type that matches the outputConfig schema for type safety.
@@ -66,18 +65,6 @@ export const CodebaseInvestigatorAgent: AgentDefinition<
 
   // The 'output' parameter is now strongly typed as CodebaseInvestigationReportSchema
   processOutput: (output) => JSON.stringify(output, null, 2),
-
-  modelConfig: {
-    model: DEFAULT_GEMINI_MODEL,
-    temp: 0.1,
-    top_p: 0.95,
-    thinkingBudget: -1,
-  },
-
-  runConfig: {
-    max_time_minutes: 5,
-    max_turns: 15,
-  },
 
   toolConfig: {
     // Grant access only to read-only tools.

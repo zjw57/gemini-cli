@@ -752,7 +752,7 @@ export async function loadCliConfig(
     useModelRouter,
     enableMessageBusIntegration:
       settings.tools?.enableMessageBusIntegration ?? false,
-    enableSubagents: settings.experimental?.enableSubagents ?? false,
+    subagents: settings.experimental?.subagents,
   });
 }
 

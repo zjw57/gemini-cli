@@ -33,7 +33,9 @@ export class AgentRegistry {
   }
 
   private loadBuiltInAgents(): void {
-    this.registerAgent(CodebaseInvestigatorAgent);
+    if (this.config.getSubagents()?.['codebase_investigator']) {
+      this.registerAgent(CodebaseInvestigatorAgent);
+    }
   }
 
   /**
@@ -56,7 +58,35 @@ export class AgentRegistry {
       console.log(`[AgentRegistry] Overriding agent '${definition.name}'`);
     }
 
-    this.agents.set(definition.name, definition);
+    const agentConfig = this.config.getSubagents()?.[definition.name];
+
+    let finalDefinition = definition;
+
+    if (agentConfig && typeof agentConfig === 'object') {
+      const newDefinition = { ...definition };
+
+      const modelConfig = { ...(newDefinition.modelConfig ?? {}) };
+      const runConfig = { ...(newDefinition.runConfig ?? {}) };
+
+      if (agentConfig.model) {
+        modelConfig.model = agentConfig.model;
+      }
+      if (agentConfig.temperature) {
+        modelConfig.temp = agentConfig.temperature;
+      }
+      if (agentConfig.thinkingBudget) {
+        modelConfig.thinkingBudget = agentConfig.thinkingBudget;
+      }
+      if (agentConfig.maxTurns) {
+        runConfig.max_turns = agentConfig.maxTurns;
+      }
+
+      newDefinition.modelConfig = modelConfig;
+      newDefinition.runConfig = runConfig;
+      finalDefinition = newDefinition;
+    }
+
+    this.agents.set(definition.name, finalDefinition);
   }
 
   /**

@@ -594,28 +594,22 @@ describe('Server Config (config.ts)', () => {
     });
   });
 
-  describe('EnableSubagents Configuration', () => {
-    it('should default enableSubagents to false when not provided', () => {
+  describe('Subagents Configuration', () => {
+    it('should default subagents to undefined when not provided', () => {
       const config = new Config(baseParams);
-      expect(config.getEnableSubagents()).toBe(false);
+      expect(config.getSubagents()).toBeUndefined();
     });
 
-    it('should set enableSubagents to true when provided as true', () => {
+    it('should set subagents to the provided object', () => {
+      const subagentsConfig = {
+        codebase_investigator: true,
+      };
       const paramsWithSubagents: ConfigParameters = {
         ...baseParams,
-        enableSubagents: true,
+        subagents: subagentsConfig,
       };
       const config = new Config(paramsWithSubagents);
-      expect(config.getEnableSubagents()).toBe(true);
-    });
-
-    it('should set enableSubagents to false when explicitly provided as false', () => {
-      const paramsWithSubagents: ConfigParameters = {
-        ...baseParams,
-        enableSubagents: false,
-      };
-      const config = new Config(paramsWithSubagents);
-      expect(config.getEnableSubagents()).toBe(false);
+      expect(config.getSubagents()).toEqual(subagentsConfig);
     });
   });
 
@@ -648,10 +642,13 @@ describe('Server Config (config.ts)', () => {
       expect(wasReadFileToolRegistered).toBe(false);
     });
 
-    it('should register subagents as tools when enableSubagents is true', async () => {
+    it('should register subagents as tools when subagents config is provided', async () => {
       const params: ConfigParameters = {
         ...baseParams,
-        enableSubagents: true,
+        subagents: {
+          agent1: true,
+          agent2: { model: 'test-model' },
+        },
       };
       const config = new Config(params);
 
@@ -702,10 +699,10 @@ describe('Server Config (config.ts)', () => {
       expect(registeredWrappers).toHaveLength(2);
     });
 
-    it('should not register subagents as tools when enableSubagents is false', async () => {
+    it('should not register subagents as tools when subagents is not provided', async () => {
       const params: ConfigParameters = {
         ...baseParams,
-        enableSubagents: false,
+        subagents: undefined,
       };
       const config = new Config(params);
 

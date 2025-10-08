@@ -2533,8 +2533,8 @@ describe('loadCliConfig useRipgrep', () => {
     });
   });
 
-  describe('loadCliConfig enableSubagents', () => {
-    it('should be false by default when enableSubagents is not set in settings', async () => {
+  describe('loadCliConfig subagents', () => {
+    it('should be undefined by default when subagents is not set in settings', async () => {
       process.argv = ['node', 'script.js'];
       const argv = await parseArguments({} as Settings);
       const settings: Settings = {};
@@ -2548,13 +2548,16 @@ describe('loadCliConfig useRipgrep', () => {
         'test-session',
         argv,
       );
-      expect(config.getEnableSubagents()).toBe(false);
+      expect(config.getSubagents()).toBeUndefined();
     });
 
-    it('should be true when enableSubagents is set to true in settings', async () => {
+    it('should be true when subagents is set to true in settings', async () => {
       process.argv = ['node', 'script.js'];
-      const argv = await parseArguments({} as Settings);
-      const settings: Settings = { experimental: { enableSubagents: true } };
+      const subagentsConfig = { codebase_investigator: true };
+      const settings: Settings = {
+        experimental: { subagents: subagentsConfig },
+      };
+      const argv = await parseArguments(settings);
       const config = await loadCliConfig(
         settings,
         [],
@@ -2565,24 +2568,7 @@ describe('loadCliConfig useRipgrep', () => {
         'test-session',
         argv,
       );
-      expect(config.getEnableSubagents()).toBe(true);
-    });
-
-    it('should be false when enableSubagents is explicitly set to false in settings', async () => {
-      process.argv = ['node', 'script.js'];
-      const argv = await parseArguments({} as Settings);
-      const settings: Settings = { experimental: { enableSubagents: false } };
-      const config = await loadCliConfig(
-        settings,
-        [],
-        new ExtensionEnablementManager(
-          ExtensionStorage.getUserExtensionsDir(),
-          argv.extensions,
-        ),
-        'test-session',
-        argv,
-      );
-      expect(config.getEnableSubagents()).toBe(false);
+      expect(config.getSubagents()).toEqual(subagentsConfig);
     });
   });
 });

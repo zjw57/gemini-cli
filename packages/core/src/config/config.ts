@@ -94,6 +94,13 @@ export interface BugCommandSettings {
   urlTemplate: string;
 }
 
+export interface SubagentConfig {
+  model?: string;
+  temperature?: number;
+  maxTurns?: number;
+  thinkingBudget?: number;
+}
+
 export interface ChatCompressionSettings {
   contextPercentageThreshold?: number;
 }
@@ -268,7 +275,7 @@ export interface ConfigParameters {
   output?: OutputSettings;
   useModelRouter?: boolean;
   enableMessageBusIntegration?: boolean;
-  enableSubagents?: boolean;
+  subagents?: Record<string, boolean | SubagentConfig>;
 }
 
 export class Config {
@@ -361,7 +368,9 @@ export class Config {
   private readonly outputSettings: OutputSettings;
   private readonly useModelRouter: boolean;
   private readonly enableMessageBusIntegration: boolean;
-  private readonly enableSubagents: boolean;
+  private readonly subagents:
+    | Record<string, boolean | SubagentConfig>
+    | undefined;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -451,7 +460,7 @@ export class Config {
     this.useModelRouter = params.useModelRouter ?? false;
     this.enableMessageBusIntegration =
       params.enableMessageBusIntegration ?? false;
-    this.enableSubagents = params.enableSubagents ?? false;
+    this.subagents = params.subagents;
     this.extensionManagement = params.extensionManagement ?? true;
     this.storage = new Storage(this.targetDir);
     this.enablePromptCompletion = params.enablePromptCompletion ?? false;
@@ -1031,8 +1040,8 @@ export class Config {
     return this.enableMessageBusIntegration;
   }
 
-  getEnableSubagents(): boolean {
-    return this.enableSubagents;
+  getSubagents(): Record<string, boolean | SubagentConfig> | undefined {
+    return this.subagents;
   }
 
   async createToolRegistry(): Promise<ToolRegistry> {
@@ -1127,7 +1136,7 @@ export class Config {
     }
 
     // Register Subagents as Tools
-    if (this.getEnableSubagents()) {
+    if (this.getSubagents()) {
       const agentDefinitions = this.agentRegistry.getAllDefinitions();
       for (const definition of agentDefinitions) {
         // We must respect the main allowed/exclude lists for agents too.

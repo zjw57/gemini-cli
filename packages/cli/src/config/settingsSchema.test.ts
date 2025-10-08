@@ -331,22 +331,21 @@ describe('SettingsSchema', () => {
       ).toBe(false);
     });
 
-    it('should have enableSubagents setting in schema', () => {
+    it('should have subagents setting in schema', () => {
       expect(
-        getSettingsSchema().experimental.properties.enableSubagents,
+        getSettingsSchema().experimental.properties.subagents,
       ).toBeDefined();
+      expect(getSettingsSchema().experimental.properties.subagents.type).toBe(
+        'object',
+      );
       expect(
-        getSettingsSchema().experimental.properties.enableSubagents.type,
-      ).toBe('boolean');
-      expect(
-        getSettingsSchema().experimental.properties.enableSubagents.category,
+        getSettingsSchema().experimental.properties.subagents.category,
       ).toBe('Experimental');
       expect(
-        getSettingsSchema().experimental.properties.enableSubagents.default,
-      ).toBe(false);
+        getSettingsSchema().experimental.properties.subagents.default,
+      ).toEqual({});
       expect(
-        getSettingsSchema().experimental.properties.enableSubagents
-          .requiresRestart,
+        getSettingsSchema().experimental.properties.subagents.requiresRestart,
       ).toBe(true);
     });
   });
