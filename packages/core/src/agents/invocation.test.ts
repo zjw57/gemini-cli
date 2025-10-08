@@ -195,8 +195,12 @@ describe('SubagentInvocation', () => {
       await invocation.execute(signal, updateOutput);
 
       expect(updateOutput).toHaveBeenCalledWith('Subagent starting...\n');
-      expect(updateOutput).toHaveBeenCalledWith('🤖💭 Analyzing...\n');
-      expect(updateOutput).toHaveBeenCalledWith('🤖💭  Still thinking.\n');
+      expect(updateOutput).toHaveBeenCalledWith(
+        '🤖💭 Analyzing...\n\nAgent working',
+      );
+      expect(updateOutput).toHaveBeenCalledWith(
+        '🤖💭  Still thinking.\n\nAgent working',
+      );
       expect(updateOutput).toHaveBeenCalledTimes(3); // Initial message + 2 thoughts
     });
 
@@ -225,7 +229,9 @@ describe('SubagentInvocation', () => {
 
       expect(updateOutput).toHaveBeenCalledWith('Subagent starting...\n');
       // Expect the tool call to be formatted and streamed
-      expect(updateOutput).toHaveBeenCalledWith('🔧 ls({"path":"."})');
+      expect(updateOutput).toHaveBeenCalledWith(
+        'Agent working\n\n🔧 ls({"path":"."})',
+      );
       expect(updateOutput).toHaveBeenCalledTimes(2);
     });
 
@@ -266,18 +272,24 @@ describe('SubagentInvocation', () => {
 
       expect(updateOutput).toHaveBeenCalledWith('Subagent starting...\n');
 
-      expect(updateOutput).toHaveBeenCalledWith('🤖💭 I need to list files.\n');
-
+      // 1. Thought
       expect(updateOutput).toHaveBeenCalledWith(
-        '🤖💭 I need to list files.\n\n🔧 ls({"path":"/src"})',
+        '🤖💭 I need to list files.\n\nAgent working',
       );
 
+      // 2. Tool Call (with previous thought)
       expect(updateOutput).toHaveBeenCalledWith(
-        '🤖💭 Now reading a file.\n\n🔧 ls({"path":"/src"})',
+        '🤖💭 I need to list files.\n\nAgent working\n\n🔧 ls({"path":"/src"})',
       );
 
+      // 3. New Thought (with previous tool call)
       expect(updateOutput).toHaveBeenCalledWith(
-        '🤖💭 Now reading a file.\n\n🔧 read_file({"path":"/src/index.ts"})\n   ls({"path":"/src"})',
+        '🤖💭 Now reading a file.\n\nAgent working\n\n🔧 ls({"path":"/src"})',
+      );
+
+      // 4. Another Tool Call (newest on top)
+      expect(updateOutput).toHaveBeenCalledWith(
+        '🤖💭 Now reading a file.\n\nAgent working\n\n🔧 read_file({"path":"/src/index.ts"})\n   ls({"path":"/src"})',
       );
 
       expect(updateOutput).toHaveBeenCalledTimes(5);

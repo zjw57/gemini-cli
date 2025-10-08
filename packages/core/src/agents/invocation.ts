@@ -96,6 +96,13 @@ export class SubagentInvocation<
           lines.push(`🤖💭 ${latestThought}`);
           lines.push(''); // Blank line separator
         }
+
+        lines.push('Agent working');
+
+        if (toolCalls.length > 0) {
+          lines.push(''); // Blank line separator
+        }
+
         toolCalls.forEach((tc, index) => {
           const prefix = index === 0 ? '🔧 ' : '   ';
           const callStr = `${tc.name}(${tc.args})`;
