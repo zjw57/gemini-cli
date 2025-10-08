@@ -603,7 +603,15 @@ describe('Server Config (config.ts)', () => {
     it('should set enableSubagents to true when provided as true', () => {
       const paramsWithSubagents: ConfigParameters = {
         ...baseParams,
-        enableSubagents: true,
+        subagents: {
+          codebase_investigator: {
+            enabled: true,
+            model: 'gemini-pro',
+            temperature: 0.1,
+            maxTurns: 15,
+            thinkingBudget: -1,
+          },
+        },
       };
       const config = new Config(paramsWithSubagents);
       expect(config.getEnableSubagents()).toBe(true);
@@ -612,7 +620,7 @@ describe('Server Config (config.ts)', () => {
     it('should set enableSubagents to false when explicitly provided as false', () => {
       const paramsWithSubagents: ConfigParameters = {
         ...baseParams,
-        enableSubagents: false,
+        subagents: {},
       };
       const config = new Config(paramsWithSubagents);
       expect(config.getEnableSubagents()).toBe(false);
@@ -651,7 +659,15 @@ describe('Server Config (config.ts)', () => {
     it('should register subagents as tools when enableSubagents is true', async () => {
       const params: ConfigParameters = {
         ...baseParams,
-        enableSubagents: true,
+        subagents: {
+          codebase_investigator: {
+            enabled: true,
+            model: 'gemini-pro',
+            temperature: 0.1,
+            maxTurns: 15,
+            thinkingBudget: -1,
+          },
+        },
       };
       const config = new Config(params);
 
@@ -705,7 +721,7 @@ describe('Server Config (config.ts)', () => {
     it('should not register subagents as tools when enableSubagents is false', async () => {
       const params: ConfigParameters = {
         ...baseParams,
-        enableSubagents: false,
+        subagents: {},
       };
       const config = new Config(params);
 

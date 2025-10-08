@@ -2554,7 +2554,19 @@ describe('loadCliConfig useRipgrep', () => {
     it('should be true when enableSubagents is set to true in settings', async () => {
       process.argv = ['node', 'script.js'];
       const argv = await parseArguments({} as Settings);
-      const settings: Settings = { experimental: { enableSubagents: true } };
+      const settings: Settings = {
+        experimental: {
+          subagents: {
+            codebase_investigator: {
+              enabled: true,
+              model: 'gemini-pro',
+              temperature: 0.1,
+              maxTurns: 15,
+              thinkingBudget: -1,
+            },
+          },
+        },
+      };
       const config = await loadCliConfig(
         settings,
         [],

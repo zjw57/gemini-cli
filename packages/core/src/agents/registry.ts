@@ -33,7 +33,24 @@ export class AgentRegistry {
   }
 
   private loadBuiltInAgents(): void {
-    this.registerAgent(CodebaseInvestigatorAgent);
+    const codebaseInvestigatorConfig = this.config.getSubagentConfig(
+      CodebaseInvestigatorAgent.name,
+    );
+
+    if (codebaseInvestigatorConfig?.enabled) {
+      const agent = { ...CodebaseInvestigatorAgent };
+      agent.modelConfig = {
+        model: codebaseInvestigatorConfig.model,
+        temp: codebaseInvestigatorConfig.temperature,
+        top_p: 0.95,
+        thinkingBudget: codebaseInvestigatorConfig.thinkingBudget,
+      };
+      agent.runConfig = {
+        max_time_minutes: 5,
+        max_turns: codebaseInvestigatorConfig.maxTurns,
+      };
+      this.registerAgent(agent);
+    }
   }
 
   /**

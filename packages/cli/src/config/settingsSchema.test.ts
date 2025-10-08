@@ -11,6 +11,7 @@ import {
   type Settings,
   type SettingsSchema,
 } from './settingsSchema.js';
+import { DEFAULT_GEMINI_MODEL } from '@google/gemini-cli-core';
 
 describe('SettingsSchema', () => {
   describe('getSettingsSchema', () => {
@@ -331,23 +332,29 @@ describe('SettingsSchema', () => {
       ).toBe(false);
     });
 
-    it('should have enableSubagents setting in schema', () => {
-      expect(
-        getSettingsSchema().experimental.properties.enableSubagents,
-      ).toBeDefined();
-      expect(
-        getSettingsSchema().experimental.properties.enableSubagents.type,
-      ).toBe('boolean');
-      expect(
-        getSettingsSchema().experimental.properties.enableSubagents.category,
-      ).toBe('Experimental');
-      expect(
-        getSettingsSchema().experimental.properties.enableSubagents.default,
-      ).toBe(false);
-      expect(
-        getSettingsSchema().experimental.properties.enableSubagents
-          .requiresRestart,
-      ).toBe(true);
+    it('should have subagents setting in schema', () => {
+      const subagents = getSettingsSchema().experimental.properties.subagents;
+      expect(subagents).toBeDefined();
+      expect(subagents.type).toBe('object');
+      expect(subagents.category).toBe('Experimental');
+      expect(subagents.requiresRestart).toBe(true);
+      expect(subagents.properties?.codebase_investigator).toBeDefined();
+
+      const codebaseInvestigator = subagents.properties?.codebase_investigator;
+
+      expect(codebaseInvestigator?.type).toBe('object');
+
+      expect(codebaseInvestigator?.properties?.enabled.default).toBe(false);
+
+      expect(codebaseInvestigator?.properties?.model.default).toBe(
+        DEFAULT_GEMINI_MODEL,
+      );
+
+      expect(codebaseInvestigator?.properties?.temperature.default).toBe(0.1);
+
+      expect(codebaseInvestigator?.properties?.maxTurns.default).toBe(15);
+
+      expect(codebaseInvestigator?.properties?.thinkingBudget.default).toBe(-1);
     });
   });
 });

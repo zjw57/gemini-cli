@@ -16,6 +16,7 @@ import type {
   MCPServerConfig,
   OutputFormat,
   GeminiCLIExtension,
+  Subagents,
 } from '@google/gemini-cli-core';
 import { extensionsCommand } from '../commands/extensions.js';
 import {
@@ -752,7 +753,7 @@ export async function loadCliConfig(
     useModelRouter,
     enableMessageBusIntegration:
       settings.tools?.enableMessageBusIntegration ?? false,
-    enableSubagents: settings.experimental?.enableSubagents ?? false,
+    subagents: settings.experimental?.subagents as Subagents,
   });
 }
 

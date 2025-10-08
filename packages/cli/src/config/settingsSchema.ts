@@ -10,8 +10,11 @@ import type {
   TelemetrySettings,
   AuthType,
   ChatCompressionSettings,
+  SubagentSettings,
+  Subagents,
 } from '@google/gemini-cli-core';
 import {
+  DEFAULT_GEMINI_MODEL,
   DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
   DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD,
 } from '@google/gemini-cli-core';
@@ -1051,14 +1054,89 @@ const SETTINGS_SCHEMA = {
           'Enable model routing to route requests to the best model based on complexity.',
         showInDialog: true,
       },
-      enableSubagents: {
-        type: 'boolean',
-        label: 'Enable Subagents',
+      subagents: {
+        type: 'object',
+        label: 'Subagents',
         category: 'Experimental',
         requiresRestart: true,
-        default: false,
-        description: 'Enable experimental subagents.',
+        default: {
+          codebase_investigator: {
+            enabled: false,
+            model: DEFAULT_GEMINI_MODEL,
+            temperature: 0.1,
+            maxTurns: 15,
+            thinkingBudget: -1,
+          },
+        } as Subagents,
+        description: 'Enable and configure experimental subagents.',
         showInDialog: false,
+        properties: {
+          codebase_investigator: {
+            type: 'object',
+            label: 'Codebase Investigator',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: {
+              enabled: false,
+              model: DEFAULT_GEMINI_MODEL,
+              temperature: 0.1,
+              maxTurns: 15,
+              thinkingBudget: -1,
+            } as SubagentSettings,
+            description:
+              'Configuration for the Codebase Investigator subagent.',
+            showInDialog: false,
+            properties: {
+              enabled: {
+                type: 'boolean',
+                label: 'Enabled',
+                category: 'Experimental',
+                requiresRestart: true,
+                default: false,
+                description: 'Enable the Codebase Investigator subagent.',
+                showInDialog: true,
+              },
+              model: {
+                type: 'string',
+                label: 'Model',
+                category: 'Experimental',
+                requiresRestart: true,
+                default: DEFAULT_GEMINI_MODEL,
+                description: 'The model to use for the subagent.',
+                showInDialog: false,
+              },
+              temperature: {
+                type: 'number',
+                label: 'Temperature',
+                category: 'Experimental',
+                requiresRestart: true,
+                default: 0.1,
+                description: 'The temperature to use for the subagent.',
+                showInDialog: false,
+              },
+              maxTurns: {
+                type: 'number',
+                label: 'Max Turns',
+                category: 'Experimental',
+                requiresRestart: true,
+                default: 15,
+                description:
+                  'The maximum number of turns for the subagent to complete its task.',
+                showInDialog: false,
+              },
+              thinkingBudget: {
+                type: 'number',
+                label: 'Thinking Budget',
+                category: 'Experimental',
+                requiresRestart: true,
+                default: -1,
+                description:
+                  'The thinking budget for the subagent. -1 for unlimited.',
+                showInDialog: false,
+              },
+            },
+          },
+        },
       },
     },
   },

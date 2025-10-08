@@ -200,6 +200,16 @@ export interface SandboxConfig {
   image: string;
 }
 
+export interface SubagentSettings {
+  enabled: boolean;
+  model: string;
+  temperature: number;
+  maxTurns: number;
+  thinkingBudget: number;
+}
+
+export type Subagents = Record<string, SubagentSettings>;
+
 export interface ConfigParameters {
   sessionId: string;
   embeddingModel?: string;
@@ -268,7 +278,7 @@ export interface ConfigParameters {
   output?: OutputSettings;
   useModelRouter?: boolean;
   enableMessageBusIntegration?: boolean;
-  enableSubagents?: boolean;
+  subagents?: Subagents;
 }
 
 export class Config {
@@ -361,7 +371,7 @@ export class Config {
   private readonly outputSettings: OutputSettings;
   private readonly useModelRouter: boolean;
   private readonly enableMessageBusIntegration: boolean;
-  private readonly enableSubagents: boolean;
+  private readonly subagents: Subagents;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -451,7 +461,7 @@ export class Config {
     this.useModelRouter = params.useModelRouter ?? false;
     this.enableMessageBusIntegration =
       params.enableMessageBusIntegration ?? false;
-    this.enableSubagents = params.enableSubagents ?? false;
+    this.subagents = params.subagents ?? {};
     this.extensionManagement = params.extensionManagement ?? true;
     this.storage = new Storage(this.targetDir);
     this.enablePromptCompletion = params.enablePromptCompletion ?? false;
@@ -1032,7 +1042,11 @@ export class Config {
   }
 
   getEnableSubagents(): boolean {
-    return this.enableSubagents;
+    return Object.values(this.subagents).some((agent) => agent.enabled);
+  }
+
+  getSubagentConfig(name: string): SubagentSettings | undefined {
+    return this.subagents[name];
   }
 
   async createToolRegistry(): Promise<ToolRegistry> {
