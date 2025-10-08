@@ -109,6 +109,8 @@ export async function validatePatchQuality(
     const criticalNewErrors = newlyIntroducedErrors.filter((err) => {
       const parts = err.trim().split(':');
       // A valid line must have at least 4 parts: file:line:col:message
+      console.log(`Parts: ${parts}`);
+
       if (parts.length < 4) return true;
 
       // The message part contains the error code (e.g., "F841 Unused variable 'x'")
@@ -118,7 +120,7 @@ export async function validatePatchQuality(
       if (!errorCodeMatch) return true; // Keep if no valid error code is found
 
       const errorCode = errorCodeMatch[0];
-      console.log(errorCode);
+      console.log(`errorCode: ${errorCode}`);
       const shouldIgnore = ignoreCodes.some((codeToIgnore) =>
         errorCode.startsWith(codeToIgnore),
       );

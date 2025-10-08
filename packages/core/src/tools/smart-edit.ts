@@ -280,7 +280,7 @@ export async function calculateReplacement(
   };
 }
 
-export function getErrorReplaceResult(
+export async function getErrorReplaceResult(
   params: EditToolParams,
   occurrences: number,
   expectedReplacements: number,
@@ -312,21 +312,20 @@ export function getErrorReplaceResult(
     };
   } else if (params.file_path.endsWith('.py')) {
     console.log(`it is python file...`);
-    const lintErrors = validatePatchQuality(finalOldString, finalNewString, [
-      'F401',
-      'F841',
-      'F522',
-      'F632',
-      'F901',
-      'F821',
-      'F632',
-    ]);
+    const lintErrors = await validatePatchQuality(
+      finalOldString,
+      finalNewString,
+      ['F401', 'F841', 'F522', 'F632', 'F901', 'F821', 'F632'],
+    );
     console.log(lintErrors);
-    error = {
-      display: `There were syntax errors in the final edited code.`,
-      raw: `There were syntax errors in the final edited code and the tool will not allow you to add sytnax errors. Check the errors and make the correct edit: ${lintErrors}`,
-      type: ToolErrorType.EXECUTION_FAILED,
-    };
+    if (lintErrors[1].length > 0) {
+      error = {
+        display: `There were syntax errors in the final edited code.`,
+        raw: `There were syntax errors in the final edited code and the tool will not allow you to add sytnax errors. 
+        Check the errors and make the correct edit: ${lintErrors[1]}`,
+        type: ToolErrorType.EXECUTION_FAILED,
+      };
+    }
   }
   return error;
 }
@@ -427,7 +426,7 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
       abortSignal,
     });
 
-    const secondError = getErrorReplaceResult(
+    const secondError = await getErrorReplaceResult(
       params,
       secondAttemptResult.occurrences,
       1, // expectedReplacements is always 1 for smart_edit
@@ -557,7 +556,7 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
       abortSignal,
     });
 
-    const initialError = getErrorReplaceResult(
+    const initialError = await getErrorReplaceResult(
       params,
       replacementResult.occurrences,
       expectedReplacements,

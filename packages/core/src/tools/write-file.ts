@@ -136,21 +136,20 @@ export async function getCorrectedFileContent(
   }
   if (filePath.endsWith('.py')) {
     console.log(`it is python file...`);
-    const lintErrors = validatePatchQuality(originalContent, correctedContent, [
-      'F401',
-      'F841',
-      'F522',
-      'F632',
-      'F901',
-      'F821',
-      'F632',
-    ]);
+    const lintErrors = await validatePatchQuality(
+      originalContent,
+      correctedContent,
+      ['F401', 'F841', 'F522', 'F632', 'F901', 'F821', 'F632'],
+    );
     console.log(lintErrors);
-    const error = {
-      message: `There were syntax errors in the final edited code and the tool will not allow you to add syntax errors. Check the errors and make the correct edit: ${lintErrors}`,
-      code: ToolErrorType.SYNTAX_ERROR,
-    };
-    return { originalContent, correctedContent, fileExists, error };
+    if (lintErrors[1].length > 0) {
+      const error = {
+        message: `There were syntax errors in the final edited code and the tool will not allow you to add syntax errors. 
+        Check the errors and make the correct edit: ${lintErrors[1]}`,
+        code: ToolErrorType.SYNTAX_ERROR,
+      };
+      return { originalContent, correctedContent, fileExists, error };
+    }
   }
   return { originalContent, correctedContent, fileExists };
 }
