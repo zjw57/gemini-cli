@@ -323,7 +323,7 @@ export async function getErrorReplaceResult(
         display: `There were syntax errors in the final edited code.`,
         raw: `There were syntax errors in the final edited code and the tool will not allow you to add sytnax errors. 
         Check the errors and make the correct edit: ${lintErrors[1]}`,
-        type: ToolErrorType.EXECUTION_FAILED,
+        type: ToolErrorType.SYNTAX_ERROR,
       };
     }
   }
