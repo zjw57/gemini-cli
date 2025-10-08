@@ -165,6 +165,10 @@ Settings are organized into categories. All settings should be placed within the
   - **Description:** Skip the next speaker check.
   - **Default:** `false`
 
+- **`model.tokenEfficient`** (boolean):
+  - **Description:** Optimizes for token efficiency.
+  - **Default:** `true`
+
 #### `context`
 
 - **`context.fileName`** (string or array of strings):
