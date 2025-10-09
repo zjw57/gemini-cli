@@ -161,11 +161,10 @@ ${(function () {
 6. **Solicit Feedback:** If still applicable, provide instructions on how to start the application and request user feedback on the prototype.
 
 # Operational Guidelines
-
 ${(function () {
   if (config.getEnableShellOutputEfficiency()) {
     return `
-## Output token efficient flags:
+## Shell tool output token efficiency:
 
 IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 

@@ -50,7 +50,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 # Operational Guidelines
 
-## Output token efficient flags:
+## Shell tool output token efficiency:
 
 IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
@@ -61,6 +61,7 @@ IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 - Always consider the trade-off between output verbosity and the need for information. If a command's full output is essential for understanding the result, avoid overly aggressive quieting that might obscure important details.
 - For commands with potentially long output that may not be useful, redirect stdout and stderr to temp files (e.g., 'command > out.log 2> err.log').
 - After the command runs, inspect the temp files (e.g. 'out.log' and 'err.log') using commands like 'grep', 'tail', 'head', ... (or platform equivalents). Remove the temp files when done.
+
 
 ## Tone and Style (CLI Interaction)
 - **Concise & Direct:** Adopt a professional, direct, and concise tone suitable for a CLI environment.
@@ -250,7 +251,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 # Operational Guidelines
 
-## Output token efficient flags:
+## Shell tool output token efficiency:
 
 IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
@@ -261,6 +262,7 @@ IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 - Always consider the trade-off between output verbosity and the need for information. If a command's full output is essential for understanding the result, avoid overly aggressive quieting that might obscure important details.
 - For commands with potentially long output that may not be useful, redirect stdout and stderr to temp files (e.g., 'command > out.log 2> err.log').
 - After the command runs, inspect the temp files (e.g. 'out.log' and 'err.log') using commands like 'grep', 'tail', 'head', ... (or platform equivalents). Remove the temp files when done.
+
 
 ## Tone and Style (CLI Interaction)
 - **Concise & Direct:** Adopt a professional, direct, and concise tone suitable for a CLI environment.
@@ -460,7 +462,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 # Operational Guidelines
 
-## Output token efficient flags:
+## Shell tool output token efficiency:
 
 IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
@@ -471,6 +473,7 @@ IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 - Always consider the trade-off between output verbosity and the need for information. If a command's full output is essential for understanding the result, avoid overly aggressive quieting that might obscure important details.
 - For commands with potentially long output that may not be useful, redirect stdout and stderr to temp files (e.g., 'command > out.log 2> err.log').
 - After the command runs, inspect the temp files (e.g. 'out.log' and 'err.log') using commands like 'grep', 'tail', 'head', ... (or platform equivalents). Remove the temp files when done.
+
 
 ## Tone and Style (CLI Interaction)
 - **Concise & Direct:** Adopt a professional, direct, and concise tone suitable for a CLI environment.
@@ -655,7 +658,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 # Operational Guidelines
 
-## Output token efficient flags:
+## Shell tool output token efficiency:
 
 IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
@@ -666,6 +669,7 @@ IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 - Always consider the trade-off between output verbosity and the need for information. If a command's full output is essential for understanding the result, avoid overly aggressive quieting that might obscure important details.
 - For commands with potentially long output that may not be useful, redirect stdout and stderr to temp files (e.g., 'command > out.log 2> err.log').
 - After the command runs, inspect the temp files (e.g. 'out.log' and 'err.log') using commands like 'grep', 'tail', 'head', ... (or platform equivalents). Remove the temp files when done.
+
 
 ## Tone and Style (CLI Interaction)
 - **Concise & Direct:** Adopt a professional, direct, and concise tone suitable for a CLI environment.
@@ -850,7 +854,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 # Operational Guidelines
 
-## Output token efficient flags:
+## Shell tool output token efficiency:
 
 IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
@@ -861,6 +865,7 @@ IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 - Always consider the trade-off between output verbosity and the need for information. If a command's full output is essential for understanding the result, avoid overly aggressive quieting that might obscure important details.
 - For commands with potentially long output that may not be useful, redirect stdout and stderr to temp files (e.g., 'command > out.log 2> err.log').
 - After the command runs, inspect the temp files (e.g. 'out.log' and 'err.log') using commands like 'grep', 'tail', 'head', ... (or platform equivalents). Remove the temp files when done.
+
 
 ## Tone and Style (CLI Interaction)
 - **Concise & Direct:** Adopt a professional, direct, and concise tone suitable for a CLI environment.
@@ -1045,7 +1050,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 # Operational Guidelines
 
-## Output token efficient flags:
+## Shell tool output token efficiency:
 
 IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
@@ -1056,6 +1061,7 @@ IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 - Always consider the trade-off between output verbosity and the need for information. If a command's full output is essential for understanding the result, avoid overly aggressive quieting that might obscure important details.
 - For commands with potentially long output that may not be useful, redirect stdout and stderr to temp files (e.g., 'command > out.log 2> err.log').
 - After the command runs, inspect the temp files (e.g. 'out.log' and 'err.log') using commands like 'grep', 'tail', 'head', ... (or platform equivalents). Remove the temp files when done.
+
 
 ## Tone and Style (CLI Interaction)
 - **Concise & Direct:** Adopt a professional, direct, and concise tone suitable for a CLI environment.
@@ -1240,7 +1246,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 # Operational Guidelines
 
-## Output token efficient flags:
+## Shell tool output token efficiency:
 
 IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
@@ -1251,6 +1257,7 @@ IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 - Always consider the trade-off between output verbosity and the need for information. If a command's full output is essential for understanding the result, avoid overly aggressive quieting that might obscure important details.
 - For commands with potentially long output that may not be useful, redirect stdout and stderr to temp files (e.g., 'command > out.log 2> err.log').
 - After the command runs, inspect the temp files (e.g. 'out.log' and 'err.log') using commands like 'grep', 'tail', 'head', ... (or platform equivalents). Remove the temp files when done.
+
 
 ## Tone and Style (CLI Interaction)
 - **Concise & Direct:** Adopt a professional, direct, and concise tone suitable for a CLI environment.
@@ -1435,7 +1442,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 # Operational Guidelines
 
-## Output token efficient flags:
+## Shell tool output token efficiency:
 
 IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
@@ -1446,6 +1453,7 @@ IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 - Always consider the trade-off between output verbosity and the need for information. If a command's full output is essential for understanding the result, avoid overly aggressive quieting that might obscure important details.
 - For commands with potentially long output that may not be useful, redirect stdout and stderr to temp files (e.g., 'command > out.log 2> err.log').
 - After the command runs, inspect the temp files (e.g. 'out.log' and 'err.log') using commands like 'grep', 'tail', 'head', ... (or platform equivalents). Remove the temp files when done.
+
 
 ## Tone and Style (CLI Interaction)
 - **Concise & Direct:** Adopt a professional, direct, and concise tone suitable for a CLI environment.
@@ -1630,7 +1638,7 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 # Operational Guidelines
 
-## Output token efficient flags:
+## Shell tool output token efficiency:
 
 IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
@@ -1641,6 +1649,7 @@ IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 - Always consider the trade-off between output verbosity and the need for information. If a command's full output is essential for understanding the result, avoid overly aggressive quieting that might obscure important details.
 - For commands with potentially long output that may not be useful, redirect stdout and stderr to temp files (e.g., 'command > out.log 2> err.log').
 - After the command runs, inspect the temp files (e.g. 'out.log' and 'err.log') using commands like 'grep', 'tail', 'head', ... (or platform equivalents). Remove the temp files when done.
+
 
 ## Tone and Style (CLI Interaction)
 - **Concise & Direct:** Adopt a professional, direct, and concise tone suitable for a CLI environment.
