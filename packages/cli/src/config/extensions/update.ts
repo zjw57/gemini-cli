@@ -90,7 +90,7 @@ export async function updateExtension(
       });
       throw new Error('Updated extension not found after installation.');
     }
-    const updatedVersion = updatedExtension.version;
+    const updatedVersion = updatedExtension.config.version;
     dispatchExtensionStateUpdate({
       type: 'SET_STATE',
       payload: {
@@ -154,7 +154,6 @@ export interface ExtensionUpdateCheckResult {
 export async function checkForAllExtensionUpdates(
   extensions: GeminiCLIExtension[],
   dispatch: (action: ExtensionUpdateAction) => void,
-  cwd: string = process.cwd(),
 ): Promise<void> {
   dispatch({ type: 'BATCH_CHECK_START' });
   const promises: Array<Promise<void>> = [];
@@ -169,20 +168,13 @@ export async function checkForAllExtensionUpdates(
       });
       continue;
     }
-    dispatch({
-      type: 'SET_STATE',
-      payload: {
-        name: extension.name,
-        state: ExtensionUpdateState.CHECKING_FOR_UPDATES,
-      },
-    });
     promises.push(
-      checkForExtensionUpdate(extension, cwd).then((state) =>
+      checkForExtensionUpdate(extension, (updatedState) => {
         dispatch({
           type: 'SET_STATE',
-          payload: { name: extension.name, state },
-        }),
-      ),
+          payload: { name: extension.name, state: updatedState },
+        });
+      }),
     );
   }
   await Promise.all(promises);
