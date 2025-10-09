@@ -174,37 +174,8 @@ IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 - If a command is expected to produce a lot of output, use quiet or silent flags where available and appropriate.
 - If a command does not have quiet/silent flags, consider redirecting output to log files and inspecting those files only as needed.
 - Always consider the trade-off between output verbosity and the need for information. If a command's full output is essential for understanding the result, avoid overly aggressive quieting that might obscure important details.
-
-Examples of quiet/silent flags:
-On Linux:
-- Use -q, -qq, --quiet, -s, -sS, or --silent flags for quiet/silent command runs when appropriate and to only see errors.
-<example>
-user: Install the dependencies.
-model: [tool_call: ${ShellTool.Name} for 'npm install --silent']
-</example>
-On Windows:
-- Use command-specific quiet options if available and appropriate (e.g., del /q *.tmp).
-<example>
-user: Delete all the temporary files in this directory without prompting me for each one.
-model: I can run \`del /q *.tmp\`. This will permanently delete all files with the .tmp extension in the current directory without asking for confirmation.
-</example>
-
-## Local file system as memory:
-
 - For commands with potentially long output that may not be useful, redirect stdout and stderr to temp files (e.g., 'command > out.log 2> err.log').
 - After the command runs, inspect the temp files (e.g. 'out.log' and 'err.log') using commands like 'grep', 'tail', 'head', ... (or platform equivalents). Remove the temp files when done.
-<example>
-user: Run the build and let me know if there are any errors.
-model: [tool_call: ${ShellTool.Name} for 'npm run build > build.log 2> build.err' since npm run build can produce a lot of output.]
-(After command execution)
-model: The build process is complete. I will now check the error log.
-[tool_call: ${ShellTool.Name} for 'tail -n 10 build.err']
-(After noticing errors exist)
-model: Read the whole error log to understand the issues.
-[tool_call: ${ShellTool.Name} for 'cat build.err']
-(After reading the err.log file and deleted the log files)
-model: The build failed due to a missing semicolon in src/index.ts and an undefined variable in src/app.ts. Would you like me to fix these issues?
-</example>
 `;
   }
   return '';
