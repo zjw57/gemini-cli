@@ -80,7 +80,7 @@ export interface CustomTheme {
 export const lightTheme: ColorsTheme = {
   type: 'light',
   Background: '#FAFAFA',
-  Foreground: '',
+  Foreground: '#202124',
   LightBlue: '#89BDCD',
   AccentBlue: '#3B82F6',
   AccentPurple: '#8B5CF6',
@@ -91,7 +91,7 @@ export const lightTheme: ColorsTheme = {
   DiffAdded: '#C6EAD8',
   DiffRemoved: '#FFCCCC',
   Comment: '#008000',
-  Gray: '#97a0b0',
+  Gray: '#4e5054ff',
   GradientColors: ['#4796E4', '#847ACE', '#C3677F'],
 };
 

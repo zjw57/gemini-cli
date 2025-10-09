@@ -276,7 +276,7 @@ const SETTINGS_SCHEMA = {
         label: 'Theme',
         category: 'UI',
         requiresRestart: false,
-        default: undefined as string | undefined,
+        default: 'system' as string | undefined,
         description: 'The color theme for the UI.',
         showInDialog: false,
       },

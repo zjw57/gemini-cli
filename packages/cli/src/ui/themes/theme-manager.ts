@@ -292,9 +292,20 @@ class ThemeManager {
     }
   }
 
+  private isDarkMode(): boolean {
+    const { COLORFGBG } = process.env;
+    if (COLORFGBG) {
+      const bg = COLORFGBG.split(';').map(Number)[1];
+      if (!isNaN(bg) && bg < 7) {
+        return true;
+      }
+    }
+    return true; // Default to dark mode
+  }
+
   findThemeByName(themeName: string | undefined): Theme | undefined {
-    if (!themeName) {
-      return DEFAULT_THEME;
+    if (!themeName || themeName === 'system') {
+      return this.isDarkMode() ? DefaultDark : DefaultLight;
     }
 
     // First check built-in themes
