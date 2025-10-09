@@ -66,7 +66,7 @@ export async function handleInstall(args: InstallArgs) {
 }
 
 export const installCommand: CommandModule = {
-  command: 'install <source>',
+  command: 'install <source> [--auto-update] [--pre-release]',
   describe: 'Installs an extension from a git repository URL or a local path.',
   builder: (yargs) =>
     yargs
@@ -81,6 +81,10 @@ export const installCommand: CommandModule = {
       })
       .option('auto-update', {
         describe: 'Enable auto-update for this extension.',
+        type: 'boolean',
+      })
+      .option('pre-release', {
+        describe: 'Enable pre-release versions for this extension.',
         type: 'boolean',
       })
       .check((argv) => {

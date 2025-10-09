@@ -18,10 +18,7 @@ import * as path from 'node:path';
 import { EXTENSIONS_CONFIG_FILENAME, loadExtension } from '../extension.js';
 import * as tar from 'tar';
 import extract from 'extract-zip';
-
-function getGitHubToken(): string | undefined {
-  return process.env['GITHUB_TOKEN'];
-}
+import { fetchJson, getGitHubToken } from './github_fetch.js';
 
 /**
  * Clones a Git repository to a specified local path.
