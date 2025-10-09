@@ -27,7 +27,9 @@ import {
   toFriendlyError,
 } from '../utils/errors.js';
 import type { GeminiChat } from './geminiChat.js';
+import { InvalidStreamError } from './geminiChat.js';
 import { parseThought, type ThoughtSummary } from '../utils/thoughtUtils.js';
+import { createUserContent } from '@google/genai';
 
 // Define a structure for tools passed to the server
 export interface ServerTool {
@@ -57,7 +59,21 @@ export enum GeminiEventType {
   Finished = 'finished',
   LoopDetected = 'loop_detected',
   Citation = 'citation',
+  ContextWindowWillOverflow = 'context_window_will_overflow',
+  InvalidStream = 'invalid_stream',
 }
+
+export type ServerGeminiContextWindowWillOverflowEvent = {
+  type: GeminiEventType.ContextWindowWillOverflow;
+  value: {
+    estimatedRequestTokenCount: number;
+    remainingTokenCount: number;
+  };
+};
+
+export type ServerGeminiInvalidStreamEvent = {
+  type: GeminiEventType.InvalidStream;
+};
 
 export interface StructuredError {
   message: string;
@@ -186,7 +202,9 @@ export type ServerGeminiStreamEvent =
   | ServerGeminiToolCallConfirmationEvent
   | ServerGeminiToolCallRequestEvent
   | ServerGeminiToolCallResponseEvent
-  | ServerGeminiUserCancelledEvent;
+  | ServerGeminiUserCancelledEvent
+  | ServerGeminiContextWindowWillOverflowEvent
+  | ServerGeminiInvalidStreamEvent;
 
 // A turn manages the agentic loop turn within the server context.
 export class Turn {
@@ -285,12 +303,20 @@ export class Turn {
         return;
       }
 
+      if (e instanceof InvalidStreamError) {
+        yield { type: GeminiEventType.InvalidStream };
+        return;
+      }
+
       const error = toFriendlyError(e);
       if (error instanceof UnauthorizedError) {
         throw error;
       }
 
-      const contextForReport = [...this.chat.getHistory(/*curated*/ true), req];
+      const contextForReport = [
+        ...this.chat.getHistory(/*curated*/ true),
+        createUserContent(req),
+      ];
       await reportError(
         error,
         'Error when talking to Gemini API',
