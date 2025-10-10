@@ -7,6 +7,7 @@
 import type { Config } from '../config/config.js';
 import type { AgentDefinition } from './types.js';
 import { CodebaseInvestigatorAgent } from './codebase-investigator.js';
+import { GeminiChatAgent } from './gemini-chat.js';
 import { type z } from 'zod';
 
 /**
@@ -34,6 +35,7 @@ export class AgentRegistry {
 
   private loadBuiltInAgents(): void {
     this.registerAgent(CodebaseInvestigatorAgent);
+    this.registerAgent(GeminiChatAgent);
   }
 
   /**

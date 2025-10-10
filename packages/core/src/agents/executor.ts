@@ -198,13 +198,22 @@ export class AgentExecutor<TOutput extends z.ZodTypeAny> {
 
         // If the model stops calling tools without calling complete_task, it's an error.
         if (functionCalls.length === 0) {
-          terminateReason = AgentTerminateMode.ERROR;
-          finalResult = `Agent stopped calling tools but did not call '${TASK_COMPLETE_TOOL_NAME}' to finalize the session.`;
-          this.emitActivity('ERROR', {
-            error: finalResult,
-            context: 'protocol_violation',
-          });
-          break;
+          //terminateReason = AgentTerminateMode.ERROR;
+          //finalResult = `Agent stopped calling tools but did not call '${TASK_COMPLETE_TOOL_NAME}' to finalize the session.`;
+          //this.emitActivity('ERROR', {
+          //  error: finalResult,
+          //  context: 'protocol_violation',
+          //});
+          //break;
+          currentMessage = {
+            role: 'user',
+            parts: [
+              {
+                text: `You need to call '${TASK_COMPLETE_TOOL_NAME}' to finalize the session and pass the response to the user`,
+              },
+            ],
+          };
+          continue;
         }
 
         const { nextMessage, submittedOutput, taskCompleted } =
