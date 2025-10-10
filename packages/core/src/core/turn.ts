@@ -68,14 +68,6 @@ export type ServerGeminiRetryEvent = {
   type: GeminiEventType.Retry;
 };
 
-export type ServerGeminiContextWindowWillOverflowEvent = {
-  type: GeminiEventType.ContextWindowWillOverflow;
-  value: {
-    estimatedRequestTokenCount: number;
-    remainingTokenCount: number;
-  };
-};
-
 export type ServerGeminiInvalidStreamEvent = {
   type: GeminiEventType.InvalidStream;
 };
@@ -209,8 +201,6 @@ export type ServerGeminiStreamEvent =
   | ServerGeminiToolCallResponseEvent
   | ServerGeminiUserCancelledEvent
   | ServerGeminiRetryEvent
-  | ServerGeminiRetryEvent
-  | ServerGeminiContextWindowWillOverflowEvent
   | ServerGeminiInvalidStreamEvent;
 
 // A turn manages the agentic loop turn within the server context.
