@@ -12,26 +12,69 @@ import { GrepTool } from '../tools/grep.js';
 import { DEFAULT_GEMINI_MODEL } from '../config/models.js';
 import { z } from 'zod';
 
-const CritiqueReportSchema = z.object({
-  analysisSummary: z
+const ProgressEvaluationSchema = z.object({
+  VerifiedSteps: z
+    .array(
+      z.object({
+        Task: z.string(),
+        Proof: z.string(),
+      }),
+    )
+    .describe(
+      'A list of tasks that have been successfully finished, each with corresponding proof of completion from the code or logical justification.',
+    ),
+  PendingItems: z
+    .array(
+      z.object({
+        ActionItem: z.string(),
+        Obstacle: z.string(),
+      }),
+    )
+    .describe(
+      'Details outstanding tasks, including those that are unfinished or imperiled, highlighting the specific obstacles or potential problems that need addressing.',
+    ),
+});
+
+const CodeReviewSummarySchema = z
+  .array(
+    z.object({
+      FilePath: z.string(),
+      ChangeSummary: z.string(),
+      PotentialIssues: z.array(z.string()),
+    }),
+  )
+  .describe(
+    "An analysis of each modified file, tracking data and program flow to verify that modifications are consistent with the project's goal and to identify any potential problems.",
+  );
+
+const FindingSchema = z.object({
+  Summary: z.string(),
+  Impact: z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']),
+  Justification: z.string(),
+});
+
+const EvaluationSummarySchema = z.object({
+  ExecutiveSummary: z
     .string()
     .describe(
-      "A deep analysis of the main agent's work, including execution and data flow.",
+      'A top-level overview that evaluates how well the work aligns with its intended purpose and assesses the overall quality of the implementation.',
     ),
-  isCorrectPath: z
-    .boolean()
+  GoalStatus: z
+    .enum(['COMPLETED', 'AT_RISK', 'OFF_TRACK'])
     .describe(
-      'Whether the main agent is following a correct path to solve the objective.',
+      "A clear determination of the project's current state: whether the primary goal has been met, is in jeopardy, or is not being correctly pursued.",
     ),
-  isObjectiveAchieved: z
-    .boolean()
+  ProgressEvaluation: ProgressEvaluationSchema,
+  CodeReview: CodeReviewSummarySchema,
+  Findings: z
+    .array(FindingSchema)
     .describe(
-      'Whether the main agent has successfully completed the objective.',
+      'A list of distinct issues, shortcomings, or potential threats discovered during the review of the plan, code, or overall logic. This list will be empty if no issues were found.',
     ),
-  feedback: z
-    .string()
+  ActionableRecommendations: z
+    .array(z.string())
     .describe(
-      'Actionable feedback, pointing out mistakes, missed edge cases, or alternative approaches.',
+      'A set of clear, actionable recommendations for the next development cycle, aimed at fixing identified problems or moving the project toward completion.',
     ),
 });
 
@@ -61,7 +104,7 @@ const systemPrompt =
 /**
  * A subagent specialized in critiquing the work of another agent.
  */
-export const CritiqueAgent: AgentDefinition<typeof CritiqueReportSchema> = {
+export const CritiqueAgent: AgentDefinition<typeof EvaluationSummarySchema> = {
   name: 'critique_agent',
   displayName: 'Critique Agent',
   description:
@@ -69,19 +112,21 @@ export const CritiqueAgent: AgentDefinition<typeof CritiqueReportSchema> = {
   inputConfig: {
     inputs: {
       objective: {
-        description: "The main agent's overall objective.",
+        description:
+          "The overall objective. Pass the user's complete objective as well",
         type: 'string',
         required: true,
       },
       plan: {
-        description: "The main agent's plan.",
+        description:
+          'The detailed plan: make sure to list steps that were already taken and the next steps to be taken.',
         type: 'string', // HACK: No object type, so we'll stringify it.
         required: true,
       },
       changes: {
         description:
-          'A list of files edited by the main agent, with a description of the changes.',
-        type: 'string', // HACK: No object type, so we'll stringify it.
+          'A list of files and their absolute paths edited by the main agent, with a description of the changes.',
+        type: 'string[]', // HACK: No object type, so we'll stringify it.
         required: true,
       },
     },
@@ -89,10 +134,10 @@ export const CritiqueAgent: AgentDefinition<typeof CritiqueReportSchema> = {
   outputConfig: {
     outputName: 'critique',
     description: 'The final critique as a JSON object.',
-    schema: CritiqueReportSchema,
+    schema: EvaluationSummarySchema,
   },
 
-  processOutput: (output: z.infer<typeof CritiqueReportSchema>) =>
+  processOutput: (output: z.infer<typeof EvaluationSummarySchema>) =>
     JSON.stringify(output, null, 2),
 
   modelConfig: {
