@@ -60,19 +60,14 @@ export enum GeminiEventType {
   LoopDetected = 'loop_detected',
   Citation = 'citation',
   Retry = 'retry',
-<<<<<<< HEAD
-=======
   ContextWindowWillOverflow = 'context_window_will_overflow',
   InvalidStream = 'invalid_stream',
->>>>>>> 0b6c0200 (feat(core): Failed Response Retry via Extra Prompt (#10828))
 }
 
 export type ServerGeminiRetryEvent = {
   type: GeminiEventType.Retry;
 };
 
-<<<<<<< HEAD
-=======
 export type ServerGeminiContextWindowWillOverflowEvent = {
   type: GeminiEventType.ContextWindowWillOverflow;
   value: {
@@ -85,7 +80,6 @@ export type ServerGeminiInvalidStreamEvent = {
   type: GeminiEventType.InvalidStream;
 };
 
->>>>>>> 0b6c0200 (feat(core): Failed Response Retry via Extra Prompt (#10828))
 export interface StructuredError {
   message: string;
   status?: number;
@@ -214,13 +208,10 @@ export type ServerGeminiStreamEvent =
   | ServerGeminiToolCallRequestEvent
   | ServerGeminiToolCallResponseEvent
   | ServerGeminiUserCancelledEvent
-<<<<<<< HEAD
-  | ServerGeminiRetryEvent;
-=======
+  | ServerGeminiRetryEvent
   | ServerGeminiRetryEvent
   | ServerGeminiContextWindowWillOverflowEvent
   | ServerGeminiInvalidStreamEvent;
->>>>>>> 0b6c0200 (feat(core): Failed Response Retry via Extra Prompt (#10828))
 
 // A turn manages the agentic loop turn within the server context.
 export class Turn {
