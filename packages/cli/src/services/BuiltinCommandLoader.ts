@@ -8,36 +8,6 @@ import { isDevelopment } from '../utils/installationInfo.js';
 import type { ICommandLoader } from './types.js';
 import type { SlashCommand } from '../ui/commands/types.js';
 import type { Config } from '@google/gemini-cli-core';
-import { aboutCommand } from '../ui/commands/aboutCommand.js';
-import { authCommand } from '../ui/commands/authCommand.js';
-import { bugCommand } from '../ui/commands/bugCommand.js';
-import { chatCommand } from '../ui/commands/chatCommand.js';
-import { clearCommand } from '../ui/commands/clearCommand.js';
-import { compressCommand } from '../ui/commands/compressCommand.js';
-import { copyCommand } from '../ui/commands/copyCommand.js';
-import { corgiCommand } from '../ui/commands/corgiCommand.js';
-import { docsCommand } from '../ui/commands/docsCommand.js';
-import { directoryCommand } from '../ui/commands/directoryCommand.js';
-import { editorCommand } from '../ui/commands/editorCommand.js';
-import { extensionsCommand } from '../ui/commands/extensionsCommand.js';
-import { helpCommand } from '../ui/commands/helpCommand.js';
-import { ideCommand } from '../ui/commands/ideCommand.js';
-import { initCommand } from '../ui/commands/initCommand.js';
-import { mcpCommand } from '../ui/commands/mcpCommand.js';
-import { memoryCommand } from '../ui/commands/memoryCommand.js';
-import { modelCommand } from '../ui/commands/modelCommand.js';
-import { permissionsCommand } from '../ui/commands/permissionsCommand.js';
-import { privacyCommand } from '../ui/commands/privacyCommand.js';
-import { profileCommand } from '../ui/commands/profileCommand.js';
-import { quitCommand } from '../ui/commands/quitCommand.js';
-import { restoreCommand } from '../ui/commands/restoreCommand.js';
-import { statsCommand } from '../ui/commands/statsCommand.js';
-import { themeCommand } from '../ui/commands/themeCommand.js';
-import { toolsCommand } from '../ui/commands/toolsCommand.js';
-import { settingsCommand } from '../ui/commands/settingsCommand.js';
-import { vimCommand } from '../ui/commands/vimCommand.js';
-import { setupGithubCommand } from '../ui/commands/setupGithubCommand.js';
-import { terminalSetupCommand } from '../ui/commands/terminalSetupCommand.js';
 
 /**
  * Loads the core, hard-coded slash commands that are an integral part
@@ -54,39 +24,128 @@ export class BuiltinCommandLoader implements ICommandLoader {
    * @returns A promise that resolves to an array of `SlashCommand` objects.
    */
   async loadCommands(_signal: AbortSignal): Promise<SlashCommand[]> {
-    const allDefinitions: Array<SlashCommand | null> = [
-      aboutCommand,
-      authCommand,
-      bugCommand,
-      chatCommand,
-      clearCommand,
-      compressCommand,
-      copyCommand,
-      corgiCommand,
-      docsCommand,
-      directoryCommand,
-      editorCommand,
-      extensionsCommand,
-      helpCommand,
-      await ideCommand(),
-      initCommand,
-      mcpCommand,
-      memoryCommand,
-      ...(this.config?.getUseModelRouter() ? [modelCommand] : []),
-      ...(this.config?.getFolderTrust() ? [permissionsCommand] : []),
-      privacyCommand,
-      ...(isDevelopment ? [profileCommand] : []),
-      quitCommand,
-      restoreCommand(this.config),
-      statsCommand,
-      themeCommand,
-      toolsCommand,
-      settingsCommand,
-      vimCommand,
-      setupGithubCommand,
-      terminalSetupCommand,
-    ];
+    const commands: SlashCommand[] = [];
+    const commandTimes: Record<string, number> = {};
 
-    return allDefinitions.filter((cmd): cmd is SlashCommand => cmd !== null);
+    const load = async (name: string, importFn: () => Promise<any>) => {
+      const start = performance.now();
+      try {
+        const module = await importFn();
+
+        // 1. Try named export matching the command name
+        let rawCmd = module[name];
+
+        // 2. Try default export
+        if (!rawCmd) {
+          rawCmd = module.default;
+        }
+
+        if (!rawCmd) {
+          console.error(`No command found in module for ${name}`);
+          return;
+        }
+
+        const cmd = rawCmd as
+          | SlashCommand
+          | ((config: Config | null) => SlashCommand)
+          | (() => Promise<SlashCommand>);
+
+        if (typeof cmd === 'function') {
+          // Handle command factories (restoreCommand) and async factories (ideCommand)
+          const result = await cmd(this.config);
+          if (result && result.name) commands.push(result);
+        } else if (cmd && cmd.name) {
+          commands.push(cmd);
+        } else {
+          console.error(`Invalid command object for ${name}:`, cmd);
+        }
+      } catch (e) {
+        console.error(`Failed to load command ${name}:`, e);
+      } finally {
+        commandTimes[name] = performance.now() - start;
+      }
+    };
+
+    console.log('--- Starting Builtin Command Import Profiling ---');
+
+    await load('aboutCommand', () =>
+      import('../ui/commands/aboutCommand.js'),
+    );
+    await load('authCommand', () => import('../ui/commands/authCommand.js'));
+    await load('bugCommand', () => import('../ui/commands/bugCommand.js'));
+    await load('chatCommand', () => import('../ui/commands/chatCommand.js'));
+    await load('clearCommand', () => import('../ui/commands/clearCommand.js'));
+    await load('compressCommand', () =>
+      import('../ui/commands/compressCommand.js'),
+    );
+    await load('copyCommand', () => import('../ui/commands/copyCommand.js'));
+    await load('corgiCommand', () => import('../ui/commands/corgiCommand.js'));
+    await load('docsCommand', () => import('../ui/commands/docsCommand.js'));
+    await load('directoryCommand', () =>
+      import('../ui/commands/directoryCommand.js'),
+    );
+    await load('editorCommand', () =>
+      import('../ui/commands/editorCommand.js'),
+    );
+    await load('extensionsCommand', () =>
+      import('../ui/commands/extensionsCommand.js'),
+    );
+    await load('helpCommand', () => import('../ui/commands/helpCommand.js'));
+    await load('ideCommand', () => import('../ui/commands/ideCommand.js'));
+    await load('initCommand', () => import('../ui/commands/initCommand.js'));
+    await load('mcpCommand', () => import('../ui/commands/mcpCommand.js'));
+    await load('memoryCommand', () =>
+      import('../ui/commands/memoryCommand.js'),
+    );
+
+    if (this.config?.getUseModelRouter()) {
+      await load('modelCommand', () =>
+        import('../ui/commands/modelCommand.js'),
+      );
+    }
+    if (this.config?.getFolderTrust()) {
+      await load('permissionsCommand', () =>
+        import('../ui/commands/permissionsCommand.js'),
+      );
+    }
+
+    await load('privacyCommand', () =>
+      import('../ui/commands/privacyCommand.js'),
+    );
+
+    if (isDevelopment) {
+      await load('profileCommand', () =>
+        import('../ui/commands/profileCommand.js'),
+      );
+    }
+
+    await load('quitCommand', () => import('../ui/commands/quitCommand.js'));
+    await load('restoreCommand', () =>
+      import('../ui/commands/restoreCommand.js'),
+    );
+    await load('statsCommand', () => import('../ui/commands/statsCommand.js'));
+    await load('themeCommand', () => import('../ui/commands/themeCommand.js'));
+    await load('toolsCommand', () => import('../ui/commands/toolsCommand.js'));
+    await load('settingsCommand', () =>
+      import('../ui/commands/settingsCommand.js'),
+    );
+    await load('vimCommand', () => import('../ui/commands/vimCommand.js'));
+    await load('setupGithubCommand', () =>
+      import('../ui/commands/setupGithubCommand.js'),
+    );
+    await load('terminalSetupCommand', () =>
+      import('../ui/commands/terminalSetupCommand.js'),
+    );
+
+    console.log('Builtin Command Import Times:');
+    const sortedTimes = Object.entries(commandTimes).sort(
+      ([, a], [, b]) => b - a,
+    );
+    for (const [name, time] of sortedTimes) {
+      console.log(`- ${name}: ${time.toFixed(2)}ms`);
+    }
+    console.log('--- End Profiling ---');
+
+    return commands;
   }
 }

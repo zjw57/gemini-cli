@@ -48,8 +48,19 @@ export class CommandService {
     loaders: ICommandLoader[],
     signal: AbortSignal,
   ): Promise<CommandService> {
+    const totalStart = performance.now();
+    const loaderTimes: Record<string, number> = {};
+
     const results = await Promise.allSettled(
-      loaders.map((loader) => loader.loadCommands(signal)),
+      loaders.map(async (loader) => {
+        const loaderName = loader.constructor.name;
+        const start = performance.now();
+        try {
+          return await loader.loadCommands(signal);
+        } finally {
+          loaderTimes[loaderName] = performance.now() - start;
+        }
+      }),
     );
 
     const allCommands: SlashCommand[] = [];
@@ -86,6 +97,14 @@ export class CommandService {
     }
 
     const finalCommands = Object.freeze(Array.from(commandMap.values()));
+
+    const totalTime = performance.now() - totalStart;
+    console.log('Command Loading Performance:');
+    for (const [name, time] of Object.entries(loaderTimes)) {
+      console.log(`- ${name}: ${time.toFixed(2)}ms`);
+    }
+    console.log(`- Total Initialization Time: ${totalTime.toFixed(2)}ms`);
+
     return new CommandService(finalCommands);
   }
 
