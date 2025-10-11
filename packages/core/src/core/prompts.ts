@@ -164,7 +164,7 @@ ${(function () {
 ${(function () {
   if (config.getEnableShellOutputEfficiency()) {
     return `
-## Shell tool output token efficiency:
+## Output token efficient flags:
 
 IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
 
@@ -179,7 +179,6 @@ IT IS CRITICAL TO FOLLOW THESE GUIDELINES TO AVOID EXCESSIVE TOKEN CONSUMPTION.
   }
   return '';
 })()}
-
 ## Tone and Style (CLI Interaction)
 - **Concise & Direct:** Adopt a professional, direct, and concise tone suitable for a CLI environment.
 - **Minimal Output:** Aim for fewer than 3 lines of text output (excluding tool use/code generation) per response whenever practical. Focus strictly on the user's query.
