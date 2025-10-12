@@ -29,11 +29,11 @@ vi.mock('../ui/commands/aboutCommand.js', async () => {
 vi.mock('../ui/commands/ideCommand.js', async () => {
   const { CommandKind } = await import('../ui/commands/types.js');
   return {
-    ideCommand: vi.fn().mockResolvedValue({
+    ideCommand: {
       name: 'ide',
       description: 'IDE command',
       kind: CommandKind.BUILT_IN,
-    }),
+    },
   };
 });
 vi.mock('../ui/commands/restoreCommand.js', () => ({
@@ -50,9 +50,21 @@ vi.mock('../ui/commands/permissionsCommand.js', async () => {
   };
 });
 
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
+  return {
+    ...original,
+    IdeClient: {
+      getInstance: vi.fn(),
+    },
+  };
+});
+
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { BuiltinCommandLoader } from './BuiltinCommandLoader.js';
 import type { Config } from '@google/gemini-cli-core';
+import { IdeClient } from '@google/gemini-cli-core';
 import { CommandKind } from '../ui/commands/types.js';
 
 import { restoreCommand } from '../ui/commands/restoreCommand.js';
@@ -112,6 +124,13 @@ describe('BuiltinCommandLoader', () => {
     // ideCommand is now a constant, no longer needs config
     expect(restoreCommandMock).toHaveBeenCalledTimes(1);
     expect(restoreCommandMock).toHaveBeenCalledWith(mockConfig);
+  });
+
+  it('should kick off IdeClient.getInstance() in the background', async () => {
+    const loader = new BuiltinCommandLoader(mockConfig);
+    await loader.loadCommands(new AbortController().signal);
+
+    expect(IdeClient.getInstance).toHaveBeenCalledTimes(1);
   });
 
   it('should filter out null command definitions returned by factories', async () => {

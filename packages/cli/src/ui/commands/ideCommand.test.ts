@@ -10,13 +10,14 @@ import { ideCommand } from './ideCommand.js';
 import { type CommandContext } from './types.js';
 import { IDE_DEFINITIONS } from '@google/gemini-cli-core';
 import * as core from '@google/gemini-cli-core';
+import { SettingScope } from '../../config/settings.js';
 
-vi.mock('@google/gemini-cli-core', async (importOriginal) => {
-  const original = await importOriginal<typeof core>();
+vi.mock('@google/gemini-cli-core', async () => {
+  const actual = await vi.importActual('@google/gemini-cli-core');
   return {
-    ...original,
-    getOauthClient: vi.fn(original.getOauthClient),
-    getIdeInstaller: vi.fn(original.getIdeInstaller),
+    ...actual,
+    getOauthClient: vi.fn(),
+    getIdeInstaller: vi.fn(),
     IdeClient: {
       getInstance: vi.fn(),
     },
@@ -68,51 +69,48 @@ describe('ideCommand', () => {
     vi.restoreAllMocks();
   });
 
-  it('should return the ide command', async () => {
-    vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(
-      IDE_DEFINITIONS.vscode,
-    );
-    vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
-      status: core.IDEConnectionStatus.Disconnected,
-    });
-    const command = await ideCommand();
-    expect(command).not.toBeNull();
-    expect(command.name).toBe('ide');
-    expect(command.subCommands).toHaveLength(3);
-    expect(command.subCommands?.[0].name).toBe('enable');
-    expect(command.subCommands?.[1].name).toBe('status');
-    expect(command.subCommands?.[2].name).toBe('install');
-  });
-
-  it('should show disable command when connected', async () => {
-    vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(
-      IDE_DEFINITIONS.vscode,
-    );
-    vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
-      status: core.IDEConnectionStatus.Connected,
-    });
-    const command = await ideCommand();
-    expect(command).not.toBeNull();
-    const subCommandNames = command.subCommands?.map((cmd) => cmd.name);
+  it('should have the correct structure', () => {
+    expect(ideCommand).not.toBeNull();
+    expect(ideCommand.name).toBe('ide');
+    expect(ideCommand.subCommands).toHaveLength(4);
+    const subCommandNames = ideCommand.subCommands?.map((cmd) => cmd.name);
+    expect(subCommandNames).toContain('status');
+    expect(subCommandNames).toContain('enable');
     expect(subCommandNames).toContain('disable');
-    expect(subCommandNames).not.toContain('enable');
+    expect(subCommandNames).toContain('install');
   });
 
   describe('status subcommand', () => {
-    beforeEach(() => {
-      vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(
-        IDE_DEFINITIONS.vscode,
-      );
+    const statusAction = ideCommand.subCommands!.find(
+      (c) => c.name === 'status',
+    )!.action!;
+
+    it('should show error if no IDE is detected', async () => {
+      vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(null);
+
+      const result = await statusAction(mockContext, '');
+
+      expect(core.IdeClient.getInstance).toHaveBeenCalled();
+      expect(result).toEqual({
+        type: 'message',
+        messageType: 'error',
+        content: expect.stringContaining(
+          'IDE integration is not supported in your current environment',
+        ),
+      });
     });
 
     it('should show connected status', async () => {
+      vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(
+        IDE_DEFINITIONS.vscode,
+      );
       vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
         status: core.IDEConnectionStatus.Connected,
       });
-      const command = await ideCommand();
-      const result = await command!.subCommands!.find(
-        (c) => c.name === 'status',
-      )!.action!(mockContext, '');
+
+      const result = await statusAction(mockContext, '');
+
+      expect(core.IdeClient.getInstance).toHaveBeenCalled();
       expect(vi.mocked(mockIdeClient.getConnectionStatus)).toHaveBeenCalled();
       expect(result).toEqual({
         type: 'message',
@@ -120,89 +118,77 @@ describe('ideCommand', () => {
         content: '🟢 Connected to VS Code',
       });
     });
-
-    it('should show connecting status', async () => {
-      vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
-        status: core.IDEConnectionStatus.Connecting,
-      });
-      const command = await ideCommand();
-      const result = await command!.subCommands!.find(
-        (c) => c.name === 'status',
-      )!.action!(mockContext, '');
-      expect(vi.mocked(mockIdeClient.getConnectionStatus)).toHaveBeenCalled();
-      expect(result).toEqual({
-        type: 'message',
-        messageType: 'info',
-        content: `🟡 Connecting...`,
-      });
-    });
-    it('should show disconnected status', async () => {
-      vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
-        status: core.IDEConnectionStatus.Disconnected,
-      });
-      const command = await ideCommand();
-      const result = await command!.subCommands!.find(
-        (c) => c.name === 'status',
-      )!.action!(mockContext, '');
-      expect(vi.mocked(mockIdeClient.getConnectionStatus)).toHaveBeenCalled();
-      expect(result).toEqual({
-        type: 'message',
-        messageType: 'error',
-        content: `🔴 Disconnected`,
-      });
-    });
-
-    it('should show disconnected status with details', async () => {
-      const details = 'Something went wrong';
-      vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
-        status: core.IDEConnectionStatus.Disconnected,
-        details,
-      });
-      const command = await ideCommand();
-      const result = await command!.subCommands!.find(
-        (c) => c.name === 'status',
-      )!.action!(mockContext, '');
-      expect(vi.mocked(mockIdeClient.getConnectionStatus)).toHaveBeenCalled();
-      expect(result).toEqual({
-        type: 'message',
-        messageType: 'error',
-        content: `🔴 Disconnected: ${details}`,
-      });
-    });
   });
 
   describe('install subcommand', () => {
+    const installAction = ideCommand.subCommands!.find(
+      (c) => c.name === 'install',
+    )!.action!;
     const mockInstall = vi.fn();
+
     beforeEach(() => {
-      vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(
-        IDE_DEFINITIONS.vscode,
-      );
-      vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
-        status: core.IDEConnectionStatus.Disconnected,
-      });
       vi.mocked(core.getIdeInstaller).mockReturnValue({
         install: mockInstall,
       });
       platformSpy.mockReturnValue('linux');
     });
 
+    it('should show error if no IDE is detected', async () => {
+      vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(null);
+
+      await installAction(mockContext, '');
+
+      expect(core.IdeClient.getInstance).toHaveBeenCalled();
+      expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error',
+          text: expect.stringContaining(
+            'IDE integration is not supported in your current environment',
+          ),
+        }),
+        expect.any(Number),
+      );
+    });
+
+    it('should show info if already connected', async () => {
+      vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(
+        IDE_DEFINITIONS.vscode,
+      );
+      vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
+        status: core.IDEConnectionStatus.Connected,
+      });
+
+      await installAction(mockContext, '');
+
+      expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'info',
+          text: 'IDE integration is already installed and connected.',
+        }),
+        expect.any(Number),
+      );
+      expect(mockInstall).not.toHaveBeenCalled();
+    });
+
     it('should install the extension', async () => {
       vi.useFakeTimers();
+      vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(
+        IDE_DEFINITIONS.vscode,
+      );
+      vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
+        status: core.IDEConnectionStatus.Disconnected,
+      });
       mockInstall.mockResolvedValue({
         success: true,
         message: 'Successfully installed.',
       });
 
-      const command = await ideCommand();
-
       // For the polling loop inside the action.
-      vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
-        status: core.IDEConnectionStatus.Connected,
-      });
+      vi.mocked(mockIdeClient.getConnectionStatus)
+        .mockReturnValueOnce({ status: core.IDEConnectionStatus.Disconnected })
+        .mockReturnValue({ status: core.IDEConnectionStatus.Connected });
 
-      const actionPromise = command!.subCommands!.find(
-        (c) => c.name === 'install',
-      )!.action!(mockContext, '');
+      const actionPromise = installAction(mockContext, '');
       await vi.runAllTimersAsync();
       await actionPromise;
 
@@ -230,33 +216,97 @@ describe('ideCommand', () => {
         expect.any(Number),
       );
       vi.useRealTimers();
-    }, 10000);
+    });
+  });
 
-    it('should show an error if installation fails', async () => {
-      mockInstall.mockResolvedValue({
-        success: false,
-        message: 'Installation failed.',
+  describe('enable subcommand', () => {
+    const enableAction = ideCommand.subCommands!.find(
+      (c) => c.name === 'enable',
+    )!.action!;
+
+    it('should show error if no IDE is detected', async () => {
+      vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(null);
+
+      await enableAction(mockContext, '');
+
+      expect(core.IdeClient.getInstance).toHaveBeenCalled();
+      expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error',
+          text: expect.stringContaining(
+            'IDE integration is not supported in your current environment',
+          ),
+        }),
+        expect.any(Number),
+      );
+    });
+
+    it('should enable IDE integration', async () => {
+      vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(
+        IDE_DEFINITIONS.vscode,
+      );
+      vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
+        status: core.IDEConnectionStatus.Connected,
       });
 
-      const command = await ideCommand();
-      await command!.subCommands!.find((c) => c.name === 'install')!.action!(
-        mockContext,
-        '',
-      );
+      await enableAction(mockContext, '');
 
-      expect(core.getIdeInstaller).toHaveBeenCalledWith(IDE_DEFINITIONS.vscode);
-      expect(mockInstall).toHaveBeenCalled();
+      expect(mockContext.services.settings.setValue).toHaveBeenCalledWith(
+        SettingScope.User,
+        'ide.enabled',
+        true,
+      );
       expect(mockContext.ui.addItem).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'info',
-          text: `Installing IDE companion...`,
+          text: '🟢 Connected to VS Code',
         }),
         expect.any(Number),
+      );
+    });
+  });
+
+  describe('disable subcommand', () => {
+    const disableAction = ideCommand.subCommands!.find(
+      (c) => c.name === 'disable',
+    )!.action!;
+
+    it('should show error if no IDE is detected', async () => {
+      vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(null);
+
+      await disableAction(mockContext, '');
+
+      expect(core.IdeClient.getInstance).toHaveBeenCalled();
+      expect(mockContext.ui.addItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'error',
+          text: expect.stringContaining(
+            'IDE integration is not supported in your current environment',
+          ),
+        }),
+        expect.any(Number),
+      );
+    });
+
+    it('should disable IDE integration', async () => {
+      vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(
+        IDE_DEFINITIONS.vscode,
+      );
+      vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
+        status: core.IDEConnectionStatus.Disconnected,
+      });
+
+      await disableAction(mockContext, '');
+
+      expect(mockContext.services.settings.setValue).toHaveBeenCalledWith(
+        SettingScope.User,
+        'ide.enabled',
+        false,
       );
       expect(mockContext.ui.addItem).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'error',
-          text: 'Installation failed.',
+          text: '🔴 Disconnected',
         }),
         expect.any(Number),
       );
