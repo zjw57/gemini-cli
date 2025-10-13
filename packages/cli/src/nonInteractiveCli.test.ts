@@ -117,8 +117,8 @@ describe('runNonInteractive', () => {
       getDebugMode: vi.fn().mockReturnValue(false),
       getOutputFormat: vi.fn().mockReturnValue('text'),
       getAdkMode: vi.fn().mockReturnValue(false),
-      getFolderTrustFeature: vi.fn().mockReturnValue(false),
       getFolderTrust: vi.fn().mockReturnValue(false),
+      isTrustedFolder: vi.fn().mockReturnValue(false),
     } as unknown as Config;
 
     mockSettings = {
