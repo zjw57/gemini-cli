@@ -18,10 +18,19 @@ import {
   type ToolConfirmationResponse,
 } from '../confirmation-bus/types.js';
 import { randomUUID } from 'node:crypto';
+import {
+  logWebFetchFallbackAttempt,
+  WebFetchFallbackAttemptEvent,
+} from '../telemetry/index.js';
 
 const mockGenerateContent = vi.fn();
 const mockGetGeminiClient = vi.fn(() => ({
   generateContent: mockGenerateContent,
+}));
+
+vi.mock('../telemetry/index.js', () => ({
+  logWebFetchFallbackAttempt: vi.fn(),
+  WebFetchFallbackAttemptEvent: vi.fn(),
 }));
 
 vi.mock('../utils/fetch.js', async (importOriginal) => {
@@ -80,6 +89,59 @@ describe('WebFetchTool', () => {
       const invocation = tool.build(params);
       const result = await invocation.execute(new AbortController().signal);
       expect(result.error?.type).toBe(ToolErrorType.WEB_FETCH_PROCESSING_ERROR);
+    });
+
+    it('should log telemetry when falling back due to private IP', async () => {
+      vi.spyOn(fetchUtils, 'isPrivateIp').mockReturnValue(true);
+      // Mock fetchWithTimeout to succeed so fallback proceeds
+      vi.spyOn(fetchUtils, 'fetchWithTimeout').mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve('some content'),
+      } as Response);
+      mockGenerateContent.mockResolvedValue({
+        candidates: [{ content: { parts: [{ text: 'fallback response' }] } }],
+      });
+
+      const tool = new WebFetchTool(mockConfig);
+      const params = { prompt: 'fetch https://private.ip' };
+      const invocation = tool.build(params);
+      await invocation.execute(new AbortController().signal);
+
+      expect(logWebFetchFallbackAttempt).toHaveBeenCalledWith(
+        mockConfig,
+        expect.any(WebFetchFallbackAttemptEvent),
+      );
+      expect(WebFetchFallbackAttemptEvent).toHaveBeenCalledWith('private_ip');
+    });
+
+    it('should log telemetry when falling back due to primary fetch failure', async () => {
+      vi.spyOn(fetchUtils, 'isPrivateIp').mockReturnValue(false);
+      // Mock primary fetch to return empty response, triggering fallback
+      mockGenerateContent.mockResolvedValueOnce({
+        candidates: [],
+      });
+      // Mock fetchWithTimeout to succeed so fallback proceeds
+      vi.spyOn(fetchUtils, 'fetchWithTimeout').mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve('some content'),
+      } as Response);
+      // Mock fallback LLM call
+      mockGenerateContent.mockResolvedValueOnce({
+        candidates: [{ content: { parts: [{ text: 'fallback response' }] } }],
+      });
+
+      const tool = new WebFetchTool(mockConfig);
+      const params = { prompt: 'fetch https://public.ip' };
+      const invocation = tool.build(params);
+      await invocation.execute(new AbortController().signal);
+
+      expect(logWebFetchFallbackAttempt).toHaveBeenCalledWith(
+        mockConfig,
+        expect.any(WebFetchFallbackAttemptEvent),
+      );
+      expect(WebFetchFallbackAttemptEvent).toHaveBeenCalledWith(
+        'primary_failed',
+      );
     });
   });
 
