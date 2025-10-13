@@ -45,8 +45,7 @@ describe('Interactive Mode', () => {
     );
   });
 
-  //TODO - https://github.com/google-gemini/gemini-cli/issues/10769
-  it.skip('should handle compression failure on token inflation', async () => {
+  it('should handle compression failure on token inflation', async () => {
     await rig.setup('interactive-compress-test');
 
     const run = await rig.runInteractive();
