@@ -74,3 +74,16 @@ runs:
       run: |
         npm run build:packages
         npm run prepare:package
+
+    - name: '🎁 Bundle'
+      working-directory: '${{ inputs.working-directory }}'
+      shell: 'bash'
+      run: |
+        npm run bundle
+
+    - name: '📦 Prepare for GitHub release'
+      if: "inputs.registry == 'github'"
+      working-directory: '${{ inputs.working-directory }}'
+      shell: 'bash'
+      run: |
+        node ${{ github.workspace }}/scripts/prepare-github-release.js
