@@ -98,9 +98,18 @@ jobs:
       - name: 'Trigger Evaluation'
         env:
           GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+          DRY_RUN: '${{ github.event.inputs.dry_run }}'
+          INPUT_REF: '${{ github.event.inputs.ref }}'
+          RELEASE_BRANCH: '${{ steps.build.outputs.branch-name }}'
         shell: 'bash'
         run: |
-          gh workflow run eval.yml --ref ${{ steps.build.outputs.branch-name }} -f branch-or-commit=${{ steps.build.outputs.branch-name }} -f dry-run=true
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            REF="${INPUT_REF}"
+          else
+            REF="${RELEASE_BRANCH}"
+          fi
+          echo "Triggering evaluation on ref: ${REF}"
+          gh workflow run eval.yml --ref "${REF}" -f branch-or-commit="${REF}" -f dry-run=true
 
       - name: 'Publish Release'
         uses: './.github/actions/publish-release'
