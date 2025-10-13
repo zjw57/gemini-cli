@@ -29,6 +29,7 @@ jobs:
       packages: 'write'
       issues: 'write'
       pull-requests: 'write'
+      actions: 'write'
     steps:
       - name: 'Checkout'
         uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'
@@ -99,12 +100,21 @@ jobs:
           working-directory: './release'
 
       - name: 'Trigger Evaluation'
-        if: "${{ github.event.inputs.dry_run == 'false' }}"
         env:
           GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+          DRY_RUN: '${{ github.event.inputs.dry_run }}'
+          INPUT_REF: '${{ github.event.inputs.ref }}'
+          RELEASE_BRANCH: '${{ steps.build.outputs.branch-name }}'
         shell: 'bash'
         run: |
-          gh workflow run eval.yml --ref ${{ steps.build.outputs.branch-name }} -f branch-or-commit=${{ steps.build.outputs.branch-name }} -f dry-run=true
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            # Default to main if no ref is provided
+            REF="${INPUT_REF:-main}"
+          else
+            REF="${RELEASE_BRANCH}"
+          fi
+          echo "Triggering evaluation on ref: ${REF}"
+          gh workflow run eval.yml --ref "${REF}" -f branch-or-commit="${REF}" -f dry-run="${DRY_RUN}"
 
       - name: 'Publish Release'
         if: true
