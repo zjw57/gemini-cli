@@ -95,7 +95,6 @@ jobs:
           working-directory: './release'
 
       - name: 'Trigger Evaluation'
-        if: "${{ github.event.inputs.dry_run == 'false' }}"
         env:
           GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
         shell: 'bash'
