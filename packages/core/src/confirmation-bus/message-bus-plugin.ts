@@ -11,6 +11,7 @@
  */
 
 import { BasePlugin, type BaseTool, type ToolContext } from '@google/adk';
+import { isAdkToolAdapter, type AnyDeclarativeTool } from '../index.js';
 import { randomUUID } from 'node:crypto';
 import type { MessageBus } from './message-bus.js';
 import {
@@ -32,6 +33,21 @@ export class MessageBusPlugin extends BasePlugin {
     toolArgs: { [key: string]: unknown };
     toolContext: ToolContext;
   }): Promise<{ [key: string]: unknown } | undefined> {
+    let declarativeTool: AnyDeclarativeTool;
+    if (isAdkToolAdapter(tool)) {
+      declarativeTool = tool.tool;
+    } else {
+      // This shouldn't happen; the wrong type of tool was passed in.
+      throw new Error('Invalid tool type passed: ' + tool);
+    }
+    const invocation = declarativeTool.build(toolArgs);
+    const details = await invocation.shouldConfirmExecute(
+      new AbortController().signal,
+    );
+    if (!details) {
+      return Promise.resolve(undefined);
+    }
+
     const correlationId = randomUUID();
     const toolCall = {
       name: tool.name,
@@ -63,6 +79,7 @@ export class MessageBusPlugin extends BasePlugin {
         type: MessageBusType.TOOL_CONFIRMATION_REQUEST,
         toolCall,
         correlationId,
+        details,
       };
 
       try {

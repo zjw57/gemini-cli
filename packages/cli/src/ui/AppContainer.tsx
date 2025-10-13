@@ -13,6 +13,7 @@ import {
   useLayoutEffect,
 } from 'react';
 import { type DOMElement, measureElement } from 'ink';
+import { ToolConfirmationOutcome } from '@google/gemini-cli-core';
 import { App } from './App.js';
 import { AppContext } from './contexts/AppContext.js';
 import { UIStateContext, type UIState } from './contexts/UIStateContext.js';
@@ -501,6 +502,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     shellConfirmationRequest,
     confirmationRequest,
     setConfirmationRequest,
+    setShellConfirmationRequest,
   } = useSlashCommandProcessor(
     config,
     settings,
@@ -524,17 +526,31 @@ Logging in with Google... Please restart Gemini CLI to continue.
     }
 
     const confirmationRequestHandler = (request: ToolConfirmationRequest) => {
-      setConfirmationRequest({
-        prompt: `Allow the following tool to be executed?:\n\nTool: ${request.toolCall.name}\nArgs: ${JSON.stringify(request.toolCall.args, null, 2)}`,
-        onConfirm: (confirmed: boolean) => {
-          messageBus.publish({
-            type: MessageBusType.TOOL_CONFIRMATION_RESPONSE,
-            correlationId: request.correlationId,
-            confirmed,
-          });
-          setConfirmationRequest(null);
-        },
-      });
+      if (request.details?.type === 'exec') {
+        setShellConfirmationRequest({
+          commands: [request.toolCall.args?.['command'] as string],
+          onConfirm: (outcome: ToolConfirmationOutcome) => {
+            messageBus.publish({
+              type: MessageBusType.TOOL_CONFIRMATION_RESPONSE,
+              correlationId: request.correlationId,
+              confirmed: outcome !== ToolConfirmationOutcome.Cancel,
+            });
+            setShellConfirmationRequest(null);
+          },
+        });
+      } else {
+        setConfirmationRequest({
+          prompt: `Allow the following tool to be executed?:\n\nTool: ${request.toolCall.name}\nArgs: ${JSON.stringify(request.toolCall.args, null, 2)}`,
+          onConfirm: (confirmed: boolean) => {
+            messageBus.publish({
+              type: MessageBusType.TOOL_CONFIRMATION_RESPONSE,
+              correlationId: request.correlationId,
+              confirmed,
+            });
+            setConfirmationRequest(null);
+          },
+        });
+      }
     };
 
     messageBus.subscribe(
@@ -548,7 +564,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
         confirmationRequestHandler,
       );
     };
-  }, [config, setConfirmationRequest]);
+  }, [config, setShellConfirmationRequest, setConfirmationRequest]);
 
   const performMemoryRefresh = useCallback(async () => {
     historyManager.addItem(

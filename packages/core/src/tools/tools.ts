@@ -24,7 +24,7 @@ import { BaseTool as AdkBaseTool, type RunAsyncToolRequest } from '@google/adk';
  * with the adk LlmAgent.
  */
 export class AdkToolAdapter extends AdkBaseTool {
-  constructor(private readonly tool: AnyDeclarativeTool) {
+  constructor(readonly tool: AnyDeclarativeTool) {
     super(tool);
   }
 
@@ -464,6 +464,10 @@ export type AnyDeclarativeTool = DeclarativeTool<object, ToolResult>;
  * @param obj The object to check.
  * @returns True if the object is a Tool, false otherwise.
  */
+export function isAdkToolAdapter(obj: unknown): obj is AdkToolAdapter {
+  return obj instanceof AdkToolAdapter;
+}
+
 export function isTool(obj: unknown): obj is AnyDeclarativeTool {
   return (
     typeof obj === 'object' &&

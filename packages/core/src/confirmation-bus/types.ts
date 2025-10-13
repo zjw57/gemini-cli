@@ -5,6 +5,7 @@
  */
 
 import { type FunctionCall } from '@google/genai';
+import { type ToolCallConfirmationDetails } from '../tools/tools.js';
 
 export enum MessageBusType {
   TOOL_CONFIRMATION_REQUEST = 'tool-confirmation-request',
@@ -18,6 +19,7 @@ export interface ToolConfirmationRequest {
   type: MessageBusType.TOOL_CONFIRMATION_REQUEST;
   toolCall: FunctionCall;
   correlationId: string;
+  details?: ToolCallConfirmationDetails;
 }
 
 export interface ToolConfirmationResponse {

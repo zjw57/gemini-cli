@@ -558,6 +558,7 @@ export const useSlashCommandProcessor = (
     pendingHistoryItems,
     commandContext,
     shellConfirmationRequest,
+    setShellConfirmationRequest,
     confirmationRequest,
     setConfirmationRequest,
   };
