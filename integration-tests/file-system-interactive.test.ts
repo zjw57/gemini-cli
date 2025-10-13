@@ -26,7 +26,7 @@ describe('Interactive file system', () => {
     const run = await rig.runInteractive();
 
     // Step 1: Read the file
-    const readPrompt = `Read the version from ${fileName}`;
+    const readPrompt = `Read the content of the file named ${fileName}.`;
     await run.type(readPrompt);
     await run.type('\r');
 
@@ -36,7 +36,7 @@ describe('Interactive file system', () => {
     await run.expectText('1.0.0', 30000);
 
     // Step 2: Write the file
-    const writePrompt = `now change the version to 1.0.1 in the file`;
+    const writePrompt = `Now change the contents of the file named ${fileName} to '1.0.1'.`;
     await run.type(writePrompt);
     await run.type('\r');
 
