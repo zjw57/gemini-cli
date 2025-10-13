@@ -156,14 +156,14 @@ ${textContent}
   ): Promise<ToolCallConfirmationDetails | false> {
     // Try message bus confirmation first if available
     if (this.messageBus) {
-      const messageBusResult = await super.shouldConfirmExecute(abortSignal);
-      // null means ASK_USER - fall through to legacy confirmation
-      // false means ALLOW - no confirmation needed
-      // Error thrown means DENY - execution prevented
-      if (messageBusResult !== null) {
-        return messageBusResult;
+      const decision = await this.getMessageBusDecision(abortSignal);
+      if (decision === 'ALLOW') {
+        return false; // No confirmation needed
       }
-      // Fall through to show legacy confirmation UI for ASK_USER
+      if (decision === 'DENY') {
+        throw new Error('Tool execution denied by policy.');
+      }
+      // if 'ASK_USER', fall through to legacy logic
     }
 
     // Legacy confirmation flow (no message bus OR policy decision was ASK_USER)
