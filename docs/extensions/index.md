@@ -140,7 +140,8 @@ The file has the following structure:
     }
   },
   "contextFileName": "GEMINI.md",
-  "excludeTools": ["run_shell_command"]
+  "excludeTools": ["run_shell_command"],
+  "tags": ["databases", "cloud"]
 }
 ```
 
@@ -169,6 +170,9 @@ The file has the following structure:
   `"excludeTools": ["run_shell_command(rm -rf)"]` will block the `rm -rf`
   command. Note that this differs from the MCP server `excludeTools`
   functionality, which can be listed in the MCP server config.
+- `tags`: An optional array of relevant tags. Supported tags are 'design',
+  'databases', 'cloud', 'services', 'devops', and 'utilities'. These are only
+  used in the [gallery](https://geminicli.com/extensions/) and are not required.
 
 When Gemini CLI starts, it loads all the extensions and merges their
 configurations. If there are any conflicts, the workspace configuration takes
