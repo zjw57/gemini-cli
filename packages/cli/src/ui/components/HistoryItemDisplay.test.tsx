@@ -289,7 +289,7 @@ describe('<HistoryItemDisplay />', () => {
         type: MessageType.USER,
         text: 'Hello',
       };
-      const perfSpy = vi.spyOn(performance, 'now');
+      const perfSpy = vi.spyOn(Date, 'now');
       perfSpy.mockReturnValueOnce(1000);
       perfSpy.mockReturnValueOnce(2000);
       renderWithProviders(<HistoryItemDisplay {...baseItem} item={item} />);
@@ -302,8 +302,9 @@ describe('<HistoryItemDisplay />', () => {
         type: MessageType.USER,
         text: 'Hello',
       };
-      const perfSpy = vi.spyOn(performance, 'now');
+      const perfSpy = vi.spyOn(Date, 'now');
       perfSpy.mockReturnValue(1000);
+      perfSpy.mockReturnValue(1001);
       renderWithProviders(<HistoryItemDisplay {...baseItem} item={item} />);
       expect(recordSlowRender).not.toHaveBeenCalled();
     });

@@ -58,10 +58,10 @@ export const HistoryItemDisplay: React.FC<HistoryItemDisplayProps> = ({
   availableTerminalHeightGemini,
 }) => {
   const config = useConfig();
-  const startTime = useRef(performance.now());
+  const startTime = useRef(Date.now());
 
   useEffect(() => {
-    const endTime = performance.now();
+    const endTime = Date.now();
     const renderTime = endTime - startTime.current;
 
     if (renderTime > SLOW_RENDER_MS) {
