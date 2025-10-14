@@ -56,6 +56,7 @@ class TestToolInvocation extends BaseToolInvocation<TestParams, TestResult> {
   override async shouldConfirmExecute(
     abortSignal: AbortSignal,
   ): Promise<false> {
+    // This conditional is here to allow testing of the case where there is no message bus.
     if (this.messageBus) {
       const decision = await this.getMessageBusDecision(abortSignal);
       if (decision === 'ALLOW') {
