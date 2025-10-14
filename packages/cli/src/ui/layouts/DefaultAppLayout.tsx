@@ -14,6 +14,7 @@ import { ExitWarning } from '../components/ExitWarning.js';
 import { useUIState } from '../contexts/UIStateContext.js';
 import { useFlickerDetector } from '../hooks/useFlickerDetector.js';
 import { useSettings } from '../contexts/SettingsContext.js';
+import { CopyModeWarning } from '../components/CopyModeWarning.js';
 
 export const DefaultAppLayout: React.FC = () => {
   const uiState = useUIState();
@@ -47,6 +48,7 @@ export const DefaultAppLayout: React.FC = () => {
         flexGrow={0}
       >
         <Notifications />
+        <CopyModeWarning />
 
         {uiState.dialogsVisible ? (
           <DialogManager
