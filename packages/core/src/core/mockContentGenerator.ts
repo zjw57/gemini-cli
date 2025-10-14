@@ -39,7 +39,12 @@ export class MockContentGenerator implements ContentGenerator {
   userTier?: UserTierId;
 
   constructor(responses: MockResponses) {
-    this.responses = responses;
+    this.responses = {
+      generateContent: responses.generateContent ?? [],
+      generateContentStream: responses.generateContentStream ?? [],
+      countTokens: responses.countTokens ?? [],
+      embedContent: responses.embedContent ?? [],
+    };
   }
 
   static async fromFile(filePath: string): Promise<MockContentGenerator> {
