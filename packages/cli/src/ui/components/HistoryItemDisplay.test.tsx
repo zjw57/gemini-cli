@@ -10,7 +10,7 @@ import { type HistoryItem, ToolCallStatus } from '../types.js';
 import { MessageType } from '../types.js';
 import { SessionStatsProvider } from '../contexts/SessionContext.js';
 import {
-  type Config,
+  Config,
   type ToolExecuteConfirmationDetails,
   recordSlowRender,
 } from '@google/gemini-cli-core';
@@ -28,6 +28,26 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   return {
     ...actual,
     recordSlowRender: vi.fn(),
+  };
+});
+
+vi.mock('../contexts/ConfigContext.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../contexts/ConfigContext.js')>();
+  return {
+    ...actual,
+    useConfig: vi.fn(
+      () =>
+        new Config({
+          usageStatisticsEnabled: true,
+          debugMode: false,
+          sessionId: 'test-session-id',
+          proxy: undefined,
+          model: 'gemini-9001-super-duper',
+          targetDir: '/',
+          cwd: '/',
+        }),
+    ),
   };
 });
 
@@ -283,9 +303,13 @@ describe('<HistoryItemDisplay />', () => {
   });
 
   describe('slow render logging', () => {
+    beforeEach(() => {
+      vi.resetAllMocks();
+    });
+
     it('should log metric for slow renders', () => {
       const item: HistoryItem = {
-        ...baseItem,
+        id: 1,
         type: MessageType.USER,
         text: 'Hello',
       };
@@ -306,7 +330,7 @@ describe('<HistoryItemDisplay />', () => {
       perfSpy.mockReturnValueOnce(1000);
       perfSpy.mockReturnValueOnce(1001);
       renderWithProviders(<HistoryItemDisplay {...baseItem} item={item} />);
-      expect(recordSlowRender).toHaveBeenCalled();
+      expect(recordSlowRender).not.toHaveBeenCalled();
     });
   });
 });
