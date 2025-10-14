@@ -766,6 +766,7 @@ export async function loadCliConfig(
     codebaseInvestigatorSettings:
       settings.experimental?.codebaseInvestigatorSettings,
     mockResponses: argv.mockResponses,
+    retryFetchErrors: settings.general?.retryFetchErrors ?? false,
   });
 }
 
