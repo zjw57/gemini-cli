@@ -279,6 +279,7 @@ export interface ConfigParameters {
   codebaseInvestigatorSettings?: CodebaseInvestigatorSettings;
   continueOnFailedApiCall?: boolean;
   enableShellOutputEfficiency?: boolean;
+  mockResponses?: string;
 }
 
 export class Config {
@@ -373,6 +374,7 @@ export class Config {
   private readonly codebaseInvestigatorSettings?: CodebaseInvestigatorSettings;
   private readonly continueOnFailedApiCall: boolean;
   private readonly enableShellOutputEfficiency: boolean;
+  readonly mockResponses?: string;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -471,6 +473,7 @@ export class Config {
       params.enableShellOutputEfficiency ?? true;
     this.extensionManagement = params.extensionManagement ?? true;
     this.storage = new Storage(this.targetDir);
+    this.mockResponses = params.mockResponses;
     this.enablePromptCompletion = params.enablePromptCompletion ?? false;
     this.fileExclusions = new FileExclusions(this);
     this.eventEmitter = params.eventEmitter;
