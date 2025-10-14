@@ -15,8 +15,9 @@ import type {
 import { promises } from 'node:fs';
 import type { ContentGenerator } from './contentGenerator.js';
 import type { UserTierId } from '../code_assist/types.js';
+import { safeJsonStringify } from '../utils/safeJsonStringify.js';
 
-type MockResponses = {
+export type MockResponses = {
   generateContent: GenerateContentResponse[];
   generateContentStream: GenerateContentResponse[][];
   countTokens: CountTokensResponse[];
@@ -54,7 +55,10 @@ export class MockContentGenerator implements ContentGenerator {
     const response =
       this.responses.generateContent[this.callCounters.generateContent++];
     if (!response) {
-      throw new Error('No more mock responses for generateContent');
+      throw new Error(
+        'No more mock responses for generateContent, got request:\n' +
+          safeJsonStringify(_request.contents),
+      );
     }
     return Promise.resolve(response);
   }
@@ -68,7 +72,10 @@ export class MockContentGenerator implements ContentGenerator {
         this.callCounters.generateContentStream++
       ];
     if (!responses) {
-      throw new Error('No more mock responses for generateContentStream');
+      throw new Error(
+        'No more mock responses for generateContentStream, got request:\n' +
+          safeJsonStringify(_request.contents),
+      );
     }
 
     async function* stream() {
@@ -84,7 +91,10 @@ export class MockContentGenerator implements ContentGenerator {
     const response =
       this.responses.countTokens[this.callCounters.countTokens++];
     if (!response) {
-      throw new Error('No more mock responses for countTokens');
+      throw new Error(
+        'No more mock responses for countTokens, got request:\n' +
+          safeJsonStringify(_request.contents),
+      );
     }
     return Promise.resolve(response);
   }
@@ -95,7 +105,10 @@ export class MockContentGenerator implements ContentGenerator {
     const response =
       this.responses.embedContent[this.callCounters.embedContent++];
     if (!response) {
-      throw new Error('No more mock responses for embedContent');
+      throw new Error(
+        'No more mock responses for embedContent, got request:\n' +
+          safeJsonStringify(_request.contents),
+      );
     }
     return Promise.resolve(response);
   }

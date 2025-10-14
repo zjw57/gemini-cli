@@ -7,7 +7,7 @@
             "role": "model",
             "parts": [
               {
-                "text": "A summary of the conversation."
+                "text": "This is more than the 5 tokens we return below which will trigger an error"
               }
             ]
           }
@@ -27,9 +27,13 @@
                   "text": "The initial response from the model"
                 }
               ]
-            }
+            },
+            "finishReason": "STOP"
           }
-        ]
+        ],
+        "usageMetadata": {
+          "promptTokenCount": 5
+        }
       }
     ]
   ]

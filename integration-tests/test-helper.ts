@@ -249,7 +249,6 @@ export class TestRig {
     mkdirSync(this.testDir, { recursive: true });
     if (options.mockResponsesPath) {
       this.mockResponsesPath = join(this.testDir, 'mock-responses.json');
-      // copy the file
       fs.copyFileSync(options.mockResponsesPath, this.mockResponsesPath);
     }
 
