@@ -275,7 +275,9 @@ describe('runNonInteractive', () => {
       },
     };
     const toolResponse: Part = { text: 'Tool response' };
-    mockCoreExecuteToolCall.mockResolvedValue({ responseParts: toolResponse });
+    mockCoreExecuteToolCall.mockResolvedValue({
+      response: { responseParts: toolResponse },
+    });
 
     const firstCallEvents: ServerGeminiStreamEvent[] = [toolCallEvent];
     const secondCallEvents: ServerGeminiStreamEvent[] = [
@@ -321,7 +323,9 @@ describe('runNonInteractive', () => {
       },
     };
     const toolResponse: Part = { text: 'Tool response' };
-    mockCoreExecuteToolCall.mockResolvedValue({ responseParts: toolResponse });
+    mockCoreExecuteToolCall.mockResolvedValue({
+      response: { responseParts: toolResponse },
+    });
 
     const firstCallEvents: ServerGeminiStreamEvent[] = [toolCallEvent];
     const secondCallEvents: ServerGeminiStreamEvent[] = [
