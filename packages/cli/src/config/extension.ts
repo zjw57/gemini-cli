@@ -51,6 +51,15 @@ export const EXTENSIONS_DIRECTORY_NAME = path.join(GEMINI_DIR, 'extensions');
 export const EXTENSIONS_CONFIG_FILENAME = 'gemini-extension.json';
 export const INSTALL_METADATA_FILENAME = '.gemini-extension-install.json';
 
+export enum ValidTags {
+  DESIGN = 'design',
+  DATABASES = 'databases',
+  CLOUD = 'cloud',
+  SERVICES = 'services',
+  DEVOPS = 'devops',
+  UTILITIES = 'utilities',
+}
+
 /**
  * Extension definition as written to disk in gemini-extension.json files.
  * This should *not* be referenced outside of the logic for reading files.
@@ -61,6 +70,7 @@ export const INSTALL_METADATA_FILENAME = '.gemini-extension-install.json';
 interface ExtensionConfig {
   name: string;
   version: string;
+  tags?: ValidTags[];
   mcpServers?: Record<string, MCPServerConfig>;
   contextFileName?: string | string[];
   excludeTools?: string[];
@@ -691,6 +701,13 @@ export function loadExtensionConfig(
       throw new Error(
         `Invalid configuration in ${configFilePath}: missing ${!rawConfig.name ? '"name"' : '"version"'}`,
       );
+    }
+    if (rawConfig.tags) {
+      for (const tag of rawConfig.tags) {
+        if (!Object.values(ValidTags).includes(tag)) {
+          throw new Error(`Invalid tag "${tag}" in extension config`);
+        }
+      }
     }
     const installDir = new ExtensionStorage(rawConfig.name).getExtensionDir();
     const config = recursivelyHydrateStrings(

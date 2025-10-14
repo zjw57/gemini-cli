@@ -501,6 +501,42 @@ describe('extension tests', () => {
     });
   });
 
+  describe('loadExtensionConfig', () => {
+    it('should load a valid extension config', () => {
+      const extensionDir = createExtension({
+        extensionsDir: userExtensionsDir,
+        name: 'test-extension',
+        version: '1.0.0',
+        tags: ['design', 'cloud'],
+      });
+
+      const config = loadExtensionConfig({
+        extensionDir,
+        workspaceDir: tempWorkspaceDir,
+      });
+
+      expect(config.name).toBe('test-extension');
+      expect(config.version).toBe('1.0.0');
+      expect(config.tags).toEqual(['design', 'cloud']);
+    });
+
+    it('should throw an error for invalid tags', () => {
+      const extensionDir = createExtension({
+        extensionsDir: userExtensionsDir,
+        name: 'test-extension',
+        version: '1.0.0',
+        tags: ['design', 'invalid-tag'],
+      });
+
+      expect(() =>
+        loadExtensionConfig({
+          extensionDir,
+          workspaceDir: tempWorkspaceDir,
+        }),
+      ).toThrow('Invalid tag "invalid-tag" in extension config');
+    });
+  });
+
   describe('annotateActiveExtensions', () => {
     const extensions: GeminiCLIExtension[] = [
       {

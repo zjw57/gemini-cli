@@ -23,12 +23,13 @@ export function createExtension({
   contextFileName = undefined as string | undefined,
   mcpServers = {} as Record<string, MCPServerConfig>,
   installMetadata = undefined as ExtensionInstallMetadata | undefined,
+  tags = [] as string[],
 } = {}): string {
   const extDir = path.join(extensionsDir, name);
   fs.mkdirSync(extDir, { recursive: true });
   fs.writeFileSync(
     path.join(extDir, EXTENSIONS_CONFIG_FILENAME),
-    JSON.stringify({ name, version, contextFileName, mcpServers }),
+    JSON.stringify({ name, version, contextFileName, mcpServers, tags }),
   );
 
   if (addContextFile) {
