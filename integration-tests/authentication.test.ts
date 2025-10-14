@@ -198,20 +198,15 @@ describe('authentication', () => {
 
     // We expect this to fail because it's a non-interactive environment
     // and it will try to launch a browser.
-    const { ptyProcess, promise } = rig.runInteractive('hello');
+    const interactiveRun = await rig.runInteractive(['hello'], {
+      waitForReady: false,
+    });
 
-    const foundPrompt = await rig.waitForText(
-      'Enter the authorization code:',
-      15000,
-    );
+    await interactiveRun.expectText('Enter the authorization code:', 15000);
 
     // Kill the process once we've seen the prompt.
-    ptyProcess.kill();
+    await interactiveRun.kill();
     // Wait for the process to fully exit.
-    await promise;
-
-    expect(foundPrompt, 'Expected to see the authorization code prompt').toBe(
-      true,
-    );
+    await interactiveRun.expectExit();
   });
 });
