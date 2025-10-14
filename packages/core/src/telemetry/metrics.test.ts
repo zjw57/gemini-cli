@@ -92,6 +92,7 @@ describe('Telemetry Metrics', () => {
   let recordGenAiClientTokenUsageModule: typeof import('./metrics.js').recordGenAiClientTokenUsage;
   let recordGenAiClientOperationDurationModule: typeof import('./metrics.js').recordGenAiClientOperationDuration;
   let recordFlickerFrameModule: typeof import('./metrics.js').recordFlickerFrame;
+  let recordSlowRenderModule: typeof import('./metrics.js').recordSlowRender;
   let recordAgentRunMetricsModule: typeof import('./metrics.js').recordAgentRunMetrics;
 
   beforeEach(async () => {
@@ -133,6 +134,7 @@ describe('Telemetry Metrics', () => {
     recordGenAiClientOperationDurationModule =
       metricsJsModule.recordGenAiClientOperationDuration;
     recordFlickerFrameModule = metricsJsModule.recordFlickerFrame;
+    recordSlowRenderModule = metricsJsModule.recordSlowRender;
     recordAgentRunMetricsModule = metricsJsModule.recordAgentRunMetrics;
 
     const otelApiModule = await import('@opentelemetry/api');
@@ -161,6 +163,28 @@ describe('Telemetry Metrics', () => {
       recordFlickerFrameModule(config);
 
       // Called for session, then for flicker
+      expect(mockCounterAddFn).toHaveBeenCalledTimes(2);
+      expect(mockCounterAddFn).toHaveBeenNthCalledWith(2, 1, {
+        'session.id': 'test-session-id',
+        'installation.id': 'test-installation-id',
+        'user.email': 'test@example.com',
+      });
+    });
+  });
+
+  describe('recordSlowRender', () => {
+    it('does not record metrics if not initialized', () => {
+      const config = makeFakeConfig({});
+      recordSlowRenderModule(config);
+      expect(mockCounterAddFn).not.toHaveBeenCalled();
+    });
+
+    it('records a slow render event when initialized', () => {
+      const config = makeFakeConfig({});
+      initializeMetricsModule(config);
+      recordSlowRenderModule(config);
+
+      // Called for session, then for slow render
       expect(mockCounterAddFn).toHaveBeenCalledTimes(2);
       expect(mockCounterAddFn).toHaveBeenNthCalledWith(2, 1, {
         'session.id': 'test-session-id',
