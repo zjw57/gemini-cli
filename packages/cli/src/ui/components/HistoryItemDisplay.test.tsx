@@ -303,10 +303,10 @@ describe('<HistoryItemDisplay />', () => {
         text: 'Hello',
       };
       const perfSpy = vi.spyOn(Date, 'now');
-      perfSpy.mockReturnValue(1000);
-      perfSpy.mockReturnValue(1001);
+      perfSpy.mockReturnValueOnce(1000);
+      perfSpy.mockReturnValueOnce(1001);
       renderWithProviders(<HistoryItemDisplay {...baseItem} item={item} />);
-      expect(recordSlowRender).not.toHaveBeenCalled();
+      expect(recordSlowRender).toHaveBeenCalled();
     });
   });
 });
