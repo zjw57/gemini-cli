@@ -441,7 +441,7 @@ export class Config {
     this.enableToolOutputTruncation = params.enableToolOutputTruncation ?? true;
     this.useSmartEdit = params.useSmartEdit ?? true;
     this.useWriteTodos = params.useWriteTodos ?? false;
-    this.useModelRouter = params.useModelRouter ?? false;
+    this.useModelRouter = params.useModelRouter ?? true;
     this.enableMessageBusIntegration =
       params.enableMessageBusIntegration ?? false;
     this.enableSubagents = params.enableSubagents ?? false;
