@@ -52,6 +52,22 @@ class TestToolInvocation extends BaseToolInvocation<TestParams, TestResult> {
       testValue: this.params.testParam,
     };
   }
+
+  override async shouldConfirmExecute(
+    abortSignal: AbortSignal,
+  ): Promise<false> {
+    // This conditional is here to allow testing of the case where there is no message bus.
+    if (this.messageBus) {
+      const decision = await this.getMessageBusDecision(abortSignal);
+      if (decision === 'ALLOW') {
+        return false;
+      }
+      if (decision === 'DENY') {
+        throw new Error('Tool execution denied by policy');
+      }
+    }
+    return false;
+  }
 }
 
 class TestTool extends BaseDeclarativeTool<TestParams, TestResult> {
