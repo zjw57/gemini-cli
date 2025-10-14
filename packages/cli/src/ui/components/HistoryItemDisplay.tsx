@@ -67,9 +67,6 @@ export const HistoryItemDisplay: React.FC<HistoryItemDisplayProps> = ({
     if (renderTime > SLOW_RENDER_MS) {
       recordSlowRender(config);
     }
-
-    // Log to the terminal
-    console.log(`[Static] Initial Render Time: ${renderTime.toFixed(3)}ms`);
   }, [config]);
   const itemForDisplay = useMemo(() => escapeAnsiCtrlCodes(item), [item]);
 

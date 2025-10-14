@@ -9,9 +9,10 @@ import { HistoryItemDisplay } from './HistoryItemDisplay.js';
 import { type HistoryItem, ToolCallStatus } from '../types.js';
 import { MessageType } from '../types.js';
 import { SessionStatsProvider } from '../contexts/SessionContext.js';
-import type {
-  Config,
-  ToolExecuteConfirmationDetails,
+import {
+  type Config,
+  type ToolExecuteConfirmationDetails,
+  recordSlowRender,
 } from '@google/gemini-cli-core';
 import { ToolGroupMessage } from './messages/ToolGroupMessage.js';
 import { renderWithProviders } from '../../test-utils/render.js';
@@ -20,6 +21,15 @@ import { renderWithProviders } from '../../test-utils/render.js';
 vi.mock('./messages/ToolGroupMessage.js', () => ({
   ToolGroupMessage: vi.fn(() => <div />),
 }));
+
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
+  return {
+    ...actual,
+    recordSlowRender: vi.fn(),
+  };
+});
 
 describe('<HistoryItemDisplay />', () => {
   const mockConfig = {} as unknown as Config;
@@ -133,6 +143,7 @@ describe('<HistoryItemDisplay />', () => {
 
   it('should escape ANSI codes in text content', () => {
     const historyItem: HistoryItem = {
+      ...baseItem,
       id: 1,
       type: 'user',
       text: 'Hello, \u001b[31mred\u001b[0m world!',
@@ -269,5 +280,32 @@ describe('<HistoryItemDisplay />', () => {
     );
 
     expect(lastFrame()).toMatchSnapshot();
+  });
+
+  describe('slow render logging', () => {
+    it('should log metric for slow renders', () => {
+      const item: HistoryItem = {
+        ...baseItem,
+        type: MessageType.USER,
+        text: 'Hello',
+      };
+      const perfSpy = vi.spyOn(performance, 'now');
+      perfSpy.mockReturnValueOnce(1000);
+      perfSpy.mockReturnValueOnce(2000);
+      renderWithProviders(<HistoryItemDisplay {...baseItem} item={item} />);
+      expect(recordSlowRender).toHaveBeenCalled();
+    });
+
+    it('should not log metric for fast renders', () => {
+      const item: HistoryItem = {
+        ...baseItem,
+        type: MessageType.USER,
+        text: 'Hello',
+      };
+      const perfSpy = vi.spyOn(performance, 'now');
+      perfSpy.mockReturnValue(1000);
+      renderWithProviders(<HistoryItemDisplay {...baseItem} item={item} />);
+      expect(recordSlowRender).not.toHaveBeenCalled();
+    });
   });
 });
