@@ -5,7 +5,7 @@
  */
 
 import type React from 'react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { escapeAnsiCtrlCodes } from '../utils/textUtils.js';
 import type { HistoryItem } from '../types.js';
 import { UserMessage } from './messages/UserMessage.js';
@@ -54,6 +54,15 @@ export const HistoryItemDisplay: React.FC<HistoryItemDisplayProps> = ({
   embeddedShellFocused,
   availableTerminalHeightGemini,
 }) => {
+  const startTime = useRef(performance.now());
+
+  useEffect(() => {
+    const endTime = performance.now();
+    const renderTime = endTime - startTime.current;
+
+    // Log to the terminal
+    console.log(`[Static] Initial Render Time: ${renderTime.toFixed(3)}ms`);
+  }, []);
   const itemForDisplay = useMemo(() => escapeAnsiCtrlCodes(item), [item]);
 
   return (
