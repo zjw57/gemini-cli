@@ -902,7 +902,7 @@ export class TestRig {
   }
 
   async runInteractive(
-    args: string[],
+    args: string[] = [],
     options: { waitForReady?: boolean } = {},
   ): Promise<InteractiveRun> {
     const { waitForReady = true } = options;
