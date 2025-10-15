@@ -32,9 +32,16 @@ inputs:
   a2a-package-name:
     description: 'The name of the a2a package.'
     required: true
+<<<<<<< HEAD
   tag-a2a:
     type: 'boolean'
     required: true
+=======
+  working-directory:
+    description: 'The working directory to run the commands in.'
+    required: false
+    default: '.'
+>>>>>>> 05daeaac89511ac76c4d46bd57fd91a50e0f3df1
 
 runs:
   using: 'composite'
@@ -48,7 +55,7 @@ runs:
     - name: 'Setup Node.js'
       uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
       with:
-        node-version-file: '.nvmrc'
+        node-version-file: '${{ inputs.working-directory }}/.nvmrc'
 
     - name: 'configure .npmrc'
       uses: './.github/actions/setup-npmrc'
@@ -71,6 +78,7 @@ runs:
       env:
         NODE_AUTH_TOKEN: '${{ steps.core-token.outputs.auth-token }}'
       shell: 'bash'
+      working-directory: '${{ inputs.working-directory }}'
       run: |
         npm dist-tag add ${{ inputs.core-package-name }}@${{ inputs.version }} ${{ inputs.channel }}
 
@@ -90,6 +98,7 @@ runs:
       env:
         NODE_AUTH_TOKEN: '${{ steps.cli-token.outputs.auth-token }}'
       shell: 'bash'
+      working-directory: '${{ inputs.working-directory }}'
       run: |
         npm dist-tag add ${{ inputs.cli-package-name }}@${{ inputs.version }} ${{ inputs.channel }}
 
@@ -109,6 +118,7 @@ runs:
       env:
         NODE_AUTH_TOKEN: '${{ steps.a2a-token.outputs.auth-token }}'
       shell: 'bash'
+      working-directory: '${{ inputs.working-directory }}'
       run: |
         npm dist-tag add ${{ inputs.a2a-package-name }}@${{ inputs.version }} ${{ inputs.channel }}
 
@@ -116,5 +126,6 @@ runs:
       if: |-
         ${{ inputs.dry-run == 'true' }}
       shell: 'bash'
+      working-directory: '${{ inputs.working-directory }}'
       run: |
         echo "Dry run: Would have added tag '${{ inputs.channel }}' to version '${{ inputs.version }}' for ${{ inputs.cli-package-name }}, ${{ inputs.core-package-name }}, and ${{ inputs.a2a-package-name }}."
