@@ -16,6 +16,7 @@ import * as pty from '@lydell/node-pty';
 import stripAnsi from 'strip-ansi';
 import * as os from 'node:os';
 import { GEMINI_DIR } from '../packages/core/src/utils/paths.js';
+import crypto from 'node:crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -230,7 +231,6 @@ export class TestRig {
   testDir: string | null;
   testName?: string;
   _lastRunStdout?: string;
-  private static runCounter = 0;
 
   constructor() {
     this.bundlePath = join(__dirname, '..', 'bundle/gemini.js');
@@ -243,8 +243,8 @@ export class TestRig {
   ) {
     this.testName = testName;
     const sanitizedName = sanitizeTestName(testName);
-    const runId = (++TestRig.runCounter).toString(36).padStart(4, '0');
-    const uniqueName = `${sanitizedName}-${runId}`;
+    const randomSuffix = crypto.randomBytes(2).toString('hex');
+    const uniqueName = `${sanitizedName}-${randomSuffix}`;
     this.testDir = join(env['INTEGRATION_TEST_FILE_DIR']!, uniqueName);
     mkdirSync(this.testDir, { recursive: true });
 
