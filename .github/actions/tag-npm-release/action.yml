@@ -100,7 +100,7 @@ runs:
 
     - name: 'Change tag for a2a'
       if: |-
-        ${{ inputs.dry-run == 'false' && inputs.a2a-package-name != '' }}
+        ${{ inputs.dry-run == 'false' && inputs.tag-a2a == 'true' }}
       env:
         NODE_AUTH_TOKEN: '${{ inputs.wombat-token-a2a-server }}'
       shell: 'bash'
