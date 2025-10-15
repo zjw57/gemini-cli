@@ -82,10 +82,30 @@ function defaultShouldRetry(
  * @param ms The number of milliseconds to delay.
  * @returns A promise that resolves after the delay.
  */
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const abortError = new Error('Aborted');
+    if (signal?.aborted) {
+      return reject(abortError);
+    }
 
+    const onAbort = () => {
+      clearTimeout(timeoutId);
+      reject(abortError);
+    };
+
+    const onTimeout = () => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    };
+
+    const timeoutId = setTimeout(onTimeout, ms);
+
+    if (signal) {
+      signal.addEventListener('abort', onAbort, { once: true });
+    }
+  });
+}
 /**
  * Retries a function with exponential backoff and jitter.
  * @param fn The asynchronous function to retry.
@@ -141,13 +161,17 @@ export async function retryWithBackoff<T>(
       ) {
         const jitter = currentDelay * 0.3 * (Math.random() * 2 - 1);
         const delayWithJitter = Math.max(0, currentDelay + jitter);
-        await delay(delayWithJitter);
+        await delay(delayWithJitter, signal);
         currentDelay = Math.min(maxDelayMs, currentDelay * 2);
         continue;
       }
 
       return result;
     } catch (error) {
+      if (error instanceof Error && error.message === 'Aborted') {
+        throw error;
+      }
+
       const classifiedError = classifyGoogleError(error);
 
       if (classifiedError instanceof TerminalQuotaError) {
@@ -176,7 +200,7 @@ export async function retryWithBackoff<T>(
         console.warn(
           `Attempt ${attempt} failed: ${classifiedError.message}. Retrying after ${classifiedError.retryDelayMs}ms...`,
         );
-        await delay(classifiedError.retryDelayMs);
+        await delay(classifiedError.retryDelayMs, signal);
         continue;
       }
 
@@ -194,7 +218,7 @@ export async function retryWithBackoff<T>(
       // Exponential backoff with jitter for non-quota errors
       const jitter = currentDelay * 0.3 * (Math.random() * 2 - 1);
       const delayWithJitter = Math.max(0, currentDelay + jitter);
-      await delay(delayWithJitter);
+      await delay(delayWithJitter, signal);
       currentDelay = Math.min(maxDelayMs, currentDelay * 2);
     }
   }
