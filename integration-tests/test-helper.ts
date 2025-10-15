@@ -230,6 +230,7 @@ export class TestRig {
   testDir: string | null;
   testName?: string;
   _lastRunStdout?: string;
+  private static runCounter = 0;
 
   constructor() {
     this.bundlePath = join(__dirname, '..', 'bundle/gemini.js');
@@ -242,7 +243,9 @@ export class TestRig {
   ) {
     this.testName = testName;
     const sanitizedName = sanitizeTestName(testName);
-    this.testDir = join(env['INTEGRATION_TEST_FILE_DIR']!, sanitizedName);
+    const runId = (++TestRig.runCounter).toString(36).padStart(4, '0');
+    const uniqueName = `${sanitizedName}-${runId}`;
+    this.testDir = join(env['INTEGRATION_TEST_FILE_DIR']!, uniqueName);
     mkdirSync(this.testDir, { recursive: true });
 
     // Create a settings file to point the CLI to the local collector
