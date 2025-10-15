@@ -41,6 +41,7 @@ import {
   getAllGeminiMdFilenames,
   AuthType,
   clearCachedCredentialFile,
+  recordExitFail,
   ShellExecutionService,
 } from '@google/gemini-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
@@ -899,6 +900,9 @@ Logging in with Google... Please restart Gemini CLI to continue.
         if (timerRef.current) {
           clearTimeout(timerRef.current);
         }
+        if (pressCount >= 2) {
+          recordExitFail(config);
+        }
         handleSlashCommand('/quit');
       } else {
         if (timerRef.current) {
@@ -910,7 +914,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
         }, CTRL_EXIT_PROMPT_DURATION_MS);
       }
     },
-    [handleSlashCommand],
+    [handleSlashCommand, config],
   );
 
   const handleGlobalKeypress = useCallback(
