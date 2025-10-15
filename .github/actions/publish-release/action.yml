@@ -246,7 +246,7 @@ runs:
         cli-package-name: '${{ inputs.cli-package-name }}'
         core-package-name: '${{ inputs.core-package-name }}'
         a2a-package-name: '${{ inputs.a2a-package-name }}'
-        tag-a2a: "${{ github.event.inputs.environment == 'prod' }}" # TODO(richieforeman): A2A Deploy is broken on dev.
+        tag-a2a: false # TODO(richieforeman): A2A Deploy is broken on dev.
 
     - name: '🎉 Create GitHub Release'
       working-directory: '${{ inputs.working-directory }}'
