@@ -6,14 +6,51 @@
 
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useShellHistory } from './useShellHistory.js';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as os from 'os';
-import * as crypto from 'crypto';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import * as crypto from 'node:crypto';
+import { GEMINI_DIR } from '@google/gemini-cli-core';
 
-vi.mock('fs/promises');
-vi.mock('os');
-vi.mock('crypto');
+vi.mock('node:fs/promises', () => ({
+  readFile: vi.fn(),
+  writeFile: vi.fn(),
+  mkdir: vi.fn(),
+}));
+vi.mock('node:os');
+vi.mock('node:crypto');
+vi.mock('node:fs', async (importOriginal) => {
+  const actualFs = await importOriginal<typeof import('node:fs')>();
+  return {
+    ...actualFs,
+    mkdirSync: vi.fn(),
+  };
+});
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
+  const path = await import('node:path');
+  class Storage {
+    getProjectTempDir(): string {
+      return path.join('/test/home/', actual.GEMINI_DIR, 'tmp', 'mocked_hash');
+    }
+    getHistoryFilePath(): string {
+      return path.join(
+        '/test/home/',
+        actual.GEMINI_DIR,
+        'tmp',
+        'mocked_hash',
+        'shell_history',
+      );
+    }
+  }
+  return {
+    ...actual,
+    isNodeError: (err: unknown): err is NodeJS.ErrnoException =>
+      typeof err === 'object' && err !== null && 'code' in err,
+    Storage,
+  };
+});
 
 const MOCKED_PROJECT_ROOT = '/test/project';
 const MOCKED_HOME_DIR = '/test/home';
@@ -21,7 +58,7 @@ const MOCKED_PROJECT_HASH = 'mocked_hash';
 
 const MOCKED_HISTORY_DIR = path.join(
   MOCKED_HOME_DIR,
-  '.gemini',
+  GEMINI_DIR,
   'tmp',
   MOCKED_PROJECT_HASH,
 );

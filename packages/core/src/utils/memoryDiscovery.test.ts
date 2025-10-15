@@ -5,16 +5,16 @@
  */
 
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import * as fsPromises from 'fs/promises';
-import * as os from 'os';
-import * as path from 'path';
+import * as fsPromises from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { loadServerHierarchicalMemory } from './memoryDiscovery.js';
 import {
-  GEMINI_CONFIG_DIR,
   setGeminiMdFilename,
   DEFAULT_CONTEXT_FILENAME,
 } from '../tools/memoryTool.js';
 import { FileDiscoveryService } from '../services/fileDiscoveryService.js';
+import { GEMINI_DIR } from './paths.js';
 
 vi.mock('os', async (importOriginal) => {
   const actualOs = await importOriginal<typeof os>();
@@ -25,6 +25,7 @@ vi.mock('os', async (importOriginal) => {
 });
 
 describe('loadServerHierarchicalMemory', () => {
+  const DEFAULT_FOLDER_TRUST = true;
   let testRootDir: string;
   let cwd: string;
   let projectRoot: string;
@@ -48,8 +49,8 @@ describe('loadServerHierarchicalMemory', () => {
 
     vi.resetAllMocks();
     // Set environment variables to indicate test environment
-    process.env.NODE_ENV = 'test';
-    process.env.VITEST = 'true';
+    vi.stubEnv('NODE_ENV', 'test');
+    vi.stubEnv('VITEST', 'true');
 
     projectRoot = await createEmptyDir(path.join(testRootDir, 'project'));
     cwd = await createEmptyDir(path.join(projectRoot, 'src'));
@@ -58,10 +59,71 @@ describe('loadServerHierarchicalMemory', () => {
   });
 
   afterEach(async () => {
+    vi.unstubAllEnvs();
     // Some tests set this to a different value.
     setGeminiMdFilename(DEFAULT_CONTEXT_FILENAME);
     // Clean up the temporary directory to prevent resource leaks.
-    await fsPromises.rm(testRootDir, { recursive: true, force: true });
+    // Use maxRetries option for robust cleanup without race conditions
+    await fsPromises.rm(testRootDir, {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+      retryDelay: 10,
+    });
+  });
+
+  describe('when untrusted', () => {
+    it('does not load context files from untrusted workspaces', async () => {
+      await createTestFile(
+        path.join(projectRoot, DEFAULT_CONTEXT_FILENAME),
+        'Project root memory',
+      );
+      await createTestFile(
+        path.join(cwd, DEFAULT_CONTEXT_FILENAME),
+        'Src directory memory',
+      );
+      const result = await loadServerHierarchicalMemory(
+        cwd,
+        [],
+        false,
+        new FileDiscoveryService(projectRoot),
+        [],
+        false, // untrusted
+      );
+
+      expect(result).toEqual({
+        memoryContent: '',
+        fileCount: 0,
+        filePaths: [],
+      });
+    });
+
+    it('loads context from outside the untrusted workspace', async () => {
+      await createTestFile(
+        path.join(projectRoot, DEFAULT_CONTEXT_FILENAME),
+        'Project root memory', // Untrusted
+      );
+      await createTestFile(
+        path.join(cwd, DEFAULT_CONTEXT_FILENAME),
+        'Src directory memory', // Untrusted
+      );
+
+      const filepath = path.join(homedir, GEMINI_DIR, DEFAULT_CONTEXT_FILENAME);
+      await createTestFile(filepath, 'default context content'); // In user home dir (outside untrusted space).
+      const { fileCount, memoryContent, filePaths } =
+        await loadServerHierarchicalMemory(
+          cwd,
+          [],
+          false,
+          new FileDiscoveryService(projectRoot),
+          [],
+          false, // untrusted
+        );
+
+      expect(fileCount).toEqual(1);
+      expect(memoryContent).toContain(path.relative(cwd, filepath).toString());
+      expect(filePaths).toEqual([filepath]);
+    });
   });
 
   it('should return empty memory and count if no context files are found', async () => {
@@ -70,17 +132,20 @@ describe('loadServerHierarchicalMemory', () => {
       [],
       false,
       new FileDiscoveryService(projectRoot),
+      [],
+      DEFAULT_FOLDER_TRUST,
     );
 
     expect(result).toEqual({
       memoryContent: '',
       fileCount: 0,
+      filePaths: [],
     });
   });
 
   it('should load only the global context file if present and others are not (default filename)', async () => {
     const defaultContextFile = await createTestFile(
-      path.join(homedir, GEMINI_CONFIG_DIR, DEFAULT_CONTEXT_FILENAME),
+      path.join(homedir, GEMINI_DIR, DEFAULT_CONTEXT_FILENAME),
       'default context content',
     );
 
@@ -89,11 +154,16 @@ describe('loadServerHierarchicalMemory', () => {
       [],
       false,
       new FileDiscoveryService(projectRoot),
+      [],
+      DEFAULT_FOLDER_TRUST,
     );
 
     expect(result).toEqual({
-      memoryContent: `--- Context from: ${path.relative(cwd, defaultContextFile)} ---\ndefault context content\n--- End of Context from: ${path.relative(cwd, defaultContextFile)} ---`,
+      memoryContent: `--- Context from: ${path.relative(cwd, defaultContextFile)} ---
+default context content
+--- End of Context from: ${path.relative(cwd, defaultContextFile)} ---`,
       fileCount: 1,
+      filePaths: [defaultContextFile],
     });
   });
 
@@ -102,7 +172,7 @@ describe('loadServerHierarchicalMemory', () => {
     setGeminiMdFilename(customFilename);
 
     const customContextFile = await createTestFile(
-      path.join(homedir, GEMINI_CONFIG_DIR, customFilename),
+      path.join(homedir, GEMINI_DIR, customFilename),
       'custom context content',
     );
 
@@ -111,11 +181,16 @@ describe('loadServerHierarchicalMemory', () => {
       [],
       false,
       new FileDiscoveryService(projectRoot),
+      [],
+      DEFAULT_FOLDER_TRUST,
     );
 
     expect(result).toEqual({
-      memoryContent: `--- Context from: ${path.relative(cwd, customContextFile)} ---\ncustom context content\n--- End of Context from: ${path.relative(cwd, customContextFile)} ---`,
+      memoryContent: `--- Context from: ${path.relative(cwd, customContextFile)} ---
+custom context content
+--- End of Context from: ${path.relative(cwd, customContextFile)} ---`,
       fileCount: 1,
+      filePaths: [customContextFile],
     });
   });
 
@@ -137,11 +212,20 @@ describe('loadServerHierarchicalMemory', () => {
       [],
       false,
       new FileDiscoveryService(projectRoot),
+      [],
+      DEFAULT_FOLDER_TRUST,
     );
 
     expect(result).toEqual({
-      memoryContent: `--- Context from: ${path.relative(cwd, projectContextFile)} ---\nproject context content\n--- End of Context from: ${path.relative(cwd, projectContextFile)} ---\n\n--- Context from: ${path.relative(cwd, cwdContextFile)} ---\ncwd context content\n--- End of Context from: ${path.relative(cwd, cwdContextFile)} ---`,
+      memoryContent: `--- Context from: ${path.relative(cwd, projectContextFile)} ---
+project context content
+--- End of Context from: ${path.relative(cwd, projectContextFile)} ---
+
+--- Context from: ${path.relative(cwd, cwdContextFile)} ---
+cwd context content
+--- End of Context from: ${path.relative(cwd, cwdContextFile)} ---`,
       fileCount: 2,
+      filePaths: [projectContextFile, cwdContextFile],
     });
   });
 
@@ -149,22 +233,34 @@ describe('loadServerHierarchicalMemory', () => {
     const customFilename = 'LOCAL_CONTEXT.md';
     setGeminiMdFilename(customFilename);
 
-    await createTestFile(
+    const subdirCustomFile = await createTestFile(
       path.join(cwd, 'subdir', customFilename),
       'Subdir custom memory',
     );
-    await createTestFile(path.join(cwd, customFilename), 'CWD custom memory');
+    const cwdCustomFile = await createTestFile(
+      path.join(cwd, customFilename),
+      'CWD custom memory',
+    );
 
     const result = await loadServerHierarchicalMemory(
       cwd,
       [],
       false,
       new FileDiscoveryService(projectRoot),
+      [],
+      DEFAULT_FOLDER_TRUST,
     );
 
     expect(result).toEqual({
-      memoryContent: `--- Context from: ${customFilename} ---\nCWD custom memory\n--- End of Context from: ${customFilename} ---\n\n--- Context from: ${path.join('subdir', customFilename)} ---\nSubdir custom memory\n--- End of Context from: ${path.join('subdir', customFilename)} ---`,
+      memoryContent: `--- Context from: ${customFilename} ---
+CWD custom memory
+--- End of Context from: ${customFilename} ---
+
+--- Context from: ${path.join('subdir', customFilename)} ---
+Subdir custom memory
+--- End of Context from: ${path.join('subdir', customFilename)} ---`,
       fileCount: 2,
+      filePaths: [cwdCustomFile, subdirCustomFile],
     });
   });
 
@@ -183,20 +279,29 @@ describe('loadServerHierarchicalMemory', () => {
       [],
       false,
       new FileDiscoveryService(projectRoot),
+      [],
+      DEFAULT_FOLDER_TRUST,
     );
 
     expect(result).toEqual({
-      memoryContent: `--- Context from: ${path.relative(cwd, projectRootGeminiFile)} ---\nProject root memory\n--- End of Context from: ${path.relative(cwd, projectRootGeminiFile)} ---\n\n--- Context from: ${path.relative(cwd, srcGeminiFile)} ---\nSrc directory memory\n--- End of Context from: ${path.relative(cwd, srcGeminiFile)} ---`,
+      memoryContent: `--- Context from: ${path.relative(cwd, projectRootGeminiFile)} ---
+Project root memory
+--- End of Context from: ${path.relative(cwd, projectRootGeminiFile)} ---
+
+--- Context from: ${path.relative(cwd, srcGeminiFile)} ---
+Src directory memory
+--- End of Context from: ${path.relative(cwd, srcGeminiFile)} ---`,
       fileCount: 2,
+      filePaths: [projectRootGeminiFile, srcGeminiFile],
     });
   });
 
   it('should load ORIGINAL_GEMINI_MD_FILENAME files by downward traversal from CWD', async () => {
-    await createTestFile(
+    const subDirGeminiFile = await createTestFile(
       path.join(cwd, 'subdir', DEFAULT_CONTEXT_FILENAME),
       'Subdir memory',
     );
-    await createTestFile(
+    const cwdGeminiFile = await createTestFile(
       path.join(cwd, DEFAULT_CONTEXT_FILENAME),
       'CWD memory',
     );
@@ -206,17 +311,26 @@ describe('loadServerHierarchicalMemory', () => {
       [],
       false,
       new FileDiscoveryService(projectRoot),
+      [],
+      DEFAULT_FOLDER_TRUST,
     );
 
     expect(result).toEqual({
-      memoryContent: `--- Context from: ${DEFAULT_CONTEXT_FILENAME} ---\nCWD memory\n--- End of Context from: ${DEFAULT_CONTEXT_FILENAME} ---\n\n--- Context from: ${path.join('subdir', DEFAULT_CONTEXT_FILENAME)} ---\nSubdir memory\n--- End of Context from: ${path.join('subdir', DEFAULT_CONTEXT_FILENAME)} ---`,
+      memoryContent: `--- Context from: ${DEFAULT_CONTEXT_FILENAME} ---
+CWD memory
+--- End of Context from: ${DEFAULT_CONTEXT_FILENAME} ---
+
+--- Context from: ${path.join('subdir', DEFAULT_CONTEXT_FILENAME)} ---
+Subdir memory
+--- End of Context from: ${path.join('subdir', DEFAULT_CONTEXT_FILENAME)} ---`,
       fileCount: 2,
+      filePaths: [cwdGeminiFile, subDirGeminiFile],
     });
   });
 
   it('should load and correctly order global, upward, and downward ORIGINAL_GEMINI_MD_FILENAME files', async () => {
     const defaultContextFile = await createTestFile(
-      path.join(homedir, GEMINI_CONFIG_DIR, DEFAULT_CONTEXT_FILENAME),
+      path.join(homedir, GEMINI_DIR, DEFAULT_CONTEXT_FILENAME),
       'default context content',
     );
     const rootGeminiFile = await createTestFile(
@@ -241,11 +355,38 @@ describe('loadServerHierarchicalMemory', () => {
       [],
       false,
       new FileDiscoveryService(projectRoot),
+      [],
+      DEFAULT_FOLDER_TRUST,
     );
 
     expect(result).toEqual({
-      memoryContent: `--- Context from: ${path.relative(cwd, defaultContextFile)} ---\ndefault context content\n--- End of Context from: ${path.relative(cwd, defaultContextFile)} ---\n\n--- Context from: ${path.relative(cwd, rootGeminiFile)} ---\nProject parent memory\n--- End of Context from: ${path.relative(cwd, rootGeminiFile)} ---\n\n--- Context from: ${path.relative(cwd, projectRootGeminiFile)} ---\nProject root memory\n--- End of Context from: ${path.relative(cwd, projectRootGeminiFile)} ---\n\n--- Context from: ${path.relative(cwd, cwdGeminiFile)} ---\nCWD memory\n--- End of Context from: ${path.relative(cwd, cwdGeminiFile)} ---\n\n--- Context from: ${path.relative(cwd, subDirGeminiFile)} ---\nSubdir memory\n--- End of Context from: ${path.relative(cwd, subDirGeminiFile)} ---`,
+      memoryContent: `--- Context from: ${path.relative(cwd, defaultContextFile)} ---
+default context content
+--- End of Context from: ${path.relative(cwd, defaultContextFile)} ---
+
+--- Context from: ${path.relative(cwd, rootGeminiFile)} ---
+Project parent memory
+--- End of Context from: ${path.relative(cwd, rootGeminiFile)} ---
+
+--- Context from: ${path.relative(cwd, projectRootGeminiFile)} ---
+Project root memory
+--- End of Context from: ${path.relative(cwd, projectRootGeminiFile)} ---
+
+--- Context from: ${path.relative(cwd, cwdGeminiFile)} ---
+CWD memory
+--- End of Context from: ${path.relative(cwd, cwdGeminiFile)} ---
+
+--- Context from: ${path.relative(cwd, subDirGeminiFile)} ---
+Subdir memory
+--- End of Context from: ${path.relative(cwd, subDirGeminiFile)} ---`,
       fileCount: 5,
+      filePaths: [
+        defaultContextFile,
+        rootGeminiFile,
+        projectRootGeminiFile,
+        cwdGeminiFile,
+        subDirGeminiFile,
+      ],
     });
   });
 
@@ -268,6 +409,7 @@ describe('loadServerHierarchicalMemory', () => {
       false,
       new FileDiscoveryService(projectRoot),
       [],
+      DEFAULT_FOLDER_TRUST,
       'tree',
       {
         respectGitIgnore: true,
@@ -277,8 +419,11 @@ describe('loadServerHierarchicalMemory', () => {
     );
 
     expect(result).toEqual({
-      memoryContent: `--- Context from: ${path.relative(cwd, regularSubDirGeminiFile)} ---\nMy code memory\n--- End of Context from: ${path.relative(cwd, regularSubDirGeminiFile)} ---`,
+      memoryContent: `--- Context from: ${path.relative(cwd, regularSubDirGeminiFile)} ---
+My code memory
+--- End of Context from: ${path.relative(cwd, regularSubDirGeminiFile)} ---`,
       fileCount: 1,
+      filePaths: [regularSubDirGeminiFile],
     });
   });
 
@@ -287,9 +432,11 @@ describe('loadServerHierarchicalMemory', () => {
       .spyOn(console, 'debug')
       .mockImplementation(() => {});
 
-    for (let i = 0; i < 100; i++) {
-      await createEmptyDir(path.join(cwd, `deep_dir_${i}`));
-    }
+    // Create directories in parallel for better performance
+    const dirPromises = Array.from({ length: 2 }, (_, i) =>
+      createEmptyDir(path.join(cwd, `deep_dir_${i}`)),
+    );
+    await Promise.all(dirPromises);
 
     // Pass the custom limit directly to the function
     await loadServerHierarchicalMemory(
@@ -298,17 +445,18 @@ describe('loadServerHierarchicalMemory', () => {
       true,
       new FileDiscoveryService(projectRoot),
       [],
+      DEFAULT_FOLDER_TRUST,
       'tree', // importFormat
       {
         respectGitIgnore: true,
         respectGeminiIgnore: true,
       },
-      50, // maxDirs
+      1, // maxDirs
     );
 
     expect(consoleDebugSpy).toHaveBeenCalledWith(
       expect.stringContaining('[DEBUG] [BfsFileSearch]'),
-      expect.stringContaining('Scanning [50/50]:'),
+      expect.stringContaining('Scanning [1/1]:'),
     );
 
     vi.mocked(console.debug).mockRestore();
@@ -318,11 +466,14 @@ describe('loadServerHierarchicalMemory', () => {
       [],
       false,
       new FileDiscoveryService(projectRoot),
+      [],
+      DEFAULT_FOLDER_TRUST,
     );
 
     expect(result).toEqual({
       memoryContent: '',
       fileCount: 0,
+      filePaths: [],
     });
   });
 
@@ -338,11 +489,15 @@ describe('loadServerHierarchicalMemory', () => {
       false,
       new FileDiscoveryService(projectRoot),
       [extensionFilePath],
+      DEFAULT_FOLDER_TRUST,
     );
 
     expect(result).toEqual({
-      memoryContent: `--- Context from: ${path.relative(cwd, extensionFilePath)} ---\nExtension memory content\n--- End of Context from: ${path.relative(cwd, extensionFilePath)} ---`,
+      memoryContent: `--- Context from: ${path.relative(cwd, extensionFilePath)} ---
+Extension memory content
+--- End of Context from: ${path.relative(cwd, extensionFilePath)} ---`,
       fileCount: 1,
+      filePaths: [extensionFilePath],
     });
   });
 
@@ -360,11 +515,94 @@ describe('loadServerHierarchicalMemory', () => {
       [includedDir],
       false,
       new FileDiscoveryService(projectRoot),
+      [],
+      DEFAULT_FOLDER_TRUST,
     );
 
     expect(result).toEqual({
-      memoryContent: `--- Context from: ${path.relative(cwd, includedFile)} ---\nincluded directory memory\n--- End of Context from: ${path.relative(cwd, includedFile)} ---`,
+      memoryContent: `--- Context from: ${path.relative(cwd, includedFile)} ---
+included directory memory
+--- End of Context from: ${path.relative(cwd, includedFile)} ---`,
       fileCount: 1,
+      filePaths: [includedFile],
     });
+  });
+
+  it('should handle multiple directories and files in parallel correctly', async () => {
+    // Create multiple test directories with GEMINI.md files
+    const numDirs = 5;
+    const createdFiles: string[] = [];
+
+    for (let i = 0; i < numDirs; i++) {
+      const dirPath = await createEmptyDir(
+        path.join(testRootDir, `project-${i}`),
+      );
+      const filePath = await createTestFile(
+        path.join(dirPath, DEFAULT_CONTEXT_FILENAME),
+        `Content from project ${i}`,
+      );
+      createdFiles.push(filePath);
+    }
+
+    // Load memory from all directories
+    const result = await loadServerHierarchicalMemory(
+      cwd,
+      createdFiles.map((f) => path.dirname(f)),
+      false,
+      new FileDiscoveryService(projectRoot),
+      [],
+      DEFAULT_FOLDER_TRUST,
+    );
+
+    // Should have loaded all files
+    expect(result.fileCount).toBe(numDirs);
+    expect(result.filePaths.length).toBe(numDirs);
+    expect(result.filePaths.sort()).toEqual(createdFiles.sort());
+
+    // Content should include all project contents
+    for (let i = 0; i < numDirs; i++) {
+      expect(result.memoryContent).toContain(`Content from project ${i}`);
+    }
+  });
+
+  it('should preserve order and prevent duplicates when processing multiple directories', async () => {
+    // Create overlapping directory structure
+    const parentDir = await createEmptyDir(path.join(testRootDir, 'parent'));
+    const childDir = await createEmptyDir(path.join(parentDir, 'child'));
+
+    const parentFile = await createTestFile(
+      path.join(parentDir, DEFAULT_CONTEXT_FILENAME),
+      'Parent content',
+    );
+    const childFile = await createTestFile(
+      path.join(childDir, DEFAULT_CONTEXT_FILENAME),
+      'Child content',
+    );
+
+    // Include both parent and child directories
+    const result = await loadServerHierarchicalMemory(
+      parentDir,
+      [childDir, parentDir], // Deliberately include duplicates
+      false,
+      new FileDiscoveryService(projectRoot),
+      [],
+      DEFAULT_FOLDER_TRUST,
+    );
+
+    // Should have both files without duplicates
+    expect(result.fileCount).toBe(2);
+    expect(result.memoryContent).toContain('Parent content');
+    expect(result.memoryContent).toContain('Child content');
+    expect(result.filePaths.sort()).toEqual([parentFile, childFile].sort());
+
+    // Check that files are not duplicated
+    const parentOccurrences = (
+      result.memoryContent.match(/Parent content/g) || []
+    ).length;
+    const childOccurrences = (
+      result.memoryContent.match(/Child content/g) || []
+    ).length;
+    expect(parentOccurrences).toBe(1);
+    expect(childOccurrences).toBe(1);
   });
 });
