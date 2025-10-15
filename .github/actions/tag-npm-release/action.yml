@@ -32,11 +32,9 @@ inputs:
   a2a-package-name:
     description: 'The name of the a2a package.'
     required: true
-  ref:
-    description: 'The branch, tag, or SHA to release from.'
-    required: false
-    type: 'string'
-    default: 'main'
+  tag-a2a:
+    type: 'boolean'
+    required: true
 
 runs:
   using: 'composite'
@@ -46,12 +44,6 @@ runs:
       env:
         JSON_INPUTS: '${{ toJSON(inputs) }}'
       run: 'echo "$JSON_INPUTS"'
-
-    - name: 'Checkout'
-      uses: 'actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955' # ratchet:actions/checkout@v4
-      with:
-        ref: '${{ github.event.inputs.ref }}'
-        fetch-depth: 0
 
     - name: 'Setup Node.js'
       uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
@@ -101,18 +93,28 @@ runs:
       run: |
         npm dist-tag add ${{ inputs.cli-package-name }}@${{ inputs.version }} ${{ inputs.channel }}
 
-    - name: 'Change tag for @google/gemini-cli-a2a-server'
+    - name: 'Get a2a Token'
+      uses: './.github/actions/npm-auth-token'
+      id: 'a2a-token'
+      with:
+        package-name: '${{ inputs.a2a-package-name }}'
+        github-token: '${{ inputs.github-token }}'
+        wombat-token-core: '${{ inputs.wombat-token-core }}'
+        wombat-token-cli: '${{ inputs.wombat-token-cli }}'
+        wombat-token-a2a-server: '${{ inputs.wombat-token-a2a-server }}'
+
+    - name: 'Change tag for a2a'
       if: |-
-        ${{ inputs.dry-run == 'false' }}
+        ${{ inputs.dry-run == 'false' && inputs.tag-a2a == 'true' }}
       env:
-        NODE_AUTH_TOKEN: '${{ inputs.wombat-token-a2a-server }}'
+        NODE_AUTH_TOKEN: '${{ steps.a2a-token.outputs.auth-token }}'
       shell: 'bash'
       run: |
-        npm dist-tag add @google/gemini-cli-a2a-server@${{ inputs.version }} ${{ inputs.channel }}
+        npm dist-tag add ${{ inputs.a2a-package-name }}@${{ inputs.version }} ${{ inputs.channel }}
 
     - name: 'Log dry run'
       if: |-
         ${{ inputs.dry-run == 'true' }}
       shell: 'bash'
       run: |
-        echo "Dry run: Would have added tag '${{ inputs.channel }}' to version '${{ inputs.version }}' for @google/gemini-cli and @google/gemini-cli-core."
+        echo "Dry run: Would have added tag '${{ inputs.channel }}' to version '${{ inputs.version }}' for ${{ inputs.cli-package-name }}, ${{ inputs.core-package-name }}, and ${{ inputs.a2a-package-name }}."

@@ -210,6 +210,7 @@ runs:
 
     - name: '📦 Publish a2a'
       working-directory: '${{ inputs.working-directory }}'
+      if: "inputs.npm-registry-url != 'https://npm.pkg.github.com/'"
       env:
         NODE_AUTH_TOKEN: '${{ steps.a2a-token.outputs.auth-token }}'
       shell: 'bash'
@@ -218,7 +219,7 @@ runs:
         npm publish \
           --dry-run="${{ inputs.dry-run }}" \
           --workspace="${{ inputs.a2a-package-name }}" \
-          --no-TARGET_TAG
+          --no-tag
 
     - name: '🔬 Verify NPM release by version'
       uses: './.github/actions/verify-release'
@@ -234,7 +235,6 @@ runs:
 
     - name: '🏷️ Tag release'
       uses: './.github/actions/tag-npm-release'
-      if: "${{ inputs.dry-run != 'true' }}"
       with:
         channel: '${{ inputs.npm-tag }}'
         version: '${{ inputs.release-version }}'
@@ -246,6 +246,7 @@ runs:
         cli-package-name: '${{ inputs.cli-package-name }}'
         core-package-name: '${{ inputs.core-package-name }}'
         a2a-package-name: '${{ inputs.a2a-package-name }}'
+        tag-a2a: false # TODO(richieforeman): A2A Deploy is broken on dev.
 
     - name: '🎉 Create GitHub Release'
       working-directory: '${{ inputs.working-directory }}'
