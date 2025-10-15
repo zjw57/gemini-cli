@@ -45,6 +45,7 @@ import { ExtensionEnablementManager } from './extensions/extensionEnablement.js'
 import chalk from 'chalk';
 import type { ConfirmationRequest } from '../ui/types.js';
 import { escapeAnsiCtrlCodes } from '../ui/utils/textUtils.js';
+import { z } from 'zod';
 
 export const EXTENSIONS_DIRECTORY_NAME = path.join(GEMINI_DIR, 'extensions');
 
@@ -67,14 +68,21 @@ export enum ValidTags {
  * outside of the loading process that data needs to be stored on the
  * GeminiCLIExtension class defined in Core.
  */
-interface ExtensionConfig {
-  name: string;
-  version: string;
-  tags?: ValidTags[];
+const ExtensionConfigSchema = z.object({
+  name: z.string(),
+  version: z.string(),
+  tags: z.array(z.nativeEnum(ValidTags)).optional(),
+  mcpServers: z.record(z.any()).optional(),
+  contextFileName: z.union([z.string(), z.array(z.string())]).optional(),
+  excludeTools: z.array(z.string()).optional(),
+});
+
+type ExtensionConfig = Omit<
+  z.infer<typeof ExtensionConfigSchema>,
+  'mcpServers'
+> & {
   mcpServers?: Record<string, MCPServerConfig>;
-  contextFileName?: string | string[];
-  excludeTools?: string[];
-}
+};
 
 export interface ExtensionUpdateInfo {
   name: string;
@@ -696,22 +704,14 @@ export function loadExtensionConfig(
   }
   try {
     const configContent = fs.readFileSync(configFilePath, 'utf-8');
-    const rawConfig = JSON.parse(configContent) as ExtensionConfig;
-    if (!rawConfig.name || !rawConfig.version) {
-      throw new Error(
-        `Invalid configuration in ${configFilePath}: missing ${!rawConfig.name ? '"name"' : '"version"'}`,
-      );
-    }
-    if (rawConfig.tags) {
-      for (const tag of rawConfig.tags) {
-        if (!Object.values(ValidTags).includes(tag)) {
-          throw new Error(`Invalid tag "${tag}" in extension config`);
-        }
-      }
-    }
-    const installDir = new ExtensionStorage(rawConfig.name).getExtensionDir();
+    const rawConfig = JSON.parse(configContent);
+    const parsedConfig = ExtensionConfigSchema.parse(rawConfig);
+
+    const installDir = new ExtensionStorage(
+      parsedConfig.name,
+    ).getExtensionDir();
     const config = recursivelyHydrateStrings(
-      rawConfig as unknown as JsonObject,
+      parsedConfig as unknown as JsonObject,
       {
         extensionPath: installDir,
         workspacePath: workspaceDir,

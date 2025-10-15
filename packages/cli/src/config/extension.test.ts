@@ -449,11 +449,8 @@ describe('extension tests', () => {
       expect(extensions[0].name).toBe('good-ext');
       expect(consoleSpy).toHaveBeenCalledOnce();
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          `Warning: Skipping extension in ${badExtDir}: Failed to load extension config from ${badConfigPath}: Invalid configuration in ${badConfigPath}: missing "name"`,
-        ),
+        expect.stringContaining(`Warning: Skipping extension in ${badExtDir}`),
       );
-
       consoleSpy.mockRestore();
     });
 
@@ -533,7 +530,7 @@ describe('extension tests', () => {
           extensionDir,
           workspaceDir: tempWorkspaceDir,
         }),
-      ).toThrow('Invalid tag "invalid-tag" in extension config');
+      ).toThrow('Invalid enum value');
     });
   });
 
@@ -828,9 +825,7 @@ describe('extension tests', () => {
           { source: sourceExtDir, type: 'local' },
           async (_) => true,
         ),
-      ).rejects.toThrow(
-        `Invalid configuration in ${configPath}: missing "name"`,
-      );
+      ).rejects.toThrow('Required');
     });
 
     it('should install an extension from a git URL', async () => {
