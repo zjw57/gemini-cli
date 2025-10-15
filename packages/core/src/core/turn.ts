@@ -236,9 +236,11 @@ export class Turn {
         model,
         {
           message: req,
+          config: {
+            abortSignal: signal,
+          },
         },
         this.prompt_id,
-        signal,
       );
 
       for await (const streamEvent of responseStream) {

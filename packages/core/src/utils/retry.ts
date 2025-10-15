@@ -32,6 +32,7 @@ export interface RetryOptions {
   ) => Promise<string | boolean | null>;
   authType?: string;
   retryFetchErrors?: boolean;
+  signal?: AbortSignal;
 }
 
 const DEFAULT_RETRY_OPTIONS: RetryOptions = {
@@ -93,11 +94,10 @@ function delay(ms: number): Promise<void> {
  * @throws The last error encountered if all attempts fail.
  */
 export async function retryWithBackoff<T>(
-  fn: (signal: AbortSignal) => Promise<T>,
+  fn: () => Promise<T>,
   options?: Partial<RetryOptions>,
 ): Promise<T> {
-  const signal = options?.signal;
-  if (signal?.aborted) {
+  if (options?.signal?.aborted) {
     throw new Error('Aborted');
   }
 
@@ -105,7 +105,6 @@ export async function retryWithBackoff<T>(
     throw new Error('maxAttempts must be a positive number.');
   }
 
-  // Filter key-value pairs when value is null or undefined
   const cleanOptions = options
     ? Object.fromEntries(Object.entries(options).filter(([_, v]) => v != null))
     : {};
@@ -119,6 +118,7 @@ export async function retryWithBackoff<T>(
     shouldRetryOnError,
     shouldRetryOnContent,
     retryFetchErrors,
+    signal,
   } = {
     ...DEFAULT_RETRY_OPTIONS,
     ...cleanOptions,
@@ -128,6 +128,9 @@ export async function retryWithBackoff<T>(
   let currentDelay = initialDelayMs;
 
   while (attempt < maxAttempts) {
+    if (signal?.aborted) {
+      throw new Error('Aborted');
+    }
     attempt++;
     try {
       const result = await fn();

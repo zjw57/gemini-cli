@@ -227,7 +227,6 @@ export class GeminiChat {
     model: string,
     params: SendMessageParameters,
     prompt_id: string,
-    signal?: AbortSignal,
   ): Promise<AsyncGenerator<StreamEvent>> {
     await this.sendPromise;
 
@@ -287,7 +286,6 @@ export class GeminiChat {
               requestContents,
               currentParams,
               prompt_id,
-              signal,
             );
 
             for await (const chunk of stream) {
@@ -351,7 +349,7 @@ export class GeminiChat {
     params: SendMessageParameters,
     prompt_id: string,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
-    const apiCall = (signal: AbortSignal) => {
+    const apiCall = () => {
       const modelToUse = getEffectiveModel(
         this.config.isInFallbackMode(),
         model,
@@ -373,7 +371,6 @@ export class GeminiChat {
           config: { ...this.generationConfig, ...params.config },
         },
         prompt_id,
-        signal,
       );
     };
 
