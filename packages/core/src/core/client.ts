@@ -118,7 +118,7 @@ const MAX_TURNS = 100;
  * Threshold for compression token count as a fraction of the model's token limit.
  * If the chat history exceeds this threshold, it will be compressed.
  */
-const COMPRESSION_TOKEN_THRESHOLD = 0.2;
+const COMPRESSION_TOKEN_THRESHOLD = 0.15;
 
 /**
  * The fraction of the latest chat history to keep. A value of 0.3
