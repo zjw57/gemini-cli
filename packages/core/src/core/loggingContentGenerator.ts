@@ -106,11 +106,16 @@ export class LoggingContentGenerator implements ContentGenerator {
   async generateContent(
     req: GenerateContentParameters,
     userPromptId: string,
+    signal?: AbortSignal,
   ): Promise<GenerateContentResponse> {
     const startTime = Date.now();
     this.logApiRequest(toContents(req.contents), req.model, userPromptId);
     try {
-      const response = await this.wrapped.generateContent(req, userPromptId);
+      const response = await this.wrapped.generateContent(
+        req,
+        userPromptId,
+        signal,
+      );
       const durationMs = Date.now() - startTime;
       this._logApiResponse(
         durationMs,
@@ -130,13 +135,18 @@ export class LoggingContentGenerator implements ContentGenerator {
   async generateContentStream(
     req: GenerateContentParameters,
     userPromptId: string,
+    signal?: AbortSignal,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
     const startTime = Date.now();
     this.logApiRequest(toContents(req.contents), req.model, userPromptId);
 
     let stream: AsyncGenerator<GenerateContentResponse>;
     try {
-      stream = await this.wrapped.generateContentStream(req, userPromptId);
+      stream = await this.wrapped.generateContentStream(
+        req,
+        userPromptId,
+        signal,
+      );
     } catch (error) {
       const durationMs = Date.now() - startTime;
       this._logApiError(durationMs, error, req.model, userPromptId);

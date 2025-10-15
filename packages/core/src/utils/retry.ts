@@ -93,13 +93,19 @@ function delay(ms: number): Promise<void> {
  * @throws The last error encountered if all attempts fail.
  */
 export async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
+  fn: (signal: AbortSignal) => Promise<T>,
   options?: Partial<RetryOptions>,
 ): Promise<T> {
+  const signal = options?.signal;
+  if (signal?.aborted) {
+    throw new Error('Aborted');
+  }
+
   if (options?.maxAttempts !== undefined && options.maxAttempts <= 0) {
     throw new Error('maxAttempts must be a positive number.');
   }
 
+  // Filter key-value pairs when value is null or undefined
   const cleanOptions = options
     ? Object.fromEntries(Object.entries(options).filter(([_, v]) => v != null))
     : {};

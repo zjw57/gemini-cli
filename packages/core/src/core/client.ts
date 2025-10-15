@@ -515,6 +515,7 @@ My setup is complete. I will provide my first command in the next turn.
         type: GeminiEventType.ContextWindowWillOverflow,
         value: { estimatedRequestTokenCount, remainingTokenCount },
       };
+      // Is this intentional? If this happens we should not be about to do another Turn
       return new Turn(this.getChat(), prompt_id);
     }
 
@@ -676,12 +677,11 @@ My setup is complete. I will provide my first command in the next turn.
       const systemInstruction = getCoreSystemPrompt(this.config, userMemory);
 
       const requestConfig: GenerateContentConfig = {
-        abortSignal,
         ...configToUse,
         systemInstruction,
       };
 
-      const apiCall = () => {
+      const apiCall = (signal: AbortSignal) => {
         const modelToUse = this.config.isInFallbackMode()
           ? DEFAULT_GEMINI_FLASH_MODEL
           : model;
@@ -694,6 +694,7 @@ My setup is complete. I will provide my first command in the next turn.
             contents,
           },
           this.lastPromptId,
+          signal,
         );
       };
       const onPersistent429Callback = async (
@@ -706,6 +707,7 @@ My setup is complete. I will provide my first command in the next turn.
       const result = await retryWithBackoff(apiCall, {
         onPersistent429: onPersistent429Callback,
         authType: this.config.getContentGeneratorConfig()?.authType,
+        signal: abortSignal,
       });
       return result;
     } catch (error: unknown) {
