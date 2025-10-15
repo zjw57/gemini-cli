@@ -273,10 +273,19 @@ export class GeminiChat {
               yield { type: StreamEventType.RETRY };
             }
 
+            // If this is a retry, set temperature to 1 to encourage different output.
+            const currentParams = { ...params };
+            if (attempt > 0) {
+              currentParams.config = {
+                ...currentParams.config,
+                temperature: 1,
+              };
+            }
+
             const stream = await self.makeApiCallAndProcessStream(
               model,
               requestContents,
-              params,
+              currentParams,
               prompt_id,
             );
 
@@ -326,10 +335,6 @@ export class GeminiChat {
                 model,
               ),
             );
-          }
-          // If the stream fails, remove the user message that was added.
-          if (self.history[self.history.length - 1] === userContent) {
-            self.history.pop();
           }
           throw lastError;
         }
