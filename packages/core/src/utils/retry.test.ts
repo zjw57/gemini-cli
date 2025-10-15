@@ -503,7 +503,9 @@ describe('retryWithBackoff', () => {
   it('should abort the retry loop when the signal is aborted', async () => {
     const abortController = new AbortController();
     const mockFn = vi.fn().mockImplementation(async () => {
-      throw new RetryableQuotaError('Per-minute limit', {} as any, 12.345);
+      const error: HttpError = new Error('Server error');
+      error.status = 500;
+      throw error;
     });
 
     const promise = retryWithBackoff(mockFn, {
@@ -513,7 +515,9 @@ describe('retryWithBackoff', () => {
     });
 
     // eslint-disable-next-line vitest/valid-expect
-    const assertPromise = expect(promise).rejects.toThrow('Aborted');
+    const assertPromise = expect(promise).rejects.toThrow(
+      expect.objectContaining({ name: 'AbortError' }),
+    );
     await vi.advanceTimersByTimeAsync(50);
 
     abortController.abort();

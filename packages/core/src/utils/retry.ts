@@ -84,6 +84,7 @@ function defaultShouldRetry(
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const abortError = new Error('Aborted');
+    abortError.name = 'AbortError';
     if (signal?.aborted) {
       return reject(abortError);
     }
@@ -168,7 +169,7 @@ export async function retryWithBackoff<T>(
 
       return result;
     } catch (error) {
-      if (error instanceof Error && error.message === 'Aborted') {
+      if (error instanceof Error && error.name === 'AbortError') {
         throw error;
       }
 
