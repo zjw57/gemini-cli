@@ -55,6 +55,11 @@ updatePackageJson('packages/cli/package.json', (pkg) => {
   delete pkg.config; // Deletes the sandboxImageUri
 });
 
+// Update @google/gemini-cli
+updatePackageJson('packages/a2a/package.json', (pkg) => {
+  pkg.name = '@google-gemini/gemini-cli-a2a-server';
+});
+
 // Update @google/gemini-cli-core
 updatePackageJson('packages/core/package.json', (pkg) => {
   pkg.name = '@google-gemini/gemini-cli-core';

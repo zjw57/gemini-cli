@@ -210,7 +210,6 @@ runs:
 
     - name: '📦 Publish a2a'
       working-directory: '${{ inputs.working-directory }}'
-      if: "inputs.npm-registry-url != 'https://npm.pkg.github.com/'"
       env:
         NODE_AUTH_TOKEN: '${{ steps.a2a-token.outputs.auth-token }}'
       shell: 'bash'
