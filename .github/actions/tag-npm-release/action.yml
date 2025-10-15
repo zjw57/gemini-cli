@@ -32,16 +32,10 @@ inputs:
   a2a-package-name:
     description: 'The name of the a2a package.'
     required: true
-<<<<<<< HEAD
-  tag-a2a:
-    type: 'boolean'
-    required: true
-=======
   working-directory:
     description: 'The working directory to run the commands in.'
     required: false
     default: '.'
->>>>>>> 05daeaac89511ac76c4d46bd57fd91a50e0f3df1
 
 runs:
   using: 'composite'
@@ -114,7 +108,7 @@ runs:
 
     - name: 'Change tag for a2a'
       if: |-
-        ${{ inputs.dry-run == 'false' && inputs.tag-a2a == 'true' }}
+        ${{ inputs.dry-run == 'false' }}
       env:
         NODE_AUTH_TOKEN: '${{ steps.a2a-token.outputs.auth-token }}'
       shell: 'bash'
