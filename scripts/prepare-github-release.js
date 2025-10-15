@@ -56,7 +56,7 @@ updatePackageJson('packages/cli/package.json', (pkg) => {
 });
 
 // Update @google/gemini-cli
-updatePackageJson('packages/a2a/package.json', (pkg) => {
+updatePackageJson('packages/a2a-server/package.json', (pkg) => {
   pkg.name = '@google-gemini/gemini-cli-a2a-server';
 });
 
