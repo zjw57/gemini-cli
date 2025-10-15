@@ -894,13 +894,13 @@ Logging in with Google... Please restart Gemini CLI to continue.
       setPressCount: (value: number) => void,
       timerRef: React.MutableRefObject<NodeJS.Timeout | null>,
     ) => {
+      setPressCount(pressCount + 1);
       if (pressCount >= 1) {
         if (timerRef.current) {
           clearTimeout(timerRef.current);
         }
         handleSlashCommand('/quit');
       } else {
-        setPressCount(pressCount + 1);
         if (timerRef.current) {
           clearTimeout(timerRef.current);
         }
