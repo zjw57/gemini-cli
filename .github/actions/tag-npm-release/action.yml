@@ -116,16 +116,6 @@ runs:
       run: |
         npm dist-tag add ${{ inputs.a2a-package-name }}@${{ inputs.version }} ${{ inputs.channel }}
 
-    - name: 'Purge `false` tag'
-      if: |-
-        ${{ inputs.dry-run == 'false' }}
-      shell: 'bash'
-      working-directory: '${{ inputs.working-directory }}'
-      run: |
-        npm dist-tag rm ${{inputs.cli-package-name}} false --silent
-        npm dist-tag rm ${{inputs.core-package-name}} false --silent
-        npm dist-tag rm ${{inputs.a2a-package-name}} false --silent
-
     - name: 'Log dry run'
       if: |-
         ${{ inputs.dry-run == 'true' }}
