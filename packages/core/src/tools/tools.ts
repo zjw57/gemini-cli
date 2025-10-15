@@ -100,7 +100,7 @@ export abstract class BaseToolInvocation<
     protected readonly messageBus?: MessageBus,
   ) {
     if (this.messageBus) {
-      console.log(
+      console.debug(
         `[DEBUG] Tool ${this.constructor.name} created with messageBus: YES`,
       );
     }
@@ -134,7 +134,7 @@ export abstract class BaseToolInvocation<
       args: this.params as Record<string, unknown>,
     };
 
-    return new Promise<'ALLOW' | 'DENY' | 'ASK_USER'>((resolve, reject) => {
+    return new Promise<'ALLOW' | 'DENY' | 'ASK_USER'>((resolve) => {
       if (!this.messageBus) {
         resolve('ALLOW');
         return;
@@ -156,11 +156,11 @@ export abstract class BaseToolInvocation<
 
       const abortHandler = () => {
         cleanup();
-        reject(new Error('Tool confirmation aborted'));
+        resolve('DENY');
       };
 
       if (abortSignal.aborted) {
-        reject(new Error('Tool confirmation aborted'));
+        resolve('DENY');
         return;
       }
 
@@ -172,7 +172,7 @@ export abstract class BaseToolInvocation<
           } else if (response.confirmed) {
             resolve('ALLOW');
           } else {
-            reject(new Error('Tool execution denied by policy'));
+            resolve('DENY');
           }
         }
       };
@@ -181,7 +181,7 @@ export abstract class BaseToolInvocation<
 
       timeoutId = setTimeout(() => {
         cleanup();
-        resolve('ALLOW'); // Default to ALLOW on timeout
+        resolve('ASK_USER'); // Default to ASK_USER on timeout
       }, 30000);
 
       this.messageBus.subscribe(
