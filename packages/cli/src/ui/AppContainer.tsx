@@ -895,7 +895,6 @@ Logging in with Google... Please restart Gemini CLI to continue.
       setPressCount: (value: number) => void,
       timerRef: React.MutableRefObject<NodeJS.Timeout | null>,
     ) => {
-      setPressCount(pressCount + 1);
       // User has triggered exit keys multiple times within CTRL_EXIT_PROMPT_DURATION_MS
       if (pressCount >= 2) {
         recordExitFail(config);
@@ -914,6 +913,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
           timerRef.current = null;
         }, CTRL_EXIT_PROMPT_DURATION_MS);
       }
+      setPressCount(pressCount + 1);
     },
     [handleSlashCommand, config],
   );
