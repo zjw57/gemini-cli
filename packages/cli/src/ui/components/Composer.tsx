@@ -147,9 +147,11 @@ export const Composer = () => {
           vimHandleInput={uiActions.vimHandleInput}
           isEmbeddedShellFocused={uiState.embeddedShellFocused}
           placeholder={
-            vimEnabled
-              ? "  Press 'i' for INSERT mode and 'Esc' for NORMAL mode."
-              : '  Type your message or @path/to/file'
+            uiState.streamingState === StreamingState.Responding
+              ? '  ≡ Queue your next message'
+              : vimEnabled
+                ? "  Press 'i' for INSERT mode and 'Esc' for NORMAL mode."
+                : '  Type your message or @path/to/file'
           }
           setQueueErrorMessage={uiActions.setQueueErrorMessage}
           streamingState={uiState.streamingState}
