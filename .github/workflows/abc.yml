@@ -14,6 +14,12 @@ jobs:
       name: ${{ github.event.pull_request.head.repo.fork && 'e2e-on-fork' || '' }}
 
     steps:
+      - name: 'Debug PR context'
+        run: |
+          echo "PR Head Repo Full Name: ${{ github.event.pull_request.head.repo.full_name }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Is Fork: ${{ github.event.pull_request.head.repo.fork }}"
+
       # We must checkout the specific PR head SHA because this workflow runs in the context
       # of the base branch, not the PR merge commit.
       - name: 'Checkout PR code'
