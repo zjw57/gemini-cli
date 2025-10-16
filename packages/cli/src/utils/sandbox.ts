@@ -742,8 +742,9 @@ export async function start_sandbox(
       const originalCommand = finalEntrypoint[2];
       const escapedOriginalCommand = originalCommand.replace(/'/g, "'\\''");
 
-      // Use `su -p` to preserve the environment.
-      const suCommand = `su -p ${username} -c '${escapedOriginalCommand}'`;
+      // Use `su -p` to preserve the environment, but explicitly set HOME
+      // to ensure it's correct for the new user in the container context.
+      const suCommand = `su -p ${username} -c 'HOME="${homeDir}" ${escapedOriginalCommand}'`;
 
       // The entrypoint is always `['bash', '-c', '<command>']`, so we modify the command part.
       finalEntrypoint[2] = `${setupUserCommands} && ${suCommand}`;
