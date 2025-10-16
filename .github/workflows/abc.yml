@@ -4,22 +4,26 @@ on:
   pull_request_target:
 
 jobs:
+  check-fork:
+    name: 'Check if PR is from a fork'
+    runs-on: 'ubuntu-latest'
+    outputs:
+      is-fork: ${{ steps.check_fork.outputs.is-fork }}
+    steps:
+      - id: check_fork
+        run: echo "is-fork=${{ github.event.pull_request.head.repo.fork }}" >> $GITHUB_OUTPUT
+
   run-tests:
     name: 'Run Tests'
+    needs: check-fork
     runs-on: 'ubuntu-latest'
 
     # For PRs from forks, require approval via an environment.
     # For internal PRs (from the same repo), run without approval.
     environment:
-      name: ${{ github.event.pull_request.head.repo.fork && 'e2e-on-fork' || '' }}
+      name: ${{ needs.check-fork.outputs.is-fork == 'true' && 'e2e-on-fork' || '' }}
 
     steps:
-      - name: 'Debug PR context'
-        run: |
-          echo "PR Head Repo Full Name: ${{ github.event.pull_request.head.repo.full_name }}"
-          echo "Repository: ${{ github.repository }}"
-          echo "Is Fork: ${{ github.event.pull_request.head.repo.fork }}"
-
       # We must checkout the specific PR head SHA because this workflow runs in the context
       # of the base branch, not the PR merge commit.
       - name: 'Checkout PR code'
