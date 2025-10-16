@@ -118,6 +118,14 @@ runs:
           echo "Dry run enabled. Skipping push."
         fi
 
+    # TODO: Refactor this github specific publishing script to be generalized based upon inputs.
+    - name: '📦 Prepare for GitHub release'
+      if: "inputs.npm-registry-url == 'https://npm.pkg.github.com/'"
+      working-directory: '${{ inputs.working-directory }}'
+      shell: 'bash'
+      run: |
+        node ${{ github.workspace }}/scripts/prepare-github-release.js
+
     - name: '🛠️ Build and Prepare Packages'
       working-directory: '${{ inputs.working-directory }}'
       shell: 'bash'
@@ -130,14 +138,6 @@ runs:
       shell: 'bash'
       run: |
         npm run bundle
-
-    # TODO: Refactor this github specific publishing script to be generalized based upon inputs.
-    - name: '📦 Prepare for GitHub release'
-      if: "inputs.npm-registry-url == 'https://npm.pkg.github.com/'"
-      working-directory: '${{ inputs.working-directory }}'
-      shell: 'bash'
-      run: |
-        node ${{ github.workspace }}/scripts/prepare-github-release.js
 
     - name: 'Configure npm for publishing to npm'
       uses: 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020'
