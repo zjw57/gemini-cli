@@ -20,7 +20,6 @@ import {
   loadExtension,
   loadExtensionConfig,
   loadExtensions,
-  performWorkspaceExtensionMigration,
   uninstallExtension,
 } from './extension.js';
 import {
@@ -154,9 +153,7 @@ describe('extension tests', () => {
         version: '1.0.0',
       });
 
-      const extensions = loadExtensions(
-        new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
-      );
+      const extensions = loadExtensions(new ExtensionEnablementManager());
       expect(extensions).toHaveLength(1);
       expect(extensions[0].path).toBe(extensionDir);
       expect(extensions[0].name).toBe('test-extension');
@@ -175,9 +172,7 @@ describe('extension tests', () => {
         version: '2.0.0',
       });
 
-      const extensions = loadExtensions(
-        new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
-      );
+      const extensions = loadExtensions(new ExtensionEnablementManager());
 
       expect(extensions).toHaveLength(2);
       const ext1 = extensions.find((e) => e.name === 'ext1');
@@ -197,9 +192,7 @@ describe('extension tests', () => {
         contextFileName: 'my-context-file.md',
       });
 
-      const extensions = loadExtensions(
-        new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
-      );
+      const extensions = loadExtensions(new ExtensionEnablementManager());
 
       expect(extensions).toHaveLength(1);
       const ext1 = extensions.find((e) => e.name === 'ext1');
@@ -224,9 +217,7 @@ describe('extension tests', () => {
         SettingScope.User,
         tempWorkspaceDir,
       );
-      const manager = new ExtensionEnablementManager(
-        ExtensionStorage.getUserExtensionsDir(),
-      );
+      const manager = new ExtensionEnablementManager();
       const extensions = loadExtensions(manager);
       const activeExtensions = annotateActiveExtensions(
         extensions,
@@ -251,9 +242,7 @@ describe('extension tests', () => {
         },
       });
 
-      const extensions = loadExtensions(
-        new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
-      );
+      const extensions = loadExtensions(new ExtensionEnablementManager());
       expect(extensions).toHaveLength(1);
       const expectedCwd = path.join(
         userExtensionsDir,
@@ -281,9 +270,7 @@ describe('extension tests', () => {
       );
 
       expect(extensionName).toEqual('my-linked-extension');
-      const extensions = loadExtensions(
-        new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
-      );
+      const extensions = loadExtensions(new ExtensionEnablementManager());
       expect(extensions).toHaveLength(1);
 
       const linkedExt = extensions[0];
@@ -332,11 +319,7 @@ describe('extension tests', () => {
         };
         fs.writeFileSync(configPath, JSON.stringify(extensionConfig));
 
-        const extensions = loadExtensions(
-          new ExtensionEnablementManager(
-            ExtensionStorage.getUserExtensionsDir(),
-          ),
-        );
+        const extensions = loadExtensions(new ExtensionEnablementManager());
 
         expect(extensions).toHaveLength(1);
         const extension = extensions[0];
@@ -387,9 +370,7 @@ describe('extension tests', () => {
         JSON.stringify(extensionConfig),
       );
 
-      const extensions = loadExtensions(
-        new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
-      );
+      const extensions = loadExtensions(new ExtensionEnablementManager());
 
       expect(extensions).toHaveLength(1);
       const extension = extensions[0];
@@ -417,9 +398,7 @@ describe('extension tests', () => {
       const badConfigPath = path.join(badExtDir, EXTENSIONS_CONFIG_FILENAME);
       fs.writeFileSync(badConfigPath, '{ "name": "bad-ext"'); // Malformed
 
-      const extensions = loadExtensions(
-        new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
-      );
+      const extensions = loadExtensions(new ExtensionEnablementManager());
 
       expect(extensions).toHaveLength(1);
       expect(extensions[0].name).toBe('good-ext');
@@ -451,9 +430,7 @@ describe('extension tests', () => {
       const badConfigPath = path.join(badExtDir, EXTENSIONS_CONFIG_FILENAME);
       fs.writeFileSync(badConfigPath, JSON.stringify({ version: '1.0.0' }));
 
-      const extensions = loadExtensions(
-        new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
-      );
+      const extensions = loadExtensions(new ExtensionEnablementManager());
 
       expect(extensions).toHaveLength(1);
       expect(extensions[0].name).toBe('good-ext');
@@ -481,9 +458,7 @@ describe('extension tests', () => {
         },
       });
 
-      const extensions = loadExtensions(
-        new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
-      );
+      const extensions = loadExtensions(new ExtensionEnablementManager());
       expect(extensions).toHaveLength(1);
       expect(extensions[0].mcpServers?.['test-server'].trust).toBeUndefined();
     });
@@ -540,7 +515,7 @@ describe('extension tests', () => {
       const activeExtensions = annotateActiveExtensions(
         extensions,
         '/path/to/workspace',
-        new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
+        new ExtensionEnablementManager(),
       );
       expect(activeExtensions).toHaveLength(3);
       expect(activeExtensions.every((e) => e.isActive)).toBe(true);
@@ -550,10 +525,7 @@ describe('extension tests', () => {
       const activeExtensions = annotateActiveExtensions(
         extensions,
         '/path/to/workspace',
-        new ExtensionEnablementManager(
-          ExtensionStorage.getUserExtensionsDir(),
-          ['ext1', 'ext3'],
-        ),
+        new ExtensionEnablementManager(['ext1', 'ext3']),
       );
       expect(activeExtensions).toHaveLength(3);
       expect(activeExtensions.find((e) => e.name === 'ext1')?.isActive).toBe(
@@ -571,10 +543,7 @@ describe('extension tests', () => {
       const activeExtensions = annotateActiveExtensions(
         extensions,
         '/path/to/workspace',
-        new ExtensionEnablementManager(
-          ExtensionStorage.getUserExtensionsDir(),
-          ['none'],
-        ),
+        new ExtensionEnablementManager(['none']),
       );
       expect(activeExtensions).toHaveLength(3);
       expect(activeExtensions.every((e) => !e.isActive)).toBe(true);
@@ -584,10 +553,7 @@ describe('extension tests', () => {
       const activeExtensions = annotateActiveExtensions(
         extensions,
         '/path/to/workspace',
-        new ExtensionEnablementManager(
-          ExtensionStorage.getUserExtensionsDir(),
-          ['EXT1'],
-        ),
+        new ExtensionEnablementManager(['EXT1']),
       );
       expect(activeExtensions.find((e) => e.name === 'ext1')?.isActive).toBe(
         true,
@@ -601,10 +567,7 @@ describe('extension tests', () => {
       annotateActiveExtensions(
         extensions,
         '/path/to/workspace',
-        new ExtensionEnablementManager(
-          ExtensionStorage.getUserExtensionsDir(),
-          ['ext4'],
-        ),
+        new ExtensionEnablementManager(['ext4']),
       );
       expect(consoleSpy).toHaveBeenCalledWith('Extension not found: ext4');
       consoleSpy.mockRestore();
@@ -615,9 +578,7 @@ describe('extension tests', () => {
         const activeExtensions = annotateActiveExtensions(
           extensions,
           tempHomeDir,
-          new ExtensionEnablementManager(
-            ExtensionStorage.getUserExtensionsDir(),
-          ),
+          new ExtensionEnablementManager(),
         );
         expect(
           activeExtensions.every(
@@ -639,9 +600,7 @@ describe('extension tests', () => {
         const activeExtensions = annotateActiveExtensions(
           extensionsWithAutoUpdate,
           tempHomeDir,
-          new ExtensionEnablementManager(
-            ExtensionStorage.getUserExtensionsDir(),
-          ),
+          new ExtensionEnablementManager(),
         );
         expect(
           activeExtensions.every((e) => e.installMetadata?.autoUpdate === true),
@@ -685,9 +644,7 @@ describe('extension tests', () => {
         const activeExtensions = annotateActiveExtensions(
           extensionsWithAutoUpdate,
           tempHomeDir,
-          new ExtensionEnablementManager(
-            ExtensionStorage.getUserExtensionsDir(),
-          ),
+          new ExtensionEnablementManager(),
         );
         expect(
           activeExtensions.find((e) => e.name === 'ext1')?.installMetadata
@@ -915,9 +872,7 @@ describe('extension tests', () => {
         });
 
         it(`should ${isUpdate ? 'not ' : ''} alter the extension enablement configuration`, async () => {
-          const enablementManager = new ExtensionEnablementManager(
-            ExtensionStorage.getUserExtensionsDir(),
-          );
+          const enablementManager = new ExtensionEnablementManager();
           enablementManager.enable('my-local-extension', true, '/some/scope');
 
           await installOrUpdateExtension(
@@ -1299,13 +1254,7 @@ This extension will run the following MCP servers:
       await uninstallExtension('my-local-extension', false);
 
       expect(fs.existsSync(sourceExtDir)).toBe(false);
-      expect(
-        loadExtensions(
-          new ExtensionEnablementManager(
-            ExtensionStorage.getUserExtensionsDir(),
-          ),
-        ),
-      ).toHaveLength(1);
+      expect(loadExtensions(new ExtensionEnablementManager())).toHaveLength(1);
       expect(fs.existsSync(otherExtDir)).toBe(true);
     });
 
@@ -1343,9 +1292,7 @@ This extension will run the following MCP servers:
           name: 'test-extension',
           version: '1.0.0',
         });
-        const enablementManager = new ExtensionEnablementManager(
-          ExtensionStorage.getUserExtensionsDir(),
-        );
+        const enablementManager = new ExtensionEnablementManager();
         enablementManager.enable('test-extension', true, '/some/scope');
 
         await uninstallExtension('test-extension', isUpdate);
@@ -1399,182 +1346,6 @@ This extension will run the following MCP servers:
     });
   });
 
-  describe('performWorkspaceExtensionMigration', () => {
-    let workspaceExtensionsDir: string;
-
-    beforeEach(() => {
-      workspaceExtensionsDir = path.join(
-        tempWorkspaceDir,
-        EXTENSIONS_DIRECTORY_NAME,
-      );
-      fs.mkdirSync(workspaceExtensionsDir, { recursive: true });
-    });
-
-    afterEach(() => {
-      fs.rmSync(workspaceExtensionsDir, { recursive: true, force: true });
-    });
-
-    describe('folder trust', () => {
-      it('refuses to install extensions from untrusted folders', async () => {
-        vi.mocked(isWorkspaceTrusted).mockReturnValue({
-          isTrusted: false,
-          source: undefined,
-        });
-        const ext1Path = createExtension({
-          extensionsDir: workspaceExtensionsDir,
-          name: 'ext1',
-          version: '1.0.0',
-        });
-
-        const failed = await performWorkspaceExtensionMigration(
-          [
-            loadExtension({
-              extensionDir: ext1Path,
-              workspaceDir: tempWorkspaceDir,
-            })!,
-          ],
-          async () => true,
-        );
-
-        expect(failed).toEqual(['ext1']);
-      });
-
-      it('does not copy extensions to the user dir', async () => {
-        vi.mocked(isWorkspaceTrusted).mockReturnValue({
-          isTrusted: false,
-          source: undefined,
-        });
-        const ext1Path = createExtension({
-          extensionsDir: workspaceExtensionsDir,
-          name: 'ext1',
-          version: '1.0.0',
-        });
-
-        await performWorkspaceExtensionMigration(
-          [
-            loadExtension({
-              extensionDir: ext1Path,
-              workspaceDir: tempWorkspaceDir,
-            })!,
-          ],
-          async (_) => true,
-        );
-
-        const userExtensionsDir = path.join(
-          tempHomeDir,
-          GEMINI_DIR,
-          'extensions',
-        );
-        expect(fs.readdirSync(userExtensionsDir).length).toBe(0);
-      });
-
-      it('does not load any extensions in the workspace config', async () => {
-        vi.mocked(isWorkspaceTrusted).mockReturnValue({
-          isTrusted: false,
-          source: undefined,
-        });
-        const ext1Path = createExtension({
-          extensionsDir: workspaceExtensionsDir,
-          name: 'ext1',
-          version: '1.0.0',
-        });
-
-        await performWorkspaceExtensionMigration(
-          [
-            loadExtension({
-              extensionDir: ext1Path,
-              workspaceDir: tempWorkspaceDir,
-            })!,
-          ],
-          async (_) => true,
-        );
-        const extensions = loadExtensions(
-          new ExtensionEnablementManager(
-            ExtensionStorage.getUserExtensionsDir(),
-          ),
-        );
-
-        expect(extensions).toEqual([]);
-      });
-    });
-
-    it('should install the extensions in the user directory', async () => {
-      const ext1Path = createExtension({
-        extensionsDir: workspaceExtensionsDir,
-        name: 'ext1',
-        version: '1.0.0',
-      });
-      const ext2Path = createExtension({
-        extensionsDir: workspaceExtensionsDir,
-        name: 'ext2',
-        version: '1.0.0',
-      });
-      const extensionsToMigrate: GeminiCLIExtension[] = [
-        loadExtension({
-          extensionDir: ext1Path,
-          workspaceDir: tempWorkspaceDir,
-        })!,
-        loadExtension({
-          extensionDir: ext2Path,
-          workspaceDir: tempWorkspaceDir,
-        })!,
-      ];
-      const failed = await performWorkspaceExtensionMigration(
-        extensionsToMigrate,
-        async (_) => true,
-      );
-
-      expect(failed).toEqual([]);
-
-      const userExtensionsDir = path.join(
-        tempHomeDir,
-        GEMINI_DIR,
-        'extensions',
-      );
-      const userExt1Path = path.join(userExtensionsDir, 'ext1');
-      const extensions = loadExtensions(
-        new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
-      );
-
-      expect(extensions).toHaveLength(2);
-      const metadataPath = path.join(userExt1Path, INSTALL_METADATA_FILENAME);
-      expect(fs.existsSync(metadataPath)).toBe(true);
-      const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
-      expect(metadata).toEqual({
-        source: ext1Path,
-        type: 'local',
-      });
-    });
-
-    it('should return the names of failed installations', async () => {
-      const ext1Path = createExtension({
-        extensionsDir: workspaceExtensionsDir,
-        name: 'ext1',
-        version: '1.0.0',
-      });
-
-      const extensions: GeminiCLIExtension[] = [
-        loadExtension({
-          extensionDir: ext1Path,
-          workspaceDir: tempWorkspaceDir,
-        })!,
-        {
-          path: '/ext/path/1',
-          name: 'ext2',
-          version: '1.0.0',
-          contextFiles: [],
-          isActive: true,
-        },
-      ];
-
-      const failed = await performWorkspaceExtensionMigration(
-        extensions,
-        async (_) => true,
-      );
-      expect(failed).toEqual(['ext2']);
-    });
-  });
-
   describe('disableExtension', () => {
     it('should disable an extension at the user scope', () => {
       createExtension({
@@ -1587,7 +1358,6 @@ This extension will run the following MCP servers:
       expect(
         isEnabled({
           name: 'my-extension',
-          configDir: userExtensionsDir,
           enabledForPath: tempWorkspaceDir,
         }),
       ).toBe(false);
@@ -1608,14 +1378,12 @@ This extension will run the following MCP servers:
       expect(
         isEnabled({
           name: 'my-extension',
-          configDir: userExtensionsDir,
           enabledForPath: tempHomeDir,
         }),
       ).toBe(true);
       expect(
         isEnabled({
           name: 'my-extension',
-          configDir: userExtensionsDir,
           enabledForPath: tempWorkspaceDir,
         }),
       ).toBe(false);
@@ -1633,7 +1401,6 @@ This extension will run the following MCP servers:
       expect(
         isEnabled({
           name: 'my-extension',
-          configDir: userExtensionsDir,
           enabledForPath: tempWorkspaceDir,
         }),
       ).toBe(false);
@@ -1668,9 +1435,7 @@ This extension will run the following MCP servers:
     });
 
     const getActiveExtensions = (): GeminiCLIExtension[] => {
-      const manager = new ExtensionEnablementManager(
-        ExtensionStorage.getUserExtensionsDir(),
-      );
+      const manager = new ExtensionEnablementManager();
       const extensions = loadExtensions(manager);
       const activeExtensions = annotateActiveExtensions(
         extensions,
@@ -1730,11 +1495,7 @@ This extension will run the following MCP servers:
   });
 });
 
-function isEnabled(options: {
-  name: string;
-  configDir: string;
-  enabledForPath: string;
-}) {
-  const manager = new ExtensionEnablementManager(options.configDir);
+function isEnabled(options: { name: string; enabledForPath: string }) {
+  const manager = new ExtensionEnablementManager();
   return manager.isEnabled(options.name, options.enabledForPath);
 }
