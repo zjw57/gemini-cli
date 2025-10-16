@@ -68,26 +68,20 @@ async function main() {
   const ARGS = argv._;
   let failures = 0;
 
-  // Check if running in docker sandbox mode based on the command string or env
-  // The command passed is usually 'npm run ...' which might set the env var.
-  // However, for deflaking, the env var should be set on the deflake process itself.
-  const isDockerSandbox = process.env.GEMINI_SANDBOX === 'docker';
   let createdDockerIgnore = false;
 
   console.log(`--- Starting Deflake Run (${NUM_RUNS} iterations) ---`);
 
   try {
-    if (isDockerSandbox) {
-      try {
-        // Check if it exists first to avoid overwriting
-        await fs.access(dockerIgnorePath);
-      } catch {
-        console.log(
-          'Creating temporary .dockerignore to exclude .integration-tests...',
-        );
-        await fs.writeFile(dockerIgnorePath, DOCKERIGNORE_CONTENT);
-        createdDockerIgnore = true;
-      }
+    try {
+      // Check if it exists first to avoid overwriting
+      await fs.access(dockerIgnorePath);
+    } catch {
+      console.log(
+        'Creating temporary .dockerignore to exclude .integration-tests...',
+      );
+      await fs.writeFile(dockerIgnorePath, DOCKERIGNORE_CONTENT);
+      createdDockerIgnore = true;
     }
 
     for (let i = 1; i <= NUM_RUNS; i++) {
