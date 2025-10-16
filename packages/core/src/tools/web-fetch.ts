@@ -395,7 +395,7 @@ export class WebFetchTool extends BaseDeclarativeTool<
         properties: {
           prompt: {
             description:
-              'A comprehensive prompt that includes the URL(s) (up to 20) to fetch and specific instructions on how to process their content (e.g., "Summarize https://example.com/article and extract key points from https://another.com/data"). Must contain as least one URL starting with http:// or https://.',
+              'A comprehensive prompt that includes the URL(s) (up to 20) to fetch and specific instructions on how to process their content (e.g., "Summarize https://example.com/article and extract key points from https://another.com/data"). All URLs to be fetched must be valid, complete, and start with http:// or https://.',
             type: 'string',
           },
         },
