@@ -68,19 +68,19 @@ export enum ValidTags {
  * outside of the loading process that data needs to be stored on the
  * GeminiCLIExtension class defined in Core.
  */
-const ExtensionConfigSchema = z.object({
+export const extensionConfigSchema = z.object({
   name: z.string(),
   version: z.string(),
   tags: z.array(z.nativeEnum(ValidTags)).optional(),
-  mcpServers: z.record(z.any()).optional(),
+  mcpServers: z.record(z.unknown()).optional(),
   contextFileName: z.union([z.string(), z.array(z.string())]).optional(),
   excludeTools: z.array(z.string()).optional(),
 });
 
-type ExtensionConfig = Omit<
-  z.infer<typeof ExtensionConfigSchema>,
-  'mcpServers'
-> & {
+type ExtensionConfigSchema = z.infer<typeof extensionConfigSchema>;
+
+// TODO(#11264): zod-ify MCP server schema
+type ExtensionConfig = Omit<ExtensionConfigSchema, 'mcpServers'> & {
   mcpServers?: Record<string, MCPServerConfig>;
 };
 
@@ -702,14 +702,17 @@ export function loadExtensionConfig(
   if (!fs.existsSync(configFilePath)) {
     throw new Error(`Configuration file not found at ${configFilePath}`);
   }
+  // TODO(#11264): upgrade zod and use schema.decode()
   try {
     const configContent = fs.readFileSync(configFilePath, 'utf-8');
-    const rawConfig = JSON.parse(configContent);
-    const parsedConfig = ExtensionConfigSchema.parse(rawConfig);
+    const parsedConfig = extensionConfigSchema.parse(
+      JSON.parse(configContent) as unknown,
+    );
 
     const installDir = new ExtensionStorage(
       parsedConfig.name,
     ).getExtensionDir();
+    // TODO(#11264): use zod types instead of JsonObject
     const config = recursivelyHydrateStrings(
       parsedConfig as unknown as JsonObject,
       {

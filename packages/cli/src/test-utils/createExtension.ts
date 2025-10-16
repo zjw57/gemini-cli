@@ -27,6 +27,7 @@ export function createExtension({
 } = {}): string {
   const extDir = path.join(extensionsDir, name);
   fs.mkdirSync(extDir, { recursive: true });
+  // TODO(#11264): upgrade zod and use schema.encode()
   fs.writeFileSync(
     path.join(extDir, EXTENSIONS_CONFIG_FILENAME),
     JSON.stringify({ name, version, contextFileName, mcpServers, tags }),
