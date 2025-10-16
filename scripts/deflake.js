@@ -5,11 +5,20 @@
  */
 
 import { spawn } from 'node:child_process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
 // Script to deflake tests
 // Ex. npm run deflake -- --command="npm run test:e2e -- --test-name-pattern 'extension'" --runs=3
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(__dirname, '..');
+const dockerIgnorePath = path.join(projectRoot, '.dockerignore');
+
+const DOCKERIGNORE_CONTENT = `.integration-tests`.trim();
 
 /**
  * Runs a command and streams its output to the console.
@@ -25,6 +34,7 @@ function runCommand(cmd, args = []) {
     const child = spawn(cmd, args, {
       shell: true,
       stdio: 'inherit',
+      env: { ...process.env },
     });
 
     child.on('close', (code) => {
@@ -58,23 +68,54 @@ async function main() {
   const ARGS = argv._;
   let failures = 0;
 
+  // Check if running in docker sandbox mode based on the command string or env
+  // The command passed is usually 'npm run ...' which might set the env var.
+  // However, for deflaking, the env var should be set on the deflake process itself.
+  const isDockerSandbox = process.env.GEMINI_SANDBOX === 'docker';
+  let createdDockerIgnore = false;
+
   console.log(`--- Starting Deflake Run (${NUM_RUNS} iterations) ---`);
-  for (let i = 1; i <= NUM_RUNS; i++) {
-    console.log(`\n[RUN ${i}/${NUM_RUNS}]`);
 
-    try {
-      // 3. Await the asynchronous command run
-      const exitCode = await runCommand(COMMAND, ARGS);
+  try {
+    if (isDockerSandbox) {
+      try {
+        // Check if it exists first to avoid overwriting
+        await fs.access(dockerIgnorePath);
+      } catch {
+        console.log(
+          'Creating temporary .dockerignore to exclude .integration-tests...',
+        );
+        await fs.writeFile(dockerIgnorePath, DOCKERIGNORE_CONTENT);
+        createdDockerIgnore = true;
+      }
+    }
 
-      if (exitCode === 0) {
-        console.log('✅ Run PASS');
-      } else {
-        console.log(`❌ Run FAIL (Exit Code: ${exitCode})`);
+    for (let i = 1; i <= NUM_RUNS; i++) {
+      console.log(`\n[RUN ${i}/${NUM_RUNS}]`);
+
+      try {
+        // 3. Await the asynchronous command run
+        const exitCode = await runCommand(COMMAND, ARGS);
+
+        if (exitCode === 0) {
+          console.log('✅ Run PASS');
+        } else {
+          console.log(`❌ Run FAIL (Exit Code: ${exitCode})`);
+          failures++;
+        }
+      } catch (error) {
+        console.error('❌ Run FAIL (Execution Error)', error);
         failures++;
       }
-    } catch (error) {
-      console.error('❌ Run FAIL (Execution Error)', error);
-      failures++;
+    }
+  } finally {
+    if (createdDockerIgnore) {
+      console.log('Cleaning up temporary .dockerignore...');
+      try {
+        await fs.unlink(dockerIgnorePath);
+      } catch (e) {
+        console.error('Failed to delete temporary .dockerignore:', e);
+      }
     }
   }
 
