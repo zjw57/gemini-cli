@@ -10,6 +10,7 @@ import type {
   CountTokensResponse,
   EmbedContentParameters,
   EmbedContentResponse,
+  GenerateContentConfig,
   GenerateContentParameters,
   GenerateContentResponseUsageMetadata,
   GenerateContentResponse,
@@ -64,6 +65,8 @@ export class LoggingContentGenerator implements ContentGenerator {
     prompt_id: string,
     usageMetadata?: GenerateContentResponseUsageMetadata,
     responseText?: string,
+    finish_reason?: string,
+    generationConfig?: GenerateContentConfig,
   ): void {
     logApiResponse(
       this.config,
@@ -75,6 +78,8 @@ export class LoggingContentGenerator implements ContentGenerator {
         usageMetadata,
         responseText,
       ),
+      finish_reason,
+      generationConfig,
     );
   }
 
@@ -118,6 +123,8 @@ export class LoggingContentGenerator implements ContentGenerator {
         userPromptId,
         response.usageMetadata,
         JSON.stringify(response),
+        response.candidates?.[0]?.finishReason,
+        req.config,
       );
       return response;
     } catch (error) {
@@ -160,11 +167,15 @@ export class LoggingContentGenerator implements ContentGenerator {
     const responses: GenerateContentResponse[] = [];
 
     let lastUsageMetadata: GenerateContentResponseUsageMetadata | undefined;
+    let finishReason: string | undefined;
     try {
       for await (const response of stream) {
         responses.push(response);
         if (response.usageMetadata) {
           lastUsageMetadata = response.usageMetadata;
+        }
+        if (response.candidates?.[0]?.finishReason) {
+          finishReason = response.candidates[0].finishReason;
         }
         yield response;
       }
@@ -176,6 +187,7 @@ export class LoggingContentGenerator implements ContentGenerator {
         userPromptId,
         lastUsageMetadata,
         JSON.stringify(responses),
+        finishReason,
       );
     } catch (error) {
       const durationMs = Date.now() - startTime;

@@ -173,6 +173,10 @@ export class GeminiClient {
     return this.chat;
   }
 
+  getGenerateContentConfig(): GenerateContentConfig {
+    return { ...this.generateContentConfig };
+  }
+
   isInitialized(): boolean {
     return this.chat !== undefined;
   }

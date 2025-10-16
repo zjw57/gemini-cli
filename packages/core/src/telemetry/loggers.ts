@@ -18,6 +18,7 @@ import type {
   ApiRequestEvent,
   ApiResponseEvent,
   FileOperationEvent,
+  GenAIModelConfig,
   IdeConnectionEvent,
   StartSessionEvent,
   ToolCallEvent,
@@ -50,6 +51,10 @@ import type {
   ExtensionUpdateEvent,
 } from './types.js';
 import {
+  GenAiOperationDetailsEvent,
+  GenAiEvaluationResultEvent,
+} from './types.js';
+import {
   recordApiErrorMetrics,
   recordToolCallMetrics,
   recordChatCompressionMetrics,
@@ -68,6 +73,7 @@ import { isTelemetrySdkInitialized } from './sdk.js';
 import type { UiEvent } from './uiTelemetry.js';
 import { uiTelemetryService } from './uiTelemetry.js';
 import { ClearcutLogger } from './clearcut-logger/clearcut-logger.js';
+import type { GenerateContentConfig } from '@google/genai';
 
 export function logCliConfiguration(
   config: Config,
@@ -84,16 +90,33 @@ export function logCliConfiguration(
   logger.emit(logRecord);
 }
 
-export function logUserPrompt(config: Config, event: UserPromptEvent): void {
+export function logUserPrompt(
+  config: Config,
+  event: UserPromptEvent,
+  model_config: GenAIModelConfig,
+): void {
   ClearcutLogger.getInstance(config)?.logNewPromptEvent(event);
   if (!isTelemetrySdkInitialized()) return;
 
   const logger = logs.getLogger(SERVICE_NAME);
-  const logRecord: LogRecord = {
+
+  // Emit the original event
+  const originalLogRecord: LogRecord = {
     body: event.toLogBody(),
     attributes: event.toOpenTelemetryAttributes(config),
   };
-  logger.emit(logRecord);
+  logger.emit(originalLogRecord);
+
+  // Emit the new semantic convention event
+  const semanticEvent = new GenAiOperationDetailsEvent(model_config, {
+    prompt: event.prompt,
+    prompt_length: event.prompt_length,
+  });
+  const semanticLogRecord: LogRecord = {
+    body: semanticEvent.toLogBody(),
+    attributes: semanticEvent.toOpenTelemetryAttributes(config),
+  };
+  logger.emit(semanticLogRecord);
 }
 
 export function logToolCall(config: Config, event: ToolCallEvent): void {
@@ -242,7 +265,12 @@ export function logApiError(config: Config, event: ApiErrorEvent): void {
   });
 }
 
-export function logApiResponse(config: Config, event: ApiResponseEvent): void {
+export function logApiResponse(
+  config: Config,
+  event: ApiResponseEvent,
+  finish_reason?: string,
+  generationConfig?: GenerateContentConfig,
+): void {
   const uiEvent = {
     ...event,
     'event.name': EVENT_API_RESPONSE,
@@ -282,6 +310,34 @@ export function logApiResponse(config: Config, event: ApiResponseEvent): void {
       genAiAttributes: conventionAttributes,
     });
   }
+
+  // Emit the new semantic convention event
+  const semanticEvent = new GenAiOperationDetailsEvent(
+    {
+      model: event.model,
+      temperature: generationConfig?.temperature,
+      top_p: generationConfig?.topP,
+      top_k: generationConfig?.topK,
+    },
+    {
+      prompt_length: 0, // Not available in response event
+    },
+    {
+      finish_reason,
+      response_id: event.prompt_id,
+      input_token_count: event.input_token_count,
+      output_token_count: event.output_token_count,
+      cached_content_token_count: event.cached_content_token_count,
+      thoughts_token_count: event.thoughts_token_count,
+      tool_token_count: event.tool_token_count,
+      total_token_count: event.total_token_count,
+    },
+  );
+  const semanticLogRecord: LogRecord = {
+    body: semanticEvent.toLogBody(),
+    attributes: semanticEvent.toOpenTelemetryAttributes(config),
+  };
+  logger.emit(semanticLogRecord);
 }
 
 export function logLoopDetected(
@@ -631,6 +687,26 @@ export function logAgentFinish(config: Config, event: AgentFinishEvent): void {
   logger.emit(logRecord);
 
   recordAgentRunMetrics(config, event);
+}
+
+export function logGenAiEvaluationResult(
+  config: Config,
+  details: {
+    response_id: string;
+    score: number;
+    label?: string;
+    explanation?: string;
+  },
+): void {
+  if (!isTelemetrySdkInitialized()) return;
+
+  const logger = logs.getLogger(SERVICE_NAME);
+  const event = new GenAiEvaluationResultEvent(details);
+  const logRecord: LogRecord = {
+    body: event.toLogBody(),
+    attributes: event.toOpenTelemetryAttributes(config),
+  };
+  logger.emit(logRecord);
 }
 
 export function logWebFetchFallbackAttempt(

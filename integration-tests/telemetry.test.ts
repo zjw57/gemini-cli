@@ -23,4 +23,25 @@ describe('telemetry', () => {
     const cliCommandCountMetric = rig.readMetric('session.count');
     expect(cliCommandCountMetric).not.toBeNull();
   });
+
+  it('should log generation parameters with numeric types', async () => {
+    const rig = new TestRig();
+    rig.setup('should log generation parameters with numeric types');
+
+    // Run a simple command
+    await rig.run('just saying hi');
+
+    // Verify that a gen_ai.client.inference.operation.details event was logged with the correct parameters
+    const hasOperationDetailsEvent = await rig.waitForTelemetryEvent(
+      'gen_ai.client.inference.operation.details',
+      (attributes) => {
+        return (
+          typeof attributes['gen_ai.request.temperature'] === 'number' &&
+          typeof attributes['gen_ai.request.top_p'] === 'number' &&
+          typeof attributes['gen_ai.request.top_k'] === 'number'
+        );
+      },
+    );
+    expect(hasOperationDetailsEvent).toBe(true);
+  });
 });

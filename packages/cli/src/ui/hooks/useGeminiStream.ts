@@ -829,8 +829,10 @@ export const useGeminiStream = (
 
         if (!options?.isContinuation) {
           if (typeof queryToSend === 'string') {
-            // logging the text prompts only for now
             const promptText = queryToSend;
+            const model_config = config
+              .getGeminiClient()
+              .getGenerateContentConfig();
             logUserPrompt(
               config,
               new UserPromptEvent(
@@ -839,6 +841,12 @@ export const useGeminiStream = (
                 config.getContentGeneratorConfig()?.authType,
                 promptText,
               ),
+              {
+                model: config.getModel(),
+                temperature: model_config?.temperature,
+                top_p: model_config?.topP,
+                top_k: model_config?.topK,
+              },
             );
           }
           startNewPrompt();

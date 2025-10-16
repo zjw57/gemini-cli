@@ -1466,3 +1466,140 @@ export class WebFetchFallbackAttemptEvent implements BaseTelemetryEvent {
     return `Web fetch fallback attempt. Reason: ${this.reason}`;
   }
 }
+
+export const EVENT_GEN_AI_OPERATION_DETAILS =
+  'gen_ai.client.inference.operation.details';
+
+export interface GenAIModelConfig {
+  model: string;
+  temperature?: number;
+  top_p?: number;
+  top_k?: number;
+}
+
+export interface GenAIPromptDetails {
+  prompt?: string;
+  prompt_length: number;
+}
+
+export interface GenAIResponseDetails {
+  finish_reason?: string;
+  response_id: string;
+  input_token_count: number;
+  output_token_count: number;
+  cached_content_token_count: number;
+  thoughts_token_count: number;
+  tool_token_count: number;
+  total_token_count: number;
+}
+
+export class GenAiOperationDetailsEvent implements BaseTelemetryEvent {
+  'event.name' = EVENT_GEN_AI_OPERATION_DETAILS;
+  'event.timestamp': string;
+
+  model_config: GenAIModelConfig;
+  prompt_details?: GenAIPromptDetails;
+  response_details?: GenAIResponseDetails;
+
+  constructor(
+    model_config: GenAIModelConfig,
+    prompt_details?: GenAIPromptDetails,
+    response_details?: GenAIResponseDetails,
+  ) {
+    this['event.timestamp'] = new Date().toISOString();
+    this.model_config = model_config;
+    this.prompt_details = prompt_details;
+    this.response_details = response_details;
+  }
+
+  toOpenTelemetryAttributes(config: Config): LogAttributes {
+    const attributes: LogAttributes = {
+      ...getCommonAttributes(config),
+      'event.name': this['event.name'],
+      'event.timestamp': this['event.timestamp'],
+      'gen_ai.request.model': this.model_config.model,
+      // TODO: what if null value is passed here - do i really need an if for each use?
+      'gen_ai.request.temperature': this.model_config.temperature,
+      'gen_ai.request.top_p': this.model_config.top_p,
+      'gen_ai.request.top_k': this.model_config.top_k,
+    };
+
+    if (config.getTelemetryLogPromptsEnabled() && this.prompt_details?.prompt) {
+      attributes['gen_ai.request.prompt'] = this.prompt_details.prompt;
+    }
+    if (this.prompt_details) {
+      attributes['gen_ai.request.prompt.length'] =
+        this.prompt_details.prompt_length;
+    }
+    if (this.response_details) {
+      attributes['gen_ai.response.finish_reason'] =
+        this.response_details.finish_reason;
+      attributes['gen_ai.response.id'] = this.response_details.response_id;
+      attributes['gen_ai.usage.input_tokens'] =
+        this.response_details.input_token_count;
+      attributes['gen_ai.usage.output_tokens'] =
+        this.response_details.output_token_count;
+      attributes['gen_ai.usage.cached_content_tokens'] =
+        this.response_details.cached_content_token_count;
+      attributes['gen_ai.usage.thoughts_tokens'] =
+        this.response_details.thoughts_token_count;
+      attributes['gen_ai.usage.tool_tokens'] =
+        this.response_details.tool_token_count;
+      attributes['gen_ai.usage.total_tokens'] =
+        this.response_details.total_token_count;
+    }
+
+    return attributes;
+  }
+
+  toLogBody(): string {
+    return `GenAI operation details for model ${this.model_config.model}.`;
+  }
+}
+
+export const EVENT_GEN_AI_EVALUATION_RESULT = 'gen_ai.evaluation.result';
+export class GenAiEvaluationResultEvent implements BaseTelemetryEvent {
+  'event.name' = EVENT_GEN_AI_EVALUATION_RESULT;
+  'event.timestamp': string;
+
+  response_id: string;
+  score: number;
+  label?: string;
+  explanation?: string;
+
+  constructor(details: {
+    response_id: string;
+    score: number;
+    label?: string;
+    explanation?: string;
+  }) {
+    this['event.timestamp'] = new Date().toISOString();
+    this.response_id = details.response_id;
+    this.score = details.score;
+    this.label = details.label;
+    this.explanation = details.explanation;
+  }
+
+  toOpenTelemetryAttributes(config: Config): LogAttributes {
+    const attributes: LogAttributes = {
+      ...getCommonAttributes(config),
+      'event.name': this['event.name'],
+      'event.timestamp': this['event.timestamp'],
+      'gen_ai.response.id': this.response_id,
+      'gen_ai.evaluation.score.value': this.score,
+    };
+
+    if (this.label) {
+      attributes['gen_ai.evaluation.score.label'] = this.label;
+    }
+    if (this.explanation) {
+      attributes['gen_ai.evaluation.explanation'] = this.explanation;
+    }
+
+    return attributes;
+  }
+
+  toLogBody(): string {
+    return `GenAI evaluation result for response ${this.response_id}.`;
+  }
+}
