@@ -10,7 +10,7 @@ jobs:
 
     # For PRs from forks, require approval via an environment.
     # For internal PRs (from the same repo), run without approval.
-    environment: ${{ github.event.pull_request.head.repo.full_name != github.repository && 'e2e-on-fork' || null }}
+    environment: ${{ github.event.pull_request.head.repo.fork == true && 'e2e-on-fork' || null }}
 
     steps:
       # We must checkout the specific PR head SHA because this workflow runs in the context
