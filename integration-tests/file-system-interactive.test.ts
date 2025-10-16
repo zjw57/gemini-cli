@@ -30,7 +30,7 @@ describe('Interactive file system', () => {
     await run.type(readPrompt);
     await run.sendKeys('\r');
 
-    const readCall = await rig.expectToolCallSuccess(['read_file'], 30000);
+    const readCall = await rig.waitForToolCall('read_file', 30000);
     expect(readCall, 'Expected to find a read_file tool call').toBe(true);
 
     // Step 2: Write the file
