@@ -597,6 +597,56 @@ describe('Server Config (config.ts)', () => {
       const config = new Config(paramsWithModelRouter);
       expect(config.getUseModelRouter()).toBe(false);
     });
+
+    describe('Model Router with Auth', () => {
+      it('should disable model router by default for oauth-personal', async () => {
+        const config = new Config({
+          ...baseParams,
+          useModelRouter: true,
+        });
+        await config.refreshAuth(AuthType.LOGIN_WITH_GOOGLE);
+        expect(config.getUseModelRouter()).toBe(false);
+      });
+
+      it('should enable model router by default for other auth types', async () => {
+        const config = new Config({
+          ...baseParams,
+          useModelRouter: true,
+        });
+        await config.refreshAuth(AuthType.USE_GEMINI);
+        expect(config.getUseModelRouter()).toBe(true);
+      });
+
+      it('should disable model router for specified auth type', async () => {
+        const config = new Config({
+          ...baseParams,
+          useModelRouter: true,
+          disableModelRouterForAuth: [AuthType.USE_GEMINI],
+        });
+        await config.refreshAuth(AuthType.USE_GEMINI);
+        expect(config.getUseModelRouter()).toBe(false);
+      });
+
+      it('should enable model router for other auth type', async () => {
+        const config = new Config({
+          ...baseParams,
+          useModelRouter: true,
+          disableModelRouterForAuth: [],
+        });
+        await config.refreshAuth(AuthType.LOGIN_WITH_GOOGLE);
+        expect(config.getUseModelRouter()).toBe(true);
+      });
+
+      it('should keep model router disabled when useModelRouter is false', async () => {
+        const config = new Config({
+          ...baseParams,
+          useModelRouter: false,
+          disableModelRouterForAuth: [AuthType.USE_GEMINI],
+        });
+        await config.refreshAuth(AuthType.LOGIN_WITH_GOOGLE);
+        expect(config.getUseModelRouter()).toBe(false);
+      });
+    });
   });
 
   describe('ContinueOnFailedApiCall Configuration', () => {
