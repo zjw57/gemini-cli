@@ -833,7 +833,8 @@ export function SettingsDialog({
       <Box height={1} />
       <Text color={theme.text.secondary}>
         (Use Enter to {mode === 'settings' ? 'select' : 'apply scope'}, Tab to{' '}
-        {mode === 'settings' ? 'configure scope' : 'select setting'})
+        {mode === 'settings' ? 'configure scope' : 'select setting'}, Esc to
+        close)
       </Text>
       {showRestartPrompt && (
         <Text color={theme.status.warning}>
