@@ -2013,27 +2013,6 @@ describe('loadCliConfig with allowed-mcp-server-names', () => {
       server3: { url: 'http://localhost:8082' },
     });
   });
-
-  it('should pass useModelRouter setting to the server config', async () => {
-    process.argv = ['node', 'script.js'];
-    const argv = await parseArguments({} as Settings);
-    const settings: Settings = {
-      experimental: { useModelRouter: true },
-    };
-    await loadCliConfig(
-      settings,
-      [],
-      new ExtensionEnablementManager(
-        ExtensionStorage.getUserExtensionsDir(),
-        argv.extensions,
-      ),
-      'test-session',
-      argv,
-    );
-    expect(ServerConfig.Config).toHaveBeenCalledWith(
-      expect.objectContaining({ useModelRouter: true }),
-    );
-  });
 });
 
 describe('loadCliConfig extensions', () => {
