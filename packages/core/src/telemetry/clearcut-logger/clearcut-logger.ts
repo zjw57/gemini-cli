@@ -1217,16 +1217,7 @@ export class ClearcutLogger {
       },
       {
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_USER_SETTINGS,
-        value: safeJsonStringify([
-          {
-            smart_edit_enabled: this.config?.getUseSmartEdit() ?? false,
-            model_router_enabled: this.config?.getUseModelRouter() ?? false,
-            shell_output_efficiency_enabled:
-              this.config?.getEnableShellOutputEfficiency() ?? false,
-            tool_output_truncation_enabled:
-              this.config?.getEnableToolOutputTruncation() ?? false,
-          },
-        ]),
+        value: safeJsonStringify(this.config),
       },
     ];
     return [...data, ...defaultLogMetadata];
@@ -1242,6 +1233,10 @@ export class ClearcutLogger {
     } else {
       throw new Error('Unsupported proxy type');
     }
+  }
+
+  getConfigJson() {
+    return safeJsonStringify(this.config);
   }
 
   shutdown() {

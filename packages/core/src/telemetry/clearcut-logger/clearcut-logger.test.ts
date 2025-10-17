@@ -37,7 +37,6 @@ import { AgentTerminateMode } from '../../agents/types.js';
 import { GIT_COMMIT_INFO, CLI_VERSION } from '../../generated/git-commit.js';
 import { UserAccountManager } from '../../utils/userAccountManager.js';
 import { InstallationManager } from '../../utils/installationManager.js';
-import { safeJsonStringify } from '../../utils/safeJsonStringify.js';
 
 interface CustomMatchers<R = unknown> {
   toHaveMetadataValue: ([key, value]: [EventMetadataKey, string]) => R;
@@ -260,20 +259,13 @@ describe('ClearcutLogger', () => {
       const cli_version = CLI_VERSION;
       const git_commit_hash = GIT_COMMIT_INFO;
       const prompt_id = 'my-prompt-123';
-      const user_settings = safeJsonStringify([
-        {
-          smart_edit_enabled: true,
-          model_router_enabled: false,
-          shell_output_efficiency_enabled: true,
-          tool_output_truncation_enabled: true,
-        },
-      ]);
 
       // Setup logger with expected values
       const { logger, loggerConfig } = setup({
         lifetimeGoogleAccounts: google_accounts,
         config: { sessionId: session_id },
       });
+
       vi.spyOn(loggerConfig, 'getContentGeneratorConfig').mockReturnValue({
         authType: auth_type,
       } as ContentGeneratorConfig);
@@ -320,7 +312,7 @@ describe('ClearcutLogger', () => {
           },
           {
             gemini_cli_key: EventMetadataKey.GEMINI_CLI_USER_SETTINGS,
-            value: user_settings,
+            value: logger?.getConfigJson(),
           },
         ]),
       );
@@ -351,16 +343,7 @@ describe('ClearcutLogger', () => {
       });
     });
 
-    it('logs the value of config.useSmartEdit and config.useModelRouter', () => {
-      const user_settings = safeJsonStringify([
-        {
-          smart_edit_enabled: true,
-          model_router_enabled: true,
-          shell_output_efficiency_enabled: true,
-          tool_output_truncation_enabled: true,
-        },
-      ]);
-
+    it('logs all user settings', () => {
       const { logger } = setup({
         config: { useSmartEdit: true, useModelRouter: true },
       });
@@ -372,7 +355,7 @@ describe('ClearcutLogger', () => {
 
       expect(event?.event_metadata[0]).toContainEqual({
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_USER_SETTINGS,
-        value: user_settings,
+        value: logger?.getConfigJson(),
       });
     });
 
