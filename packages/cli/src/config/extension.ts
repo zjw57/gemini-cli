@@ -35,7 +35,7 @@ import {
 } from './extensions/variables.js';
 import { isWorkspaceTrusted } from './trustedFolders.js';
 import { resolveEnvVarsInObject } from '../utils/envVarResolver.js';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import {
   cloneFromGit,
   downloadFromGitHubRelease,
@@ -253,6 +253,24 @@ export function loadExtension(
       )
       .filter((contextFilePath) => fs.existsSync(contextFilePath));
 
+    // IDs are created by hashing parts of the extension metadata in order to
+    // obfuscate any potentially sensitive information such as private
+    // git urls or project names.
+    const hash = createHash('sha256');
+    switch (installMetadata?.type) {
+      case 'git':
+      case 'github-release':
+        // For git and github-release installs, identify the extension based on the
+        // source it was installed from. This allows us to distinguish between
+        // extensions that happen to have the same name but are actually different.
+        hash.update(installMetadata.source);
+        break;
+      default:
+        // For all other install types, just use the name.
+        hash.update(config.name);
+    }
+    const id = hash.digest('hex');
+
     return {
       name: config.name,
       version: config.version,
@@ -262,6 +280,7 @@ export function loadExtension(
       mcpServers: config.mcpServers,
       excludeTools: config.excludeTools,
       isActive: true, // Barring any other signals extensions should be considered Active.
+      id,
     };
   } catch (e) {
     console.error(

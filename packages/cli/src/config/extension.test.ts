@@ -8,6 +8,7 @@ import { vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { createHash } from 'node:crypto';
 import {
   EXTENSIONS_CONFIG_FILENAME,
   ExtensionStorage,
@@ -508,6 +509,119 @@ describe('extension tests', () => {
         expect.stringContaining('Invalid extension name: "bad_name"'),
       );
       consoleSpy.mockRestore();
+    });
+
+    describe('id generation', () => {
+      it('should generate id from source for git extension', () => {
+        const extensionDir = createExtension({
+          extensionsDir: userExtensionsDir,
+          name: 'my-ext',
+          version: '1.0.0',
+          installMetadata: {
+            type: 'git',
+            source: 'http://github.com/foo/bar',
+          },
+        });
+
+        const extension = loadExtension({
+          extensionDir,
+          workspaceDir: tempWorkspaceDir,
+        });
+
+        const expectedHash = createHash('sha256')
+          .update('http://github.com/foo/bar')
+          .digest('hex');
+        expect(extension?.id).toBe(expectedHash);
+      });
+
+      it('should generate id from source for github-release extension', () => {
+        const extensionDir = createExtension({
+          extensionsDir: userExtensionsDir,
+          name: 'my-ext',
+          version: '1.0.0',
+          installMetadata: {
+            type: 'github-release',
+            source: 'https://github.com/foo/bar',
+          },
+        });
+
+        const extension = loadExtension({
+          extensionDir,
+          workspaceDir: tempWorkspaceDir,
+        });
+
+        const expectedHash = createHash('sha256')
+          .update('https://github.com/foo/bar')
+          .digest('hex');
+        expect(extension?.id).toBe(expectedHash);
+      });
+
+      it('should generate id from name for local extension', () => {
+        const extensionDir = createExtension({
+          extensionsDir: userExtensionsDir,
+          name: 'local-ext-name',
+          version: '1.0.0',
+          installMetadata: {
+            type: 'local',
+            source: '/some/path',
+          },
+        });
+
+        const extension = loadExtension({
+          extensionDir,
+          workspaceDir: tempWorkspaceDir,
+        });
+
+        const expectedHash = createHash('sha256')
+          .update('local-ext-name')
+          .digest('hex');
+        expect(extension?.id).toBe(expectedHash);
+      });
+
+      it('should generate id from name for link extension', async () => {
+        const extDevelopmentDir = path.join(tempHomeDir, 'local_extensions');
+        const actualExtensionDir = createExtension({
+          extensionsDir: extDevelopmentDir,
+          name: 'link-ext-name',
+          version: '1.0.0',
+        });
+        const extensionName = await installOrUpdateExtension(
+          {
+            type: 'link',
+            source: actualExtensionDir,
+          },
+          async () => true,
+          tempWorkspaceDir,
+        );
+
+        const extension = loadExtension({
+          extensionDir: new ExtensionStorage(extensionName).getExtensionDir(),
+          workspaceDir: tempWorkspaceDir,
+        });
+
+        const expectedHash = createHash('sha256')
+          .update('link-ext-name')
+          .digest('hex');
+        expect(extension?.id).toBe(expectedHash);
+      });
+
+      it('should generate id from name for extension with no install metadata', () => {
+        const extensionDir = createExtension({
+          extensionsDir: userExtensionsDir,
+          name: 'no-meta-name',
+          version: '1.0.0',
+        });
+
+        const extension = loadExtension({
+          extensionDir,
+          workspaceDir: tempWorkspaceDir,
+        });
+
+        const expectedHash = createHash('sha256')
+          .update('no-meta-name')
+          .digest('hex');
+        expect(extension?.id).toBe(expectedHash);
+      });
     });
   });
 
