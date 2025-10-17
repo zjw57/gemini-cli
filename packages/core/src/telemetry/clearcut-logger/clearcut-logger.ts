@@ -1221,6 +1221,10 @@ export class ClearcutLogger {
           {
             smart_edit_enabled: this.config?.getUseSmartEdit() ?? false,
             model_router_enabled: this.config?.getUseModelRouter() ?? false,
+            shell_output_efficiency_enabled:
+              this.config?.getEnableShellOutputEfficiency() ?? false,
+            tool_output_truncation_enabled:
+              this.config?.getEnableToolOutputTruncation() ?? false,
           },
         ]),
       },

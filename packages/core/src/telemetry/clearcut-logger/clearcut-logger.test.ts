@@ -261,7 +261,12 @@ describe('ClearcutLogger', () => {
       const git_commit_hash = GIT_COMMIT_INFO;
       const prompt_id = 'my-prompt-123';
       const user_settings = safeJsonStringify([
-        { smart_edit_enabled: true, model_router_enabled: false },
+        {
+          smart_edit_enabled: true,
+          model_router_enabled: false,
+          shell_output_efficiency_enabled: true,
+          tool_output_truncation_enabled: true,
+        },
       ]);
 
       // Setup logger with expected values
@@ -348,7 +353,12 @@ describe('ClearcutLogger', () => {
 
     it('logs the value of config.useSmartEdit and config.useModelRouter', () => {
       const user_settings = safeJsonStringify([
-        { smart_edit_enabled: true, model_router_enabled: true },
+        {
+          smart_edit_enabled: true,
+          model_router_enabled: true,
+          shell_output_efficiency_enabled: true,
+          tool_output_truncation_enabled: true,
+        },
       ]);
 
       const { logger } = setup({
