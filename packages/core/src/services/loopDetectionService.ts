@@ -72,7 +72,7 @@ For example, a series of 'tool_A' or 'tool_B' tool calls that make small, distin
  * Service for detecting and preventing infinite loops in AI responses.
  * Monitors tool call repetitions and content sentence repetitions.
  */
-export class LoopDetectionService {
+export class ProgressCheckerService {
   private readonly config: Config;
   private promptId = '';
 

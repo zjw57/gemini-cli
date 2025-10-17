@@ -36,7 +36,7 @@ import {
   DEFAULT_THINKING_MODE,
   getEffectiveModel,
 } from '../config/models.js';
-import { LoopDetectionService } from '../services/loopDetectionService.js';
+import { ProgressCheckerService } from '../services/loopDetectionService.js';
 import { ideContextStore } from '../ide/ideContext.js';
 import {
   logChatCompression,
@@ -134,7 +134,7 @@ export class GeminiClient {
   };
   private sessionTurnCount = 0;
 
-  private readonly loopDetector: LoopDetectionService;
+  private readonly loopDetector: ProgressCheckerService;
   private lastPromptId: string;
   private currentSequenceModel: string | null = null;
   private lastSentIdeContext: IdeContext | undefined;
@@ -147,7 +147,7 @@ export class GeminiClient {
   private hasFailedCompressionAttempt = false;
 
   constructor(private readonly config: Config) {
-    this.loopDetector = new LoopDetectionService(config);
+    this.loopDetector = new ProgressCheckerService(config);
     this.lastPromptId = this.config.getSessionId();
   }
 
@@ -205,7 +205,7 @@ export class GeminiClient {
     return this.chat?.getChatRecordingService();
   }
 
-  getLoopDetectionService(): LoopDetectionService {
+  getLoopDetectionService(): ProgressCheckerService {
     return this.loopDetector;
   }
 

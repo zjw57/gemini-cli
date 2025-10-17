@@ -16,7 +16,7 @@ import type {
 import { GeminiEventType } from '../core/turn.js';
 import * as loggers from '../telemetry/loggers.js';
 import { LoopType } from '../telemetry/types.js';
-import { LoopDetectionService } from './loopDetectionService.js';
+import { ProgressCheckerService } from './loopDetectionService.js';
 
 vi.mock('../telemetry/loggers.js', () => ({
   logLoopDetected: vi.fn(),
@@ -28,14 +28,14 @@ const CONTENT_LOOP_THRESHOLD = 10;
 const CONTENT_CHUNK_SIZE = 50;
 
 describe('LoopDetectionService', () => {
-  let service: LoopDetectionService;
+  let service: ProgressCheckerService;
   let mockConfig: Config;
 
   beforeEach(() => {
     mockConfig = {
       getTelemetryEnabled: () => true,
     } as unknown as Config;
-    service = new LoopDetectionService(mockConfig);
+    service = new ProgressCheckerService(mockConfig);
     vi.clearAllMocks();
   });
 
@@ -625,7 +625,7 @@ describe('LoopDetectionService', () => {
 });
 
 describe('LoopDetectionService LLM Checks', () => {
-  let service: LoopDetectionService;
+  let service: ProgressCheckerService;
   let mockConfig: Config;
   let mockGeminiClient: GeminiClient;
   let mockBaseLlmClient: BaseLlmClient;
@@ -647,7 +647,7 @@ describe('LoopDetectionService LLM Checks', () => {
       getTelemetryEnabled: () => true,
     } as unknown as Config;
 
-    service = new LoopDetectionService(mockConfig);
+    service = new ProgressCheckerService(mockConfig);
     abortController = new AbortController();
     vi.clearAllMocks();
   });
