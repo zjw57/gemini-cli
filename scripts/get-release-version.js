@@ -43,7 +43,6 @@ function getArgs() {
       string: true,
       default: '@google/gemini-cli',
     })
-    .option('')
     .option('preview_version_override', {
       description: 'Override the calculated preview version.',
       string: true,
