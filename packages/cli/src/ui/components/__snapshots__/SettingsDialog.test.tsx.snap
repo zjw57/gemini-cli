@@ -24,7 +24,7 @@ exports[`SettingsDialog > Snapshot Tests > should render default state correctly
 │                                                                                                  │
 │ ▼                                                                                                │
 │                                                                                                  │
-│ (Use Enter to select, Tab to configure scope)                                                    │
+│ (Use Enter to select, Tab to configure scope, Esc to close)                                      │
 │                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;
@@ -53,7 +53,7 @@ exports[`SettingsDialog > Snapshot Tests > should render focused on scope select
 │                                                                                                  │
 │ ▼                                                                                                │
 │                                                                                                  │
-│ (Use Enter to select, Tab to configure scope)                                                    │
+│ (Use Enter to select, Tab to configure scope, Esc to close)                                      │
 │                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;
@@ -82,7 +82,7 @@ exports[`SettingsDialog > Snapshot Tests > should render with accessibility sett
 │                                                                                                  │
 │ ▼                                                                                                │
 │                                                                                                  │
-│ (Use Enter to select, Tab to configure scope)                                                    │
+│ (Use Enter to select, Tab to configure scope, Esc to close)                                      │
 │                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;
@@ -111,7 +111,7 @@ exports[`SettingsDialog > Snapshot Tests > should render with all boolean settin
 │                                                                                                  │
 │ ▼                                                                                                │
 │                                                                                                  │
-│ (Use Enter to select, Tab to configure scope)                                                    │
+│ (Use Enter to select, Tab to configure scope, Esc to close)                                      │
 │                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;
@@ -140,7 +140,7 @@ exports[`SettingsDialog > Snapshot Tests > should render with different scope se
 │                                                                                                  │
 │ ▼                                                                                                │
 │                                                                                                  │
-│ (Use Enter to select, Tab to configure scope)                                                    │
+│ (Use Enter to select, Tab to configure scope, Esc to close)                                      │
 │                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;
@@ -169,7 +169,7 @@ exports[`SettingsDialog > Snapshot Tests > should render with different scope se
 │                                                                                                  │
 │ ▼                                                                                                │
 │                                                                                                  │
-│ (Use Enter to select, Tab to configure scope)                                                    │
+│ (Use Enter to select, Tab to configure scope, Esc to close)                                      │
 │                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;
@@ -198,7 +198,7 @@ exports[`SettingsDialog > Snapshot Tests > should render with file filtering set
 │                                                                                                  │
 │ ▼                                                                                                │
 │                                                                                                  │
-│ (Use Enter to select, Tab to configure scope)                                                    │
+│ (Use Enter to select, Tab to configure scope, Esc to close)                                      │
 │                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;
@@ -227,7 +227,7 @@ exports[`SettingsDialog > Snapshot Tests > should render with mixed boolean and 
 │                                                                                                  │
 │ ▼                                                                                                │
 │                                                                                                  │
-│ (Use Enter to select, Tab to configure scope)                                                    │
+│ (Use Enter to select, Tab to configure scope, Esc to close)                                      │
 │                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;
@@ -256,7 +256,7 @@ exports[`SettingsDialog > Snapshot Tests > should render with tools and security
 │                                                                                                  │
 │ ▼                                                                                                │
 │                                                                                                  │
-│ (Use Enter to select, Tab to configure scope)                                                    │
+│ (Use Enter to select, Tab to configure scope, Esc to close)                                      │
 │                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;
@@ -285,7 +285,7 @@ exports[`SettingsDialog > Snapshot Tests > should render with various boolean se
 │                                                                                                  │
 │ ▼                                                                                                │
 │                                                                                                  │
-│ (Use Enter to select, Tab to configure scope)                                                    │
+│ (Use Enter to select, Tab to configure scope, Esc to close)                                      │
 │                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯"
 `;

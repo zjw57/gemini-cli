@@ -1093,7 +1093,7 @@ describe('SettingsDialog', () => {
       expect(lastFrame()).toContain('Apply To'); // Scope section
       expect(lastFrame()).toContain('User Settings'); // Scope options (no numbers when settings focused)
       expect(lastFrame()).toContain(
-        '(Use Enter to apply scope, Tab to select setting)',
+        '(Use Enter to apply scope, Tab to select setting, Esc to close)',
       ); // Help text
 
       // This test validates the complete UI structure is available for user workflow
