@@ -309,8 +309,8 @@ function getStableVersion(args) {
     args,
   });
   let releaseVersion;
-  if (args.stable_version_override) {
-    const overrideVersion = args.stable_version_override.replace(/^v/, '');
+  if (args['stable_version_override']) {
+    const overrideVersion = args['stable_version_override'].replace(/^v/, '');
     validateVersion(overrideVersion, 'X.Y.Z', 'stable_version_override');
     releaseVersion = overrideVersion;
   } else {
@@ -335,8 +335,8 @@ function getPreviewVersion(args) {
     args,
   });
   let releaseVersion;
-  if (args.preview_version_override) {
-    const overrideVersion = args.preview_version_override.replace(/^v/, '');
+  if (args['preview_version_override']) {
+    const overrideVersion = args['preview_version_override'].replace(/^v/, '');
     validateVersion(
       overrideVersion,
       'X.Y.Z-preview.N',
@@ -408,7 +408,7 @@ function getPatchVersion(patchFrom) {
 
 export function getVersion(options = {}) {
   const args = { ...getArgs(), ...options };
-  const type = args.type || TAG_NIGHTLY;
+  const type = args['type']; // Nightly is the default.
 
   let versionData;
   switch (type) {
