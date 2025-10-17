@@ -92,8 +92,22 @@ vi.mock('@google/gemini-cli-core', async () => {
   const actualServer = await vi.importActual<typeof ServerConfig>(
     '@google/gemini-cli-core',
   );
+  const Config = vi.fn();
+  Config.prototype.getShowMemoryUsage = vi.fn();
+  Config.prototype.getProxy = vi.fn();
+  Config.prototype.getTelemetryEnabled = vi.fn();
+  Config.prototype.getTelemetryOtlpEndpoint = vi.fn();
+  Config.prototype.getTelemetryTarget = vi.fn();
+  Config.prototype.getTelemetryLogPromptsEnabled = vi.fn();
+  Config.prototype.getTelemetryOtlpProtocol = vi.fn();
+  Config.prototype.getExcludeTools = vi.fn();
+  Config.prototype.getMcpServers = vi.fn();
+  Config.prototype.getModel = vi.fn();
+  Config.prototype.getOutputFormat = vi.fn();
+
   return {
     ...actualServer,
+    Config,
     IdeClient: {
       getInstance: vi.fn().mockResolvedValue({
         getConnectionStatus: vi.fn(),
@@ -2011,6 +2025,27 @@ describe('loadCliConfig with allowed-mcp-server-names', () => {
       server2: { url: 'http://localhost:8081' },
       server3: { url: 'http://localhost:8082' },
     });
+  });
+
+  it('should pass useModelRouter setting to the server config', async () => {
+    process.argv = ['node', 'script.js'];
+    const argv = await parseArguments({} as Settings);
+    const settings: Settings = {
+      experimental: { useModelRouter: true },
+    };
+    await loadCliConfig(
+      settings,
+      [],
+      new ExtensionEnablementManager(
+        ExtensionStorage.getUserExtensionsDir(),
+        argv.extensions,
+      ),
+      'test-session',
+      argv,
+    );
+    expect(ServerConfig.Config).toHaveBeenCalledWith(
+      expect.objectContaining({ useModelRouter: true }),
+    );
   });
 });
 
