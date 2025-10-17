@@ -677,19 +677,14 @@ export async function loadCliConfig(
 
   const useModelRouter = settings.experimental?.useModelRouter ?? true;
 
-  let resolvedModel: string =
-    argv.model || process.env['GEMINI_MODEL'] || settings.model?.name || ''; // Initialize with empty string to differentiate from actual model names
-
-  if (!resolvedModel) {
-    // No explicit model provided, use default based on router
-    resolvedModel = useModelRouter
-      ? DEFAULT_GEMINI_MODEL_AUTO
-      : DEFAULT_GEMINI_MODEL;
-  } else if (!useModelRouter && resolvedModel === DEFAULT_GEMINI_MODEL_AUTO) {
-    // Router is disabled, but an explicit model was set to DEFAULT_GEMINI_MODEL_AUTO.
-    // In this case, we should default to DEFAULT_GEMINI_MODEL.
-    resolvedModel = DEFAULT_GEMINI_MODEL;
-  }
+  const defaultModel = useModelRouter
+    ? DEFAULT_GEMINI_MODEL_AUTO
+    : DEFAULT_GEMINI_MODEL;
+  const resolvedModel: string =
+    argv.model ||
+    process.env['GEMINI_MODEL'] ||
+    settings.model?.name ||
+    defaultModel;
 
   const sandboxConfig = await loadSandboxConfig(settings, argv);
   const screenReader =
